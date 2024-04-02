@@ -1,0 +1,11 @@
+{
+  "[toml]": {
+    "editor.formatOnSave": false
+  },
+  "typescript.format.enable": true,
+  "javascript.format.enable": true,
+  "html.format.enable": true,
+  "editor.formatOnSave": true,
+  "search.useIgnoreFiles": true,
+  "shellcheck.customArgs": ["-x"],
+}

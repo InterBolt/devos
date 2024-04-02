@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+LIB_SSH_READY=false
+LIB_SSH_RSA_LOCATION=""
+LIB_SSH_REMOTE_IP=""
+
+ssh._require_init() {
+  if [ "$LIB_SSH_READY" == "false" ]; then
+    log.error "ssh.ready has not been called."
+    exit 1
+  fi
+  if [ ! -f "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "rsa file: $LIB_SSH_RSA_LOCATION provided to ssh.ready does not exist."
+    exit 1
+  fi
+  if [ -z "$LIB_SSH_REMOTE_IP" ]; then
+    log.error "ip is not provided to ssh.ready."
+    exit 1
+  fi
+}
+
+ssh.ready() {
+  LIB_SSH_RSA_LOCATION="$1"
+  LIB_SSH_REMOTE_IP="$2"
+  if [ ! -f "$LIB_SSH_RSA_LOCATION" ]; then
+    log.debug "no RSA file supplied to the SSH library. SSH commands will fail."
+    return
+  fi
+  if [ -z "$LIB_SSH_REMOTE_IP" ]; then
+    log.debug "no remote ip supplied to the SSH library. SSH commands will fail."
+    return
+  fi
+  LIB_SSH_READY=true
+  log.debug "devos.ssh - setting rsa location: $LIB_SSH_RSA_LOCATION"
+  log.debug "devos.ssh - setting remote ip: $LIB_SSH_REMOTE_IP"
+  log.debug "devos.ssh - ready"
+}
+ssh.cmd.local() {
+  ssh._require_init
+  local cmd="$1"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  ssh -p 2222 -i "$LIB_SSH_RSA_LOCATION" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@127.0.0.1 "$cmd"
+}
+ssh.cmd.remote() {
+  ssh._require_init
+  local cmd="$1"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  ssh -i "$LIB_SSH_RSA_LOCATION" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"$LIB_SSH_REMOTE_IP" "$cmd"
+}
+ssh.rsync_up.local() {
+  ssh._require_init
+  local source="$1"
+  shift
+  local target="$2"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  rsync --checksum -a -e "ssh -p 2222 -i $LIB_SSH_RSA_LOCATION -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "$source" root@127.0.0.1:"$target"
+}
+ssh.rsync_down.local() {
+  ssh._require_init
+  local source="$1"
+  shift
+  local target="$2"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  rsync --checksum -a -e "ssh -p 2222 -i $LIB_SSH_RSA_LOCATION -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@127.0.0.1:"$target" "$source"
+}
+ssh.rsync_up.remote() {
+  ssh._require_init
+  local source="$1"
+  shift
+  local target="$2"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  rsync --checksum -a -e "ssh -i $LIB_SSH_RSA_LOCATION -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "$source" root@"$LIB_SSH_REMOTE_IP":"$target"
+}
+ssh.rsync_down.remote() {
+  ssh._require_init
+  local source="$1"
+  shift
+  local target="$2"
+  shift
+  if [ -z "$LIB_SSH_RSA_LOCATION" ]; then
+    log.error "LIB_SSH_RSA_LOCATION is not set. Can't do SSH stuff. Exiting."
+    exit 1
+  fi
+  rsync --checksum -a -e "ssh -i $LIB_SSH_RSA_LOCATION -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"$LIB_SSH_REMOTE_IP":"$target" "$source"
+}

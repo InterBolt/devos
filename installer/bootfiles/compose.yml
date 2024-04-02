@@ -1,0 +1,9 @@
+services:
+  local:
+    volumes:
+      - __CONFIG_USER_HOME_DIR__:__CONFIG_TARGET_HOME_DIR__
+    build:
+      context: __CONFIG_TARGET_HOME_DIR__/__STATE_NAME__
+      dockerfile: ./Dockerfile
+    ports:
+      - "2222:22"

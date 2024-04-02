@@ -1,0 +1,1147 @@
+#!/usr/bin/env bash
+
+# shellcheck disable=SC2155
+set -o errexit
+set -o pipefail
+set -o errtrace
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+SELF_DIR="$(pwd)"
+#
+# `dotglob` option ensures that dotfiles and folders are included when using globs.
+# Helpful for looping through files in a directory.
+#
+shopt -s dotglob
+# --------------------------------------------------------------------------------------------
+#
+# RESPONSE/RETURN SLOTS
+#
+# WARNING: THESE VARS ARE IMPLICITLY USED IN LIB SCRIPTS.
+# Never do this with anything else! I'm only ok with it because
+# it's a narrow use case and the libs should always check and throw
+# when things they need don't exist.
+#
+_PREV_CURL=""
+_PREV_RETURN=""
+_PREV_DIR=$PWD
+# --------------------------------------------------------------------------------------------
+#
+# IMMUTABLE GLOBALS (config)
+#
+CONFIG_RESTRICTED_NAMES=(
+  "devos"
+  "bin"
+  ".logs"
+  ".ssh"
+  "workspace"
+)
+CONFIG_REQUIRED_COMMANDS=(
+  "curl"
+  "jq"
+  "openssl"
+  "git"
+  "rsync"
+  "docker"
+  "aws" # TODO: remove and use vultr api instead of cli for s3
+)
+CONFIG_SOFTWARE_NAME="devos"
+CONFIG_USER_HOME_DIR="$HOME/.$CONFIG_SOFTWARE_NAME"
+CONFIG_TARGET_HOME_DIR="/root/.$CONFIG_SOFTWARE_NAME"
+CONFIG_USER_HOME_LOGS_DIR="$CONFIG_USER_HOME_DIR/.logs"
+CONFIG_BOOTSTRAP_SCRIPT_NAME="bootstrap.sh"
+CONFIG_TARGET_CLONE_DIR="/root/$CONFIG_SOFTWARE_NAME"
+CONFIG_TARGET_REMOTE_POSTGRES_BOOTSTRAP_SCRIPT_PATH="installer/start/remote-install-postgres.sh"
+CONFIG_BOOTFILES=(
+  "remote.code-workspace"
+  "local.code-workspace"
+  "launch.sh"
+  "compose.yml"
+  "Dockerfile"
+  "$CONFIG_BOOTSTRAP_SCRIPT_NAME"
+)
+CONFIG_VULTR_INSTANCE_DEFAULTS=(
+  "voc-c-2c-4gb-50s-amd"
+  "ewr"
+  2136
+)
+CONFIG_VULTR_API_URL="https://api.vultr.com/v2"
+CONFIG_S3_BUCKETS=(
+  "postgres"
+)
+CONFIG_S3_LABEL_PREFIX="$CONFIG_SOFTWARE_NAME-"
+CONFIG_BIN_LIB_DIR="$SELF_DIR"
+# --------------------------------------------------------------------------------------------
+#
+# STATUSES:
+#
+# These are used to keep track of various statuses, like "did the bootstrap complete"
+#
+STATUS_BOOTSTRAPPED_POSTGRES="bootstrapped-remote-postgres"
+STATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
+STATUS_BOOTSTRAPPED_LOCAL="bootstrapped-local"
+STATUS_LAUNCH_SUCCEEDED="successful-run"
+# --------------------------------------------------------------------------------------------
+#
+# Initialize the main directory, log directory, and mark logs as ready.
+#
+mkdir -p "$CONFIG_USER_HOME_DIR"
+mkdir -p "$CONFIG_USER_HOME_LOGS_DIR"
+# shellcheck source=shared.log.sh
+source "shared.log.sh"
+log.ready "cli" "$CONFIG_USER_HOME_LOGS_DIR" "${DEBUG_LEVEL:-0}"
+# --------------------------------------------------------------------------------------------
+#
+# SOURCE SCRIPTS
+#
+# Think of these like libraries.
+# These scripts must not rely on config or state variables.
+# If they do, they must be passed in as arguments to a lib.ready() function.
+# CD into the lib directory so that we can source the scripts correctly AND
+# so that they can source one another as needed.
+#
+_PREV_DIR=$PWD
+cd "$CONFIG_BIN_LIB_DIR"
+#
+# shellcheck source=devos.flags
+source "devos.flags"
+# shellcheck source=devos.utils
+source "devos.utils"
+# shellcheck source=devos.cache
+source "devos.cache"
+# shellcheck source=devos.status
+source "devos.status"
+# shellcheck source=devos.ssh
+source "devos.ssh"
+#
+# Return to the previous directory.
+#
+cd "$_PREV_DIR"
+_PREV_DIR=$PWD
+#
+# --------------------------------------------------------------------------------------------
+#
+# OPTIONS DERIVED FROM THE CLI
+#
+OPT_HARD_RESET=false
+OPT_CLEAR_CACHE=false
+OPT_TAG=""
+# --------------------------------------------------------------------------------------------
+#
+# MUTABLE GLOBALS (state)
+#
+STATE_SUPPLIED_OPENAI_API_KEY=""
+STATE_SUPPLIED_VULTR_API_KEY=""
+STATE_SUPPLIED_CLOUDFLARE_API_TOKEN=""
+STATE_SUPPLIED_GITHUB_TOKEN=""
+STATE_SOURCE_DIR=""
+STATE_SOURCE_WORKSPACE=""
+STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE=""
+STATE_SOURCE_SSH_DIR=""
+STATE_SOURCE_ENV_FILE=""
+STATE_SOURCE_SSH_PUB_KEY=""
+STATE_SOURCE_SSH_CONFIG_LOCATION=""
+STATE_SOURCE_SSH_RSA_LOCATION=""
+STATE_SOURCE_SSH_PUB_LOCATION=""
+STATE_SOURCE_SSH_AUTHORIZED_KEYS=""
+STATE_TARGET_SOURCE_DIR=""
+STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION=""
+STATE_IP_OLD=""
+STATE_IP_ACTIVE=""
+STATE_VULTR_S3_HOST=""
+STATE_VULTR_S3_OBJECT_STORE=""
+STATE_VULTR_S3_ACCESS_KEY=""
+STATE_VULTR_S3_SECRET=""
+STATE_GITHUB_USERNAME=""
+STATE_GITHUB_EMAIL=""
+STATE_CAPROVER_PASSWORD=""
+STATE_POSTGRES_PASSWORD=""
+STATE_NAME=""
+STATE_CMD=""
+STATE_UPDATE_COMMIT="main"
+#
+# The script below assumes the .devos directory as the working dir.
+#
+cd "$CONFIG_USER_HOME_DIR"
+# --------------------------------------------------------------------------------------------
+#
+# TRAPPING LOGIC
+#
+# This is where we set up the error trapping logic.
+# When I first created this all it did was log global variables.
+#
+if ! declare -f utils.exit_trap >/dev/null; then
+  log.error "utils.exit_trap is not a defined function. Exiting."
+  exit 1
+fi
+trap "utils.exit_trap" EXIT
+# --------------------------------------------------------------------------------------------
+#
+# STATE GETTERS/SETTERS
+#
+# These functions are used to operate on global state.
+# EX: if we decide we need some value to persist between runs, we can
+# easily modify the getter/setter implentation to use a file as a cache
+#
+state.set.old_ip() {
+  STATE_IP_OLD="$1"
+  log.debug "set \$STATE_IP_OLD= $STATE_IP_OLD"
+  cache.set "STATE_IP_OLD" "$STATE_IP_OLD"
+}
+state.set.active_ip() {
+  STATE_IP_ACTIVE="$1"
+  log.debug "set \$STATE_IP_ACTIVE= $STATE_IP_ACTIVE"
+  #
+  # Our SSH library will need to overwrite the old IP with the new one.
+  # note: all lib.ready functions are idempotent.
+  #
+  ssh.ready "$STATE_SOURCE_SSH_RSA_LOCATION" "$STATE_IP_ACTIVE"
+}
+state.set.flags() {
+  STATE_CMD="${SOURCED_PARSED_CMD}"
+  if [ -z "$STATE_CMD" ]; then
+    log.error "No command supplied. Please supply a command."
+    exit 1
+  fi
+  for i in "${!SOURCED_PARSED_CMD_OPTIONS[@]}"; do
+    case "${SOURCED_PARSED_CMD_OPTIONS[$i]}" in
+    "--hard-reset")
+      OPT_HARD_RESET=true
+      ;;
+    --tag=*)
+      val="${SOURCED_PARSED_CMD_OPTIONS[$i]#*=}"
+      if [ -n "$val" ]; then
+        OPT_TAG="$val"
+      fi
+      ;;
+    "--clear-cache")
+      OPT_CLEAR_CACHE=true
+      ;;
+    esac
+  done
+  if [ "$STATE_CMD" == "code" ]; then
+    STATE_NAME="${SOURCED_PARSED_CMD_ARG}"
+  fi
+  if [ "$STATE_CMD" == "launch" ]; then
+    STATE_NAME="${SOURCED_PARSED_CMD_ARG}"
+  fi
+  if [ "$STATE_CMD" == "backup" ]; then
+    STATE_NAME="${SOURCED_PARSED_CMD_ARG}"
+  fi
+  if [ "$STATE_CMD" == "restore" ]; then
+    STATE_NAME="${SOURCED_PARSED_CMD_ARG}"
+  fi
+  if [ "$STATE_CMD" == "update" ]; then
+    STATE_UPDATE_COMMIT="${SOURCED_PARSED_CMD_ARG}"
+  fi
+}
+state.set.init() {
+  #
+  # This sets all the variables that require the installation name.
+  #
+  local name="$1"
+  if [ -z "$name" ]; then
+    return
+  fi
+  #
+  # This isn't the cleanest, but let's prevent names that will
+  # built in stuff like directory names.
+  #
+  for i in "${!CONFIG_RESTRICTED_NAMES[@]}"; do
+    if [ "$name" == "${CONFIG_RESTRICTED_NAMES[$i]}" ]; then
+      log.error "The name: $name is restricted. Exiting."
+      exit 1
+    fi
+  done
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_DIR="$CONFIG_USER_HOME_DIR/$name"
+  log.debug "set \$STATE_SOURCE_DIR= $STATE_SOURCE_DIR"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_WORKSPACE="$STATE_SOURCE_DIR/workspace"
+  log.debug "set \$STATE_SOURCE_WORKSPACE= $STATE_SOURCE_WORKSPACE"
+  # -------------------------------------------------------------------------------------------------
+  cache.get "STATE_IP_OLD"
+  STATE_IP_OLD="$_PREV_RETURN"
+  log.debug "set \$STATE_IP_OLD= $STATE_IP_OLD"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE="$STATE_SOURCE_DIR/.secret.database.json"
+  log.debug "set \$STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE= $STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_SSH_DIR="$STATE_SOURCE_DIR/.ssh"
+  log.debug "set \$STATE_SOURCE_SSH_DIR= $STATE_SOURCE_SSH_DIR"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_ENV_FILE="$STATE_SOURCE_DIR/.env"
+  log.debug "set \$STATE_SOURCE_ENV_FILE= $STATE_SOURCE_ENV_FILE"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_SSH_CONFIG_LOCATION="$STATE_SOURCE_SSH_DIR/devos_config"
+  log.debug "set \$STATE_SOURCE_SSH_CONFIG_LOCATION= $STATE_SOURCE_SSH_CONFIG_LOCATION"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_SSH_RSA_LOCATION="$STATE_SOURCE_SSH_DIR/devos"
+  log.debug "set \$STATE_SOURCE_SSH_RSA_LOCATION= $STATE_SOURCE_SSH_RSA_LOCATION"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_SSH_PUB_LOCATION="$STATE_SOURCE_SSH_DIR/devos.pub"
+  log.debug "set \$STATE_SOURCE_SSH_PUB_LOCATION= $STATE_SOURCE_SSH_PUB_LOCATION"
+  # -------------------------------------------------------------------------------------------------
+  STATE_SOURCE_SSH_AUTHORIZED_KEYS="$STATE_SOURCE_SSH_DIR/authorized_keys"
+  log.debug "set \$STATE_SOURCE_SSH_AUTHORIZED_KEYS= $STATE_SOURCE_SSH_AUTHORIZED_KEYS"
+  # -------------------------------------------------------------------------------------------------
+  if [ -f "$STATE_SOURCE_SSH_PUB_LOCATION" ]; then
+    STATE_SOURCE_SSH_PUB_KEY="$(cat "$STATE_SOURCE_SSH_PUB_LOCATION")"
+    log.debug "set \$STATE_SOURCE_SSH_PUB_KEY= $STATE_SOURCE_SSH_PUB_KEY"
+  else
+    STATE_SOURCE_SSH_PUB_KEY=""
+    log.debug "set \$STATE_SOURCE_SSH_PUB_KEY= "
+  fi
+  # -------------------------------------------------------------------------------------------------
+  STATE_TARGET_SOURCE_DIR="$CONFIG_TARGET_HOME_DIR/$name"
+  log.debug "set \$STATE_TARGET_SOURCE_DIR= $STATE_TARGET_SOURCE_DIR"
+  # -------------------------------------------------------------------------------------------------
+  STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION="$STATE_TARGET_SOURCE_DIR/$CONFIG_BOOTSTRAP_SCRIPT_NAME"
+  log.debug "set \$STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION= $STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION"
+}
+state.set.prompt_secrets() {
+  local expects_these_things=(
+    "STATE_SUPPLIED_GITHUB_TOKEN"
+    "STATE_SUPPLIED_OPENAI_API_KEY"
+    "STATE_SUPPLIED_VULTR_API_KEY"
+    "STATE_SUPPLIED_CLOUDFLARE_API_TOKEN"
+  )
+  # ------------------------------------------------------------------------------------------------------------
+  cache.prompt "STATE_SUPPLIED_GITHUB_TOKEN"
+  STATE_SUPPLIED_GITHUB_TOKEN="$_PREV_RETURN"
+  log.debug "set \$STATE_SUPPLIED_GITHUB_TOKEN= $STATE_SUPPLIED_GITHUB_TOKEN"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.prompt "STATE_SUPPLIED_OPENAI_API_KEY"
+  STATE_SUPPLIED_OPENAI_API_KEY="$_PREV_RETURN"
+  log.debug "set \$STATE_SUPPLIED_OPENAI_API_KEY= $STATE_SUPPLIED_OPENAI_API_KEY"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.prompt "STATE_SUPPLIED_VULTR_API_KEY"
+  STATE_SUPPLIED_VULTR_API_KEY="$_PREV_RETURN"
+  log.debug "set \$STATE_SUPPLIED_VULTR_API_KEY= $STATE_SUPPLIED_VULTR_API_KEY"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.prompt "STATE_SUPPLIED_CLOUDFLARE_API_TOKEN"
+  STATE_SUPPLIED_CLOUDFLARE_API_TOKEN="$_PREV_RETURN"
+  log.debug "set \$STATE_SUPPLIED_CLOUDFLARE_API_TOKEN= $STATE_SUPPLIED_CLOUDFLARE_API_TOKEN"
+  # ------------------------------------------------------------------------------------------------------------
+  for i in "${!expects_these_things[@]}"; do
+    if [ -z "${!expects_these_things[$i]}" ]; then
+      log.error "${expects_these_things[$i]} is empty. Exiting."
+      exit 1
+    fi
+  done
+}
+state.set.generate_secrets() {
+  local expects_these_things=(
+    "STATE_CAPROVER_PASSWORD"
+    "STATE_POSTGRES_PASSWORD"
+    "STATE_GITHUB_USERNAME"
+    "STATE_GITHUB_EMAIL"
+  )
+  # ------------------------------------------------------------------------------------------------------------
+  cache.overwrite_on_empty "STATE_CAPROVER_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)"
+  STATE_CAPROVER_PASSWORD="$_PREV_RETURN"
+  log.debug "set \$STATE_CAPROVER_PASSWORD= $STATE_CAPROVER_PASSWORD"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.overwrite_on_empty "STATE_POSTGRES_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)"
+  STATE_POSTGRES_PASSWORD="$_PREV_RETURN"
+  log.debug "set \$STATE_POSTGRES_PASSWORD= $STATE_POSTGRES_PASSWORD"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.overwrite_on_empty "STATE_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)"
+  STATE_GITHUB_USERNAME="$_PREV_RETURN"
+  log.debug "set \$STATE_GITHUB_USERNAME= $STATE_GITHUB_USERNAME"
+  # ------------------------------------------------------------------------------------------------------------
+  cache.overwrite_on_empty "STATE_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)"
+  STATE_GITHUB_EMAIL="$_PREV_RETURN"
+  log.debug "set \$STATE_GITHUB_EMAIL= $STATE_GITHUB_EMAIL"
+  for i in "${!expects_these_things[@]}"; do
+    if [ -z "${!expects_these_things[$i]}" ]; then
+      log.error "${expects_these_things[$i]} is empty. Exiting."
+      exit 1
+    fi
+  done
+}
+state.set.target_dirs() {
+  STATE_TARGET_SOURCE_DIR="$CONFIG_TARGET_HOME_DIR/$STATE_NAME"
+  log.debug "set \$STATE_TARGET_SOURCE_DIR= $STATE_TARGET_SOURCE_DIR"
+  STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION="$STATE_TARGET_SOURCE_DIR/$CONFIG_BOOTSTRAP_SCRIPT_NAME"
+  log.debug "set \$STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION= $STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION"
+}
+state.set.public_key() {
+  if [ ! -f "$STATE_SOURCE_SSH_PUB_LOCATION" ]; then
+    STATE_SOURCE_SSH_PUB_KEY=""
+    return
+  fi
+  STATE_SOURCE_SSH_PUB_KEY="$(cat "$STATE_SOURCE_SSH_PUB_LOCATION")"
+  log.debug "set \$STATE_SOURCE_SSH_PUB_KEY= ..."
+}
+state.set.vultr_s3_credentials() {
+  STATE_VULTR_S3_HOST="$1"
+  log.debug "set \$STATE_VULTR_S3_HOST= $STATE_VULTR_S3_HOST"
+  STATE_VULTR_S3_ACCESS_KEY="$2"
+  log.debug "set \$STATE_VULTR_S3_ACCESS_KEY= $STATE_VULTR_S3_ACCESS_KEY"
+  STATE_VULTR_S3_SECRET="$3"
+  log.debug "set \$STATE_VULTR_S3_SECRET= $STATE_VULTR_S3_SECRET"
+  STATE_VULTR_S3_OBJECT_STORE="$4"
+  log.debug "set \$STATE_VULTR_S3_OBJECT_STORE= $STATE_VULTR_S3_OBJECT_STORE"
+}
+state.exports.aws_credentials() {
+  export AWS_ACCESS_KEY_ID=$STATE_VULTR_S3_ACCESS_KEY
+  export AWS_SECRET_ACCESS_KEY=$STATE_VULTR_S3_SECRET
+  export AWS_ENDPOINT_URL="https://$STATE_VULTR_S3_HOST"
+}
+# --------------------------------------------------------------------------------------------
+#
+# STATUS FUNCTIONS:
+# These keep track of various statuses, like "did the bootstrap complete"
+# "Did rsync work?", "Did the secondary postgres bootstrap script run?", etc
+# Makes idempotent logic easier.
+#
+# Reusable status strings
+#
+STATUS_BOOTSTRAPPED_POSTGRES="bootstrapped-remote-postgres"
+STATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
+STATUS_BOOTSTRAPPED_LOCAL="bootstrapped-local"
+STATUS_LAUNCH_SUCCEEDED="successful-run"
+# --------------------------------------------------------------------------------------------
+#
+# VULTR FUNCTIONS
+#
+vultr.compute.instance_contains_tag() {
+  #
+  # This function is useful for checking if an instance has the matching
+  # SSH tag. Might use it for other tags in the future.
+  #
+  local tag="$1"
+  local instance_id="$2"
+  local tags
+  local found=false
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/instances/${instance_id}" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  tags=$(jq -r '.instance.tags' <<<"$_PREV_CURL")
+  for i in "${!tags[@]}"; do
+    if [ "${tags[$i]}" == "${tag}" ]; then
+      found=true
+    fi
+  done
+  echo "$found"
+}
+vultr.compute.destroy_instance() {
+  local instance_id="$1"
+  if [ -z "${instance_id}" ]; then
+    log.error "you supplied an empty instance id as the first argument to vultr.compute.destroy_instance"
+    exit 1
+  fi
+  curl "$CONFIG_VULTR_API_URL/instances/$instance_id" \
+    -X DELETE \
+    -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+}
+vultr.compute.create_instance() {
+  local plan="$1"
+  local region="$2"
+  local os_id="$3"
+  local label="$4"
+  local sshkey_id="$5"
+  local ip
+  local instance_id
+  #
+  # This function will launch an instance on vultr with the params supplied
+  # and return the ip and instance id seperated by a space.
+  # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
+  #
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/instances" \
+      -X POST \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}" \
+      -H "Content-Type: application/json" \
+      --data '{
+      "region" : "'"${region}"'",
+      "plan" : "'"${plan}"'",
+      "label" : "'"${label}"'",
+      "os_id" : '"${os_id}"',
+      "backups" : "disabled",
+      "tags": [
+        "source_devos"
+        "'"ssh_${sshkey_id}"'"
+      ],
+      "sshkey_id": [
+        "'"${sshkey_id}"'"
+      ]
+    }'
+  )
+  ip="$(jq -r '.instance.task_ip' <<<"$_PREV_CURL")"
+  instance_id="$(jq -r '.instance.id' <<<"$_PREV_CURL")"
+  echo "$ip $instance_id"
+}
+vultr.compute.get_instance_id_from_ip() {
+  local ip="$1"
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/instances?task_ip=${ip}" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  jq -r '.instances[0].id' <<<"$_PREV_CURL"
+}
+vultr.compute.find_existing_sshkey_id() {
+  local found_ssh_keys
+  local found_ssh_key_names
+  local match_exists=false
+  local matching_ssh_key_found=false
+  local matching_ssh_key_name_found=false
+  local matching_sshkey_id=""
+  #
+  # This function will loop through the existing ssh keys on vultr
+  # and ask, "is the name and public key the same as the one we have?"
+  # If so, we echo the ssh key id and exit. We'll echo an empty
+  # string if the key doesn't exist.
+  #
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/ssh-keys" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$_PREV_CURL")
+  found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$_PREV_CURL")
+  found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"$_PREV_CURL")
+  for i in "${!found_ssh_keys[@]}"; do
+    if [ "$CONFIG_SOFTWARE_NAME-$STATE_NAME" == "${found_ssh_key_names[$i]}" ]; then
+      matching_ssh_key_name_found=true
+    fi
+    if [ "$STATE_SOURCE_SSH_PUB_KEY" == "${found_ssh_keys[$i]}" ]; then
+      matching_ssh_key_found=true
+    fi
+    if [ "$matching_ssh_key_found" == true ] && [ "$matching_ssh_key_name_found" == true ]; then
+      match_exists=true
+      matching_sshkey_id="${found_sshkey_ids[$i]}"
+      break
+    fi
+  done
+  #
+  # Catch conflicts where a matching ssh key exists, but it's name is different.
+  # Or where a matching ssh key name exists, but it's public key contents are different.
+  # Note: technically we could just say "if match_exists=false" error and exit.
+  # But the extra info is nice for debugging.
+  #
+  if [ "$match_exists" == false ] && [ "$matching_ssh_key_found" == true ]; then
+    log.error "a conflict was found where a matching ssh key exists, but it's name is different."
+    for i in "${!found_ssh_keys[@]}"; do
+      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
+    done
+    exit 1
+  fi
+  if [ "$match_exists" == false ] && [ "$matching_ssh_key_name_found" == true ]; then
+    log.error "a conflict was found where a matching ssh key name exists, but it's public key contents are different."
+    for i in "${!found_ssh_keys[@]}"; do
+      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
+    done
+    exit 1
+  fi
+  if [ -n "${matching_sshkey_id}" ]; then
+    echo "${matching_sshkey_id}"
+  else
+    echo ""
+  fi
+}
+vultr.compute.wait_for_ready_instance() {
+  local instance_id="$1"
+  local expected_status="active"
+  local expected_server_status="ok"
+  local max_retries=30
+  local queried_status=""
+  local queried_server_status=""
+  while true; do
+    if [ "${max_retries}" -eq 0 ]; then
+      log.error "instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
+      exit 1
+    fi
+    log.warn "pinging the instance: ${instance_id} to check if it has reached the expected server status: ${expected_status}"
+    _PREV_CURL=$(
+      curl "$CONFIG_VULTR_API_URL/instances/${instance_id}" \
+        -X GET \
+        -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+    )
+    queried_server_status="$(jq -r '.instance.server_status' <<<"$_PREV_CURL")"
+    queried_status="$(jq -r '.instance.status' <<<"$_PREV_CURL")"
+    if [ "$queried_server_status" == "${expected_server_status}" ] && [ "$queried_status" == "${expected_status}" ]; then
+      break
+    fi
+    max_retries=$((max_retries - 1))
+    log.warn "waiting for 10 seconds before retrying."
+    sleep 10
+  done
+  log.info "instance: ${instance_id} has reached the expected server status: ${expected_server_status} and status: ${expected_status}"
+}
+vultr.compute.provision() {
+  local prev_ip="$1"
+  local instance_id
+  local created_sshkey_id
+  local found_valid_sshkey_id
+  local launch_response
+  #
+  # In the ssh key setup below, we acquired a keypair, and now
+  # we need to ask, "is this keypair on vultr?".
+  # If it's not, we must create it.
+  #
+  found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
+  if [ -z "${found_valid_sshkey_id}" ]; then
+    _PREV_CURL=$(
+      curl "$CONFIG_VULTR_API_URL/ssh-keys" \
+        -X POST \
+        -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}" \
+        -H "Content-Type: application/json" \
+        --data '{
+          "name" : "'"${CONFIG_SOFTWARE_NAME}-${STATE_NAME}"'",
+          "ssh_key" : "'"${STATE_SOURCE_SSH_PUB_KEY}"'"
+        }'
+    )
+    created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$_PREV_CURL")"
+  else
+    created_sshkey_id="${found_valid_sshkey_id}"
+  fi
+  #
+  # When no ip exists:
+  # Go ahead and create a new instance and set the ip to the new instance.
+  #
+  # When a ip DOES exist:
+  # We should assume that an instance exists and throw if not.
+  # If an instance does exist, we should check it's tags (vultr doesn't have an sshkey_id field on the get instance response)
+  # to see if it has the correct ssh key. If it doesn't, we delete the instance and create a new one.
+  # Otherwise, we can skip the provisioning process and move on to the next cmd.
+  #
+  if [ -z "${prev_ip}" ]; then
+    launch_response="$(vultr.compute.create_instance "${CONFIG_VULTR_INSTANCE_DEFAULTS[0]}" "${CONFIG_VULTR_INSTANCE_DEFAULTS[1]}" "${CONFIG_VULTR_INSTANCE_DEFAULTS[2]}" "${STATE_NAME}" "${created_sshkey_id}")"
+    state.set.active_ip "$(cut -d' ' -f1 <<<"$launch_response")"
+    instance_id="$(cut -d' ' -f2 <<<"$launch_response")"
+    log.info "waiting for the instance with id:${instance_id} and ip:${STATE_IP_ACTIVE} to be ready."
+    vultr.compute.wait_for_ready_instance "$instance_id"
+  else
+    instance_id="$(vultr.compute.get_instance_id_from_ip "${prev_ip}")"
+    if [ -z "${instance_id}" ]; then
+      log.error "no instance found with the ip: ${prev_ip}. suggestion: consider starting over by running this script with the --hard-reset flag."
+      exit 1
+    fi
+    log.info "looking for a tag that tells us if the instance has a matching ssh key."
+    ssh_tag_exists="$(vultr.compute.instance_contains_tag "ssh_${created_sshkey_id}" "$instance_id")"
+    if [ "${ssh_tag_exists}" == "true" ]; then
+      log.info "found matching instance tag: ssh_${created_sshkey_id}"
+      log.info "nothing to do. the instance is already provisioned."
+      state.set.active_ip "${prev_ip}"
+      return
+    fi
+    log.warn "warning: waiting 5 seconds to begin the re-installation process."
+    sleep 5
+    log.info "deleting instance: ${instance_id}"
+    vultr.compute.destroy_instance "$instance_id"
+    log.info "creating an instance with the new ssh key and the following configurations"
+    log.info "instance.plan: ${CONFIG_VULTR_INSTANCE_DEFAULTS[0]}"
+    log.info "instance.region: ${CONFIG_VULTR_INSTANCE_DEFAULTS[1]}"
+    log.info "instance.os_id: ${CONFIG_VULTR_INSTANCE_DEFAULTS[2]}"
+    log.info "instance.label: ${STATE_NAME}"
+    log.info "instance.sshkey_id: ${created_sshkey_id}"
+    launch_response="$(vultr.compute.create_instance "${CONFIG_VULTR_INSTANCE_DEFAULTS[0]}" "${CONFIG_VULTR_INSTANCE_DEFAULTS[1]}" "${CONFIG_VULTR_INSTANCE_DEFAULTS[2]}" "${STATE_NAME}" "${created_sshkey_id}")"
+    state.set.active_ip "$(cut -d' ' -f1 <<<"$launch_response")"
+    instance_id="$(cut -d' ' -f2 <<<"$launch_response")"
+    log.info "waiting for the instance with id:${instance_id} and ip:${STATE_IP_ACTIVE} to be ready."
+    vultr.compute.wait_for_ready_instance "$instance_id"
+  fi
+  if [ -z "${STATE_IP_ACTIVE}" ]; then
+    log.error "something unexpected happened. no ip address was produced after the re-installation."
+    exit 1
+  fi
+}
+vultr.s3.bucket_exists() {
+  local bucket="$1"
+  exists=false
+  error=""
+  {
+    bucketstatus=$(aws s3api head-bucket --bucket "$bucket" 2>&1)
+    if echo "${bucketstatus}" | grep 'Not Found'; then
+      exists=false
+    elif echo "${bucketstatus}" | grep 'Forbidden'; then
+      exists=true
+      error="Bucket exists but not owned by you"
+    elif echo "${bucketstatus}" | grep 'Bad Request'; then
+      exists=true
+      error="Bucket name specified is less than 3 or greater than 63 characters"
+    else
+      exists=true
+      error=""
+    fi
+  } >/dev/null
+  if [ "$error" != "" ]; then
+    echo "Error occurred while checking bucket status: $error"
+    exit 1
+  fi
+  echo "$exists"
+}
+vultr.s3.create_bucket() {
+  local bucket="$1"
+  aws --region "us-east-1" s3 mb s3://"$bucket" >/dev/null
+}
+vultr.s3.get_object_storage_id() {
+  local label="$1"
+  local object_storage_id=""
+  local object_storage_ids
+  local object_storage_labels
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/object-storage" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  object_storage_labels=$(jq -r '.object_storages[].label' <<<"$_PREV_CURL")
+  object_storage_ids=$(jq -r '.object_storages[].id' <<<"$_PREV_CURL")
+  for i in "${!object_storage_labels[@]}"; do
+    if [ "${object_storage_labels[$i]}" == "${label}" ]; then
+      object_storage_id="${object_storage_ids[$i]}"
+      break
+    fi
+  done
+  echo "$object_storage_id"
+}
+vultr.s3.get_ewr_cluster_id() {
+  local cluster_id=""
+  local cluster_ids
+  local cluster_regions
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/object-storage/clusters" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  cluster_ids=$(jq -r '.clusters[].id' <<<"$_PREV_CURL")
+  cluster_regions=$(jq -r '.clusters[].region' <<<"$_PREV_CURL")
+  for i in "${!cluster_regions[@]}"; do
+    if [ "${cluster_regions[$i]}" == "ewr" ]; then
+      cluster_id="${cluster_ids[$i]}"
+      break
+    fi
+  done
+  echo "$cluster_id"
+}
+vultr.s3.create_storage() {
+  local cluster_id="$1"
+  local label="$2"
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/object-storage" \
+      -X POST \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}" \
+      -H "Content-Type: application/json" \
+      --data '{
+        "label" : "'"${label}"'",
+        "cluster_id" : '"${cluster_id}"'
+      }'
+  )
+  jq -r '.object_storage.id' <<<"$_PREV_CURL"
+}
+vultr.s3.provision() {
+  local object_storage_id=""
+  local label="${CONFIG_S3_LABEL_PREFIX}${STATE_NAME}"
+  local loop_bucket
+  local loop_bucket_exists
+  local cluster_id
+  object_storage_id="$(vultr.s3.get_object_storage_id "${label}")"
+  if [ -z "${object_storage_id}" ]; then
+    log.info "no object storage found with the label: ${label}. creating a new one."
+    cluster_id="$(vultr.s3.get_ewr_cluster_id)"
+    log.info "using the ewr cluster id: ${cluster_id}"
+    object_storage_id="$(vultr.s3.create_storage "${cluster_id}" "${label}")"
+    log.info "created object storage with the id: ${object_storage_id}"
+  else
+    log.info "found object storage with the label: ${label} and id: ${object_storage_id}"
+  fi
+  _PREV_CURL=$(
+    curl "$CONFIG_VULTR_API_URL/object-storage/$object_storage_id" \
+      -X GET \
+      -H "Authorization: Bearer ${STATE_SUPPLIED_VULTR_API_KEY}"
+  )
+  state.set.vultr_s3_credentials \
+    "$(jq -r '.object_storage.s3_hostname' <<<"$_PREV_CURL")" \
+    "$(jq -r '.object_storage.s3_access_key' <<<"$_PREV_CURL")" \
+    "$(jq -r '.object_storage.s3_secret_key' <<<"$_PREV_CURL")" \
+    "$(jq -r '.object_storage.label' <<<"$_PREV_CURL")"
+  state.exports.aws_credentials
+  log.info "setting up the following buckets: ${CONFIG_S3_BUCKETS[*]}"
+  for loop_bucket in "${CONFIG_S3_BUCKETS[@]}"; do
+    loop_bucket_exists="$(vultr.s3.bucket_exists "${loop_bucket}")"
+    if [ "$loop_bucket_exists" == false ]; then
+      vultr.s3.create_bucket "${loop_bucket}"
+      log.info "created bucket ${loop_bucket} for object storage ${label}"
+    else
+      log.warn "bucket ${loop_bucket} already exists at object storage ${label}"
+    fi
+  done
+}
+# --------------------------------------------------------------------------------------------
+#
+# COMMAND ENTRY FUNCTIONS
+#
+cmd.launch() {
+  #
+  # Loops through a bunch of commands we know we'll need so the
+  # user can install them before running the script.
+  #
+  for cmd in "${CONFIG_REQUIRED_COMMANDS[@]}"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      log.error "pre-check failed. Install \"$cmd\" to your path and try again."
+      exit 1
+    fi
+  done
+  #
+  # note: remember, the old ip is still accessible after wiping this dir
+  # because we cached it in `state.set.init`
+  #
+  if [ "$OPT_HARD_RESET" == true ]; then
+    rm -rf "$STATE_SOURCE_DIR"
+    mkdir -p "$STATE_SOURCE_DIR"
+    log.warn "wiped and created empty dir: $STATE_SOURCE_DIR"
+  fi
+  #
+  # I might regret this but warn only.
+  # Full idempotency is worth it.
+  #
+  last_successful_run="$(status.get "$STATUS_LAUNCH_SUCCEEDED")"
+  if [ -n "$last_successful_run" ]; then
+    log.warn "the last successful run was at: $last_successful_run"
+  fi
+  #
+  # Prompt the users for any secrets or api keys we might need.
+  #
+  state.set.prompt_secrets
+  #
+  # Generate things like the caprover and postgres passwords.
+  # This is careful to re-use the same password if it already exists
+  # from a previous run.
+  #
+  state.set.generate_secrets
+  #
+  # Check that the files we'll need later in the script are accessible.
+  #
+  for file in "${CONFIG_BOOTFILES[@]}"; do
+    wget --quiet --header 'Authorization: token '"$STATE_SUPPLIED_GITHUB_TOKEN"'' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bootfiles/$file" -O -
+    log.info "verified $file exists."
+  done
+  #
+  # Do the same check for the postgres bootstrap script.
+  #
+  wget --quiet --header 'Authorization: token '"$STATE_SUPPLIED_GITHUB_TOKEN"'' "https://raw.githubusercontent.com/InterBolt/devos/main/$CONFIG_TARGET_REMOTE_POSTGRES_BOOTSTRAP_SCRIPT_PATH" -O -
+  log.info "verified $CONFIG_TARGET_REMOTE_POSTGRES_BOOTSTRAP_SCRIPT_PATH exists."
+  #
+  # Wipe the env file in the strange case where it already exists.
+  #
+  rm -f "$STATE_SOURCE_ENV_FILE"
+  {
+    #
+    # Anything that we might need to inject later
+    # via our templating util function should be declared
+    # here with a placeholder. Placeholders are in the form
+    # of __STATE_VARIABLE_NAME__.
+    #
+    echo "ip=__STATE_IP_ACTIVE__"
+    echo "vultr_s3_host=__STATE_VULTR_S3_HOST__"
+    echo "vultr_s3_secret=__STATE_VULTR_S3_SECRET__"
+    echo "vultr_s3_access=__STATE_VULTR_S3_ACCESS__"
+    echo "vultr_s3_object_store=__STATE_VULTR_S3_OBJECT_STORE__"
+    echo "name=__STATE_NAME__"
+    echo "workspace_dir=__STATE_SOURCE_WORKSPACE__"
+    echo "github_username=$STATE_GITHUB_USERNAME"
+    echo "github_email=$STATE_GITHUB_EMAIL"
+    echo "github_token=$STATE_SUPPLIED_GITHUB_TOKEN"
+    echo "openai_api_key=$STATE_SUPPLIED_OPENAI_API_KEY"
+    echo "vultr_api_key=$STATE_SUPPLIED_VULTR_API_KEY"
+    echo "cloudflare_api_token=$STATE_SUPPLIED_CLOUDFLARE_API_TOKEN"
+    echo "caprover_password=$STATE_CAPROVER_PASSWORD"
+    echo "postgres_password=$STATE_POSTGRES_PASSWORD"
+  } >>"$STATE_SOURCE_ENV_FILE"
+  #
+  # As a general rule, when bad variables are found in a file,
+  # we should remove the file and exit.
+  #
+  if ! utils.template_variables "$STATE_SOURCE_ENV_FILE" "dry" 2>&1; then
+    log.warn "removing: $STATE_SOURCE_ENV_FILE"
+    rm -f "$STATE_SOURCE_ENV_FILE"
+    exit 1
+  fi
+  log.info "saved secrets at: $STATE_SOURCE_ENV_FILE"
+  #
+  # Actually download the files this time.
+  #
+  for file in "${CONFIG_BOOTFILES[@]}"; do
+    rm -f "$STATE_SOURCE_DIR/$file"
+    wget --quiet --header 'Authorization: token '"$STATE_SUPPLIED_GITHUB_TOKEN"'' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bootfiles/$file" -O "$STATE_SOURCE_DIR/$file"
+    chmod +x "$STATE_SOURCE_DIR/$file"
+    #
+    # throw and remove any files that don't have valid variables.
+    #
+    if ! utils.template_variables "$STATE_SOURCE_DIR/$file" "dry" 2>&1; then
+      log.warn "bad variables used in: $STATE_SOURCE_DIR/$file"
+      rm -f "$STATE_SOURCE_DIR/$file"
+      exit 1
+    fi
+    log.info "downloaded: $STATE_SOURCE_DIR/$file"
+  done
+  if [ ! -d "$STATE_SOURCE_SSH_DIR" ]; then
+    mkdir -p "$STATE_SOURCE_SSH_DIR"
+    log.info "created: $STATE_SOURCE_SSH_DIR"
+    {
+      echo "Host 127.0.0.1"
+      echo "  HostName 127.0.0.1"
+      echo "  User root"
+      echo "  IdentityFile $STATE_SOURCE_SSH_RSA_LOCATION"
+      echo "  Port 2222"
+      echo ""
+      echo ""
+      #
+      # Remember, STATE_IP_ACTIVE might change if we need to re-install the server.
+      # So we must stub the value with a placeholder which we'll replace later.
+      # once we're confident we have the correct value.
+      #
+      echo "Host __STATE_IP_ACTIVE__"
+      echo "  HostName __STATE_IP_ACTIVE__"
+      echo "  User root"
+      echo "  IdentityFile $STATE_SOURCE_SSH_RSA_LOCATION"
+    } >>"$STATE_SOURCE_SSH_CONFIG_LOCATION"
+    #
+    # throw and remove the config before we start generating keys.
+    #
+    if ! utils.template_variables "$STATE_SOURCE_SSH_CONFIG_LOCATION" "dry" 2>&1; then
+      log.warn "bad variables used in: $STATE_SOURCE_SSH_CONFIG_LOCATION"
+      rm -f "$STATE_SOURCE_SSH_CONFIG_LOCATION"
+      exit 1
+    fi
+    log.info "created: $STATE_SOURCE_SSH_CONFIG_LOCATION with placeholders."
+    ssh-keygen -t rsa -q -f "$STATE_SOURCE_SSH_RSA_LOCATION" -N ""
+    log.info "created private key: $STATE_SOURCE_SSH_RSA_LOCATION, public key: $STATE_SOURCE_SSH_PUB_LOCATION"
+    cat "$STATE_SOURCE_SSH_PUB_LOCATION" >"$STATE_SOURCE_SSH_AUTHORIZED_KEYS"
+    log.info "created authorized_keys: $STATE_SOURCE_SSH_AUTHORIZED_KEYS"
+  fi
+  #
+  # Make sure we set the public key since it might changed by the time we get here.
+  #
+  state.set.public_key
+  chmod 644 "$STATE_SOURCE_SSH_AUTHORIZED_KEYS"
+  log.debug "updated permissions: chmod 644 - $STATE_SOURCE_SSH_AUTHORIZED_KEYS"
+  chmod 644 "$STATE_SOURCE_SSH_PUB_LOCATION"
+  log.debug "updated permissions: chmod 644 - $STATE_SOURCE_SSH_PUB_LOCATION"
+  chmod 644 "$STATE_SOURCE_SSH_CONFIG_LOCATION"
+  log.debug "updated permissions: chmod 644 - $STATE_SOURCE_SSH_CONFIG_LOCATION"
+  chmod 600 "$STATE_SOURCE_SSH_RSA_LOCATION"
+  log.debug "updated permissions: chmod 600 - $STATE_SOURCE_SSH_RSA_LOCATION"
+  #
+  # Now that our SSH keys are ready, let us provision vultr stuff.
+  # It's possible that that stuff is already provisioned, in which case
+  # the provisioning subtasks should return early and would mean we won't have a ip to purge.
+  #
+  vultr.s3.provision
+  log.success "vultr object storage is ready"
+  #
+  # The existence of a ip from a previous run does not mean we can skip
+  # provisioning the vultr compute. The ip could be associated with an instance
+  # using an outdated ssh key. When that happens we must destroy the current instance and re-create
+  # it with the correct ssh key.
+  #
+  if [ -n "${prev_ip}" ]; then
+    log.info "the ip: $prev_ip from a previous run was found. will try not to re-install vultr instances."
+  fi
+  vultr.compute.provision "$prev_ip"
+  log.success "vultr compute is ready"
+  if [ -z "$STATE_IP_ACTIVE" ]; then
+    log.error "something went wrong. \$STATE_IP_ACTIVE is empty."
+    exit 1
+  fi
+  if [ "$STATE_IP_ACTIVE" != "$prev_ip" ]; then
+    state.set.old_ip "$prev_ip"
+  else
+    #
+    # If we detected that the ip did NOT chang after vultr provisioning, we must
+    # clear the current old_ip value. Not doing so would cause the
+    # the current vultr instance to be deleted at the end of this script.
+    #
+    state.set.old_ip ""
+  fi
+  #
+  # The first dry run here is redundant. we that at the time we build files,
+  # but it's a good safety check just in case future changes sneak bad
+  # variables into our files somehow.
+  #
+  utils.template_variables "$STATE_SOURCE_DIR" "dry"
+  utils.template_variables "$STATE_SOURCE_DIR" "commit"
+  log.info "injected vars into source files."
+  #
+  # Build and start the local docker container.
+  # Warning: this will recreate the container on each run.
+  #
+  # The compose.yml file that drives this mounts the ENTIRE .devos folder as a volume.
+  # that's ok because we need the full folder for this CLI tool to work.
+  # TODO: a series of small improvements are necessary to ensure we only need to
+  # TODO[continued]: mount the necessary folders.
+  #
+  docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
+  log.info "docker container is ready"
+  ssh.cmd.local "rm -f /root/.env"
+  ssh.rsync_up.local "$STATE_SOURCE_ENV_FILE" "/root/"
+  log.info "uploaded .env local docker container"
+  ssh.cmd.remote "rm -f /root/.env"
+  ssh.rsync_up.remote "$STATE_SOURCE_ENV_FILE" "/root/"
+  log.info "uploaded .env remote server"
+  timestamp_of_remote_bootstrap="$(status.get "$STATUS_BOOTSTRAPPED_REMOTE")"
+  if [ -n "$timestamp_of_remote_bootstrap" ]; then
+    log.warn "skipping first remote bootstrap script - previously completed at $timestamp_of_remote_bootstrap"
+  else
+    #
+    # The remote server will not have our entire workspace mounted.
+    # So we need to individually upload files we'll need.
+    # Starting with the .env file we built earlier.
+    #
+    ssh.cmd.remote "$CONFIG_TARGET_REMOTE_BOOTSTRAP_SCRIPT_PATH"
+    status.set "$STATUS_BOOTSTRAPPED_REMOTE" "$(utils.date)"
+    log.info "bootstrapped the remote server."
+  fi
+  timestamp_of_postgres_bootstrap="$(status.get "$STATUS_BOOTSTRAPPED_POSTGRES")"
+  if [ -n "$timestamp_of_postgres_bootstrap" ]; then
+    log.warn "skipping all postgres bootstrap - previously completed at $timestamp_of_postgres_bootstrap"
+  else
+    ssh.rsync_down.remote "$CONFIG_TARGET_CLONE_DIR/.secret.database.json" "$STATE_SOURCE_DIR/"
+    mv "$STATE_SOURCE_DIR/.secret.database.json" "$STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE"
+    log.info "downloaded caprover one-click-app template: database.json to: $STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE"
+    utils.echo_line
+    echo ""
+    cat "$STATE_SOURCE_POSTGRES_ONE_CLICK_TEMPLATE"
+    echo ""
+    utils.echo_line
+    echo "Setup the caprover Postgres database and hit enter."
+    read -r
+    #
+    # This ensures that we will skip all of the remote bootstrapping logic on subsequent runs.
+    #
+    status.set "$STATUS_BOOTSTRAPPED_REMOTE" "$(utils.date)"
+  fi
+  #
+  # TODO: I suspect bootstrapping is idempotent on the docker container.
+  # TODO[continued]: Therefore, if we're ok with the performance hit, we should consider
+  # TODO[continued]: running it every time.
+  #
+  timestamp_of_local_bootstrap="$(status.get "$STATUS_BOOTSTRAPPED_LOCAL")"
+  if [ -n "$timestamp_of_local_bootstrap" ]; then
+    log.warn "skipping local bootstrap - previously completed at $timestamp_of_local_bootstrap"
+  else
+    #
+    # The logic here is simpler because the bootstrap script for the docker container
+    # will never deal with things like databases or service orchestration.
+    #
+    ssh.cmd.local "$STATE_TARGET_BOOTSTRAP_SCRIPT_LOCATION"
+    log.info "bootstrapped the local docker container."
+    status.set "$STATUS_BOOTSTRAPPED_LOCAL" "$(utils.date)"
+  fi
+  #
+  # This is redundant, but it's a good safety check because
+  # if something bad happened and the old ip is the same as the current
+  # we'll end up destroying the current instance. Yikes.
+  #
+  if [ "$STATE_IP_OLD" == "$STATE_IP_ACTIVE" ]; then
+    log.error "The old and active ip's should never be the same! Skipping to avoid a disaster."
+    exit 1
+  fi
+  #
+  # The active ip should never be empty.
+  #
+  if [ -z "$STATE_IP_ACTIVE" ]; then
+    log.error "expected \$STATE_IP_ACTIVE to be non-empty. Exiting"
+    exit 1
+  fi
+  if [ -z "$STATE_IP_OLD" ]; then
+    #
+    # Common if the user is installing for the first time.
+    #
+    log.info "no old ip found. skipping the purge process."
+  else
+    #
+    # If the user is re-installing, we want to make sure we don't leave behind an errant ip addresses throughout
+    # the installation folder, or that we don't leave dangling vultr resources
+    #
+    find "$STATE_SOURCE_DIR" -type f -exec sed -i 's/'"${STATE_IP_OLD}"'/'"${STATE_IP_ACTIVE}"'/g' {} \;
+    log.info "replaced $STATE_IP_OLD with $STATE_IP_ACTIVE in all files for extra safety."
+    log.warn "waiting 5 seconds before destroying the previous instance!"
+    sleep 5
+    vultr.compute.destroy_instance "$(vultr.compute.get_instance_id_from_ip "$STATE_IP_OLD")"
+    log.info "destroyed the previous instance with ip: $STATE_IP_OLD"
+  fi
+  status.set "$STATUS_LAUNCH_SUCCEEDED" "$(utils.date)"
+}
+cmd.code() {
+  if ! command -v "code" &>/dev/null; then
+    log.error "vscode is not installed to your path. cannot continue."
+  fi
+  log.warn "would open vscode for the $STATE_NAME isntallation"
+}
+cmd.restore() {
+  log.warn "would restore the backup with name $STATE_NAME and $OPT_TAG"
+}
+cmd.backup() {
+  log.warn "would backup the current instance with name $STATE_NAME and $OPT_TAG"
+}
+cmd.update() {
+  log.warn "would update the current cli bin script the one at the commit hash $STATE_UPDATE_COMMIT"
+}
+# --------------------------------------------------------------------------------------------
+#
+# EXECUTION
+#
+# This is the main entrypoint for the script.
+# It calls the tasks in order.
+#
+# mark any libraries we will need as ready
+#
+flags.ready
+utils.ready
+#
+# parse the cli args and validate them.
+#
+flags.parse_requirements
+flags.parse_cmd "$@"
+flags.validate
+#
+# Map the flag values to state variables.
+#
+state.set.flags
+#
+# Some libraries require an installation name to be ready.
+# Do those here.
+#
+if [ -n "$STATE_NAME" ]; then
+  cache.ready "$STATE_NAME" "$CONFIG_USER_HOME_DIR"
+  status.ready "$STATE_NAME" "$CONFIG_USER_HOME_DIR"
+fi
+#
+# Use variables we created in the previous step to set up the state based
+# on the command we're running and the name provided
+#
+state.set.init "$STATE_NAME"
+#
+# We need some of the initialization logic to occur before we
+# can initialize the ssh library. Thinks like the IP and the
+# path to the rsa key.
+#
+ssh.ready "$STATE_SOURCE_SSH_RSA_LOCATION" "$STATE_IP_ACTIVE"
+#
+# Before doing ANYTHING, check that our command actually works.
+# Fail fast!
+#
+if ! command -v "cmd.$STATE_CMD" &>/dev/null; then
+  log.error "cmd.$STATE_CMD is not defined. Exiting."
+  exit 1
+fi
+#
+# We're only allowed to clear cache files associated with a particular named installation.
+#
+if [ "$OPT_CLEAR_CACHE" == "true" ]; then
+  if [ -n "$STATE_NAME" ]; then
+    state.clear.cache
+  else
+    log.error "the clear cache functionality requires a command that has a name associated with it."
+    exit 1
+  fi
+fi
+#
+# Run the command specified in the cli args.
+#
+"cmd.$STATE_CMD"

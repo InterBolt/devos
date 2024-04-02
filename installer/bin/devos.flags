@@ -1,0 +1,297 @@
+#!/usr/bin/env bash
+
+LIB_FLAGS_READY=false
+#
+# The script is used to parse the command line arguments for the devos CLI
+# and populate the following variables:
+#
+SOURCED_ALLOWED_CMDS=()
+SOURCED_ALLOWED_BASE_OPTIONS=()
+SOURCED_ALLOWED_CMD_OPTIONS=()
+SOURCED_PARSED_BASE_OPTIONS=()
+SOURCED_PARSED_CMD=""
+SOURCED_PARSED_CMD_ARG=""
+SOURCED_PARSED_CMD_OPTIONS=()
+
+flags.ready() {
+  LIB_FLAGS_READY=true
+  log.debug "devos.flags - ready"
+}
+#
+# Print top level usage information
+#
+flags.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos [OPTIONS] COMMAND [ARGS..] [COMMAND_OPTIONS]
+
+The DevOS installer CLI to manage DevOS installations on your local computer or dev container.
+
+Available commands:
+
+launch                   - Launch the devos installation. Will repair an installation if it exists.
+update                   - Update the devos installer CLI to the latest commit.
+backup                   - Archive the devos installation, caprover backup, and postgres backup
+                           to the s3 bucket.
+restore                  - Restore the devos installation, caprover backup, and postgres backup
+                           from the s3 bucket.
+code                     - Open the vscode workspaces associated with the installation.
+
+Available options:
+
+--help                   - Print this help and exit
+
+Source: https://github.com/InterBolt/devos
+EOF
+}
+#
+# Print launch command usage information
+#
+flags.cmd.launch.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos launch <name> [OPTIONS]
+
+Launch a new installation, complete a partial installation, or repair an existing installation.
+
+Required arguments:
+
+name                - The name of the installation. This will be used to create a directory
+                      in your home directory to store the installation files.
+
+Available options:
+
+--help              - Print this help and exit
+--hard-reset        - Dangerously recreate installation files and infrastructure.
+--clear-cache       - Clear the cache and ignore previously stored values.
+EOF
+}
+#
+# Print code command usage information
+#
+flags.cmd.code.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos code <name> [OPTIONS]
+
+Open the vscode workspaces associated with the installation.
+
+Required arguments:
+
+name                - The name of the installation.
+
+Available options:
+
+--help              - Print this help and exit
+EOF
+}
+#
+# Print update command usage information
+#
+flags.cmd.update.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos update <commit> [OPTIONS]
+
+Update the devos installer CLI to the commit specified in the argument.
+Good to know - the latest stable commit is always on the main branch.
+
+Required arguments:
+
+commit              - The commit hash or branch of the devos installer to update to.
+
+Available options:
+
+--help              - Print this help and exit
+EOF
+}
+#
+# Print backup command usage information
+#
+flags.cmd.backup.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos backup <name> [OPTIONS]
+
+Backup the installation, caprover, and postgres to the s3 bucket.
+
+Required arguments:
+
+name                - The name of the installation to backup.
+
+Available options:
+
+--help              - Print this help and exit
+--tag=<string>      - The tag to use for the backup.
+--allow-local       - Allow the .devos folder we backup to come from the 
+                      local machine. This is useful for restoring a backup
+                      to a new machine. By default, it will always try to backup
+                      the .devos folder from the container since that's our primary
+                      workspace.
+EOF
+}
+#
+# Print restore command usage information
+#
+flags.cmd.restore.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos restore <name> [OPTIONS]
+
+Restore the installation, caprover, and postgres from the s3 bucket.
+
+Required arguments:
+
+name                - The name of the installation to restore. When a full filename is
+                      supplied, we'll restore that specific backup. Otherwise, we'll
+                      restore the latest backup associated with the provided name.
+
+Available options:
+
+--help              - Print this help and exit
+--tag=<string>      - When supplied, we'll restore the latest backup that 
+                      matches the tag. If no tag is supplied, we'll restore
+                      the latest backup.
+EOF
+}
+flags.parse_cmd() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  if [ "$1" = "--help" ]; then
+    flags.help
+    exit 0
+  fi
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+    --*)
+      if [ -n "$SOURCED_PARSED_CMD" ]; then
+        if [ "$1" == "--help" ]; then
+          flags.cmd."$SOURCED_PARSED_CMD".help
+          exit 0
+        fi
+        SOURCED_PARSED_CMD_OPTIONS+=("$1")
+      else
+        SOURCED_PARSED_BASE_OPTIONS+=("$1")
+      fi
+      ;;
+    *)
+      if [ -z "$1" ]; then
+        break
+      fi
+      local is_cmd=false
+      for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
+        if [ "$1" == "$cmd" ]; then
+          is_cmd=true
+        fi
+      done
+      if [ "$is_cmd" == "false" ]; then
+        SOURCED_PARSED_CMD_ARG="$1"
+      else
+        SOURCED_PARSED_CMD="$1"
+      fi
+      ;;
+    esac
+    shift
+  done
+}
+
+flags.parse_requirements() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  for flag_name in $(flags.help | grep -E "^--" | awk '{print $1}'); do
+    SOURCED_ALLOWED_BASE_OPTIONS+=("$flag_name")
+  done
+  for cmd_name in $(flags.help | grep -A 1000 "Available commands:" | grep -B 1000 "Available options:" | grep -v "Available commands:" | grep -v "Available options:" | grep -E "^[a-z]" | awk '{print $1}'); do
+    SOURCED_ALLOWED_CMDS+=("$cmd_name")
+  done
+  for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
+    opts="$cmd("
+    first=true
+    for cmd_option in $(flags.cmd."$cmd".help | grep -E "^--" | awk '{print $1}'); do
+      cmd_option=$(echo "$cmd_option" | awk -F '=' '{print $1}')
+      if [ "$first" = true ]; then
+        opts="$opts$cmd_option"
+      else
+        opts="$opts,$cmd_option"
+      fi
+      first=false
+    done
+    SOURCED_ALLOWED_CMD_OPTIONS+=("$opts)")
+  done
+}
+
+flags.validate() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  if [ -z "$SOURCED_PARSED_CMD" ]; then
+    echo ""
+    echo "No command supplied. Please supply a command."
+    echo ""
+    exit 1
+  fi
+  is_cmd_allowed=false
+  for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
+    if [ "$cmd" = "$SOURCED_PARSED_CMD" ]; then
+      is_cmd_allowed=true
+    fi
+  done
+  if [ "$is_cmd_allowed" = false ]; then
+    echo ""
+    echo "Command: $SOURCED_PARSED_CMD is not allowed."
+    echo ""
+    exit 1
+  fi
+  if [ -z "$SOURCED_PARSED_CMD_ARG" ]; then
+    echo ""
+    echo "No command argument supplied. Please supply a command argument."
+    echo ""
+    exit 1
+  fi
+  if [ -n "${SOURCED_PARSED_CMD_OPTIONS[0]}" ]; then
+    for parsed_cmd_option in "${SOURCED_PARSED_CMD_OPTIONS[@]}"; do
+      for allowed_cmd_option in "${SOURCED_ALLOWED_CMD_OPTIONS[@]}"; do
+        cmd_name=$(echo "$allowed_cmd_option" | awk -F '(' '{print $1}')
+        cmd_options=$(echo "$allowed_cmd_option" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
+        if [ "$cmd_name" == "$SOURCED_PARSED_CMD" ]; then
+          is_cmd_option_allowed=false
+          flag_name=$(echo "${parsed_cmd_option}" | awk -F '=' '{print $1}')
+          for cmd_option in $(echo "$cmd_options" | tr ',' '\n'); do
+            if [ "$cmd_option" == "$flag_name" ]; then
+              is_cmd_option_allowed=true
+            fi
+          done
+          if [ "$is_cmd_option_allowed" == false ]; then
+            echo ""
+            echo "Command option: ${parsed_cmd_option} is not allowed for command: $SOURCED_PARSED_CMD."
+            echo ""
+            exit 1
+          fi
+        fi
+      done
+    done
+  fi
+}

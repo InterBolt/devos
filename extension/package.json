@@ -1,0 +1,39 @@
+{
+  "name": "dev-os",
+  "displayName": "Dev-OS LLM",
+  "description": "Dev-OS LLM Extension for consistent scripting completions.",
+  "version": "0.0.1",
+  "publisher": "interbolt",
+  "private": true,
+  "engines": {
+    "vscode": "^1.87.2"
+  },
+  "activationEvents": [
+    "*"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "configuration": [],
+    "commands": [
+      {
+        "command": "dev-os.runtimeSnippet",
+        "title": "Runtime.snippet",
+        "category": "dev-os"
+      }
+    ]
+  },
+  "scripts": {
+    "check": "node ./check.js",
+    "build": "npm install && node ./build.js && npx tsc && cp package.json out/package.json && vsce package --allow-missing-repository --allow-star-activation --skip-license",
+    "code:install": "code --uninstall-extension interbolt.dev-os && code --install-extension ./dev-os-0.0.1.vsix --force",
+    "sync": "npm run check && npm run build && npm run code:install"
+  },
+  "devDependencies": {
+    "@types/node": "^16.18.34",
+    "@types/vscode": "^1.73.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0",
+    "eslint": "^8.26.0",
+    "typescript": "^5.4.2"
+  }
+}

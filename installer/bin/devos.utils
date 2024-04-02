@@ -1,0 +1,128 @@
+#!/usr/bin/env bash
+
+LIB_UTILS_READY=false
+
+utils.ready() {
+  LIB_UTILS_READY=true
+  log.debug "devos.utils - ready"
+}
+utils.echo_line() {
+  if [ "$LIB_UTILS_READY" == "false" ]; then
+    log.error "utils.ready must be called first. Exiting."
+    exit 1
+  fi
+  terminal_width=$(tput cols)
+  line=$(printf "%${terminal_width}s" | tr " " "-")
+  echo "$line"
+}
+utils.debug_dump_vars() {
+  if [ "$LIB_UTILS_READY" == "false" ]; then
+    log.error "utils.ready must be called first. Exiting."
+    exit 1
+  fi
+  utils.echo_line
+  compgen -A variable -X '!OPT_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!STATE_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!CONFIG_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!_PREV_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!LIB_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!SOURCED_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  utils.echo_line
+}
+utils.exit_trap() {
+  if [ "$LIB_UTILS_READY" == "false" ]; then
+    log.error "utils.ready must be called first. Exiting."
+    exit 1
+  fi
+  local code=$?
+  if [ $code -eq 1 ]; then
+    utils.debug_dump_vars
+    exit 1
+  fi
+  exit $code
+}
+#
+# This function is used to inject global variables into template files.
+# It will search for all instances of __[_A-Z]*__ in the file and replace them with the
+# corresponding global variable. If the global variable is not set, it will exit with an error.
+# If the behavior is set to "commit", it will replace the variables in the file.
+# If the behavior is set to "dry", it will only check if the variables are set.
+#
+utils.template_variables() {
+  if [ "$LIB_UTILS_READY" == "false" ]; then
+    log.error "utils.ready must be called first. Exiting."
+    exit 1
+  fi
+  local dir_or_file="$1"
+  local behavior="$2"
+  local var_name
+  local eligible_files=()
+  if [ -z "$behavior" ]; then
+    log.error "utils.template_variables: behavior cannot be empty"
+    exit 1
+  fi
+  if [ "$behavior" != "dry" ] && [ "$behavior" != "commit" ]; then
+    log.error "utils.template_variables: \$2 must equal either \"dry\" or \"commit\""
+    exit 1
+  fi
+  #
+  # Note: don't fail on an empty directory, because we expect that to happen.
+  # due the recursive nature of this function.
+  #
+  if [ ! -d "$dir_or_file" ]; then
+    for file in "$dir_or_file"/*; do
+      if [ -d "$file" ]; then
+        utils.template_variables "$file" "$2"
+      fi
+      if [ -f "$file" ]; then
+        eligible_files+=("$file")
+      fi
+    done
+  else
+    if [ -f "$dir_or_file" ]; then
+      eligible_files+=("$dir_or_file")
+    fi
+  fi
+  #
+  # Terminating condition for the recursive function.
+  #
+  if [ "${#eligible_files[@]}" -eq 0 ]; then
+    return
+  fi
+  for file in "${eligible_files[@]}"; do
+    grep -o "__STATE_[_A-Z]*__" "$file" | while read -r line; do
+      var_name=${line//__/}
+      if [ -z ${!var_name+x} ]; then
+        log.error "$file is using an undefined variable: $var_name"
+        exit 1
+      fi
+      value=${!var_name}
+      if [ -z "$value" ]; then
+        log.error "the variable $var_name is empty. template variables cannot be empty."
+        exit 1
+      fi
+      if [ "$behavior" == "commit" ]; then
+        sed -i '' "s,\_\_$var_name\_\_,$value,g" "$file"
+      fi
+    done
+  done
+}
+utils.date() {
+  if [ "$LIB_UTILS_READY" == "false" ]; then
+    log.error "utils.ready must be called first. Exiting."
+    exit 1
+  fi
+  date +"%Y-%m-%d %H:%M:%S"
+}
