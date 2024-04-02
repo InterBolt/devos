@@ -22,6 +22,8 @@ cleanup() {
   rm -rf tmp || true
 }
 
+runtime_fn_fail_on_used_port 10000
+
 ufw allow 10000/tcp
 
 # don't keep a one-off script around if something fails

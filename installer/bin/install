@@ -8,11 +8,12 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 BIN_LIB_LOCATION="$HOME/.devos/bin"
 BIN_LOCATION="/usr/local/bin"
 LIB_SCRIPTS=(
-  "lib.cache"
-  "lib.flags"
-  "base.logs"
-  "lib.status"
-  "lib.utils"
+  "devos.cache"
+  "devos.flags"
+  "devos.ssh"
+  "devos.status"
+  "devos.utils"
+  "shared.log.sh"
 )
 BIN_SCRIPT="devos"
 #
@@ -38,14 +39,15 @@ log.warn() {
   # shellcheck disable=SC2046,SC2059
   echo -e $(printf "\e[33mwarn:\e[0m $1")
 }
+mkdir -p "$BIN_LIB_LOCATION"
 #
 # Download the libs we need to source to the .devos directory
 # and download the actual bin script to /usr/local/bin.
 #
-wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/bin/devos" -O "$BIN_LIB_LOCATION/$BIN_SCRIPT"
+wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos" -O "$BIN_LIB_LOCATION/$BIN_SCRIPT"
 chmod +x "$BIN_LIB_LOCATION/$BIN_SCRIPT"
 for lib_script in "${LIB_SCRIPTS[@]}"; do
-  wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/bin/$lib_script" -O "$BIN_LIB_LOCATION/$lib_script"
+  wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$lib_script" -O "$BIN_LIB_LOCATION/$lib_script"
   chmod +x "$BIN_LIB_LOCATION/$lib_script"
 done
 
@@ -66,5 +68,7 @@ fi
   echo ""
   echo "source \"$BIN_LIB_LOCATION/$BIN_SCRIPT\""
 } >>"$BIN_LOCATION/$BIN_SCRIPT"
+chmod +x "$BIN_LOCATION/$BIN_SCRIPT"
+
 log.success "devos script has been installed to $BIN_LOCATION."
 log.info "run 'devos --help' to get started."
