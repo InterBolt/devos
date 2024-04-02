@@ -50,6 +50,7 @@ CONFIG_TARGET_HOME_DIR="/root/.$CONFIG_SOFTWARE_NAME"
 CONFIG_USER_HOME_LOGS_DIR="$CONFIG_USER_HOME_DIR/.logs"
 CONFIG_BOOTSTRAP_SCRIPT_NAME="bootstrap.sh"
 CONFIG_TARGET_CLONE_DIR="/root/$CONFIG_SOFTWARE_NAME"
+CONFIG_TARGET_DEPLOYMENT_DIR="/root/deployments"
 CONFIG_TARGET_REMOTE_POSTGRES_BOOTSTRAP_SCRIPT_PATH="installer/start/remote-install-postgres.sh"
 CONFIG_BOOTFILES=(
   "remote.code-workspace"
@@ -983,6 +984,8 @@ cmd.launch() {
   ssh.cmd.remote "rm -f /root/.env"
   ssh.rsync_up.remote "$STATE_SOURCE_ENV_FILE" "/root/"
   log.info "uploaded .env remote server"
+  ssh.cmd.remote "mkdir -p $CONFIG_TARGET_DEPLOYMENT_DIR"
+  log.info "created remote deployment dir: $CONFIG_TARGET_DEPLOYMENT_DIR"
   timestamp_of_remote_bootstrap="$(status.get "$STATUS_BOOTSTRAPPED_REMOTE")"
   if [ -n "$timestamp_of_remote_bootstrap" ]; then
     log.warn "skipping first remote bootstrap script - previously completed at $timestamp_of_remote_bootstrap"

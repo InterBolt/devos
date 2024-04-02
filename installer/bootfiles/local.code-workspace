@@ -7,7 +7,7 @@
       "uri": "vscode-remote://ssh-remote+127.0.0.1:2222__STATE_SOURCE_WORKSPACE__"
     },
     {
-      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/devos"
+      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222__CONFIG_TARGET_CLONE_DIR__"
     },
     {
       "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/"

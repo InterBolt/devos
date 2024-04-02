@@ -4,10 +4,10 @@
       "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/root"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/root/deployments"
+      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE____CONFIG_TARGET_DEPLOYMENTS_DIR__"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/root/devos"
+      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE____CONFIG_TARGET_CLONE_DIR__"
     },
     {
       "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/"
