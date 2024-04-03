@@ -21,19 +21,22 @@ utils.debug_dump_vars() {
     exit 1
   fi
   utils.echo_line
-  compgen -A variable -X '!OPT_*' | sort | while read -r line; do
+  compgen -A variable -X '!CLI_*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
-  compgen -A variable -X '!STATE_*' | sort | while read -r line; do
+  compgen -A variable -X '!STORE_*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
-  compgen -A variable -X '!CONFIG_*' | sort | while read -r line; do
+  compgen -A variable -X '!STATUS_*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
   compgen -A variable -X '!_PREV_*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
   compgen -A variable -X '!LIB_*' | sort | while read -r line; do
+    echo "$line=${!line}"
+  done
+  compgen -A variable -X '!SOURCED_*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
   compgen -A variable -X '!SOURCED_*' | sort | while read -r line; do
@@ -67,7 +70,7 @@ utils.template_variables() {
   fi
   local dir_or_file="$1"
   local behavior="$2"
-  local var_name
+  local empty_behavior="{$3:-fail_on_empty}"
   local eligible_files=()
   if [ -z "$behavior" ]; then
     log.error "utils.template_variables: behavior cannot be empty"
@@ -81,7 +84,7 @@ utils.template_variables() {
   # Note: don't fail on an empty directory, because we expect that to happen.
   # due the recursive nature of this function.
   #
-  if [ ! -d "$dir_or_file" ]; then
+  if [ -d "$dir_or_file" ]; then
     for file in "$dir_or_file"/*; do
       if [ -d "$file" ]; then
         utils.template_variables "$file" "$2"
@@ -90,10 +93,8 @@ utils.template_variables() {
         eligible_files+=("$file")
       fi
     done
-  else
-    if [ -f "$dir_or_file" ]; then
-      eligible_files+=("$dir_or_file")
-    fi
+  elif [ -f "$dir_or_file" ]; then
+    eligible_files+=("$dir_or_file")
   fi
   #
   # Terminating condition for the recursive function.
@@ -101,23 +102,36 @@ utils.template_variables() {
   if [ "${#eligible_files[@]}" -eq 0 ]; then
     return
   fi
+  local errored=false
   for file in "${eligible_files[@]}"; do
-    grep -o "__STATE_[_A-Z]*__" "$file" | while read -r line; do
-      var_name=${line//__/}
-      if [ -z ${!var_name+x} ]; then
-        log.error "$file is using an undefined variable: $var_name"
-        exit 1
-      fi
-      value=${!var_name}
-      if [ -z "$value" ]; then
-        log.error "the variable $var_name is empty. template variables cannot be empty."
-        exit 1
-      fi
-      if [ "$behavior" == "commit" ]; then
-        sed -i '' "s,\_\_$var_name\_\_,$value,g" "$file"
-      fi
+    grepped=$(grep -o "__[_A-Z]*__" "$file" || echo "")
+    for line in $grepped; do
+      local var_names="${line//____/__  __}"
+      for var_name in ${var_names}; do
+        var_name=${var_name//__/}
+        if [ -z ${!var_name+x} ]; then
+          echo "var_name: $var_name"
+          log.error "$file is using an undefined variable: $var_name"
+          errored=true
+          continue
+        fi
+        if [ "$empty_behavior" == "fail_on_empty" ] && [ -z "${!var_name}" ]; then
+          log.error "$file is using an empty variable: $var_name"
+          errored=true
+          continue
+        fi
+        if [ "$errored" == false ]; then
+          log.debug "found $var_name in $file"
+        fi
+        if [ "$errored" == "false" ] && [ "$behavior" == "commit" ]; then
+          sed -i '' "s,\_\_$var_name\_\_,${!var_name},g" "$file"
+        fi
+      done
     done
   done
+  if [ "$errored" == "true" ]; then
+    exit 1
+  fi
 }
 utils.date() {
   if [ "$LIB_UTILS_READY" == "false" ]; then

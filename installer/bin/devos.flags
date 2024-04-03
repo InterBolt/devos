@@ -39,6 +39,7 @@ backup                   - Archive the devos installation, caprover backup, and 
 restore                  - Restore the devos installation, caprover backup, and postgres backup
                            from the s3 bucket.
 code                     - Open the vscode workspaces associated with the installation.
+test                     - Runs tests on the devos installation.
 
 Available options:
 
@@ -70,6 +71,29 @@ Available options:
 --help              - Print this help and exit
 --hard-reset        - Dangerously recreate installation files and infrastructure.
 --clear-cache       - Clear the cache and ignore previously stored values.
+EOF
+}
+#
+# Print launch command usage information
+#
+flags.cmd.test.help() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready must be called first. Exiting."
+    exit 1
+  fi
+  cat <<EOF
+Usage: devos test <name> [OPTIONS]
+
+Run tests on the installation to ensure it's working as expected.
+
+Required arguments:
+
+name                - The name of the installation. Tests as many assumptions and behaviors as
+                      possible to ensure the installation is working as expected.
+
+Available options:
+
+--help              - Print this help and exit
 EOF
 }
 #

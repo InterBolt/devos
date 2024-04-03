@@ -1,9 +1,9 @@
 services:
   local:
     volumes:
-      - __CONFIG_USER_HOME_DIR__:__CONFIG_TARGET_HOME_DIR__
+      - __STATIC_INSTALL_ROOT__:__STATIC_DEBIAN_INSTALL_ROOT__
     build:
-      context: __CONFIG_TARGET_HOME_DIR__/__STATE_NAME__
+      context: __STORE_TARGET_NAMED_DIR__/__STORE_NAME__
       dockerfile: ./Dockerfile
     ports:
       - "2222:22"

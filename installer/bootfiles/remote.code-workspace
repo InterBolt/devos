@@ -1,21 +1,21 @@
 {
   "folders": [
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/root"
+      "uri": "vscode-remote://ssh-remote+__STORE_NAMED_IP_ACTIVE__/root"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE____CONFIG_TARGET_DEPLOYMENTS_DIR__"
+      "uri": "vscode-remote://ssh-remote+__STORE_NAMED_IP_ACTIVE____STATIC_DEBIAN_REMOTE_DEPLOYMENTS_DIR__"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE____CONFIG_TARGET_CLONE_DIR__"
+      "uri": "vscode-remote://ssh-remote+__STORE_NAMED_IP_ACTIVE____STATIC_DEBIAN_CLONE_DIR__"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__STATE_IP_ACTIVE__/"
+      "uri": "vscode-remote://ssh-remote+__STORE_NAMED_IP_ACTIVE__/"
     }
   ],
-  "remoteAuthority": "ssh-remote+__STATE_IP_ACTIVE__",
+  "remoteAuthority": "ssh-remote+__STORE_NAMED_IP_ACTIVE__",
   "settings": {
-    "remote.SSH.configFile": "__STATE_SOURCE_SSH_CONFIG_LOCATION__",
+    "remote.SSH.configFile": "__STORE_NAMED_SSH_CONFIG_FILE__",
     "remote.SSH.defaultExtensions": [
       "ms-vscode.remote-repositories",
       "ms-vscode.remote-explorer",
