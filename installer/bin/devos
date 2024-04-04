@@ -996,7 +996,7 @@ flags.validate
 # We always set $vENV_NAME in this func.
 #
 state.set.flags
-if [ -z "$vENV_NAME" ]; then
+if [ -z "$vENV_NAME" ] && [ "$vCLI_PARSED_CMD" != "test" ]; then
   log.error "\$vENV_NAME was not found. Likely a bug in the cli handling logic."
   exit 1
 fi
