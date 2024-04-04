@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2155
+
+if [ -z "$(git rev-parse --show-toplevel 2>/dev/null)" ]; then
+  export vSTATIC_RUNNING_IN_GIT_REPO=false
+  export vSTATIC_RUNNING_REPO_ROOT=""
+else
+  export vSTATIC_RUNNING_IN_GIT_REPO=true
+  export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+fi
+export vSTATIC_RESTRICTED_NAMES=(
+  "devos"
+  "bin"
+  ".logs"
+  ".ssh"
+  "workspace"
+)
+export vSTATIC_PREREQ_COMMANDS=(
+  "curl"
+  "jq"
+  "openssl"
+  "git"
+  "rsync"
+  "docker"
+  "aws" # TODO: remove and use vultr api instead of cli for s3
+)
+export vSTATIC_SELF_ROOT="$HOME/.devos"
+export vSTATIC_DEBIAN_ROOT="/root/.devos"
+export vSTATIC_DEBIAN_CLONE_DIR="/root/devos"
+export vSTATIC_DEBIAN_DEPLOYMENTS_DIR="/root/deployments"
+export vSTATIC_REPO_BOOTFILES_DIR="installer/bootfiles"
+export vSTATIC_BOOTSTRAP_SH="bootstrap.sh"
+export vSTATIC_REPO_BOOTFILES=(
+  "remote.code-workspace"
+  "local.code-workspace"
+  "launch.sh"
+  "compose.yml"
+  "Dockerfile"
+  "$vSTATIC_BOOTSTRAP_SH"
+)
+export vSTATIC_VULTR_INSTANCE_DEFAULTS=(
+  "voc-c-2c-4gb-50s-amd"
+  "ewr"
+  2136
+)
+export vSTATIC_VULTR_API_URL="https://api.vultr.com/v2"
+export vSTATIC_ENV_FILENAME=".env"
+export vSTATIC_ENV_SH_FILENAME=".env.sh"
+export vSTATIC_LOGS_DIRNAME=".logs"
+export vSTATIC_SSH_RSA_KEYNAME="devos.rsa"
+export vSTATIC_SSH_PUB_KEYNAME="devos.pub"
+export vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME="authorized_keys"
+export vSTATIC_SSH_CONFIG_FILENAME="devos_config"
+export vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME=".secret.database.json"

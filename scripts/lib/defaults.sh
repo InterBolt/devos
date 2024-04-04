@@ -15,12 +15,7 @@ source installer/bin/shared.log.sh
 source defaults.cmdargs.sh
 # shellcheck source=defaults.lobash.bash
 source scripts/lib/defaults.lobash.bash
+# shellcheck source=../../.env.sh
+source "$PWD/.env.sh"
 
-# shellcheck disable=SC2155
-export defaults_host="$(cat "$PWD/.host")"
-export defaults_log_dir="$PWD/.logs"
-#
-# log.ready requires that the log dir already exist
-#
-mkdir -p "$defaults_log_dir"
-log.ready "$defaults_host" "$defaults_log_dir" "${DEBUG_LEVEL:-0}"
+log.ready "debian:$ENV_HOST" "${DEBUG_LEVEL:-0}"

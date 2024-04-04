@@ -3,6 +3,9 @@
 # shellcheck disable=SC2145
 # shellcheck disable=SC2124
 
+# shellcheck source=devos.static
+source "devos.static"
+
 # -----------------------------------------------------------------------------
 #
 # FILE NOTES:
@@ -28,18 +31,13 @@
 #
 LIB_READY_LOG=false
 #
-# Directory to store log files.
+# results in logfile - $LIB_LOG_PREFIX.<rollindex>.json
 #
-LIB_LOG_DIR=""
-#
-# results in logfile - $LIB_LOG_DIR/$LIB_LOG_LOGFILE_PREFIX.<rollindex>.json
-#
-LIB_LOG_LOGFILE_PREFIX=""
+LIB_LOG_PREFIX=""
 #
 # roughly 10 megabytes per log file.
 #
 LIB_LOG_ROLLSIZE_KBS=10000
-LIB_DEBUG_LEVEL=0
 #
 # Level variables.
 #
@@ -117,25 +115,28 @@ log._get_filesize() {
   du -s "$1" | cut -f 1
 }
 log._get_active_logfile() {
+  mkdir -p "$vSTATIC_SELF_ROOT/$vSTATIC_LOGS_DIRNAME"
+
   local curr_logfile
   local curr_idx=0
+  local dir="$vSTATIC_SELF_ROOT/$vSTATIC_LOGS_DIRNAME"
 
-  for logfile in "$LIB_LOG_DIR"/*; do
+  for logfile in "$dir"/*; do
     logfile_idx=$(echo "$logfile" | grep -o -E '[0-9]+')
     if [ $((logfile_idx)) -gt $((curr_idx)) ]; then
       curr_idx=$logfile_idx
     fi
   done
-  curr_logfile="${LIB_LOG_DIR}/$LIB_LOG_LOGFILE_PREFIX$curr_idx.json"
+  curr_logfile="$dir/$LIB_LOG_PREFIX$curr_idx.json"
   should_rotate=0
   size="$(log._get_filesize "$curr_logfile")"
   if [ $((size)) -gt $((LIB_LOG_ROLLSIZE_KBS)) ]; then
     should_rotate=1
   fi
   if [ $should_rotate -eq 1 ]; then
-    echo "$LIB_LOG_DIR/$LIB_LOG_LOGFILE_PREFIX$((curr_idx + 1)).json"
+    echo "$dir/$LIB_LOG_PREFIX$((curr_idx + 1)).json"
   else
-    echo "$LIB_LOG_DIR/$LIB_LOG_LOGFILE_PREFIX$curr_idx.json"
+    echo "$dir/$LIB_LOG_PREFIX$curr_idx.json"
   fi
 }
 #
@@ -146,16 +147,12 @@ log._base() {
     echo "must run log.ready before logging" >&2
     exit 1
   fi
-  if [ ! -d "${LIB_LOG_DIR}" ]; then
-    echo "log directory does not exist: ${LIB_LOG_DIR}" >&2
-    exit 1
-  fi
   local date_format='+%F %T'
   local date="$(date "${date_format}")"
   local date_s="$(date "+%s")"
   local json_path="$(log._get_active_logfile)"
   local level="${1}"
-  local debug_level="${LIB_DEBUG_LEVEL}"
+  local debug_level="${vDEBUG_LEVEL:-0}"
   shift
   local source="${1}"
   shift
@@ -228,23 +225,13 @@ log.warn() {
   log._base "WARN" "$filename:$linenumber" "$@"
 }
 log.ready() {
-  LIB_LOG_LOGFILE_PREFIX="${1:-""}"
-  if [ -n "${LIB_LOG_LOGFILE_PREFIX}" ]; then
-    LIB_LOG_LOGFILE_PREFIX="${LIB_LOG_LOGFILE_PREFIX}."
+  LIB_LOG_PREFIX="${1:-""}"
+  if [ -n "${LIB_LOG_PREFIX}" ]; then
+    LIB_LOG_PREFIX="${LIB_LOG_PREFIX}."
   fi
   LIB_READY_LOG=true
-  LIB_LOG_DIR="${2}"
-  LIB_DEBUG_LEVEL="${3:-0}"
-  if [ -z "${LIB_LOG_DIR}" ]; then
-    echo "log.ready requires a log directory" >&2
-    exit 1
-  fi
-  if [ ! -d "${LIB_LOG_DIR}" ]; then
-    echo "log.ready requires a valid log directory" >&2
-    exit 1
-  fi
-  log.debug "shared.log - setting log directory: ${LIB_LOG_DIR}"
-  log.debug "shared.log - setting log prefix: ${LIB_LOG_LOGFILE_PREFIX}"
-  log.debug "shared.log - setting debug level: ${LIB_DEBUG_LEVEL}"
+  vDEBUG_LEVEL="${2:-0}"
+  log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
+  log.debug "shared.log - setting debug level: ${vDEBUG_LEVEL:-0}"
   log.debug "shared.log - ready"
 }

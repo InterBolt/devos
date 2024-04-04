@@ -1,36 +1,22 @@
 #!/usr/bin/env bash
 
-LIB_CACHE_READY=false
-LIB_CACHE_NAME=""
-LIB_CACHE_DIR=""
-# --------------------------------------------------------------------------------------------
-#
-#
-# CACHE FUNCTIONS:
-# These functions are used to store and retrieve cached values.
-# The files use case is (was?) to store secrets that the user inputs.
-#
-#
-cache.ready() {
-  if [ -z "$1" ]; then
-    log.error "\$1 supplied to cache.ready cannot be empty. Exiting."
-    exit 1
-  fi
-  if [ -z "$2" ]; then
-    log.error "\$2 supplied to cache.ready cannot be empty. Exiting."
-    exit 1
-  fi
-  # throw if _PREV_RETURN is not set. Its ok if its empty
-  if [ -z ${_PREV_RETURN+x} ]; then
-    log.error "\$_PREV_RETURN is not set. Exiting."
-    exit 1
-  fi
+# shellcheck source=devos.static
+source "devos.static"
 
-  LIB_CACHE_NAME="$1"
-  LIB_CACHE_DIR="$2"
+LIB_CACHE_READY=false
+
+cache._validate() {
+  if [ "$LIB_CACHE_READY" == "false" ]; then
+    log.error "flags.ready has not been called."
+    exit 1
+  fi
+  if [ -z "$vENV_NAME" ]; then
+    log.error "vENV_NAME must be non empty. Exiting."
+    exit 1
+  fi
+}
+cache.ready() {
   LIB_CACHE_READY=true
-  log.debug "devos.cache - setting name: $LIB_CACHE_NAME"
-  log.debug "devos.cache - setting dir: $LIB_CACHE_DIR"
   log.debug "devos.cache - ready"
 }
 cache.del() {
@@ -38,20 +24,18 @@ cache.del() {
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
-  local tmp_filepath="$LIB_CACHE_DIR/.cache-$LIB_CACHE_NAME-$1"
+  cache._validate
+  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
   rm -f "$tmp_filepath"
-  log.debug "deleted cache file: $tmp_filepath"
 }
 cache.clear() {
   if [ "$LIB_CACHE_READY" == "false" ]; then
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
-  for file in "$LIB_CACHE_DIR"/.cache-"$LIB_CACHE_NAME"*; do
+  cache._validate
+  for file in "$vSTATIC_SELF_ROOT"/.cache-"$vENV_NAME"*; do
     rm -f "$file"
-    log.debug "deleted cache file: $file"
   done
 }
 #
@@ -65,14 +49,12 @@ cache.get() {
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
-  local tmp_filepath="$LIB_CACHE_DIR/.cache-$LIB_CACHE_NAME-$1"
+  cache._validate
+  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
   if [ -f "$tmp_filepath" ]; then
-    _PREV_RETURN="$(cat "$tmp_filepath")"
-    log.debug "cache file $tmp_filepath exists. setting \$_PREV_RETURN= $_PREV_RETURN"
+    cat "$tmp_filepath"
   else
-    _PREV_RETURN=""
-    log.debug "cache file $tmp_filepath does not exist. returning empty string."
+    echo ""
   fi
 }
 cache.set() {
@@ -80,21 +62,19 @@ cache.set() {
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
-  local tmp_filepath="$LIB_CACHE_DIR/.cache-$LIB_CACHE_NAME-$1"
+  cache._validate
+  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
   if [ ! -f "$tmp_filepath" ]; then
     touch "$tmp_filepath"
-    log.debug "created cache file: $tmp_filepath"
   fi
   echo "$2" >"$tmp_filepath"
-  log.debug "set cache file: $tmp_filepath"
 }
 cache.prompt() {
   if [ "$LIB_CACHE_READY" == "false" ]; then
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
+  cache._validate
   local input
   input="$(cache.get "$1")"
   if [ -z "$input" ]; then
@@ -113,7 +93,7 @@ cache.overwrite_on_empty() {
     log.error "cache.ready must be called first. Exiting."
     exit 1
   fi
-  [[ -z "${LIB_CACHE_NAME}" ]] && log.error "\$LIB_CACHE_NAME cannot be empty" && exit 1
+  cache._validate
   local cached_val
   cached_val="$(cache.get "$1")"
   local next_val="$2"

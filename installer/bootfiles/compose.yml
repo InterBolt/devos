@@ -1,9 +1,9 @@
 services:
   local:
     volumes:
-      - __STATIC_INSTALL_ROOT__:__STATIC_DEBIAN_INSTALL_ROOT__
+      - __vSTATIC_SELF_ROOT__:__vSTATIC_DEBIAN_ROOT__
     build:
-      context: __STORE_TARGET_NAMED_DIR__/__STORE_NAME__
+      context: __vSTATIC_SELF_ROOT__/__vENV_NAME__
       dockerfile: ./Dockerfile
     ports:
       - "2222:22"

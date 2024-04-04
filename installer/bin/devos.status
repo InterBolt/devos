@@ -1,37 +1,32 @@
 #!/usr/bin/env bash
 
-LIB_STATUS_READY=""
-LIB_STATUS_NAME=""
-LIB_STATUS_DIR=""
+# shellcheck source=devos.static
+source "devos.static"
 
+LIB_STATUS_READY=""
+
+status._validate() {
+  if [ "$LIB_STATUS_READY" == "false" ]; then
+    log.error "status.ready has not been called."
+    exit 1
+  fi
+  if [ -z "$vENV_NAME" ]; then
+    log.error "vENV_NAME must be non empty. Exiting."
+    exit 1
+  fi
+}
 status.ready() {
-  if [ -z "$1" ]; then
-    log.error "\$1 supplied to status.ready cannot be empty. Exiting."
-    exit 1
-  fi
-  if [ -z "$2" ]; then
-    log.error "\$2 supplied to status.ready cannot be empty. Exiting."
-    exit 1
-  fi
-  LIB_STATUS_NAME="$1"
-  LIB_STATUS_DIR="$2"
   LIB_STATUS_READY=true
-  log.debug "devos.status - setting name: $LIB_STATUS_NAME"
-  log.debug "devos.status - setting dir: $LIB_STATUS_DIR"
   log.debug "devos.status - ready"
 }
 status.get() {
-  if [ "$LIB_STATUS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
-  [[ -z "${LIB_STATUS_NAME}" ]] && log.error "\$LIB_STATUS_NAME cannot be empty" && exit 1
+  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$LIB_STATUS_DIR/.status-$LIB_STATUS_NAME-$status"
+  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
   if [ -f "$status_file" ]; then
     cat "$status_file"
   else
@@ -39,35 +34,27 @@ status.get() {
   fi
 }
 status.set() {
-  if [ "$LIB_STATUS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
-  [[ -z "${LIB_STATUS_NAME}" ]] && log.error "\$LIB_STATUS_NAME cannot be empty" && exit 1
+  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$LIB_STATUS_DIR/.status-$LIB_STATUS_NAME-$status"
+  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
   local contents="${2:-"0"}"
   echo "$contents" >"$status_file"
 }
 status.clear() {
-  if [ "$LIB_STATUS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
-  [[ -z "${LIB_STATUS_NAME}" ]] && log.error "\$LIB_STATUS_NAME cannot be empty" && exit 1
+  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$LIB_STATUS_DIR/.status-$LIB_STATUS_NAME-$status"
+  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
   if [ ! -f "$status_file" ]; then
     log.warn "status file $1 does not exist. Exiting."
     return
   fi
-  rm -f "$LIB_STATUS_DIR/.status-$1"
+  rm -f "$vSTATIC_SELF_ROOT/.status-$1"
 }

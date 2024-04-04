@@ -13,6 +13,7 @@ source /root/.bashrc
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 env_path="/root/.env"
+env_sh_path="/root/.env.sh"
 source_repo="InterBolt/devos"
 clone_dir=/root/devos
 
@@ -22,9 +23,9 @@ if [ ! -f "$env_path" ]; then
 fi
 
 # shellcheck disable=SC2046
-export $(grep -v '^#' "$env_path" | sed 's/^/secret_/' | xargs)
-if [ -z "$secret_github_token" ] || [ -z "$secret_github_email" ] || [ -z "$secret_github_email" ]; then
-  echo "secret_github_token, secret_github_email, and secret_github_email must be set in $env_path"
+export $(grep -v '^#' "$env_path" | sed 's/^/ENV_/' | xargs)
+if [ -z "$ENV_GITHUB_TOKEN" ] || [ -z "$ENV_GITHUB_EMAIL" ] || [ -z "$ENV_GITHUB_EMAIL" ]; then
+  echo "ENV_GITHUB_TOKEN, ENV_GITHUB_EMAIL, and ENV_GITHUB_EMAIL must be set in $env_path"
   exit 1
 fi
 
@@ -44,11 +45,11 @@ apt update
 
 # Setup the github account and repo
 apt install gh -y
-echo "$secret_github_token" >/root/.tmp_github_token
+echo "$ENV_GITHUB_TOKEN" >/root/.tmp_github_token
 gh auth login --git-protocol https --hostname github.com --with-token </root/.tmp_github_token
 rm -f /root/.tmp_github_token
-git config --global user.email "$secret_github_email"
-git config --global user.name "$secret_github_email"
+git config --global user.email "$ENV_GITHUB_EMAIL"
+git config --global user.name "$ENV_GITHUB_EMAIL"
 if [ -d "$clone_dir" ]; then
   mv "$clone_dir" "/root/.archive.$(date +%s)"
 fi
@@ -59,19 +60,13 @@ git submodule update --init --recursive
 # Make the things executable
 find . -type f -name "*.sh" -exec chmod +x {} \;
 
-# Scripts will use this file to determine the host
-echo "$host" >"$clone_dir"/config/.host
+cp "$env_path" "$clone_dir/.env"
+cp "$env_sh_path" "$clone_dir/.env.sh"
+echo "ENV_HOST=\"$host\"" >>"$clone_dir/.env"
+echo "export ENV_HOST=\"$host\"" >>"$clone_dir/.env.sh"
+echo "ENV_LOGS_DIR=\"/root/logs\"" >>"$clone_dir/.env"
+echo "export ENV_LOGS_DIR=\"/root/logs\"" >>"$clone_dir/.env.sh"
 
-for var in $(compgen -A variable | grep "^secret_"); do
-  # shellcheck disable=SC2001
-  name="$(echo "$var" | sed -e "s/^secret_//")"
-  echo "${!var}" >"$clone_dir"/.secrets/"$name"
-done
-
-# .secrets probably already exists, but why not a little future proofing.
-mkdir -p "$clone_dir"/.secrets
-
-# Provides the working dir assumption for the the installer's start scripts
-cd "$clone_dir"
 # Run the start script associated with the host
+# shellcheck disable=SC1090
 source installer/start/"$host".sh

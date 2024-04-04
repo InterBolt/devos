@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 
-LIB_FLAGS_READY=false
-#
-# The script is used to parse the command line arguments for the devos CLI
-# and populate the following variables:
-#
-SOURCED_ALLOWED_CMDS=()
-SOURCED_ALLOWED_BASE_OPTIONS=()
-SOURCED_ALLOWED_CMD_OPTIONS=()
-SOURCED_PARSED_BASE_OPTIONS=()
-SOURCED_PARSED_CMD=""
-SOURCED_PARSED_CMD_ARG=""
-SOURCED_PARSED_CMD_OPTIONS=()
+# shellcheck source=devos.static
+source "devos.static"
 
+LIB_FLAGS_READY=false
+
+flags._validate() {
+  if [ "$LIB_FLAGS_READY" == "false" ]; then
+    log.error "flags.ready has not been called."
+    exit 1
+  fi
+}
 flags.ready() {
   LIB_FLAGS_READY=true
   log.debug "devos.flags - ready"
@@ -33,7 +31,6 @@ The DevOS installer CLI to manage DevOS installations on your local computer or 
 Available commands:
 
 launch                   - Launch the devos installation. Will repair an installation if it exists.
-update                   - Update the devos installer CLI to the latest commit.
 backup                   - Archive the devos installation, caprover backup, and postgres backup
                            to the s3 bucket.
 restore                  - Restore the devos installation, caprover backup, and postgres backup
@@ -119,29 +116,6 @@ Available options:
 EOF
 }
 #
-# Print update command usage information
-#
-flags.cmd.update.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
-  cat <<EOF
-Usage: devos update <commit> [OPTIONS]
-
-Update the devos installer CLI to the commit specified in the argument.
-Good to know - the latest stable commit is always on the main branch.
-
-Required arguments:
-
-commit              - The commit hash or branch of the devos installer to update to.
-
-Available options:
-
---help              - Print this help and exit
-EOF
-}
-#
 # Print backup command usage information
 #
 flags.cmd.backup.help() {
@@ -208,14 +182,14 @@ flags.parse_cmd() {
   while [ "$#" -gt 0 ]; do
     case "$1" in
     --*)
-      if [ -n "$SOURCED_PARSED_CMD" ]; then
+      if [ -n "$vCLI_PARSED_CMD" ]; then
         if [ "$1" == "--help" ]; then
-          flags.cmd."$SOURCED_PARSED_CMD".help
+          flags.cmd."$vCLI_PARSED_CMD".help
           exit 0
         fi
-        SOURCED_PARSED_CMD_OPTIONS+=("$1")
+        vCLI_PARSED_CMD_OPTIONS+=("$1")
       else
-        SOURCED_PARSED_BASE_OPTIONS+=("$1")
+        vCLI_PARSED_BASE_OPTIONS+=("$1")
       fi
       ;;
     *)
@@ -223,15 +197,15 @@ flags.parse_cmd() {
         break
       fi
       local is_cmd=false
-      for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
+      for cmd in "${vCLI_ALLOWED_CMDS[@]}"; do
         if [ "$1" == "$cmd" ]; then
           is_cmd=true
         fi
       done
       if [ "$is_cmd" == "false" ]; then
-        SOURCED_PARSED_CMD_ARG="$1"
+        vCLI_PARSED_CMD_ARG="$1"
       else
-        SOURCED_PARSED_CMD="$1"
+        vCLI_PARSED_CMD="$1"
       fi
       ;;
     esac
@@ -245,12 +219,12 @@ flags.parse_requirements() {
     exit 1
   fi
   for flag_name in $(flags.help | grep -E "^--" | awk '{print $1}'); do
-    SOURCED_ALLOWED_BASE_OPTIONS+=("$flag_name")
+    vCLI_ALLOWED_BASE_OPTIONS+=("$flag_name")
   done
   for cmd_name in $(flags.help | grep -A 1000 "Available commands:" | grep -B 1000 "Available options:" | grep -v "Available commands:" | grep -v "Available options:" | grep -E "^[a-z]" | awk '{print $1}'); do
-    SOURCED_ALLOWED_CMDS+=("$cmd_name")
+    vCLI_ALLOWED_CMDS+=("$cmd_name")
   done
-  for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
+  for cmd in "${vCLI_ALLOWED_CMDS[@]}"; do
     opts="$cmd("
     first=true
     for cmd_option in $(flags.cmd."$cmd".help | grep -E "^--" | awk '{print $1}'); do
@@ -262,7 +236,7 @@ flags.parse_requirements() {
       fi
       first=false
     done
-    SOURCED_ALLOWED_CMD_OPTIONS+=("$opts)")
+    vCLI_ALLOWED_CMD_OPTIONS+=("$opts)")
   done
 }
 
@@ -271,36 +245,36 @@ flags.validate() {
     log.error "flags.ready must be called first. Exiting."
     exit 1
   fi
-  if [ -z "$SOURCED_PARSED_CMD" ]; then
+  if [ -z "$vCLI_PARSED_CMD" ]; then
     echo ""
     echo "No command supplied. Please supply a command."
     echo ""
     exit 1
   fi
   is_cmd_allowed=false
-  for cmd in "${SOURCED_ALLOWED_CMDS[@]}"; do
-    if [ "$cmd" = "$SOURCED_PARSED_CMD" ]; then
+  for cmd in "${vCLI_ALLOWED_CMDS[@]}"; do
+    if [ "$cmd" = "$vCLI_PARSED_CMD" ]; then
       is_cmd_allowed=true
     fi
   done
   if [ "$is_cmd_allowed" = false ]; then
     echo ""
-    echo "Command: $SOURCED_PARSED_CMD is not allowed."
+    echo "Command: $vCLI_PARSED_CMD is not allowed."
     echo ""
     exit 1
   fi
-  if [ -z "$SOURCED_PARSED_CMD_ARG" ]; then
+  if [ -z "$vCLI_PARSED_CMD_ARG" ]; then
     echo ""
     echo "No command argument supplied. Please supply a command argument."
     echo ""
     exit 1
   fi
-  if [ -n "${SOURCED_PARSED_CMD_OPTIONS[0]}" ]; then
-    for parsed_cmd_option in "${SOURCED_PARSED_CMD_OPTIONS[@]}"; do
-      for allowed_cmd_option in "${SOURCED_ALLOWED_CMD_OPTIONS[@]}"; do
+  if [ -n "${vCLI_PARSED_CMD_OPTIONS[0]}" ]; then
+    for parsed_cmd_option in "${vCLI_PARSED_CMD_OPTIONS[@]}"; do
+      for allowed_cmd_option in "${vCLI_ALLOWED_CMD_OPTIONS[@]}"; do
         cmd_name=$(echo "$allowed_cmd_option" | awk -F '(' '{print $1}')
         cmd_options=$(echo "$allowed_cmd_option" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
-        if [ "$cmd_name" == "$SOURCED_PARSED_CMD" ]; then
+        if [ "$cmd_name" == "$vCLI_PARSED_CMD" ]; then
           is_cmd_option_allowed=false
           flag_name=$(echo "${parsed_cmd_option}" | awk -F '=' '{print $1}')
           for cmd_option in $(echo "$cmd_options" | tr ',' '\n'); do
@@ -310,7 +284,7 @@ flags.validate() {
           done
           if [ "$is_cmd_option_allowed" == false ]; then
             echo ""
-            echo "Command option: ${parsed_cmd_option} is not allowed for command: $SOURCED_PARSED_CMD."
+            echo "Command option: ${parsed_cmd_option} is not allowed for command: $vCLI_PARSED_CMD."
             echo ""
             exit 1
           fi
