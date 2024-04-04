@@ -715,7 +715,7 @@ cmd.launch() {
   # Check that the files we'll need later in the script are accessible.
   #
   for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
-    wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O -
+    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O -
     log.info "verified $file exists."
   done
   #
@@ -723,7 +723,7 @@ cmd.launch() {
   #
   for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
     rm -f "$installation_dir/$file"
-    wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$installation_dir/$file"
+    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$installation_dir/$file"
     if [ "$(head -n 1 "$installation_dir/$file" | cut -c1-2)" == "#!" ]; then
       chmod +x "$installation_dir/$file"
     fi

@@ -46,11 +46,11 @@ mkdir -p "$BIN_LIB_LOCATION"
 # and download the actual bin script to /usr/local/bin.
 #
 rm -f "$BIN_LIB_LOCATION/$BIN_SCRIPT"
-wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos" -O "$BIN_LIB_LOCATION/$BIN_SCRIPT"
+wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos" -O "$BIN_LIB_LOCATION/$BIN_SCRIPT"
 chmod +x "$BIN_LIB_LOCATION/$BIN_SCRIPT"
 for lib_script in "${LIB_SCRIPTS[@]}"; do
   rm -f "$BIN_LIB_LOCATION/$lib_script"
-  wget --quiet "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$lib_script" -O "$BIN_LIB_LOCATION/$lib_script"
+  wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$lib_script" -O "$BIN_LIB_LOCATION/$lib_script"
   chmod +x "$BIN_LIB_LOCATION/$lib_script"
 done
 

@@ -5,7 +5,7 @@
 Install `devos` to your path:
 
 ```shell
-curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/install" | bash
+curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/install" | bash
 ```
 
 Get usage info:
