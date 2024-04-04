@@ -146,11 +146,6 @@ trap "utils.exit_trap" EXIT
 state.set.env_ip() {
   vENV_IP="$1"
   log.debug "set \$vENV_IP= $vENV_IP"
-  #
-  # Our SSH library will need to overwrite the old IP with the new one.
-  # note: all lib.ready functions are idempotent.
-  #
-  ssh.ready
 }
 state.set.flags() {
   if [ -z "$vCLI_PARSED_CMD" ]; then
@@ -161,29 +156,36 @@ state.set.flags() {
     case "${vCLI_PARSED_CMD_OPTIONS[$i]}" in
     "--hard-reset")
       vCLI_OPT_HARD_RESET=true
+      log.debug "set \$vCLI_OPT_HARD_RESET= $vCLI_OPT_HARD_RESET"
       ;;
     --tag=*)
       val="${vCLI_PARSED_CMD_OPTIONS[$i]#*=}"
       if [ -n "$val" ]; then
         vCLI_OPT_TAG="$val"
+        log.debug "set \$vCLI_OPT_TAG= $vCLI_OPT_TAG"
       fi
       ;;
     "--clear-cache")
       vCLI_OPT_CLEAR_CACHE=true
+      log.debug "set \$vCLI_OPT_CLEAR_CACHE= $vCLI_OPT_CLEAR_CACHE"
       ;;
     esac
   done
   if [ "$vCLI_PARSED_CMD" == "code" ]; then
     vENV_NAME="${vCLI_PARSED_CMD_ARG}"
+    log.debug "set \$vENV_NAME= $vENV_NAME"
   fi
   if [ "$vCLI_PARSED_CMD" == "launch" ]; then
     vENV_NAME="${vCLI_PARSED_CMD_ARG}"
+    log.debug "set \$vENV_NAME= $vENV_NAME"
   fi
   if [ "$vCLI_PARSED_CMD" == "backup" ]; then
     vENV_NAME="${vCLI_PARSED_CMD_ARG}"
+    log.debug "set \$vENV_NAME= $vENV_NAME"
   fi
   if [ "$vCLI_PARSED_CMD" == "restore" ]; then
     vENV_NAME="${vCLI_PARSED_CMD_ARG}"
+    log.debug "set \$vENV_NAME= $vENV_NAME"
   fi
 }
 state.set.prompt_secrets() {
@@ -414,8 +416,6 @@ vultr.compute.wait_for_ready_instance() {
   local expected_status="active"
   local expected_server_status="ok"
   local max_retries=30
-  local queried_status=""
-  local queried_server_status=""
   while true; do
     if [ "${max_retries}" -eq 0 ]; then
       log.error "instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
@@ -427,8 +427,8 @@ vultr.compute.wait_for_ready_instance() {
         -X GET \
         -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
     )
-    queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL")"
-    queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL")"
+    local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL")"
+    local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL")"
     if [ "$queried_server_status" == "${expected_server_status}" ] && [ "$queried_status" == "${expected_status}" ]; then
       break
     fi
@@ -442,14 +442,13 @@ vultr.compute.provision() {
   local prev_ip="$1"
   local instance_id
   local created_sshkey_id
-  local found_valid_sshkey_id
   local launch_response
   #
   # In the ssh key setup below, we acquired a keypair, and now
   # we need to ask, "is this keypair on vultr?".
   # If it's not, we must create it.
   #
-  found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
+  local found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
   if [ -z "${found_valid_sshkey_id}" ]; then
     vPREV_CURL=$(
       curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
@@ -548,15 +547,13 @@ vultr.s3.create_bucket() {
 vultr.s3.get_object_storage_id() {
   local label="$1"
   local object_storage_id=""
-  local object_storage_ids
-  local object_storage_labels
   vPREV_CURL=$(
     curl "$vSTATIC_VULTR_API_URL/object-storage" \
       -X GET \
       -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
   )
-  object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL")
-  object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL")
+  local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL")
+  local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL")
   for i in "${!object_storage_labels[@]}"; do
     if [ "${object_storage_labels[$i]}" == "${label}" ]; then
       object_storage_id="${object_storage_ids[$i]}"
@@ -567,15 +564,13 @@ vultr.s3.get_object_storage_id() {
 }
 vultr.s3.get_ewr_cluster_id() {
   local cluster_id=""
-  local cluster_ids
-  local cluster_regions
   vPREV_CURL=$(
     curl "$vSTATIC_VULTR_API_URL/object-storage/clusters" \
       -X GET \
       -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
   )
-  cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL")
-  cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL")
+  local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL")
+  local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL")
   for i in "${!cluster_regions[@]}"; do
     if [ "${cluster_regions[$i]}" == "ewr" ]; then
       cluster_id="${cluster_ids[$i]}"
@@ -602,11 +597,10 @@ vultr.s3.create_storage() {
 vultr.s3.provision() {
   local object_storage_id=""
   local label="devos-${vENV_NAME}"
-  local cluster_id
   object_storage_id="$(vultr.s3.get_object_storage_id "${label}")"
   if [ -z "${object_storage_id}" ]; then
     log.info "no object storage found with the label: ${label}. creating a new one."
-    cluster_id="$(vultr.s3.get_ewr_cluster_id)"
+    local cluster_id="$(vultr.s3.get_ewr_cluster_id)"
     log.info "using the ewr cluster id: ${cluster_id}"
     object_storage_id="$(vultr.s3.create_storage "${cluster_id}" "${label}")"
     log.info "created object storage with the id: ${object_storage_id}"
@@ -636,7 +630,7 @@ vultr.s3.provision() {
 #
 # PREFLIGHT CHECKS
 #
-preflight.check_global_variables_used() {
+test.check_global_variables_used() {
   local entry_pwd="$PWD"
   cd "$vSELF_DIR"
   local errored=false
@@ -656,11 +650,11 @@ preflight.check_global_variables_used() {
   if [ "$errored" == true ]; then
     exit 1
   else
-    log.debug "preflight: variables used in libs are all defined."
+    log.debug "test passed: variables used in libs are all defined."
   fi
   cd "$entry_pwd"
 }
-preflight.verify_template_variables_in_bootfiles() {
+test.verify_template_variables_in_bootfiles() {
   local entry_pwd="$PWD"
   #
   # Makes the most sense to run each test section from the repo root
@@ -671,7 +665,7 @@ preflight.verify_template_variables_in_bootfiles() {
   #
   local bootfiles_dir="$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_BOOTFILES_DIR"
   utils.template_variables "$bootfiles_dir" "dry" "allow_empty"
-  log.debug "preflight: template variables in bootfiles are valid"
+  log.debug "test passed: template variables in bootfiles are valid"
   cd "$entry_pwd"
 }
 # --------------------------------------------------------------------------------------------
@@ -807,6 +801,10 @@ cmd.launch() {
       exit 1
     else
       local env_val=${!env_var}
+      if [ -z "$env_val" ]; then
+        log.error "$env_var cannot be empty when building the .env file."
+        exit 1
+      fi
       local env_name=$(echo "$env_var" | sed 's/vENV_/ENV_/g' | tr '[:lower:]' '[:upper:]')
       local found="$(grep -q "^$env_name=" "$installation_dir/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
       if [ -z "$found" ]; then
@@ -978,8 +976,8 @@ cmd.backup() {
 }
 cmd.test() {
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ]; then
-    preflight.check_global_variables_used
-    preflight.verify_template_variables_in_bootfiles
+    test.check_global_variables_used
+    test.verify_template_variables_in_bootfiles
   else
     log.error "this command can only be run from within a git repo."
     exit 1

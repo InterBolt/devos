@@ -3,13 +3,7 @@
 # shellcheck source=devos.static
 source "devos.static"
 
-LIB_SSH_READY=false
-
 ssh._validate() {
-  if [ "$LIB_SSH_READY" == "false" ]; then
-    log.error "flags.ready has not been called."
-    exit 1
-  fi
   if [ -z "$vENV_NAME" ]; then
     log.error "vENV_NAME must be non empty. Exiting."
     exit 1
@@ -24,11 +18,6 @@ ssh._require_ip() {
     log.error "vENV_IP must be defined. Exiting."
     exit 1
   fi
-}
-ssh.ready() {
-  LIB_SSH_READY=true
-  log.debug "devos.ssh - setting remote ip: $vENV_IP"
-  log.debug "devos.ssh - ready"
 }
 ssh.cmd.local() {
   ssh._validate

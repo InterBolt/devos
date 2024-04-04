@@ -3,21 +3,11 @@
 # shellcheck source=devos.static
 source "devos.static"
 
-LIB_STATUS_READY=""
-
 status._validate() {
-  if [ "$LIB_STATUS_READY" == "false" ]; then
-    log.error "status.ready has not been called."
-    exit 1
-  fi
   if [ -z "$vENV_NAME" ]; then
     log.error "vENV_NAME must be non empty. Exiting."
     exit 1
   fi
-}
-status.ready() {
-  LIB_STATUS_READY=true
-  log.debug "devos.status - ready"
 }
 status.get() {
   status._validate

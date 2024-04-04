@@ -2,27 +2,10 @@
 
 # shellcheck source=devos.static
 source "devos.static"
-
-LIB_FLAGS_READY=false
-
-flags._validate() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready has not been called."
-    exit 1
-  fi
-}
-flags.ready() {
-  LIB_FLAGS_READY=true
-  log.debug "devos.flags - ready"
-}
 #
 # Print top level usage information
 #
 flags.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos [OPTIONS] COMMAND [ARGS..] [COMMAND_OPTIONS]
 
@@ -49,10 +32,6 @@ EOF
 # Print launch command usage information
 #
 flags.cmd.launch.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos launch <name> [OPTIONS]
 
@@ -74,10 +53,6 @@ EOF
 # Print launch command usage information
 #
 flags.cmd.test.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos test <name> [OPTIONS]
 
@@ -97,10 +72,6 @@ EOF
 # Print code command usage information
 #
 flags.cmd.code.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos code <name> [OPTIONS]
 
@@ -119,10 +90,6 @@ EOF
 # Print backup command usage information
 #
 flags.cmd.backup.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos backup <name> [OPTIONS]
 
@@ -147,10 +114,6 @@ EOF
 # Print restore command usage information
 #
 flags.cmd.restore.help() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   cat <<EOF
 Usage: devos restore <name> [OPTIONS]
 
@@ -171,10 +134,6 @@ Available options:
 EOF
 }
 flags.parse_cmd() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   if [ "$1" = "--help" ]; then
     flags.help
     exit 0
@@ -214,10 +173,6 @@ flags.parse_cmd() {
 }
 
 flags.parse_requirements() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   for flag_name in $(flags.help | grep -E "^--" | awk '{print $1}'); do
     vCLI_ALLOWED_BASE_OPTIONS+=("$flag_name")
   done
@@ -241,10 +196,6 @@ flags.parse_requirements() {
 }
 
 flags.validate() {
-  if [ "$LIB_FLAGS_READY" == "false" ]; then
-    log.error "flags.ready must be called first. Exiting."
-    exit 1
-  fi
   if [ -z "$vCLI_PARSED_CMD" ]; then
     echo ""
     echo "No command supplied. Please supply a command."

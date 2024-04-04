@@ -3,21 +3,11 @@
 # shellcheck source=devos.static
 source "devos.static"
 
-LIB_CACHE_READY=false
-
 cache._validate() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "flags.ready has not been called."
-    exit 1
-  fi
   if [ -z "$vENV_NAME" ]; then
     log.error "vENV_NAME must be non empty. Exiting."
     exit 1
   fi
-}
-cache.ready() {
-  LIB_CACHE_READY=true
-  log.debug "devos.cache - ready"
 }
 cache.del() {
   if [ "$LIB_CACHE_READY" == "false" ]; then
