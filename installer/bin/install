@@ -36,6 +36,7 @@ mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 source "shared.log.sh"
 log.ready "installer"
 echo "worked"
+exit 1
 #
 # Will download the bin script + all lib scripts to the user's local
 # devos config folder at config/bin/.
