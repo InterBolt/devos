@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2155
 
 # shellcheck source=devos
+source "devos.static"
+# shellcheck source=devos.utils
+source "devos.static"
 # shellcheck source=devos.static
 source "devos.static"
 
@@ -113,7 +115,7 @@ vultr.compute.find_existing_sshkey_id() {
     if [ "devos" == "${found_ssh_key_names[$i]}" ]; then
       matching_ssh_key_name_found=true
     fi
-    if [ "$(ssh.cat_pubkey.local)" == "${found_ssh_keys[$i]}" ]; then
+    if [ "$(ssh.cat_pubkey.self)" == "${found_ssh_keys[$i]}" ]; then
       matching_ssh_key_found=true
     fi
     if [ "$matching_ssh_key_found" == true ] && [ "$matching_ssh_key_name_found" == true ]; then
@@ -195,7 +197,7 @@ vultr.compute.provision() {
         -H "Content-Type: application/json" \
         --data '{
           "name" : "devos",
-          "ssh_key" : "'"$(ssh.cat_pubkey.local)"'"
+          "ssh_key" : "'"$(ssh.cat_pubkey.self)"'"
         }'
     )
     created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$vPREV_CURL")"

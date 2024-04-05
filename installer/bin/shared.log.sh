@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2155
 # shellcheck disable=SC2145
 # shellcheck disable=SC2124
 
@@ -115,11 +114,10 @@ log._get_filesize() {
   du -s "$1" | cut -f 1
 }
 log._get_active_logfile() {
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
-
+  local dir="$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
   local curr_logfile
   local curr_idx=0
-  local dir="$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
+  mkdir -p "$dir"
 
   for logfile in "$dir"/*; do
     logfile_idx=$(echo "$logfile" | grep -o -E '[0-9]+')

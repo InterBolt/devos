@@ -2,8 +2,9 @@ services:
   local:
     volumes:
       - __vCLI_OPT_DIR__:/root/workspace
+      - __vSTATIC_MY_CONFIG_ROOT__:__vSTATIC_DEBIAN_CONFIG_ROOT__
     build:
-      context: __vCLI_OPT_DIR__/__vENV_NAME__
+      context: __vCLI_OPT_DIR__
       dockerfile: ./Dockerfile
     ports:
       - "2222:22"

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
 # shellcheck source=devos
+source "devos.static"
+# shellcheck source=devos.utils
+source "devos.static"
 # shellcheck source=devos.static
 source "devos.static"
 
@@ -9,14 +12,14 @@ utils.echo_line() {
   line=$(printf "%${terminal_width}s" | tr " " "-")
   echo "$line"
 }
-utils.debug_dump_vars() {
+function utils.debug_dump_vars() {
   utils.echo_line
   compgen -A variable -X '!v[A-Z_]*' | sort | while read -r line; do
     echo "$line=${!line}"
   done
   utils.echo_line
 }
-utils.exit_trap() {
+function utils.exit_trap() {
   local code=$?
   if [ $code -eq 1 ]; then
     # utils.debug_dump_vars
@@ -100,6 +103,39 @@ utils.template_variables() {
     exit 1
   fi
 }
-utils.date() {
+function utils.date() {
   date +"%Y-%m-%d %H:%M:%S"
+}
+function utils.grep_global_vars() {
+  grep -o -w '^$*v[A-Z_]\+' "$1" | grep -v "#" || echo ""
+}
+function utils.files_match_dir() {
+  local dir_to_match="$1"
+  if [ ! -d "$dir_to_match" ]; then
+    log.error "directory does not exist: $dir_to_match"
+    exit 1
+  fi
+  local files_to_match=("${@:2}")
+  for file_to_match in "${files_to_match[@]}"; do
+    if [ ! -f "$dir_to_match/$file_to_match" ]; then
+      log.error "bootfile does not exist: $dir_to_match/$file_to_match"
+      exit 1
+    fi
+  done
+  for dir_file in "$dir_to_match"/*; do
+    if [ ! -f "$dir_file" ]; then
+      continue
+    fi
+    dir_filename="$(basename "$dir_file")"
+    found=false
+    for file_to_match in "${files_to_match[@]}"; do
+      if [ "$file_to_match" == "$dir_filename" ]; then
+        found=true
+      fi
+    done
+    if [ "$found" == false ]; then
+      log.error "(${files_to_match[*]}) does not contain: $dir_filename"
+      exit 1
+    fi
+  done
 }

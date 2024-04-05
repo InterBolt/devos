@@ -1,19 +1,23 @@
 #!/usr/bin/env bash
 
 # shellcheck source=devos
+source "devos.static"
+# shellcheck source=devos.utils
+source "devos.static"
 # shellcheck source=devos.static
 source "devos.static"
 
+LIB_CACHE_DIR=".cache"
+
 cache.del() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
-  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/.cache/$1"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
+  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   rm -f "$tmp_filepath"
 }
 cache.clear() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
-  rm -rf "$vSTATIC_MY_CONFIG_ROOT/.cache"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
+  # shellcheck disable=SC2115
+  rm -rf "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
 }
 #
 # Important: this follows the same pattern as how we curl api endpoints.
@@ -22,9 +26,8 @@ cache.clear() {
 # there's only one way to "get" things in a particular category of functions.
 #
 cache.get() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
-  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/.cache/$1"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
+  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   if [ -f "$tmp_filepath" ]; then
     cat "$tmp_filepath"
   else
@@ -32,17 +35,15 @@ cache.get() {
   fi
 }
 cache.set() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
-  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/.cache/$1"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
+  local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   if [ ! -f "$tmp_filepath" ]; then
     touch "$tmp_filepath"
   fi
   echo "$2" >"$tmp_filepath"
 }
 cache.prompt() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local input
   input="$(cache.get "$1")"
   if [ -z "$input" ]; then
@@ -57,8 +58,7 @@ cache.prompt() {
   cache.get "$1"
 }
 cache.overwrite_on_empty() {
-  cache._validate
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.cache"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local cached_val
   cached_val="$(cache.get "$1")"
   local next_val="$2"

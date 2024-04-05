@@ -12,8 +12,24 @@ source /root/.bashrc
 # Ensures the script can be run from anywhere
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-env_path="/root/workspace/.env"
-env_sh_path="/root/workspace/.env.sh"
+host="$1"
+if [ -z "$host" ]; then
+  echo "You must provide a host argument. Exiting."
+  exit 1
+fi
+if [ "$host" != "docker" ] && [ "$host" != "remote" ]; then
+  echo "The host argument must be either 'docker' or 'remote'. Exiting."
+  exit 1
+fi
+# Establish which environment we're in
+if [ "$host" == "docker" ]; then
+  env_path="/root/workspace/.env"
+  env_sh_path="/root/workspace/.env.sh"
+else
+  env_path="/root/.env"
+  env_sh_path="/root/.env.sh"
+fi
+
 source_repo="InterBolt/devos"
 clone_dir=/root/devos
 
@@ -27,13 +43,6 @@ export $(grep -v '^#' "$env_path" | sed 's/^/ENV_/' | xargs)
 if [ -z "$ENV_GITHUB_TOKEN" ] || [ -z "$ENV_GITHUB_EMAIL" ] || [ -z "$ENV_GITHUB_EMAIL" ]; then
   echo "ENV_GITHUB_TOKEN, ENV_GITHUB_EMAIL, and ENV_GITHUB_EMAIL must be set in $env_path"
   exit 1
-fi
-
-# Establish which environment we're in
-if [ -f /.dockerenv ]; then
-  host="local"
-else
-  host="remote"
 fi
 
 # Install Git
