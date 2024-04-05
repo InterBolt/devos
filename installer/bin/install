@@ -24,6 +24,7 @@ log.ready "installer"
 #
 iEXECUTABLE_NAME="devos"
 iMY_CONFIG_BIN="$vSTATIC_MY_CONFIG_ROOT/bin"
+iMY_CONFIG_TMP_DIR="$vSTATIC_MY_CONFIG_ROOT/.tmp"
 iUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/${iEXECUTABLE_NAME}"
 iREPO_BIN_SCRIPTS=(
   "devos"
@@ -40,23 +41,49 @@ iREPO_BIN_SCRIPTS=(
   "shared.log.sh"
 )
 iBIN_SCRIPT_COMMENT_TAG="# github:interbolt/devos"
+#
+# Warn the user about the consequences of overwriting files.
+#
 if [ "$iINSTALL_DIR_EXISTED" == true ]; then
   log.warn "will overwrite files at $iMY_CONFIG_BIN/"
   log.warn "if you want to keep your existing files, please back them up before continuing."
   log.warn "press enter to continue or ctrl+c to cancel."
   read -r
-  rm -rf "$iMY_CONFIG_BIN"
 fi
+#
+# Make sure the config/.tmp and config/bin directories exist.
+#
 mkdir -p "$iMY_CONFIG_BIN"
+mkdir -p "$iMY_CONFIG_TMP_DIR"
 #
 # Downloads bootfiles from the devos repository and saves them in
-# the users config/bin directory. All devos projects will share the same
-# executable.
+# the users config/.tmp directory.
+# Important: make sure the downloads are successful before overwriting
+# the existing files.
 #
 for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
-  rm -f "$iMY_CONFIG_BIN/$bin_script"
-  wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$bin_script" -O "$iMY_CONFIG_BIN/$bin_script"
+  rm -f "$iMY_CONFIG_TMP_DIR/$bin_script"
+  wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$bin_script" -O "$iMY_CONFIG_TMP_DIR/$bin_script"
+done
+#
+# Wipe the existing bin scripts.
+#
+rm -rf "$iMY_CONFIG_BIN"
+mkdir -p "$iMY_CONFIG_BIN"
+#
+# Move the downloaded scripts to the bin directory and make them executable.
+#
+for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
+  #
+  # We don't need to -f mv these because the files were already deleted
+  # before this loop.
+  #
+  mv "$iMY_CONFIG_TMP_DIR/$bin_script" "$iMY_CONFIG_BIN/$bin_script"
   chmod +x "$iMY_CONFIG_BIN/$bin_script"
+  #
+  # Clean up the tmp script file.
+  #
+  rm -f "$iMY_CONFIG_TMP_DIR/$bin_script"
 done
 #
 # For extra safety, we'll see if the script looks like something we've installed before
@@ -68,7 +95,7 @@ if [ -f "$iUSR_LOCAL_BIN_EXECUTABLE" ]; then
     log.warn "overwriting $iUSR_LOCAL_BIN_EXECUTABLE"
     rm -f "$iUSR_LOCAL_BIN_EXECUTABLE"
   else
-    log.error "cannot overwrite $iUSR_LOCAL_BIN_EXECUTABLE. It exists but is not a devos script."
+    log.error "line: \`$iBIN_SCRIPT_COMMENT_TAG\` was not found in $iUSR_LOCAL_BIN_EXECUTABLE. can't verify that it was installed by devos."
     exit 1
   fi
 fi
