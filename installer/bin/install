@@ -65,7 +65,8 @@ done
 #
 # The move happens after a successful series of copies to avoid partial installs.
 #
-mv -f "$iMY_TMP_CONFIG_BIN_DIR" "$iMY_CONFIG_BIN"
+rm -rf "$iMY_CONFIG_BIN"
+mv "$iMY_TMP_CONFIG_BIN_DIR" "$iMY_CONFIG_BIN"
 #
 # For extra safety, we'll see if the script looks like something we've installed before
 # based on the second line of the script, which is a distinct comment.
