@@ -60,7 +60,6 @@ fi
 #   cp -a "$iPATH_TO_SOURCE_BIN_SCRIPTS/$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$bin_script"
 # done
 for bin_script in "$iPATH_TO_SOURCE_BIN_SCRIPTS"/*; do
-  echo "bin_script: $bin_script"
   cp -a "$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$(basename "$bin_script")"
 done
 #
@@ -94,5 +93,5 @@ fi
   echo "\"$iMY_CONFIG_BIN/$iEXECUTABLE_NAME\" \"\$@\""
 } >>"$iUSR_LOCAL_BIN_EXECUTABLE"
 chmod +x "$iUSR_LOCAL_BIN_EXECUTABLE"
-log.success "success: devos installed at: $iUSR_LOCAL_BIN_EXECUTABLE"
+log.info "success: devos installed at: $iUSR_LOCAL_BIN_EXECUTABLE"
 log.info "run 'devos --help' to get started."
