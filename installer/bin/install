@@ -12,8 +12,10 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # any lib scripts.
 #
 iTMP_DIR="$(mktemp -d 2>/dev/null)"
+iMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
 i.cleanup() {
   rm -rf "$iTMP_DIR"
+  rm -rf "$iMY_TMP_CONFIG_BIN_DIR"
 }
 trap "i.cleanup" EXIT
 cd "$iTMP_DIR"
@@ -21,6 +23,7 @@ git clone "https://github.com/InterBolt/devos.git" >/dev/null 2>&1
 cd devos
 find . -type f -name "*.sh" -exec chmod +x {} \;
 cd installer/bin
+iPATH_TO_SOURCE_BIN_SCRIPTS="$PWD"
 #
 # Source anything we need an make sure the user has a
 # config dir in the home folder.
@@ -35,8 +38,6 @@ mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=shared.log.sh
 source "shared.log.sh"
 log.ready "installer"
-echo "worked"
-exit 1
 #
 # Will download the bin script + all lib scripts to the user's local
 # devos config folder at config/bin/.
@@ -44,22 +45,7 @@ exit 1
 #
 iEXECUTABLE_NAME="devos"
 iMY_CONFIG_BIN="$vSTATIC_MY_CONFIG_ROOT/bin"
-iMY_CONFIG_TMP_DIR="$vSTATIC_MY_CONFIG_ROOT/.tmp"
 iUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/${iEXECUTABLE_NAME}"
-iREPO_BIN_SCRIPTS=(
-  "devos"
-  "devos.cache"
-  "devos.environment"
-  "devos.flags"
-  "devos.ssh"
-  "devos.static"
-  "devos.status"
-  "devos.test"
-  "devos.utils"
-  "devos.precheck"
-  "devos.vultr"
-  "shared.log.sh"
-)
 iBIN_SCRIPT_COMMENT_TAG="# github:interbolt/devos"
 #
 # Warn the user about the consequences of overwriting files.
@@ -70,41 +56,16 @@ if [ "$iINSTALL_DIR_EXISTED" == true ]; then
   log.warn "press enter to continue or ctrl+c to cancel."
   read -r
 fi
-#
-# Make sure the config/.tmp and config/bin directories exist.
-#
-mkdir -p "$iMY_CONFIG_BIN"
-mkdir -p "$iMY_CONFIG_TMP_DIR"
-#
-# Downloads bootfiles from the devos repository and saves them in
-# the users config/.tmp directory.
-# Important: make sure the downloads are successful before overwriting
-# the existing files.
-#
-for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
-  rm -f "$iMY_CONFIG_TMP_DIR/$bin_script"
-  wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/$bin_script" -O "$iMY_CONFIG_TMP_DIR/$bin_script"
+# for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
+#   cp -a "$iPATH_TO_SOURCE_BIN_SCRIPTS/$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$bin_script"
+# done
+for bin_script in "$iPATH_TO_SOURCE_BIN_SCRIPTS"/*; do
+  cp -a "$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$(basename "$bin_script")"
 done
 #
-# Wipe the existing bin scripts.
+# The move happens after a successful series of copies to avoid partial installs.
 #
-rm -rf "$iMY_CONFIG_BIN"
-mkdir -p "$iMY_CONFIG_BIN"
-#
-# Move the downloaded scripts to the bin directory and make them executable.
-#
-for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
-  #
-  # We don't need to -f mv these because the files were already deleted
-  # before this loop.
-  #
-  mv "$iMY_CONFIG_TMP_DIR/$bin_script" "$iMY_CONFIG_BIN/$bin_script"
-  chmod +x "$iMY_CONFIG_BIN/$bin_script"
-  #
-  # Clean up the tmp script file.
-  #
-  rm -f "$iMY_CONFIG_TMP_DIR/$bin_script"
-done
+mv --force "$iMY_TMP_CONFIG_BIN_DIR" "$iMY_CONFIG_BIN"
 #
 # For extra safety, we'll see if the script looks like something we've installed before
 # based on the second line of the script, which is a distinct comment.
