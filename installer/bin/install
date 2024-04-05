@@ -63,7 +63,6 @@ for bin_script in "$iPATH_TO_SOURCE_BIN_SCRIPTS"/*; do
   echo "bin_script: $bin_script"
   cp -a "$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$(basename "$bin_script")"
 done
-exit 0
 #
 # The move happens after a successful series of copies to avoid partial installs.
 #
