@@ -8,16 +8,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # we source remotely.
 #
 # shellcheck source=devos.static
-source <(curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.static")
-# iINSTALL_DIR_EXISTED=false
-# if [ -d "$vSTATIC_MY_CONFIG_ROOT" ]; then
-#   iINSTALL_DIR_EXISTED=true
-# fi
-echo "$vSTATIC_MY_CONFIG_ROOT"
-exit 0
+source /dev/stdin <<<"$(curl -s curl -H 'Cache-Control: no-cache' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.static")"
+iINSTALL_DIR_EXISTED=false
+if [ -d "$vSTATIC_MY_CONFIG_ROOT" ]; then
+  iINSTALL_DIR_EXISTED=true
+fi
 mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=shared.log.sh
-source <(curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")
+source /dev/stdin <<<"$(curl -s curl -H 'Cache-Control: no-cache' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")"
 log.ready "installer"
 #
 # Will download the bin script + all lib scripts to the user's local
