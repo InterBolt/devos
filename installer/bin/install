@@ -7,16 +7,35 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # Important: please use "i" prefix to avoid conflicts with other scripts
 # we source remotely.
 #
+#
+# clone the devos repository to a tmp dir, make files executable, and source
+# any lib scripts.
+#
+iTMP_DIR="$(mktemp -d 2>/dev/null)"
+i.cleanup() {
+  rm -rf "$iTMP_DIR"
+}
+trap "i.cleanup" EXIT
+cd "$iTMP_DIR"
+git clone "https://github.com/InterBolt/devos.git" >/dev/null 2>&1
+cd devos
+find . -type f -name "*.sh" -exec chmod +x {} \;
+cd installer/bin
+#
+# Source anything we need an make sure the user has a
+# config dir in the home folder.
+#
 # shellcheck source=devos.static
-source /dev/stdin <<<"$(curl -s -H 'Cache-Control: no-cache' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.static")"
+source "devos.static"
 iINSTALL_DIR_EXISTED=false
 if [ -d "$vSTATIC_MY_CONFIG_ROOT" ]; then
   iINSTALL_DIR_EXISTED=true
 fi
 mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=shared.log.sh
-source /dev/stdin <<<"$(curl -s -H 'Cache-Control: no-cache' "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")"
+source "shared.log.sh"
 log.ready "installer"
+echo "worked"
 #
 # Will download the bin script + all lib scripts to the user's local
 # devos config folder at config/bin/.
