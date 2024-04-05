@@ -111,7 +111,11 @@ log._exception() {
   )
 }
 log._get_filesize() {
-  du -s "$1" | cut -f 1
+  if [ -f "${1}" ]; then
+    du -k "${1}" | cut -f 1
+  else
+    echo 0
+  fi
 }
 log._get_active_logfile() {
   local dir="$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
