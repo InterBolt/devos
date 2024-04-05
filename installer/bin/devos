@@ -617,7 +617,7 @@ cmd.restore() {
   if [ "$vSTATIC_HOST" == "local" ]; then
     precheck.docker_host_running
   fi
-  log.warn "would restore the backup with name $vCLI_OPT_TAG"
+  log.warn "TODO: implementation needed"
 }
 cmd.backup() {
   cmd.checkout
@@ -625,7 +625,7 @@ cmd.backup() {
   if [ "$vSTATIC_HOST" == "local" ]; then
     precheck.docker_host_running
   fi
-  log.warn "would backup the current instance with name $vCLI_OPT_TAG"
+  log.warn "TODO: implementation needed"
 }
 cmd.status() {
   local status_devos_id=""

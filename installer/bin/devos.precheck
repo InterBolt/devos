@@ -50,15 +50,15 @@ precheck.docker_host_running() {
     exit 1
   fi
   if [ -z "$vENV_DEVOS_ID" ]; then
-    log.error "no devos id found. this is usually stored at $vSTATIC_MY_CONFIG_ROOT/$vSTATIC_DEVOS_ID_FILENAME"
+    log.error "no devos id found. this is stored at $vSTATIC_MY_CONFIG_ROOT/$vSTATIC_DEVOS_ID_FILENAME"
     exit 1
   fi
   if ! docker info &>/dev/null; then
-    log.error "Docker is not running. Exiting."
+    log.error "docker desktop not running."
     exit 1
   fi
   if ! COMPOSE_PROJECT_NAME="devos-$vENV_DEVOS_ID" docker-compose ps &>/dev/null; then
-    log.error "Docker is not running. Exiting."
+    log.error "the compose project \`devos-$vENV_DEVOS_ID\` is not running."
     exit 1
   fi
 }
