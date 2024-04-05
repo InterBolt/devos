@@ -4,7 +4,10 @@
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/root"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__vENV_IP____vSTATIC_DEBIAN_CLONE_DIR__"
+      "uri": "vscode-remote://ssh-remote+__vENV_IP__/root/devos"
+    },
+    {
+      "uri": "vscode-remote://ssh-remote+__vENV_IP__/root/deployments"
     },
     {
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/"
@@ -12,7 +15,7 @@
   ],
   "remoteAuthority": "ssh-remote+__vENV_IP__",
   "settings": {
-    "remote.SSH.configFile": "__vSTATIC_MY_ROOT__/__vSTATIC_SSH_CONFIG_FILENAME__",
+    "remote.SSH.configFile": "__vCLI_OPT_DIR__/.ssh/__vSTATIC_SSH_CONFIG_FILENAME__",
     "remote.SSH.defaultExtensions": [
       "ms-vscode.remote-repositories",
       "ms-vscode.remote-explorer",

@@ -12,8 +12,8 @@ source /root/.bashrc
 # Ensures the script can be run from anywhere
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-env_path="/root/.env"
-env_sh_path="/root/.env.sh"
+env_path="/root/workspace/.env"
+env_sh_path="/root/workspace/.env.sh"
 source_repo="InterBolt/devos"
 clone_dir=/root/devos
 
@@ -50,22 +50,17 @@ gh auth login --git-protocol https --hostname github.com --with-token </root/.tm
 rm -f /root/.tmp_github_token
 git config --global user.email "$ENV_GITHUB_EMAIL"
 git config --global user.name "$ENV_GITHUB_EMAIL"
-if [ -d "$clone_dir" ]; then
-  mv "$clone_dir" "/root/.archive.$(date +%s)"
+if [ ! -d "$clone_dir" ]; then
+  gh repo clone "$source_repo" "$clone_dir"
 fi
-gh repo clone "$source_repo" "$clone_dir"
 cd "$clone_dir"
 git submodule update --init --recursive
 
 # Make the things executable
 find . -type f -name "*.sh" -exec chmod +x {} \;
 
-cp "$env_path" "$clone_dir/.env"
-cp "$env_sh_path" "$clone_dir/.env.sh"
-echo "ENV_HOST=\"$host\"" >>"$clone_dir/.env"
-echo "export ENV_HOST=\"$host\"" >>"$clone_dir/.env.sh"
-echo "ENV_LOGS_DIR=\"/root/logs\"" >>"$clone_dir/.env"
-echo "export ENV_LOGS_DIR=\"/root/logs\"" >>"$clone_dir/.env.sh"
+cp -a "$env_path" "$clone_dir/.env"
+cp -a "$env_sh_path" "$clone_dir/.env.sh"
 
 # Run the start script associated with the host
 # shellcheck disable=SC1090

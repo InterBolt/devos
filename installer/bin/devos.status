@@ -10,8 +10,8 @@ status.get() {
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  mkdir -p "$vSTATIC_MY_ROOT/.status"
-  local status_file="$vSTATIC_MY_ROOT/.status/$status"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.status"
+  local status_file="$vSTATIC_MY_CONFIG_ROOT/.status/$status"
   if [ -f "$status_file" ]; then
     cat "$status_file"
   else
@@ -24,8 +24,8 @@ status.set() {
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  mkdir -p "$vSTATIC_MY_ROOT/.status"
-  local status_file="$vSTATIC_MY_ROOT/.status/$status"
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/.status"
+  local status_file="$vSTATIC_MY_CONFIG_ROOT/.status/$status"
   local contents="${2:-"0"}"
   echo "$contents" >"$status_file"
 }
@@ -35,5 +35,5 @@ status.clear() {
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  rm -rf "$vSTATIC_MY_ROOT/.status"
+  rm -rf "$vSTATIC_MY_CONFIG_ROOT/.status"
 }

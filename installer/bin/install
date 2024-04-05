@@ -7,39 +7,34 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 BIN_LIB_LOCATION="$HOME/.devos/bin"
 BIN_LOCATION="/usr/local/bin"
-LIB_SCRIPTS=(
-  "devos.cache"
-  "devos.flags"
-  "devos.ssh"
-  "devos.static"
-  "devos.status"
-  "devos.utils"
-  "shared.log.sh"
-)
+# LIB_SCRIPTS=(
+#   "devos.cache"
+#   "devos.flags"
+#   "devos.ssh"
+#   "devos.static"
+#   "devos.status"
+#   "devos.utils"
+#   "shared.log.sh"
+# )
 BIN_SCRIPT="devos"
-#
-# A copy/paste of the base.logs file.
-#
-log.info() {
-  # shellcheck disable=SC2046,SC2059
-  echo -e $(printf "\e[34minfo:\e[0m $1")
-}
-log.debug() {
-  # shellcheck disable=SC2046,SC2059
-  echo -e $(printf "\e[36mdebug:\e[0m $1")
-}
-log.success() {
-  # shellcheck disable=SC2046,SC2059
-  echo -e $(printf "\e[32msuccess:\e[0m $1")
-}
-log.error() {
-  # shellcheck disable=SC2046,SC2059
-  echo -e $(printf "\e[31merror:\e[0m $1")
-}
-log.warn() {
-  # shellcheck disable=SC2046,SC2059
-  echo -e $(printf "\e[33mwarn:\e[0m $1")
-}
+
+# shellcheck source=devos.static
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.static")
+# shellcheck source=devos.cache
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.cache")
+# shellcheck source=devos.flags
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.flags")
+# shellcheck source=devos.ssh
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.ssh")
+# shellcheck source=devos.status
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.status")
+# shellcheck source=devos.utils
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.utils")
+# shellcheck source=shared.log.sh
+source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")
+
+log.ready ""
+
 mkdir -p "$BIN_LIB_LOCATION"
 #
 # Download the libs we need to source to the .devos directory

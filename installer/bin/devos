@@ -33,7 +33,6 @@ vPREV_RETURN=()
 #
 vSTATUS_BOOTSTRAPPED_POSTGRES="bootstrapped-remote-postgres"
 vSTATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
-vSTATUS_BOOTSTRAPPED_LOCAL="bootstrapped-local"
 vSTATUS_LAUNCH_SUCCEEDED="successful-run"
 # --------------------------------------------------------------------------------------------
 #
@@ -42,12 +41,6 @@ vSTATUS_LAUNCH_SUCCEEDED="successful-run"
 # Think of these like libraries.
 # Except they are tightly coupled to the variables defined in this script.
 #
-cd "$vMY_DIR"
-#
-# Initialize the main directory, log directory, and mark logs as ready.
-#
-mkdir -p "$vSTATIC_MY_ROOT"
-mkdir -p "$vSTATIC_MY_ROOT/$vSTATIC_LOGS_DIRNAME"
 # shellcheck source=shared.log.sh
 source "shared.log.sh"
 log.ready "cli"
@@ -64,8 +57,10 @@ source "devos.ssh"
 source "devos.status"
 # shellcheck source=devos.utils
 source "devos.utils"
+# shellcheck source=devos.vultr
+source "devos.vultr"
 #
-# Return to the previous directory.
+# Return to the previous directory just in case.
 #
 cd "$vMY_DIR"
 #
@@ -83,22 +78,36 @@ vCLI_PARSED_CMD_OPTIONS=()
 vCLI_OPT_HARD_RESET=false
 vCLI_OPT_CLEAR_CACHE=false
 vCLI_OPT_TAG=""
+vCLI_OPT_DIR=""
 # --------------------------------------------------------------------------------------------
 #
 # config that get passed to each environment.
 #
+# shellcheck disable=SC2034
 vENV_OPENAI_API_KEY=""
+# shellcheck disable=SC2034
 vENV_VULTR_API_KEY=""
+# shellcheck disable=SC2034
 vENV_CLOUDFLARE_API_TOKEN=""
+# shellcheck disable=SC2034
 vENV_GITHUB_TOKEN=""
+# shellcheck disable=SC2034
 vENV_IP=""
+# shellcheck disable=SC2034
 vENV_VULTR_S3_HOST=""
+# shellcheck disable=SC2034
 vENV_VULTR_S3_OBJECT_STORE=""
+# shellcheck disable=SC2034
 vENV_VULTR_S3_ACCESS_KEY=""
+# shellcheck disable=SC2034
 vENV_VULTR_S3_SECRET=""
+# shellcheck disable=SC2034
 vENV_GITHUB_USERNAME=""
+# shellcheck disable=SC2034
 vENV_GITHUB_EMAIL=""
+# shellcheck disable=SC2034
 vENV_CAPROVER_PASSWORD=""
+# shellcheck disable=SC2034
 vENV_POSTGRES_PASSWORD=""
 # shellcheck disable=SC2034
 vENV_CAPROVER_NAME="interbolt"
@@ -114,10 +123,6 @@ vENV_DB_USER="devos"
 vENV_DB_NAME="manager"
 # shellcheck disable=SC2034
 vENV_DB_PORT=5432
-#
-# The script below assumes the .devos directory as the working dir.
-#
-cd "$vSTATIC_MY_ROOT"
 # --------------------------------------------------------------------------------------------
 #
 # TRAPPING LOGIC
@@ -149,6 +154,19 @@ state.map_parsed_cli() {
       vCLI_OPT_HARD_RESET=true
       log.debug "set \$vCLI_OPT_HARD_RESET= $vCLI_OPT_HARD_RESET"
       ;;
+    --dir=*)
+      supplied_val="${vCLI_PARSED_CMD_OPTIONS[$i]#*=}"
+      if [ "$supplied_val" == "$HOME" ]; then
+        log.error "Danger: --dir flag cannot be set to the home directory. Exiting."
+        exit 1
+      fi
+      if [[ "$HOME" == "$supplied_val"* ]]; then
+        log.error "Danger: --dir flag cannot be set to a parent directory of the home directory. Exiting."
+        exit 1
+      fi
+      vCLI_OPT_DIR="$val"
+      log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
+      ;;
     --tag=*)
       val="${vCLI_PARSED_CMD_OPTIONS[$i]#*=}"
       if [ -n "$val" ]; then
@@ -163,27 +181,9 @@ state.map_parsed_cli() {
     esac
   done
 }
-state.exports.aws_credentials() {
-  export AWS_ACCESS_KEY_ID=$vENV_VULTR_S3_ACCESS_KEY
-  export AWS_SECRET_ACCESS_KEY=$vENV_VULTR_S3_SECRET
-  export AWS_ENDPOINT_URL="https://$vENV_VULTR_S3_HOST"
-}
 # --------------------------------------------------------------------------------------------
 #
-# STATUS FUNCTIONS:
-# These keep track of various statuses, like "did the bootstrap complete"
-# "Did rsync work?", "Did the secondary postgres bootstrap script run?", etc
-# Makes idempotent logic easier.
-#
-# Reusable status strings
-#
-vSTATUS_BOOTSTRAPPED_POSTGRES="bootstrapped-remote-postgres"
-vSTATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
-vSTATUS_BOOTSTRAPPED_LOCAL="bootstrapped-local"
-vSTATUS_LAUNCH_SUCCEEDED="successful-run"
-# --------------------------------------------------------------------------------------------
-#
-# PREFLIGHT CHECKS
+# TESTS
 #
 test.check_global_variables_used() {
   local entry_pwd="$PWD"
@@ -239,19 +239,51 @@ cmd.launch() {
     fi
   done
   #
-  # note: remember, the old ip is still accessible after wiping this dir
-  # because we cached it in `state.set.init`
+  # Yes, this is done in the flag parsing/mapping too
+  # but I'm doing the check twice to prevent disaster.
   #
+  if [ "$vCLI_OPT_DIR" == "$HOME" ]; then
+    log.error "Danger: you are trying to wipe the home directory. Exiting."
+    exit 1
+  fi
+  if [[ "$HOME" == "$vCLI_OPT_DIR"* ]]; then
+    log.error "Danger: you are trying to wipe a parent directory of your home directory. Exiting."
+    exit 1
+  fi
   if [ "$vCLI_OPT_HARD_RESET" == true ]; then
-    log.warn "hard reset flag detected. Are you sure you want to continue? (y/n)"
-    read -r response
-    if [ "$response" != "y" ]; then
-      log.warn "user aborted hard reset."
-      exit 0
+    #
+    # when doing a hard reset, we should always expect
+    # that the dir provided via the cli or static vars is
+    # a valid `devos` folder. And if not, we throw.
+    #
+    if [ ! -d "$vCLI_OPT_DIR" ]; then
+      log.error "Invalid directory supplied for --dir flag: $vCLI_OPT_DIR. Exiting."
+      exit 1
     fi
-    rm -rf "$vSTATIC_MY_ROOT"
-    mkdir -p "$vSTATIC_MY_ROOT"
-    log.warn "wiped and created empty dir: $vSTATIC_MY_ROOT"
+    if [ ! -f "$vCLI_OPT_DIR/.devos" ]; then
+      log.error "The supplied directory does not contain a .devos file. Exiting."
+      exit 1
+    fi
+    log.warn "HARD RESET: ${vCLI_OPT_DIR} in 5 seconds."
+    sleep 3
+    log.warn "DELETING: ${vCLI_OPT_DIR} in 2 seconds."
+    sleep 2
+    rm -rf "$vCLI_OPT_DIR"
+    log.warn "wiped and created empty dir: $vCLI_OPT_DIR"
+  fi
+  #
+  # On the other hand, if we're not hard reseting, we should
+  # only operate on a PRE-EXISTING `devos` folder if it has
+  # a `.devos` file in it.
+  #
+  if [ ! -d "$vCLI_OPT_DIR" ]; then
+    mkdir -p "$vCLI_OPT_DIR"
+    log.info "created: $vCLI_OPT_DIR"
+    date +%s >"$vCLI_OPT_DIR/.devos"
+    log.debug "created: $vCLI_OPT_DIR/.devos"
+  elif [ ! -f "$vCLI_OPT_DIR/.devos" ]; then
+    log.error "The supplied directory does not contain a .devos file. Exiting."
+    exit 1
   fi
   #
   # I might regret this but warn only.
@@ -308,48 +340,38 @@ cmd.launch() {
       exit 1
     fi
   done
-  #
-  # Check that the files we'll need later in the script are accessible.
-  #
   for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
-    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O -
-    log.info "verified $file exists."
-  done
-  #
-  # Actually download the files this time.
-  #
-  for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
-    rm -f "$vSTATIC_MY_BOOTFILES_DIR/$file"
-    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$vSTATIC_MY_BOOTFILES_DIR/$file"
-    if [ "$(head -n 1 "$vSTATIC_MY_BOOTFILES_DIR/$file" | cut -c1-2)" == "#!" ]; then
-      chmod +x "$vSTATIC_MY_BOOTFILES_DIR/$file"
+    rm -f "$vCLI_OPT_DIR/bootfiles/$file"
+    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$vCLI_OPT_DIR/bootfiles/$file"
+    if [ "$(head -n 1 "$vCLI_OPT_DIR/bootfiles/$file" | cut -c1-2)" == "#!" ]; then
+      chmod +x "$vCLI_OPT_DIR/bootfiles/$file"
     fi
     #
     # throw and remove any files that don't have valid variables.
     #
-    if ! utils.template_variables "$vSTATIC_MY_BOOTFILES_DIR/$file" "dry" 2>&1; then
-      log.exit "bad variables used in: $vSTATIC_MY_BOOTFILES_DIR/$file"
+    if ! utils.template_variables "$vCLI_OPT_DIR/bootfiles/$file" "dry" 2>&1; then
+      log.exit "bad variables used in: $vCLI_OPT_DIR/bootfiles/$file"
       exit 1
     fi
-    log.info "downloaded: $vSTATIC_MY_BOOTFILES_DIR/$file"
+    log.info "downloaded: $vCLI_OPT_DIR/bootfiles/$file"
   done
-  if [ ! -d "$vSTATIC_MY_ROOT/.ssh" ]; then
-    mkdir -p "$vSTATIC_MY_ROOT/.ssh"
-    log.info "created: $vSTATIC_MY_ROOT/.ssh"
-    log.info "created: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME with placeholders."
-    ssh-keygen -t rsa -q -f "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME" -N ""
-    log.info "created private key: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME, public key: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-    cat "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME" >"$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-    log.info "created $vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  if [ ! -d "$vCLI_OPT_DIR/.ssh" ]; then
+    mkdir -p "$vCLI_OPT_DIR/.ssh"
+    log.info "created: $vCLI_OPT_DIR/.ssh"
+    log.info "created: $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME with placeholders."
+    ssh-keygen -t rsa -q -f "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME" -N ""
+    log.info "created private key: $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME, public key: $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+    cat "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME" >"$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+    log.info "created $vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME: $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   fi
-  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
-  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
-  chmod 600 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
-  log.debug "updated permissions: chmod 600 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  chmod 644 "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  log.debug "updated permissions: chmod 644 - $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  chmod 644 "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  log.debug "updated permissions: chmod 644 - $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  chmod 644 "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  log.debug "updated permissions: chmod 644 - $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  chmod 600 "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  log.debug "updated permissions: chmod 600 - $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
   #
   # Now that our SSH keys are ready, let us provision vultr stuff.
   # It's possible that that stuff is already provisioned, in which case
@@ -389,7 +411,7 @@ cmd.launch() {
   # ENV_IP=127.0.0.1
   # ```
   #
-  rm -f "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME"
+  rm -f "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
   local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vMY_DIR/devos")
   for env_var in $env_vars; do
     local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
@@ -403,10 +425,10 @@ cmd.launch() {
         exit 1
       fi
       local env_name=$(echo "$env_var" | sed 's/vENV_/ENV_/g' | tr '[:lower:]' '[:upper:]')
-      local found="$(grep -q "^$env_name=" "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
+      local found="$(grep -q "^$env_name=" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
       if [ -z "$found" ]; then
-        echo "$env_name=$env_val" >>"$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME"
-        echo "export $env_name=\"$env_val\"" >>"$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME"
+        echo "$env_name=$env_val" >>"$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
+        echo "export $env_name=\"$env_val\"" >>"$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
       fi
     fi
   done
@@ -414,32 +436,27 @@ cmd.launch() {
     echo "Host 127.0.0.1"
     echo "  HostName 127.0.0.1"
     echo "  User root"
-    echo "  IdentityFile $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+    echo "  IdentityFile $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
     echo "  Port 2222"
     echo ""
     echo ""
     echo "Host $vENV_IP"
     echo "  HostName $vENV_IP"
     echo "  User root"
-    echo "  IdentityFile $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
-  } >"$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+    echo "  IdentityFile $vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  } >"$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
   #
   # Checkpoint: once we're here, it's reasonable to assume
   # that any variables we need to be set are set. That means
   # we can inject them into downloaded/generated source files.
   #
-  utils.template_variables "$vSTATIC_MY_ROOT" "commit"
+  utils.template_variables "$vCLI_OPT_DIR" "commit"
   log.info "injected vars into source files."
   #
   # Build and start the local docker container.
   # Warning: this will recreate the container on each run.
   #
-  # The compose.yml file that drives this mounts the ENTIRE .devos folder as a volume.
-  # that's ok because we need the full folder for this CLI tool to work.
-  # But it's also a problem because mounting the .devos folder means we could
-  # in theory write code to fuck up an unrelated installation.
-  # TODO: a series of small improvements are necessary to ensure we only need to
-  # TODO[continued]: mount the necessary folders.
+  # The compose.yml file that drives this mounts the ENTIRE devos folder as a volume.
   #
   docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
   #
@@ -450,26 +467,24 @@ cmd.launch() {
   # present in each debian environment's root folder.
   #
   log.info "docker container is ready"
-  ssh.cmd.local "rm -f /root/$vSTATIC_ENV_FILENAME"
-  ssh.cmd.local "rm -f /root/$vSTATIC_ENV_SH_FILENAME"
-  ssh.rsync_up.local "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" "/root/"
-  ssh.rsync_up.local "$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME" "/root/"
-  log.info "uploaded env files local docker container"
-  ssh.cmd.remote "rm -f /root/$vSTATIC_ENV_FILENAME"
-  ssh.cmd.remote "rm -f /root/$vSTATIC_ENV_SH_FILENAME"
-  ssh.rsync_up.remote "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" "/root/"
-  ssh.rsync_up.remote "$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME" "/root/"
-  log.info "uploaded env files remote server"
-  ssh.rsync_up.remote "$$vSTATIC_MY_ROOT/$vSTATIC_BOOTSTRAP_SH" "/root/"
+  ssh.cmd.local "mkdir -p /root/workspace"
+  ssh.rsync_up.local "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" "/root/workspace/"
+  ssh.rsync_up.local "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME" "/root/workspace/"
+  log.info "uploaded env files local docker container: /root/workspace/$vSTATIC_ENV_SH_FILENAME"
+  ssh.cmd.remote "mkdir -p /root/workspace"
+  ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" "/root/workspace/"
+  ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME" "/root/workspace/"
+  log.info "uploaded env files remote server: /root/workspace/$vSTATIC_ENV_SH_FILENAME"
+  ssh.rsync_up.remote "$$vCLI_OPT_DIR/$vSTATIC_BOOTSTRAP_SH" "/root/workspace/"
   log.info "uploaded $vSTATIC_BOOTSTRAP_SH remote server"
   ssh.cmd.remote "chmod +x /root/$vSTATIC_BOOTSTRAP_SH"
-  log.info "updated permissions: chmod +x /root/$vSTATIC_BOOTSTRAP_SH"
+  log.info "updated permissions: chmod +x /root/workspace/$vSTATIC_BOOTSTRAP_SH"
   #
   # Create the folder where we'll store out caprover
   # deployment tar files.
   #
-  ssh.cmd.remote "mkdir -p $vSTATIC_DEBIAN_DEPLOYMENTS_DIR"
-  log.info "created remote deployment dir: $vSTATIC_DEBIAN_DEPLOYMENTS_DIR"
+  ssh.cmd.remote "mkdir -p /root/deployments"
+  log.info "created remote deployment dir: /root/deployments"
   #
   # Note: the bootstrapping script should be idempotent but it's still
   # a long ass script so I like the ability to skip it. Also, the downsides of not re-running
@@ -485,7 +500,7 @@ cmd.launch() {
     # So we need to individually upload files we'll need.
     # Starting with the .env file we built earlier.
     #
-    ssh.cmd.remote "/root/$vSTATIC_BOOTSTRAP_SH"
+    ssh.cmd.remote "/root/workspace/$vSTATIC_BOOTSTRAP_SH"
     status.set "$vSTATUS_BOOTSTRAPPED_REMOTE" "$(utils.date)"
     log.info "bootstrapped the remote server."
   fi
@@ -493,11 +508,11 @@ cmd.launch() {
   if [ -n "$timestamp_of_postgres_bootstrap" ]; then
     log.warn "skipping all postgres bootstrap - previously completed at $timestamp_of_postgres_bootstrap"
   else
-    ssh.rsync_down.remote "$vSTATIC_DEBIAN_CLONE_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME" "$vSTATIC_MY_ROOT/"
+    ssh.rsync_down.remote "$vSTATIC_DEBIAN_CLONE_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME" "$vCLI_OPT_DIR/"
     log.info "downloaded caprover one-click-app template."
     utils.echo_line
     echo ""
-    cat "$vSTATIC_MY_ROOT/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME"
+    cat "$vCLI_OPT_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME"
     echo ""
     utils.echo_line
     echo "Setup the caprover Postgres database and hit enter."
@@ -508,22 +523,11 @@ cmd.launch() {
     status.set "$vSTATUS_BOOTSTRAPPED_REMOTE" "$(utils.date)"
   fi
   #
-  # TODO: I suspect bootstrapping is idempotent on the docker container.
-  # TODO[continued]: Therefore, if we're ok with the performance hit, we should consider
-  # TODO[continued]: running it every time.
+  # The logic here is simpler because the bootstrap script for the docker container
+  # will never deal with things like databases or service orchestration.
   #
-  timestamp_of_local_bootstrap="$(status.get "$vSTATUS_BOOTSTRAPPED_LOCAL")"
-  if [ -n "$timestamp_of_local_bootstrap" ]; then
-    log.warn "skipping local bootstrap - previously completed at $timestamp_of_local_bootstrap"
-  else
-    #
-    # The logic here is simpler because the bootstrap script for the docker container
-    # will never deal with things like databases or service orchestration.
-    #
-    ssh.cmd.local "$STORE_TARGET_NAMED_BOOTSTRAP_SH_FILE"
-    log.info "bootstrapped the local docker container."
-    status.set "$vSTATUS_BOOTSTRAPPED_LOCAL" "$(utils.date)"
-  fi
+  ssh.cmd.local "$STORE_TARGET_NAMED_BOOTSTRAP_SH_FILE"
+  log.info "bootstrapped the local docker container."
   #
   # This is redundant, but it's a good safety check because
   # if something bad happened and the old ip is the same as the current
@@ -550,7 +554,7 @@ cmd.launch() {
     # If the user is re-installing, we want to make sure we don't leave behind an errant ip addresses throughout
     # the installation folder, or that we don't leave dangling vultr resources
     #
-    find "$vSTATIC_MY_ROOT" -type f -exec sed -i 's/'"$(cache.get "old_ip")"'/'"${vENV_IP}"'/g' {} \;
+    find "$vCLI_OPT_DIR" -type f -exec sed -i 's/'"$(cache.get "old_ip")"'/'"${vENV_IP}"'/g' {} \;
     log.info "replaced $(cache.get "old_ip") with $vENV_IP in all files for extra safety."
     log.warn "waiting 5 seconds before destroying the previous instance!"
     sleep 5
@@ -594,6 +598,10 @@ flags.validate
 # frequent changes to business logic don't affect the parsing logic
 #
 state.map_parsed_cli
+if [ -z "$vCLI_OPT_DIR" ]; then
+  log.error "--dir is required. Exiting."
+  exit 1
+fi
 #
 # Before doing ANYTHING, check that our command actually works.
 # Fail fast!

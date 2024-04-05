@@ -34,17 +34,13 @@ EOF
 #
 flags.cmd.launch.help() {
   cat <<EOF
-Usage: devos launch <name> [OPTIONS]
+Usage: devos launch [OPTIONS]
 
 Launch a new installation, complete a partial installation, or repair an existing installation.
 
-Required arguments:
-
-name                - The name of the installation. This will be used to create a directory
-                      in your home directory to store the installation files.
-
 Available options:
 
+--dir               - [required] The directory to store the installation files.
 --help              - Print this help and exit
 --hard-reset        - Dangerously recreate installation files and infrastructure.
 --clear-cache       - Clear the cache and ignore previously stored values.
@@ -55,17 +51,13 @@ EOF
 #
 flags.cmd.test.help() {
   cat <<EOF
-Usage: devos test <name> [OPTIONS]
+Usage: devos test [OPTIONS]
 
 Run tests on the installation to ensure it's working as expected.
 
-Required arguments:
-
-name                - The name of the installation. Tests as many assumptions and behaviors as
-                      possible to ensure the installation is working as expected.
-
 Available options:
 
+--dir               - [required] The directory to store the installation files.
 --help              - Print this help and exit
 EOF
 }
@@ -74,16 +66,13 @@ EOF
 #
 flags.cmd.code.help() {
   cat <<EOF
-Usage: devos code <name> [OPTIONS]
+Usage: devos code [OPTIONS]
 
 Open the vscode workspaces associated with the installation.
 
-Required arguments:
-
-name                - The name of the installation.
-
 Available options:
 
+--dir               - [required] The directory to store the installation files.
 --help              - Print this help and exit
 EOF
 }
@@ -92,7 +81,7 @@ EOF
 #
 flags.cmd.backup.help() {
   cat <<EOF
-Usage: devos backup <name> [OPTIONS]
+Usage: devos backup [OPTIONS]
 
 Backup the installation, caprover, and postgres to the s3 bucket.
 
@@ -102,6 +91,7 @@ name                - The name of the installation to backup.
 
 Available options:
 
+--dir               - [required] The directory to store the installation files.
 --help              - Print this help and exit
 --tag=<string>      - The tag to use for the backup.
 --allow-local       - Allow the .devos folder we backup to come from the 
@@ -116,7 +106,7 @@ EOF
 #
 flags.cmd.restore.help() {
   cat <<EOF
-Usage: devos restore <name> [OPTIONS]
+Usage: devos restore [OPTIONS]
 
 Restore the installation, caprover, and postgres from the s3 bucket.
 

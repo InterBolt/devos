@@ -24,11 +24,9 @@ export vSTATIC_DEPENDENCY_COMMANDS=(
   "docker"
   "aws" # TODO: remove and use vultr api instead of cli for s3
 )
-export vSTATIC_MY_ROOT="$HOME/devos"
-export vSTATIC_MY_BOOTFILES_DIR="$vSTATIC_MY_ROOT/bootfiles"
+export vSTATIC_MY_CONFIG_ROOT="$HOME/.devos"
 export vSTATIC_DEBIAN_ROOT="/root"
 export vSTATIC_DEBIAN_CLONE_DIR="/root/devos"
-export vSTATIC_DEBIAN_DEPLOYMENTS_DIR="/root/deployments"
 export vSTATIC_REPO_BOOTFILES_DIR="installer/bootfiles"
 export vSTATIC_BOOTSTRAP_SH="bootstrap.sh"
 export vSTATIC_REPO_BOOTFILES=(
