@@ -5,10 +5,6 @@
 source "devos.static"
 
 ssh._validate() {
-  if [ -z "$vENV_NAME" ]; then
-    log.error "vENV_NAME must be non empty. Exiting."
-    exit 1
-  fi
   if [ -z "${!vENV_IP+x}" ]; then
     log.error "vENV_IP must be defined. Exiting."
     exit 1
@@ -68,57 +64,57 @@ ssh.rsync_down.remote() {
   rsync --checksum -a -e "ssh -i $(ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"$vENV_IP":"$target" "$source"
 }
 ssh.cat_pubkey.self() {
-  if [ -f "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
-    cat "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  if [ -f "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
+    cat "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
   else
     echo ""
   fi
 }
 ssh.cat_pubkey.debian() {
-  if [ -f "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
-    cat "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  if [ -f "$/root/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
+    cat "$/root/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
   else
     echo ""
   fi
 }
 ssh.path_privkey.self() {
-  if [ -f "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
-    echo "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  if [ -f "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
+    echo "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
   else
     echo ""
   fi
 }
 ssh.path_privkey.debian() {
-  if [ -f "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
-    echo "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  if [ -f "$/root/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
+    echo "$/root/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
   else
     echo ""
   fi
 }
 ssh.path_authorized_keys.self() {
-  if [ -f "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
-    echo "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  if [ -f "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
+    echo "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   else
     echo ""
   fi
 }
 ssh.path_authorized_keys.debian() {
-  if [ -f "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
-    echo "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  if [ -f "$/root/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
+    echo "$/root/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   else
     echo ""
   fi
 }
 ssh.path_config.self() {
-  if [ -f "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
-    echo "$vSTATIC_MY_CONFIG_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  if [ -f "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
+    echo "$vCLI_OPT_DIR/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
   else
     echo ""
   fi
 }
 ssh.path_config.debian() {
-  if [ -f "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
-    echo "$vSTATIC_DEBIAN_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  if [ -f "$/root/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
+    echo "$/root/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
   else
     echo ""
   fi

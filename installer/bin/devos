@@ -180,6 +180,13 @@ state.map_parsed_cli() {
       ;;
     esac
   done
+  if [ -z "$vCLI_OPT_DIR" ]; then
+    vCLI_OPT_DIR="$(cache.get "checkout_dir")"
+    if [ -z "$vCLI_OPT_DIR" ]; then
+      log.error "No directory supplied or checked out in the cache. Please supply a --dir."
+      exit 1
+    fi
+  fi
 }
 # --------------------------------------------------------------------------------------------
 #
@@ -227,17 +234,7 @@ test.verify_template_variables_in_bootfiles() {
 #
 # COMMAND ENTRY FUNCTIONS
 #
-cmd.launch() {
-  #
-  # Loops through a bunch of commands we know we'll need so the
-  # user can install them before running the script.
-  #
-  for cmd in "${vSTATIC_DEPENDENCY_COMMANDS[@]}"; do
-    if ! command -v "$cmd" &>/dev/null; then
-      log.error "pre-check failed. Install \"$cmd\" to your path and try again."
-      exit 1
-    fi
-  done
+cmd.checkout() {
   #
   # Yes, this is done in the flag parsing/mapping too
   # but I'm doing the check twice to prevent disaster.
@@ -250,6 +247,20 @@ cmd.launch() {
     log.error "Danger: you are trying to wipe a parent directory of your home directory. Exiting."
     exit 1
   fi
+  cache.set "checkout_dir" "$vCLI_OPT_DIR"
+}
+cmd.launch() {
+  cmd.checkout
+  #
+  # Loops through a bunch of commands we know we'll need so the
+  # user can install them before running the script.
+  #
+  for cmd in "${vSTATIC_DEPENDENCY_COMMANDS[@]}"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      log.error "pre-check failed. Install \"$cmd\" to your path and try again."
+      exit 1
+    fi
+  done
   if [ "$vCLI_OPT_HARD_RESET" == true ]; then
     #
     # when doing a hard reset, we should always expect
@@ -564,18 +575,27 @@ cmd.launch() {
   status.set "$vSTATUS_LAUNCH_SUCCEEDED" "$(utils.date)"
 }
 cmd.code() {
+  cmd.checkout
+
   if ! command -v "code" &>/dev/null; then
     log.error "vscode is not installed to your path. cannot continue."
   fi
+
   log.warn "would open vscode"
 }
 cmd.restore() {
+  cmd.checkout
+
   log.warn "would restore the backup with name $vCLI_OPT_TAG"
 }
 cmd.backup() {
+  cmd.checkout
+
   log.warn "would backup the current instance with name $vCLI_OPT_TAG"
 }
 cmd.test() {
+  cmd.checkout
+
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ]; then
     test.check_global_variables_used
     test.verify_template_variables_in_bootfiles

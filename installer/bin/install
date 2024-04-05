@@ -5,33 +5,22 @@ set -o pipefail
 set -o errtrace
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-BIN_LIB_LOCATION="$HOME/.devos/bin"
-BIN_LOCATION="/usr/local/bin"
-# LIB_SCRIPTS=(
-#   "devos.cache"
-#   "devos.flags"
-#   "devos.ssh"
-#   "devos.static"
-#   "devos.status"
-#   "devos.utils"
-#   "shared.log.sh"
-# )
-BIN_SCRIPT="devos"
-
 # shellcheck source=devos.static
 source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.static")
-# shellcheck source=devos.cache
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.cache")
-# shellcheck source=devos.flags
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.flags")
-# shellcheck source=devos.ssh
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.ssh")
-# shellcheck source=devos.status
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.status")
-# shellcheck source=devos.utils
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/devos.utils")
-# shellcheck source=shared.log.sh
-source <(curl -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")
+
+BIN_LIB_LOCATION="$vSTATIC_MY_CONFIG_ROOT/bin"
+BIN_LOCATION="/usr/local/bin"
+LIB_SCRIPTS=(
+  "devos.cache"
+  "devos.flags"
+  "devos.ssh"
+  "devos.static"
+  "devos.status"
+  "devos.utils"
+  "devos.vultr"
+  "shared.log.sh"
+)
+BIN_SCRIPT="devos"
 
 log.ready ""
 
