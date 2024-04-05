@@ -14,6 +14,7 @@ source <(curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com
 #   iINSTALL_DIR_EXISTED=true
 # fi
 echo "$vSTATIC_MY_CONFIG_ROOT"
+exit 0
 mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=shared.log.sh
 source <(curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/shared.log.sh")
