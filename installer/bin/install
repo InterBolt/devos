@@ -52,9 +52,6 @@ iBIN_SCRIPT_COMMENT_TAG="# github:interbolt/devos"
 #
 if [ "$iINSTALL_DIR_EXISTED" == true ]; then
   log.warn "will overwrite files at $iMY_CONFIG_BIN/"
-  log.warn "if you want to keep your existing files, please back them up before continuing."
-  log.warn "press enter to continue or ctrl+c to cancel."
-  read -r
 fi
 # for bin_script in "${iREPO_BIN_SCRIPTS[@]}"; do
 #   cp -a "$iPATH_TO_SOURCE_BIN_SCRIPTS/$bin_script" "$iMY_TMP_CONFIG_BIN_DIR/$bin_script"
@@ -65,7 +62,7 @@ done
 #
 # The move happens after a successful series of copies to avoid partial installs.
 #
-mv --force "$iMY_TMP_CONFIG_BIN_DIR" "$iMY_CONFIG_BIN"
+mv -f "$iMY_TMP_CONFIG_BIN_DIR" "$iMY_CONFIG_BIN"
 #
 # For extra safety, we'll see if the script looks like something we've installed before
 # based on the second line of the script, which is a distinct comment.
