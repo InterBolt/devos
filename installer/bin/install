@@ -20,7 +20,7 @@ log.ready "installer"
 #
 # Will download the bin script + all lib scripts to the user's local
 # devos config folder at config/bin/.
-# Then, the main executable will be simply call the main script as a command.
+# Then, the main executable at the user's path can call the main script as a command.
 #
 iEXECUTABLE_NAME="devos"
 iMY_CONFIG_BIN="$vSTATIC_MY_CONFIG_ROOT/bin"
@@ -88,7 +88,7 @@ done
 #
 # For extra safety, we'll see if the script looks like something we've installed before
 # based on the second line of the script, which is a distinct comment.
-# If it does, we'll overwrite it.
+# If it does, we're safe to overwrite it.
 #
 if [ -f "$iUSR_LOCAL_BIN_EXECUTABLE" ]; then
   if [ "$(sed -n '2p' "$iUSR_LOCAL_BIN_EXECUTABLE")" == "$iBIN_SCRIPT_COMMENT_TAG" ]; then
