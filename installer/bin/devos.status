@@ -1,22 +1,17 @@
 #!/usr/bin/env bash
 
+# shellcheck source=devos
 # shellcheck source=devos.static
 source "devos.static"
 
-status._validate() {
-  if [ -z "$vENV_NAME" ]; then
-    log.error "vENV_NAME must be non empty. Exiting."
-    exit 1
-  fi
-}
 status.get() {
-  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
+  mkdir -p "$vSTATIC_MY_ROOT/.status"
+  local status_file="$vSTATIC_MY_ROOT/.status/$status"
   if [ -f "$status_file" ]; then
     cat "$status_file"
   else
@@ -24,27 +19,21 @@ status.get() {
   fi
 }
 status.set() {
-  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
+  mkdir -p "$vSTATIC_MY_ROOT/.status"
+  local status_file="$vSTATIC_MY_ROOT/.status/$status"
   local contents="${2:-"0"}"
   echo "$contents" >"$status_file"
 }
 status.clear() {
-  status._validate
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
-  local status_file="$vSTATIC_SELF_ROOT/.status-$vENV_NAME-$status"
-  if [ ! -f "$status_file" ]; then
-    log.warn "status file $1 does not exist. Exiting."
-    return
-  fi
-  rm -f "$vSTATIC_SELF_ROOT/.status-$1"
+  rm -rf "$vSTATIC_MY_ROOT/.status"
 }

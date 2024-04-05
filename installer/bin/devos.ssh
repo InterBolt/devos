@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck source=devos
 # shellcheck source=devos.static
 source "devos.static"
 
@@ -67,8 +68,8 @@ ssh.rsync_down.remote() {
   rsync --checksum -a -e "ssh -i $(ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"$vENV_IP":"$target" "$source"
 }
 ssh.cat_pubkey.self() {
-  if [ -f "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
-    cat "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  if [ -f "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME" ]; then
+    cat "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
   else
     echo ""
   fi
@@ -81,8 +82,8 @@ ssh.cat_pubkey.debian() {
   fi
 }
 ssh.path_privkey.self() {
-  if [ -f "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
-    echo "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  if [ -f "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME" ]; then
+    echo "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
   else
     echo ""
   fi
@@ -95,8 +96,8 @@ ssh.path_privkey.debian() {
   fi
 }
 ssh.path_authorized_keys.self() {
-  if [ -f "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
-    echo "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  if [ -f "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
+    echo "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   else
     echo ""
   fi
@@ -109,8 +110,8 @@ ssh.path_authorized_keys.debian() {
   fi
 }
 ssh.path_config.self() {
-  if [ -f "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
-    echo "$vSTATIC_SELF_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  if [ -f "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
+    echo "$vSTATIC_MY_ROOT/$vENV_NAME/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
   else
     echo ""
   fi

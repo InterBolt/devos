@@ -12,7 +12,7 @@
   ],
   "remoteAuthority": "ssh-remote+__vENV_IP__",
   "settings": {
-    "remote.SSH.configFile": "__vSTATIC_SELF_ROOT__/__vSTATIC_SSH_CONFIG_FILENAME__",
+    "remote.SSH.configFile": "__vSTATIC_MY_ROOT__/__vSTATIC_SSH_CONFIG_FILENAME__",
     "remote.SSH.defaultExtensions": [
       "ms-vscode.remote-repositories",
       "ms-vscode.remote-explorer",

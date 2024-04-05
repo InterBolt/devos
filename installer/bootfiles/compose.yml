@@ -1,9 +1,9 @@
 services:
   local:
     volumes:
-      - __vSTATIC_SELF_ROOT__:__vSTATIC_DEBIAN_ROOT__
+      - __vSTATIC_MY_ROOT__:__vSTATIC_DEBIAN_ROOT__
     build:
-      context: __vSTATIC_SELF_ROOT__/__vENV_NAME__
+      context: __vSTATIC_MY_ROOT__/__vENV_NAME__
       dockerfile: ./Dockerfile
     ports:
       - "2222:22"

@@ -6,7 +6,7 @@ set -o pipefail
 set -o errtrace
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-vSELF_DIR="$(pwd)"
+vMY_DIR="$(pwd)"
 vDEBUG_LEVEL=${DEBUG_LEVEL:-0}
 #
 # These variables are shared between this script AND every helper script
@@ -23,12 +23,8 @@ shopt -s dotglob
 #
 # RESPONSE/RETURN SLOTS
 #
-# WARNING: THESE VARS ARE IMPLICITLY USED IN LIB SCRIPTS.
-# Never do this with anything else! I'm only ok with it because
-# it's a narrow use case and the libs should always check and throw
-# when things they need don't exist.
-#
 vPREV_CURL=""
+vPREV_RETURN=()
 # --------------------------------------------------------------------------------------------
 #
 # STATUSES:
@@ -46,32 +42,32 @@ vSTATUS_LAUNCH_SUCCEEDED="successful-run"
 # Think of these like libraries.
 # Except they are tightly coupled to the variables defined in this script.
 #
-cd "$vSELF_DIR"
+cd "$vMY_DIR"
 #
 # Initialize the main directory, log directory, and mark logs as ready.
 #
-mkdir -p "$vSTATIC_SELF_ROOT"
-mkdir -p "$vSTATIC_SELF_ROOT/$vSTATIC_LOGS_DIRNAME"
+mkdir -p "$vSTATIC_MY_ROOT"
+mkdir -p "$vSTATIC_MY_ROOT/$vSTATIC_LOGS_DIRNAME"
 # shellcheck source=shared.log.sh
 source "shared.log.sh"
 log.ready "cli"
 #
 # Now source all the things we need.
 #
-# shellcheck source=devos.flags
-source "devos.flags"
-# shellcheck source=devos.utils
-source "devos.utils"
 # shellcheck source=devos.cache
 source "devos.cache"
-# shellcheck source=devos.status
-source "devos.status"
+# shellcheck source=devos.flags
+source "devos.flags"
 # shellcheck source=devos.ssh
 source "devos.ssh"
+# shellcheck source=devos.status
+source "devos.status"
+# shellcheck source=devos.utils
+source "devos.utils"
 #
 # Return to the previous directory.
 #
-cd "$vSELF_DIR"
+cd "$vMY_DIR"
 #
 # --------------------------------------------------------------------------------------------
 #
@@ -91,7 +87,6 @@ vCLI_OPT_TAG=""
 #
 # config that get passed to each environment.
 #
-vENV_NAME=""
 vENV_OPENAI_API_KEY=""
 vENV_VULTR_API_KEY=""
 vENV_CLOUDFLARE_API_TOKEN=""
@@ -122,7 +117,7 @@ vENV_DB_PORT=5432
 #
 # The script below assumes the .devos directory as the working dir.
 #
-cd "$vSTATIC_SELF_ROOT"
+cd "$vSTATIC_MY_ROOT"
 # --------------------------------------------------------------------------------------------
 #
 # TRAPPING LOGIC
@@ -143,11 +138,7 @@ trap "utils.exit_trap" EXIT
 # EX: if we decide we need some value to persist between runs, we can
 # easily modify the getter/setter implentation to use a file as a cache
 #
-state.set.env_ip() {
-  vENV_IP="$1"
-  log.debug "set \$vENV_IP= $vENV_IP"
-}
-state.set.flags() {
+state.map_parsed_cli() {
   if [ -z "$vCLI_PARSED_CMD" ]; then
     log.error "No command supplied. Please supply a command."
     exit 1
@@ -171,85 +162,6 @@ state.set.flags() {
       ;;
     esac
   done
-  if [ "$vCLI_PARSED_CMD" == "code" ]; then
-    vENV_NAME="${vCLI_PARSED_CMD_ARG}"
-    log.debug "set \$vENV_NAME= $vENV_NAME"
-  fi
-  if [ "$vCLI_PARSED_CMD" == "launch" ]; then
-    vENV_NAME="${vCLI_PARSED_CMD_ARG}"
-    log.debug "set \$vENV_NAME= $vENV_NAME"
-  fi
-  if [ "$vCLI_PARSED_CMD" == "backup" ]; then
-    vENV_NAME="${vCLI_PARSED_CMD_ARG}"
-    log.debug "set \$vENV_NAME= $vENV_NAME"
-  fi
-  if [ "$vCLI_PARSED_CMD" == "restore" ]; then
-    vENV_NAME="${vCLI_PARSED_CMD_ARG}"
-    log.debug "set \$vENV_NAME= $vENV_NAME"
-  fi
-}
-state.set.prompt_secrets() {
-  local expects_these_things=(
-    "vENV_GITHUB_TOKEN"
-    "vENV_OPENAI_API_KEY"
-    "vENV_VULTR_API_KEY"
-    "vENV_CLOUDFLARE_API_TOKEN"
-  )
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_GITHUB_TOKEN="$(cache.prompt "vENV_GITHUB_TOKEN")"
-  log.debug "set \$vENV_GITHUB_TOKEN= $vENV_GITHUB_TOKEN"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_OPENAI_API_KEY="$(cache.prompt "vENV_OPENAI_API_KEY")"
-  log.debug "set \$vENV_OPENAI_API_KEY= $vENV_OPENAI_API_KEY"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_VULTR_API_KEY="$(cache.prompt "vENV_VULTR_API_KEY")"
-  log.debug "set \$vENV_VULTR_API_KEY= $vENV_VULTR_API_KEY"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_CLOUDFLARE_API_TOKEN="$(cache.prompt "vENV_CLOUDFLARE_API_TOKEN")"
-  log.debug "set \$vENV_CLOUDFLARE_API_TOKEN= $vENV_CLOUDFLARE_API_TOKEN"
-  # ------------------------------------------------------------------------------------------------------------
-  for i in "${!expects_these_things[@]}"; do
-    if [ -z "${!expects_these_things[$i]}" ]; then
-      log.error "${expects_these_things[$i]} is empty. Exiting."
-      exit 1
-    fi
-  done
-}
-state.set.generate_secrets() {
-  local expects_these_things=(
-    "vENV_CAPROVER_PASSWORD"
-    "vENV_POSTGRES_PASSWORD"
-    "vENV_GITHUB_USERNAME"
-    "vENV_GITHUB_EMAIL"
-  )
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_CAPROVER_PASSWORD="$(cache.overwrite_on_empty "vENV_CAPROVER_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
-  log.debug "set \$vENV_CAPROVER_PASSWORD= $vENV_CAPROVER_PASSWORD"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_POSTGRES_PASSWORD="$(cache.overwrite_on_empty "vENV_POSTGRES_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
-  log.debug "set \$vENV_POSTGRES_PASSWORD= $vENV_POSTGRES_PASSWORD"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_GITHUB_USERNAME="$(cache.overwrite_on_empty "vENV_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
-  log.debug "set \$vENV_GITHUB_USERNAME= $vENV_GITHUB_USERNAME"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_GITHUB_EMAIL="$(cache.overwrite_on_empty "vENV_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)")"
-  log.debug "set \$vENV_GITHUB_EMAIL= $vENV_GITHUB_EMAIL"
-  for i in "${!expects_these_things[@]}"; do
-    if [ -z "${!expects_these_things[$i]}" ]; then
-      log.error "${expects_these_things[$i]} is empty. Exiting."
-      exit 1
-    fi
-  done
-}
-state.set.vultr_s3_credentials() {
-  vENV_VULTR_S3_HOST="$1"
-  log.debug "set \$vENV_VULTR_S3_HOST= $vENV_VULTR_S3_HOST"
-  vENV_VULTR_S3_ACCESS_KEY="$2"
-  log.debug "set \$vENV_VULTR_S3_ACCESS_KEY= $vENV_VULTR_S3_ACCESS_KEY"
-  vENV_VULTR_S3_SECRET="$3"
-  log.debug "set \$vENV_VULTR_S3_SECRET= $vENV_VULTR_S3_SECRET"
-  vENV_VULTR_S3_OBJECT_STORE="$4"
-  log.debug "set \$vENV_VULTR_S3_OBJECT_STORE= $vENV_VULTR_S3_OBJECT_STORE"
 }
 state.exports.aws_credentials() {
   export AWS_ACCESS_KEY_ID=$vENV_VULTR_S3_ACCESS_KEY
@@ -271,368 +183,11 @@ vSTATUS_BOOTSTRAPPED_LOCAL="bootstrapped-local"
 vSTATUS_LAUNCH_SUCCEEDED="successful-run"
 # --------------------------------------------------------------------------------------------
 #
-# VULTR FUNCTIONS
-#
-vultr.compute.instance_contains_tag() {
-  #
-  # This function is useful for checking if an instance has the matching
-  # SSH tag. Might use it for other tags in the future.
-  #
-  local tag="$1"
-  local instance_id="$2"
-  local tags
-  local found=false
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  tags=$(jq -r '.instance.tags' <<<"$vPREV_CURL")
-  for i in "${!tags[@]}"; do
-    if [ "${tags[$i]}" == "${tag}" ]; then
-      found=true
-    fi
-  done
-  echo "$found"
-}
-vultr.compute.destroy_instance() {
-  local instance_id="$1"
-  if [ -z "${instance_id}" ]; then
-    log.error "you supplied an empty instance id as the first argument to vultr.compute.destroy_instance"
-    exit 1
-  fi
-  curl "$vSTATIC_VULTR_API_URL/instances/$instance_id" \
-    -X DELETE \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-}
-vultr.compute.create_instance() {
-  local plan="$1"
-  local region="$2"
-  local os_id="$3"
-  local label="$4"
-  local sshkey_id="$5"
-  local ip
-  local instance_id
-  #
-  # This function will launch an instance on vultr with the params supplied
-  # and return the ip and instance id seperated by a space.
-  # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
-  #
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/instances" \
-      -X POST \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
-      -H "Content-Type: application/json" \
-      --data '{
-      "region" : "'"${region}"'",
-      "plan" : "'"${plan}"'",
-      "label" : "'"${label}"'",
-      "os_id" : '"${os_id}"',
-      "backups" : "disabled",
-      "tags": [
-        "source_devos"
-        "'"ssh_${sshkey_id}"'"
-      ],
-      "sshkey_id": [
-        "'"${sshkey_id}"'"
-      ]
-    }'
-  )
-  ip="$(jq -r '.instance.task_ip' <<<"$vPREV_CURL")"
-  instance_id="$(jq -r '.instance.id' <<<"$vPREV_CURL")"
-  echo "$ip $instance_id"
-}
-vultr.compute.get_instance_id_from_ip() {
-  local ip="$1"
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/instances?task_ip=${ip}" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  jq -r '.instances[0].id' <<<"$vPREV_CURL"
-}
-vultr.compute.find_existing_sshkey_id() {
-  local found_ssh_keys
-  local found_ssh_key_names
-  local match_exists=false
-  local matching_ssh_key_found=false
-  local matching_ssh_key_name_found=false
-  local matching_sshkey_id=""
-  #
-  # This function will loop through the existing ssh keys on vultr
-  # and ask, "is the name and public key the same as the one we have?"
-  # If so, we echo the ssh key id and exit. We'll echo an empty
-  # string if the key doesn't exist.
-  #
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$vPREV_CURL")
-  found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$vPREV_CURL")
-  found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"$vPREV_CURL")
-  for i in "${!found_ssh_keys[@]}"; do
-    if [ "devos-$vENV_NAME" == "${found_ssh_key_names[$i]}" ]; then
-      matching_ssh_key_name_found=true
-    fi
-    if [ "$(ssh.cat_pubkey.local)" == "${found_ssh_keys[$i]}" ]; then
-      matching_ssh_key_found=true
-    fi
-    if [ "$matching_ssh_key_found" == true ] && [ "$matching_ssh_key_name_found" == true ]; then
-      match_exists=true
-      matching_sshkey_id="${found_sshkey_ids[$i]}"
-      break
-    fi
-  done
-  #
-  # Catch conflicts where a matching ssh key exists, but it's name is different.
-  # Or where a matching ssh key name exists, but it's public key contents are different.
-  # Note: technically we could just say "if match_exists=false" error and exit.
-  # But the extra info is nice for debugging.
-  #
-  if [ "$match_exists" == false ] && [ "$matching_ssh_key_found" == true ]; then
-    log.error "a conflict was found where a matching ssh key exists, but it's name is different."
-    for i in "${!found_ssh_keys[@]}"; do
-      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
-    done
-    exit 1
-  fi
-  if [ "$match_exists" == false ] && [ "$matching_ssh_key_name_found" == true ]; then
-    log.error "a conflict was found where a matching ssh key name exists, but it's public key contents are different."
-    for i in "${!found_ssh_keys[@]}"; do
-      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
-    done
-    exit 1
-  fi
-  if [ -n "${matching_sshkey_id}" ]; then
-    echo "${matching_sshkey_id}"
-  else
-    echo ""
-  fi
-}
-vultr.compute.wait_for_ready_instance() {
-  local instance_id="$1"
-  local expected_status="active"
-  local expected_server_status="ok"
-  local max_retries=30
-  while true; do
-    if [ "${max_retries}" -eq 0 ]; then
-      log.error "instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
-      exit 1
-    fi
-    log.warn "pinging the instance: ${instance_id} to check if it has reached the expected server status: ${expected_status}"
-    vPREV_CURL=$(
-      curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
-        -X GET \
-        -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-    )
-    local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL")"
-    local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL")"
-    if [ "$queried_server_status" == "${expected_server_status}" ] && [ "$queried_status" == "${expected_status}" ]; then
-      break
-    fi
-    max_retries=$((max_retries - 1))
-    log.warn "waiting for 10 seconds before retrying."
-    sleep 10
-  done
-  log.info "instance: ${instance_id} has reached the expected server status: ${expected_server_status} and status: ${expected_status}"
-}
-vultr.compute.provision() {
-  local prev_ip="$1"
-  local instance_id
-  local created_sshkey_id
-  local launch_response
-  #
-  # In the ssh key setup below, we acquired a keypair, and now
-  # we need to ask, "is this keypair on vultr?".
-  # If it's not, we must create it.
-  #
-  local found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
-  if [ -z "${found_valid_sshkey_id}" ]; then
-    vPREV_CURL=$(
-      curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
-        -X POST \
-        -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
-        -H "Content-Type: application/json" \
-        --data '{
-          "name" : "'"devos-${vENV_NAME}"'",
-          "ssh_key" : "'"$(ssh.cat_pubkey.local)"'"
-        }'
-    )
-    created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$vPREV_CURL")"
-  else
-    created_sshkey_id="${found_valid_sshkey_id}"
-  fi
-  #
-  # When no ip exists:
-  # Go ahead and create a new instance and set the ip to the new instance.
-  #
-  # When a ip DOES exist:
-  # We should assume that an instance exists and throw if not.
-  # If an instance does exist, we should check it's tags (vultr doesn't have an sshkey_id field on the get instance response)
-  # to see if it has the correct ssh key. If it doesn't, we delete the instance and create a new one.
-  # Otherwise, we can skip the provisioning process and move on to the next cmd.
-  #
-  if [ -z "${prev_ip}" ]; then
-    launch_response="$(vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${vENV_NAME}" "${created_sshkey_id}")"
-    state.set.env_ip "$(cut -d' ' -f1 <<<"$launch_response")"
-    instance_id="$(cut -d' ' -f2 <<<"$launch_response")"
-    log.info "waiting for the instance with id:${instance_id} and ip:${vENV_IP} to be ready."
-    vultr.compute.wait_for_ready_instance "$instance_id"
-  else
-    instance_id="$(vultr.compute.get_instance_id_from_ip "${prev_ip}")"
-    if [ -z "${instance_id}" ]; then
-      log.error "no instance found with the ip: ${prev_ip}. suggestion: consider starting over by running this script with the --hard-reset flag."
-      exit 1
-    fi
-    log.info "looking for a tag that tells us if the instance has a matching ssh key."
-    ssh_tag_exists="$(vultr.compute.instance_contains_tag "ssh_${created_sshkey_id}" "$instance_id")"
-    if [ "${ssh_tag_exists}" == "true" ]; then
-      log.info "found matching instance tag: ssh_${created_sshkey_id}"
-      log.info "nothing to do. the instance is already provisioned."
-      state.set.env_ip "${prev_ip}"
-      return
-    fi
-    log.warn "warning: waiting 5 seconds to begin the re-installation process."
-    sleep 5
-    log.info "deleting instance: ${instance_id}"
-    vultr.compute.destroy_instance "$instance_id"
-    log.info "creating an instance with the new ssh key and the following configurations"
-    log.info "instance.plan: ${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}"
-    log.info "instance.region: ${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}"
-    log.info "instance.os_id: ${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}"
-    log.info "instance.label: ${vENV_NAME}"
-    log.info "instance.sshkey_id: ${created_sshkey_id}"
-    launch_response="$(vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${vENV_NAME}" "${created_sshkey_id}")"
-    state.set.env_ip "$(cut -d' ' -f1 <<<"$launch_response")"
-    instance_id="$(cut -d' ' -f2 <<<"$launch_response")"
-    log.info "waiting for the instance with id:${instance_id} and ip:${vENV_IP} to be ready."
-    vultr.compute.wait_for_ready_instance "$instance_id"
-  fi
-  if [ -z "${vENV_IP}" ]; then
-    log.error "something unexpected happened. no ip address was produced after the re-installation."
-    exit 1
-  fi
-}
-vultr.s3.bucket_exists() {
-  local bucket="$1"
-  exists=false
-  error=""
-  {
-    bucketstatus=$(aws s3api head-bucket --bucket "$bucket" 2>&1)
-    if echo "${bucketstatus}" | grep 'Not Found'; then
-      exists=false
-    elif echo "${bucketstatus}" | grep 'Forbidden'; then
-      exists=true
-      error="Bucket exists but not owned by you"
-    elif echo "${bucketstatus}" | grep 'Bad Request'; then
-      exists=true
-      error="Bucket name specified is less than 3 or greater than 63 characters"
-    else
-      exists=true
-      error=""
-    fi
-  } >/dev/null
-  if [ "$error" != "" ]; then
-    echo "Error occurred while checking bucket status: $error"
-    exit 1
-  fi
-  echo "$exists"
-}
-vultr.s3.create_bucket() {
-  local bucket="$1"
-  aws --region "us-east-1" s3 mb s3://"$bucket" >/dev/null
-}
-vultr.s3.get_object_storage_id() {
-  local label="$1"
-  local object_storage_id=""
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/object-storage" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL")
-  local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL")
-  for i in "${!object_storage_labels[@]}"; do
-    if [ "${object_storage_labels[$i]}" == "${label}" ]; then
-      object_storage_id="${object_storage_ids[$i]}"
-      break
-    fi
-  done
-  echo "$object_storage_id"
-}
-vultr.s3.get_ewr_cluster_id() {
-  local cluster_id=""
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/object-storage/clusters" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL")
-  local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL")
-  for i in "${!cluster_regions[@]}"; do
-    if [ "${cluster_regions[$i]}" == "ewr" ]; then
-      cluster_id="${cluster_ids[$i]}"
-      break
-    fi
-  done
-  echo "$cluster_id"
-}
-vultr.s3.create_storage() {
-  local cluster_id="$1"
-  local label="$2"
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/object-storage" \
-      -X POST \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
-      -H "Content-Type: application/json" \
-      --data '{
-        "label" : "'"${label}"'",
-        "cluster_id" : '"${cluster_id}"'
-      }'
-  )
-  jq -r '.object_storage.id' <<<"$vPREV_CURL"
-}
-vultr.s3.provision() {
-  local object_storage_id=""
-  local label="devos-${vENV_NAME}"
-  object_storage_id="$(vultr.s3.get_object_storage_id "${label}")"
-  if [ -z "${object_storage_id}" ]; then
-    log.info "no object storage found with the label: ${label}. creating a new one."
-    local cluster_id="$(vultr.s3.get_ewr_cluster_id)"
-    log.info "using the ewr cluster id: ${cluster_id}"
-    object_storage_id="$(vultr.s3.create_storage "${cluster_id}" "${label}")"
-    log.info "created object storage with the id: ${object_storage_id}"
-  else
-    log.info "found object storage with the label: ${label} and id: ${object_storage_id}"
-  fi
-  vPREV_CURL=$(
-    curl "$vSTATIC_VULTR_API_URL/object-storage/$object_storage_id" \
-      -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  )
-  state.set.vultr_s3_credentials \
-    "$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL")" \
-    "$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL")" \
-    "$(jq -r '.object_storage.s3_secret_key' <<<"$vPREV_CURL")" \
-    "$(jq -r '.object_storage.label' <<<"$vPREV_CURL")"
-  state.exports.aws_credentials
-  local bucket_exists="$(vultr.s3.bucket_exists "postgres")"
-  if [ "$bucket_exists" == false ]; then
-    vultr.s3.create_bucket "postgres"
-    log.info "created bucket postgres for object storage ${label}"
-  else
-    log.warn "bucket postgres already exists at object storage ${label}"
-  fi
-}
-# --------------------------------------------------------------------------------------------
-#
 # PREFLIGHT CHECKS
 #
 test.check_global_variables_used() {
   local entry_pwd="$PWD"
-  cd "$vSELF_DIR"
+  cd "$vMY_DIR"
   local errored=false
   local files
   files=$(find . -type f -name "devos*")
@@ -677,21 +232,26 @@ cmd.launch() {
   # Loops through a bunch of commands we know we'll need so the
   # user can install them before running the script.
   #
-  for cmd in "${vSTATIC_PREREQ_COMMANDS[@]}"; do
+  for cmd in "${vSTATIC_DEPENDENCY_COMMANDS[@]}"; do
     if ! command -v "$cmd" &>/dev/null; then
       log.error "pre-check failed. Install \"$cmd\" to your path and try again."
       exit 1
     fi
   done
-  local installation_dir="$vSTATIC_SELF_ROOT/$vENV_NAME"
   #
   # note: remember, the old ip is still accessible after wiping this dir
   # because we cached it in `state.set.init`
   #
   if [ "$vCLI_OPT_HARD_RESET" == true ]; then
-    rm -rf "$installation_dir"
-    mkdir -p "$installation_dir"
-    log.warn "wiped and created empty dir: $installation_dir"
+    log.warn "hard reset flag detected. Are you sure you want to continue? (y/n)"
+    read -r response
+    if [ "$response" != "y" ]; then
+      log.warn "user aborted hard reset."
+      exit 0
+    fi
+    rm -rf "$vSTATIC_MY_ROOT"
+    mkdir -p "$vSTATIC_MY_ROOT"
+    log.warn "wiped and created empty dir: $vSTATIC_MY_ROOT"
   fi
   #
   # I might regret this but warn only.
@@ -702,15 +262,52 @@ cmd.launch() {
     log.warn "the last successful run was at: $last_successful_run"
   fi
   #
-  # Prompt the users for any secrets or api keys we might need.
+  # Generate and collect things like the caprover password, postgres passwords.
+  # api keys, etc.
+  # Note: do not regenerate new passwords on subsequent runs unless we explicitly break
+  # the cache or a force a hard reset.
   #
-  state.set.prompt_secrets
-  #
-  # Generate things like the caprover and postgres passwords.
-  # This is careful to re-use the same password if it already exists
-  # from a previous run.
-  #
-  state.set.generate_secrets
+  local expects_these_things=(
+    "vENV_CAPROVER_PASSWORD"
+    "vENV_POSTGRES_PASSWORD"
+    "vENV_GITHUB_USERNAME"
+    "vENV_GITHUB_EMAIL"
+    "vENV_GITHUB_TOKEN"
+    "vENV_OPENAI_API_KEY"
+    "vENV_VULTR_API_KEY"
+    "vENV_CLOUDFLARE_API_TOKEN"
+  )
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_CAPROVER_PASSWORD="$(cache.overwrite_on_empty "vENV_CAPROVER_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
+  log.debug "set \$vENV_CAPROVER_PASSWORD= $vENV_CAPROVER_PASSWORD"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_POSTGRES_PASSWORD="$(cache.overwrite_on_empty "vENV_POSTGRES_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
+  log.debug "set \$vENV_POSTGRES_PASSWORD= $vENV_POSTGRES_PASSWORD"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_GITHUB_USERNAME="$(cache.overwrite_on_empty "vENV_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
+  log.debug "set \$vENV_GITHUB_USERNAME= $vENV_GITHUB_USERNAME"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_GITHUB_EMAIL="$(cache.overwrite_on_empty "vENV_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)")"
+  log.debug "set \$vENV_GITHUB_EMAIL= $vENV_GITHUB_EMAIL"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_GITHUB_TOKEN="$(cache.prompt "vENV_GITHUB_TOKEN")"
+  log.debug "set \$vENV_GITHUB_TOKEN= $vENV_GITHUB_TOKEN"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_OPENAI_API_KEY="$(cache.prompt "vENV_OPENAI_API_KEY")"
+  log.debug "set \$vENV_OPENAI_API_KEY= $vENV_OPENAI_API_KEY"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_VULTR_API_KEY="$(cache.prompt "vENV_VULTR_API_KEY")"
+  log.debug "set \$vENV_VULTR_API_KEY= $vENV_VULTR_API_KEY"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_CLOUDFLARE_API_TOKEN="$(cache.prompt "vENV_CLOUDFLARE_API_TOKEN")"
+  log.debug "set \$vENV_CLOUDFLARE_API_TOKEN= $vENV_CLOUDFLARE_API_TOKEN"
+  # ------------------------------------------------------------------------------------------------------------
+  for i in "${!expects_these_things[@]}"; do
+    if [ -z "${!expects_these_things[$i]}" ]; then
+      log.error "${expects_these_things[$i]} is empty. Exiting."
+      exit 1
+    fi
+  done
   #
   # Check that the files we'll need later in the script are accessible.
   #
@@ -722,37 +319,37 @@ cmd.launch() {
   # Actually download the files this time.
   #
   for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
-    rm -f "$installation_dir/$file"
-    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$installation_dir/$file"
-    if [ "$(head -n 1 "$installation_dir/$file" | cut -c1-2)" == "#!" ]; then
-      chmod +x "$installation_dir/$file"
+    rm -f "$vSTATIC_MY_BOOTFILES_DIR/$file"
+    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/devos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$vSTATIC_MY_BOOTFILES_DIR/$file"
+    if [ "$(head -n 1 "$vSTATIC_MY_BOOTFILES_DIR/$file" | cut -c1-2)" == "#!" ]; then
+      chmod +x "$vSTATIC_MY_BOOTFILES_DIR/$file"
     fi
     #
     # throw and remove any files that don't have valid variables.
     #
-    if ! utils.template_variables "$installation_dir/$file" "dry" 2>&1; then
-      log.exit "bad variables used in: $installation_dir/$file"
+    if ! utils.template_variables "$vSTATIC_MY_BOOTFILES_DIR/$file" "dry" 2>&1; then
+      log.exit "bad variables used in: $vSTATIC_MY_BOOTFILES_DIR/$file"
       exit 1
     fi
-    log.info "downloaded: $installation_dir/$file"
+    log.info "downloaded: $vSTATIC_MY_BOOTFILES_DIR/$file"
   done
-  if [ ! -d "$installation_dir/.ssh" ]; then
-    mkdir -p "$installation_dir/.ssh"
-    log.info "created: $installation_dir/.ssh"
-    log.info "created: $installation_dir/.ssh/$vSTATIC_SSH_CONFIG_FILENAME with placeholders."
-    ssh-keygen -t rsa -q -f "$installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME" -N ""
-    log.info "created private key: $installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME, public key: $installation_dir/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-    cat "$installation_dir/.ssh/$vSTATIC_SSH_PUB_KEYNAME" >"$installation_dir/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-    log.info "created $vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME: $installation_dir/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  if [ ! -d "$vSTATIC_MY_ROOT/.ssh" ]; then
+    mkdir -p "$vSTATIC_MY_ROOT/.ssh"
+    log.info "created: $vSTATIC_MY_ROOT/.ssh"
+    log.info "created: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME with placeholders."
+    ssh-keygen -t rsa -q -f "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME" -N ""
+    log.info "created private key: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME, public key: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+    cat "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME" >"$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+    log.info "created $vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME: $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   fi
-  chmod 644 "$installation_dir/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-  log.debug "updated permissions: chmod 644 - $installation_dir/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
-  chmod 644 "$installation_dir/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-  log.debug "updated permissions: chmod 644 - $installation_dir/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
-  chmod 644 "$installation_dir/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
-  log.debug "updated permissions: chmod 644 - $installation_dir/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
-  chmod 600 "$installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
-  log.debug "updated permissions: chmod 600 - $installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
+  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_PUB_KEYNAME"
+  chmod 644 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  log.debug "updated permissions: chmod 644 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+  chmod 600 "$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  log.debug "updated permissions: chmod 600 - $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
   #
   # Now that our SSH keys are ready, let us provision vultr stuff.
   # It's possible that that stuff is already provisioned, in which case
@@ -792,8 +389,8 @@ cmd.launch() {
   # ENV_IP=127.0.0.1
   # ```
   #
-  rm -f "$installation_dir/$vSTATIC_ENV_FILENAME"
-  local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vSELF_DIR/devos")
+  rm -f "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME"
+  local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vMY_DIR/devos")
   for env_var in $env_vars; do
     local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
     if [ "$result" == "unset" ]; then
@@ -806,10 +403,10 @@ cmd.launch() {
         exit 1
       fi
       local env_name=$(echo "$env_var" | sed 's/vENV_/ENV_/g' | tr '[:lower:]' '[:upper:]')
-      local found="$(grep -q "^$env_name=" "$installation_dir/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
+      local found="$(grep -q "^$env_name=" "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
       if [ -z "$found" ]; then
-        echo "$env_name=$env_val" >>"$installation_dir/$vSTATIC_ENV_FILENAME"
-        echo "export $env_name=\"$env_val\"" >>"$installation_dir/$vSTATIC_ENV_SH_FILENAME"
+        echo "$env_name=$env_val" >>"$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME"
+        echo "export $env_name=\"$env_val\"" >>"$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME"
       fi
     fi
   done
@@ -817,21 +414,21 @@ cmd.launch() {
     echo "Host 127.0.0.1"
     echo "  HostName 127.0.0.1"
     echo "  User root"
-    echo "  IdentityFile $installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+    echo "  IdentityFile $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
     echo "  Port 2222"
     echo ""
     echo ""
     echo "Host $vENV_IP"
     echo "  HostName $vENV_IP"
     echo "  User root"
-    echo "  IdentityFile $installation_dir/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
-  } >"$installation_dir/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
+    echo "  IdentityFile $vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_RSA_KEYNAME"
+  } >"$vSTATIC_MY_ROOT/.ssh/$vSTATIC_SSH_CONFIG_FILENAME"
   #
   # Checkpoint: once we're here, it's reasonable to assume
   # that any variables we need to be set are set. That means
   # we can inject them into downloaded/generated source files.
   #
-  utils.template_variables "$installation_dir" "commit"
+  utils.template_variables "$vSTATIC_MY_ROOT" "commit"
   log.info "injected vars into source files."
   #
   # Build and start the local docker container.
@@ -855,15 +452,15 @@ cmd.launch() {
   log.info "docker container is ready"
   ssh.cmd.local "rm -f /root/$vSTATIC_ENV_FILENAME"
   ssh.cmd.local "rm -f /root/$vSTATIC_ENV_SH_FILENAME"
-  ssh.rsync_up.local "$installation_dir/$vSTATIC_ENV_FILENAME" "/root/"
-  ssh.rsync_up.local "$installation_dir/$vSTATIC_ENV_SH_FILENAME" "/root/"
+  ssh.rsync_up.local "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" "/root/"
+  ssh.rsync_up.local "$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME" "/root/"
   log.info "uploaded env files local docker container"
   ssh.cmd.remote "rm -f /root/$vSTATIC_ENV_FILENAME"
   ssh.cmd.remote "rm -f /root/$vSTATIC_ENV_SH_FILENAME"
-  ssh.rsync_up.remote "$installation_dir/$vSTATIC_ENV_FILENAME" "/root/"
-  ssh.rsync_up.remote "$installation_dir/$vSTATIC_ENV_SH_FILENAME" "/root/"
+  ssh.rsync_up.remote "$vSTATIC_MY_ROOT/$vSTATIC_ENV_FILENAME" "/root/"
+  ssh.rsync_up.remote "$vSTATIC_MY_ROOT/$vSTATIC_ENV_SH_FILENAME" "/root/"
   log.info "uploaded env files remote server"
-  ssh.rsync_up.remote "$$installation_dir/$vSTATIC_BOOTSTRAP_SH" "/root/"
+  ssh.rsync_up.remote "$$vSTATIC_MY_ROOT/$vSTATIC_BOOTSTRAP_SH" "/root/"
   log.info "uploaded $vSTATIC_BOOTSTRAP_SH remote server"
   ssh.cmd.remote "chmod +x /root/$vSTATIC_BOOTSTRAP_SH"
   log.info "updated permissions: chmod +x /root/$vSTATIC_BOOTSTRAP_SH"
@@ -896,11 +493,11 @@ cmd.launch() {
   if [ -n "$timestamp_of_postgres_bootstrap" ]; then
     log.warn "skipping all postgres bootstrap - previously completed at $timestamp_of_postgres_bootstrap"
   else
-    ssh.rsync_down.remote "$vSTATIC_DEBIAN_CLONE_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME" "$installation_dir/"
+    ssh.rsync_down.remote "$vSTATIC_DEBIAN_CLONE_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME" "$vSTATIC_MY_ROOT/"
     log.info "downloaded caprover one-click-app template."
     utils.echo_line
     echo ""
-    cat "$installation_dir/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME"
+    cat "$vSTATIC_MY_ROOT/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME"
     echo ""
     utils.echo_line
     echo "Setup the caprover Postgres database and hit enter."
@@ -953,7 +550,7 @@ cmd.launch() {
     # If the user is re-installing, we want to make sure we don't leave behind an errant ip addresses throughout
     # the installation folder, or that we don't leave dangling vultr resources
     #
-    find "$installation_dir" -type f -exec sed -i 's/'"$(cache.get "old_ip")"'/'"${vENV_IP}"'/g' {} \;
+    find "$vSTATIC_MY_ROOT" -type f -exec sed -i 's/'"$(cache.get "old_ip")"'/'"${vENV_IP}"'/g' {} \;
     log.info "replaced $(cache.get "old_ip") with $vENV_IP in all files for extra safety."
     log.warn "waiting 5 seconds before destroying the previous instance!"
     sleep 5
@@ -966,13 +563,13 @@ cmd.code() {
   if ! command -v "code" &>/dev/null; then
     log.error "vscode is not installed to your path. cannot continue."
   fi
-  log.warn "would open vscode for the $vENV_NAME isntallation"
+  log.warn "would open vscode"
 }
 cmd.restore() {
-  log.warn "would restore the backup with name $vENV_NAME and $vCLI_OPT_TAG"
+  log.warn "would restore the backup with name $vCLI_OPT_TAG"
 }
 cmd.backup() {
-  log.warn "would backup the current instance with name $vENV_NAME and $vCLI_OPT_TAG"
+  log.warn "would backup the current instance with name $vCLI_OPT_TAG"
 }
 cmd.test() {
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ]; then
@@ -993,13 +590,10 @@ flags.parse_requirements
 flags.parse_cmd "$@"
 flags.validate
 #
-# We always set $vENV_NAME in this func.
+# We seperate the parsing and mapping concerns so that
+# frequent changes to business logic don't affect the parsing logic
 #
-state.set.flags
-if [ -z "$vENV_NAME" ] && [ "$vCLI_PARSED_CMD" != "test" ]; then
-  log.error "\$vENV_NAME was not found. Likely a bug in the cli handling logic."
-  exit 1
-fi
+state.map_parsed_cli
 #
 # Before doing ANYTHING, check that our command actually works.
 # Fail fast!
@@ -1012,12 +606,7 @@ fi
 # We're only allowed to clear cache files associated with a particular named installation.
 #
 if [ "$vCLI_OPT_CLEAR_CACHE" == "true" ]; then
-  if [ -n "$vENV_NAME" ]; then
-    state.clear.cache
-  else
-    log.error "the clear cache functionality requires a command that has a name associated with it."
-    exit 1
-  fi
+  state.clear.cache
 fi
 #
 # Run the command specified in the cli args.

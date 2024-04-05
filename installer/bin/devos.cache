@@ -1,32 +1,19 @@
 #!/usr/bin/env bash
 
+# shellcheck source=devos
 # shellcheck source=devos.static
 source "devos.static"
 
-cache._validate() {
-  if [ -z "$vENV_NAME" ]; then
-    log.error "vENV_NAME must be non empty. Exiting."
-    exit 1
-  fi
-}
 cache.del() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
-  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
+  local tmp_filepath="$vSTATIC_MY_ROOT/.cache/$1"
   rm -f "$tmp_filepath"
 }
 cache.clear() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
-  for file in "$vSTATIC_SELF_ROOT"/.cache-"$vENV_NAME"*; do
-    rm -f "$file"
-  done
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
+  rm -rf "$vSTATIC_MY_ROOT/.cache"
 }
 #
 # Important: this follows the same pattern as how we curl api endpoints.
@@ -35,12 +22,9 @@ cache.clear() {
 # there's only one way to "get" things in a particular category of functions.
 #
 cache.get() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
-  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
+  local tmp_filepath="$vSTATIC_MY_ROOT/.cache/$1"
   if [ -f "$tmp_filepath" ]; then
     cat "$tmp_filepath"
   else
@@ -48,23 +32,17 @@ cache.get() {
   fi
 }
 cache.set() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
-  local tmp_filepath="$vSTATIC_SELF_ROOT/.cache-$vENV_NAME-$1"
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
+  local tmp_filepath="$vSTATIC_MY_ROOT/.cache/$1"
   if [ ! -f "$tmp_filepath" ]; then
     touch "$tmp_filepath"
   fi
   echo "$2" >"$tmp_filepath"
 }
 cache.prompt() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
   local input
   input="$(cache.get "$1")"
   if [ -z "$input" ]; then
@@ -79,11 +57,8 @@ cache.prompt() {
   cache.get "$1"
 }
 cache.overwrite_on_empty() {
-  if [ "$LIB_CACHE_READY" == "false" ]; then
-    log.error "cache.ready must be called first. Exiting."
-    exit 1
-  fi
   cache._validate
+  mkdir -p "$vSTATIC_MY_ROOT/.cache"
   local cached_val
   cached_val="$(cache.get "$1")"
   local next_val="$2"
