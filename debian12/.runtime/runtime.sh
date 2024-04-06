@@ -1,16 +1,37 @@
 #!/usr/bin/env bash
+#!/usr/bin/env bash
+
+set -o errexit
+set -o nounset
+set -o pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit
+cd "$(git rev-parse --show-toplevel)" || exit
+
+export repo_dir="$PWD"
+
+(shopt -p inherit_errexit &>/dev/null) && shopt -s inherit_errexit
+
+# shellcheck source=../../bin/shared.log.sh
+. bin/shared.log.sh
+# shellcheck source=cmdargs.sh
+. debian12/.runtime/cmdargs.sh
+# shellcheck source=lobash.bash
+. debian12/.runtime/lobash.bash
+
+log.ready "host:$ENV_HOST" "${DEBUG_LEVEL:-0}"
+
+cd "$repo_dir"
 
 if [ "$(lsb_release -is)" != "Debian" ] || [ "$(lsb_release -rs)" != "12" ]; then
   echo "This script is only supported on Debian 12"
   exit 1
 fi
 
-# shellcheck source=base.sh
-. base.sh
 # shellcheck source=../../.env.sh
-. "$PWD/.env.sh"
+. .env.sh
+# shellcheck source=../.boot/config.sh
+. debian12/.boot/config.sh
 
 dynamic_conn_string="db_connection"
 # The list of variables that are expected to be set at runtime.
@@ -27,8 +48,6 @@ runtime_expectations=(
   "fn_connect_db#A function that returns a connection string to a postgres database and throws if it can't establish a connection."
   "fn_sync_db_names#A function that syncs the database names to the config/.dbs file."
 )
-
-export repo_dir="$PWD"
 
 fn_fail_on_used_port() {
   local port="$1"

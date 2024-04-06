@@ -5,17 +5,17 @@
 # Refer to installer/boot/bootstrap.sh for the working directory.
 
 # shellcheck source=shared.packages.sh
-. installer/start/shared.packages.sh
-# shellcheck source=../../cmds/install.node.sh
-. cmds/install.node.sh
-# shellcheck source=../../cmds/hook.alias.sh
-. cmds/hook.alias.sh
-# shellcheck source=../../cmds/install.clone-repos.sh
-. cmds/install.clone-repos.sh
-# shellcheck source=../../cmds/install.apps.sh
-. cmds/install.apps.sh
-# shellcheck source=../../cmds/hook.docs.sh
-. cmds/hook.docs.sh
+. debian12/.boot/shared.packages.sh
+# shellcheck source=../../debian12/install.node.sh
+. debian12/install.node.sh
+# shellcheck source=../../debian12/hook.alias.sh
+. debian12/hook.alias.sh
+# shellcheck source=../../debian12/install.clone-repos.sh
+. debian12/install.clone-repos.sh
+# shellcheck source=../../debian12/install.apps.sh
+. debian12/install.apps.sh
+# shellcheck source=../../debian12/hook.docs.sh
+. debian12/hook.docs.sh
 #
 # Maybe clean this up, but the idea is to automatically install
 # the cli we use to bootstrap the system on our laptop.

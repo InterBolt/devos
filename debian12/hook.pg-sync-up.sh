@@ -2,8 +2,6 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit
 
-# shellcheck source=../../.env.sh
-. ../../.env.sh
 # shellcheck source=./.runtime/runtime.sh
 . ./.runtime/runtime.sh
 
