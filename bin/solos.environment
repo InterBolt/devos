@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# shellcheck source=solos
+. "solos.static"
+# shellcheck source=solos.utils
+. "solos.static"
+# shellcheck source=solos.static
+. "solos.static"
+
+environment.generate_env_files() {
+  #
+  # Clear any tmp env files we didn't clean up.
+  # Especially important if we aborted the process on a previous run.
+  #
+  local tmp_dir="$(mktemp -d 2>/dev/null)"
+  rm -f "$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
+  rm -f "$tmp_dir/$vSTATIC_ENV_FILENAME"
+  local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vBIN_FILEPATH")
+  for env_var in $env_vars; do
+    local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
+    if [ "$result" == "unset" ]; then
+      log.error "Undefined env var: $env_var used in solos main script."
+      exit 1
+    else
+      local env_val=${!env_var}
+      if [ -z "$env_val" ]; then
+        log.error "$env_var cannot be empty when building the .env file."
+        exit 1
+      fi
+      local env_name=$(echo "$env_var" | sed 's/vENV_/ENV_/g' | tr '[:lower:]' '[:upper:]')
+      local found="$(grep -q "^$env_name=" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
+      if [ -z "$found" ]; then
+        echo "$env_name=$env_val" >>"$tmp_dir/$vSTATIC_ENV_FILENAME"
+        echo "export $env_name=\"$env_val\"" >>"$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
+      fi
+    fi
+  done
+  #
+  # We wait until the entire file is built in the .tmp dir before moving it to the actual location
+  # in case we need to abort the process.
+  #
+  rm -f "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
+  rm -f "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
+  mv "$tmp_dir/$vSTATIC_ENV_SH_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
+  mv "$tmp_dir/$vSTATIC_ENV_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
+  #
+  # Cleanup tmp files
+  #
+  rm -f "$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
+  rm -f "$tmp_dir/$vSTATIC_ENV_FILENAME"
+}

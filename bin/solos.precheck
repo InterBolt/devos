@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+# shellcheck source=solos
+. "solos.static"
+# shellcheck source=solos.utils
+. "solos.static"
+# shellcheck source=solos.static
+. "solos.static"
+
+precheck.throw_if_dangerous_dir() {
+  if [ "$vCLI_OPT_DIR" == "$HOME" ]; then
+    log.error "Danger: you are trying to wipe the home directory. Exiting."
+    exit 1
+  fi
+  if [[ "$HOME" == "$vCLI_OPT_DIR"* ]]; then
+    log.error "Danger: you are trying to wipe a parent directory of your home directory. Exiting."
+    exit 1
+  fi
+}
+precheck.throw_on_nonsolos() {
+  precheck.throw_if_dangerous_dir
+
+  if [ ! -d "$vCLI_OPT_DIR" ]; then
+    log.error "Invalid directory supplied for --dir flag: $vCLI_OPT_DIR. Exiting."
+    exit 1
+  fi
+  if [ ! -f "$vCLI_OPT_DIR/.solos-id" ]; then
+    log.error "The supplied directory does not contain a .solos-id file. Exiting."
+    exit 1
+  fi
+}
+precheck.throw_on_nonsolos_dir() {
+  precheck.throw_if_dangerous_dir
+
+  if [ -d "$vCLI_OPT_DIR" ] && [ ! -f "$vCLI_OPT_DIR/.solos-id" ]; then
+    log.error "The supplied directory already exists and does not contain a .solos-id file. Exiting."
+  fi
+}
+precheck.throw_if_missing_installed_commands() {
+  for cmd in "${vSTATIC_DEPENDENCY_COMMANDS[@]}"; do
+    if ! command -v "$cmd" &>/dev/null; then
+      log.error "pre-check failed. Install \"$cmd\" to your path and try again."
+      exit 1
+    fi
+  done
+}
+precheck.docker_host_running() {
+  if [ "$vSTATIC_HOST" != "local" ]; then
+    log.error "this command must be run from the local host. Exiting."
+    exit 1
+  fi
+  if [ -z "$vENV_SOLOS_ID" ]; then
+    log.error "no solos id found. this is stored at $vSTATIC_MY_CONFIG_ROOT/$vSTATIC_SOLOS_ID_FILENAME"
+    exit 1
+  fi
+  if ! docker info &>/dev/null; then
+    log.error "docker desktop not running."
+    exit 1
+  fi
+  if ! COMPOSE_PROJECT_NAME="solos-$vENV_SOLOS_ID" docker-compose ps &>/dev/null; then
+    log.error "the compose project \`solos-$vENV_SOLOS_ID\` is not running."
+    exit 1
+  fi
+}

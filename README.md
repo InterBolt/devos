@@ -1,18 +1,18 @@
-# DevOS - My personal debian-based PAAS
+# SolOS - My personal debian-based PAAS
 
 
 ## Installation
 
-Install `devos` to your path:
+Install `solos` to your path:
 
 ```shell
-curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/devos/main/installer/bin/install" | bash
+curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/solos/main/installer/bin/install" | bash
 ```
 
 Get usage info:
 
 ```
-devos --help
+solos --help
 ```
 
 ## Recipes

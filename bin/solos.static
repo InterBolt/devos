@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+# check if lsb_release command exists
+export vSTATIC_HOST=""
+if [ "$(uname)" == "Darwin" ]; then
+  export vSTATIC_HOST="local"
+elif [ -f /.dockerenv ]; then
+  export vSTATIC_HOST="docker"
+else
+  export vSTATIC_HOST="remote"
+fi
+export vSTATIC_RUNNING_REPO_ROOT=""
+if [ -z "$(git rev-parse --show-toplevel 2>/dev/null)" ]; then
+  export vSTATIC_RUNNING_IN_GIT_REPO=false
+  export vSTATIC_RUNNING_REPO_ROOT=""
+else
+  export vSTATIC_RUNNING_IN_GIT_REPO=true
+  export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+fi
+export vSTATIC_RESTRICTED_NAMES=(
+  "solos"
+  "bin"
+  ".logs"
+  ".ssh"
+  "workspace"
+)
+export vSTATIC_DEPENDENCY_COMMANDS=(
+  "curl"
+  "jq"
+  "openssl"
+  "git"
+  "rsync"
+  "docker"
+  "aws" # TODO: remove and use vultr api instead of cli for s3
+)
+export vSTATIC_DEBIAN_ROOT="/root"
+#
+# The reason for naming the debian config root differently is to avoid
+# annoying issues around dotfolders and to avoid the repo root being named
+# almost the same as the config root. (.solos vs solos).
+#
+# Ex: when displaying workspace folders in vscode, I don't want to see
+# `.solos` and `solos` right next to each other.
+#
+export vSTATIC_MY_CONFIG_ROOT="$HOME/.solos"
+export vSTATIC_DEBIAN_CONFIG_ROOT="${vSTATIC_DEBIAN_ROOT}/config"
+export vSTATIC_DEBIAN_CLONE_DIR="${vSTATIC_DEBIAN_ROOT}/solos"
+
+export vSTATIC_REPO_BOOTFILES_DIR="installer/bootfiles"
+export vSTATIC_BOOTSTRAP_SH="bootstrap.sh"
+export vSTATIC_REPO_BOOTFILES=(
+  "remote.code-workspace"
+  "docker.code-workspace"
+  "compose.yml"
+  "Dockerfile"
+  "$vSTATIC_BOOTSTRAP_SH"
+)
+export vSTATIC_VULTR_INSTANCE_DEFAULTS=(
+  "voc-c-2c-4gb-50s-amd"
+  "ewr"
+  2136
+)
+export vSTATIC_VULTR_API_URL="https://api.vultr.com/v2"
+export vSTATIC_ENV_FILENAME=".env"
+export vSTATIC_ENV_SH_FILENAME=".env.sh"
+export vSTATIC_LOGS_DIRNAME=".logs"
+export vSTATIC_SSH_RSA_KEYNAME="solos.rsa"
+export vSTATIC_SSH_PUB_KEYNAME="solos.pub"
+export vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME="authorized_keys"
+export vSTATIC_SSH_CONFIG_FILENAME="solos_config"
+export vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME=".secret.database.json"
+export vSTATIC_USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
+export vSTATIC_SOLOS_ID_FILENAME=".solos_id"

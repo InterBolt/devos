@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+
+# shellcheck source=solos
+. "solos.static"
+# shellcheck source=solos.utils
+. "solos.static"
+# shellcheck source=solos.static
+. "solos.static"
+
+test.variables() {
+  local entry_pwd="$PWD"
+  cd "$vBIN_DIR"
+  local errored=false
+  local files
+  #
+  # Lop through every solos lib file and check that
+  # every referenced variable is defined in solos' global variables.
+  #
+  files=$(find . -type f -name "solos*")
+  for file in $files; do
+    local global_vars
+    global_vars=$(utils.grep_global_vars "$file")
+    for global_var in $global_vars; do
+      local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
+      if [ "$result" == "unset" ]; then
+        log.error "Uknown variable: $global_var used in $file"
+        errored=true
+      fi
+    done
+  done
+  if [ "$errored" == true ]; then
+    exit 1
+  else
+    log.debug "test passed: variables used in libs are all defined."
+  fi
+  cd "$entry_pwd"
+  log.info "test passed: all referenced global variables are defined."
+}
+
+test.bootfiles() {
+  local entry_pwd="$PWD"
+  cd "$vSTATIC_RUNNING_REPO_ROOT"
+  #
+  # Check that all the variables we use in our bootfile templates are defined.
+  # in solos' global variables.
+  #
+  utils.template_variables "$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_BOOTFILES_DIR" "dry" "allow_empty"
+  #
+  # Confirm that all bootfiles required by our installation script and other commands
+  # are present in the bootfiles directory.
+  #
+  utils.files_match_dir "$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_BOOTFILES_DIR" "${vSTATIC_REPO_BOOTFILES[@]}"
+  cd "$entry_pwd"
+  log.info "test passed: bootfiles are valid and match global variables."
+}
