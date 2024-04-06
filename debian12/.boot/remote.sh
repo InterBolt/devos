@@ -18,8 +18,7 @@
 # Maybe clean this up, but the idea is to automatically install
 # the cli we use to bootstrap the system on our laptop.
 #
-SOFTWARE_NAME="solos"
-BIN_PATH="/usr/local/bin/$SOFTWARE_NAME"
+BIN_PATH="/usr/local/bin/solos"
 if [ -f "$BIN_PATH" ]; then
   rm -f "$BIN_PATH"
 fi

@@ -72,4 +72,4 @@ cp -a "$env_sh_path" "$clone_dir/.env.sh"
 
 # Run the start script associated with the host
 # shellcheck disable=SC1090
-. installer/start/"$host".sh
+. debian12/.boot/"$host".sh
