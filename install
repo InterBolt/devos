@@ -3,7 +3,7 @@ set -o errexit
 set -o pipefail
 set -o errtrace
 cd "$(dirname "${BASH_SOURCE[0]}")"
-iREPO_REL_BIN_EXECUTABLE_PATH="installer/bin/solos"
+iREPO_REL_BIN_EXECUTABLE_PATH="bin/solos"
 #
 # Important: please use "i" prefix to avoid conflicts with other scripts
 # we source remotely.

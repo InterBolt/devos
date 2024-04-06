@@ -6,7 +6,7 @@
 Install `solos` to your path:
 
 ```shell
-curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/solos/main/installer/bin/install" | bash
+curl -H 'Cache-Control: no-cache' -s "https://raw.githubusercontent.com/InterBolt/solos/main/install" | bash
 ```
 
 Get usage info:
