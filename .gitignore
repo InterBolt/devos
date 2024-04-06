@@ -17,7 +17,7 @@ secret.*
 .secret*
 test.sh
 reference.txt
-
+*.test
 !.gitkeep
 
 .DS_Store

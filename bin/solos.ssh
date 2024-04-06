@@ -155,3 +155,36 @@ ssh.path_config.debian() {
     echo ""
   fi
 }
+ssh.build.config() {
+  local ip="$1"
+  if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log.error "can't build the ssh config file with the invalid IP: $ip"
+    exit 1
+  fi
+  {
+    echo "Host 127.0.0.1"
+    echo "  HostName $vSTATIC_SSH_CONF_DOCKER_HOSTNAME"
+    echo "  User root"
+    echo "  IdentityFile $(ssh.path_privkey.self)"
+    echo "  Port 2222"
+    echo ""
+    echo ""
+    echo "Host $ip"
+    echo "  HostName $vSTATIC_SSH_CONF_REMOTE_HOSTNAME"
+    echo "  User root"
+    echo "  IdentityFile $(ssh.path_privkey.self)"
+  } >"$(ssh.path_config.self)"
+  log.info "created: $(ssh.path_config.self)."
+}
+ssh.extract_ip.remote() {
+  #
+  # We always use the ssh config file as our source of truth for the IP address.
+  #
+  local match_string="HostName $vSTATIC_SSH_CONF_REMOTE_HOSTNAME"
+  local ip=$(grep -B 1 "$match_string" "$(ssh.path_config.self)" | grep -v "$match_string" | tail -n 1 | cut -d' ' -f 2)
+  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "$ip"
+  else
+    echo ""
+  fi
+}

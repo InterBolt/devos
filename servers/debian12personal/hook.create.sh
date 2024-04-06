@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit
+
 if [ ! -f "hook.docs.sh" ]; then
   log.throw "hook.docs.sh doesn't exist"
 fi

@@ -144,14 +144,15 @@ log._get_active_logfile() {
 # Main logging logic.
 #
 log._base() {
-  if [ -z "${LIB_READY_LOG}" ]; then
-    echo "must run log.ready before logging" >&2
-    exit 1
+  local json_path=""
+  if [ "${LIB_READY_LOG}" != "false" ]; then
+    json_path=""
+  else
+    json_path="$(log._get_active_logfile)"
   fi
   local date_format='+%F %T'
   local date="$(date "${date_format}")"
   local date_s="$(date "+%s")"
-  local json_path="$(log._get_active_logfile)"
   local level="${1}"
   local debug_level="${vDEBUG_LEVEL:-0}"
   shift
@@ -160,10 +161,16 @@ log._base() {
   local line="${@}"
   local severity_name="${level}_LOG_SEVERITY"
   local severity="${!severity_name}"
-  if [ "${debug_level}" -gt 0 ] || [ "${severity}" -lt 7 ]; then
-    local json_line="$(printf '{"timestamp":"%s","level":"%s", "source": "%s", "message":"%s"}' "${date_s}" "${level}" "$source" "${line}")"
-    echo -e "${json_line}" >>"${json_path}" ||
-      log._exception "echo -e \"${json_line}\" >> \"${json_path}\""
+  #
+  # By only writing to a file when the json_path was set,
+  # we ensure the log functions can be used without calling log.ready.
+  #
+  if [ -n "${json_path}" ]; then
+    if [ "${debug_level}" -gt 0 ] || [ "${severity}" -lt 7 ]; then
+      local json_line="$(printf '{"timestamp":"%s","level":"%s", "source": "%s", "message":"%s"}' "${date_s}" "${level}" "$source" "${line}")"
+      echo -e "${json_line}" >>"${json_path}" ||
+        log._exception "echo -e \"${json_line}\" >> \"${json_path}\""
+    fi
   fi
   local color_name="${level}_LOG_COLOR"
   local norm="${DEFAULT_COLOR}"

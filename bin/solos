@@ -23,7 +23,9 @@ shopt -s dotglob
 #
 # RESPONSE/RETURN SLOTS
 #
-vPREV_CURL=""
+vPREV_CURL_RESPONSE=""
+vPREV_CURL_ERR_STATUS_CODE=""
+vPREV_CURL_ERR_MESSAGE=""
 vPREV_RETURN=()
 # --------------------------------------------------------------------------------------------
 #
@@ -83,6 +85,7 @@ vCLI_OPT_HARD_RESET=false
 vCLI_OPT_CLEAR_CACHE=false
 vCLI_OPT_TAG=""
 vCLI_OPT_DIR=""
+vCLI_OPT_SERVER=""
 # --------------------------------------------------------------------------------------------
 #
 # config that get passed to each environment.
@@ -110,9 +113,7 @@ vENV_GITHUB_USERNAME=""
 # shellcheck disable=SC2034
 vENV_GITHUB_EMAIL=""
 # shellcheck disable=SC2034
-vENV_CAPROVER_PASSWORD=""
-# shellcheck disable=SC2034
-vENV_POSTGRES_PASSWORD=""
+vENV_SEED_SECRET=""
 # shellcheck disable=SC2034
 vENV_CAPROVER_NAME="interbolt"
 # shellcheck disable=SC2034
@@ -143,13 +144,12 @@ fi
 trap "utils.exit_trap" EXIT
 # --------------------------------------------------------------------------------------------
 #
-# STATE GETTERS/SETTERS
+# Utility functions that don't yet have their own categories, so we prefix
+# them with solos.* to keep them organized and separate from the rest of the lib
+# functions.
 #
-# These functions are used to operate on global state.
-# EX: if we decide we need some value to persist between runs, we can
-# easily modify the getter/setter implentation to use a file as a cache
-#
-state.map_parsed_cli() {
+solos.map_parsed_cli() {
+  local was_server_set=false
   if [ -z "$vCLI_PARSED_CMD" ]; then
     log.error "No command supplied. Please supply a command."
     exit 1
@@ -173,6 +173,12 @@ state.map_parsed_cli() {
       vCLI_OPT_DIR="$val"
       log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
       ;;
+    server=*)
+      val="${vCLI_PARSED_OPTIONS[$i]#*=}"
+      vCLI_OPT_SERVER="$val"
+      was_server_set=true
+      log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
+      ;;
     tag=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [ -n "$val" ]; then
@@ -186,13 +192,107 @@ state.map_parsed_cli() {
       ;;
     esac
   done
+  if [ "$was_server_set" == false ]; then
+    vCLI_OPT_SERVER="$(cache.get "checkout_server")"
+    if [ -z "$vCLI_OPT_SERVER" ]; then
+      vCLI_OPT_SERVER="$vSTATIC_DEFAULT_SERVER"
+      log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
+    fi
+  fi
   if [ -z "$vCLI_OPT_DIR" ]; then
     vCLI_OPT_DIR="$(cache.get "checkout_dir")"
     if [ -z "$vCLI_OPT_DIR" ]; then
       log.error "No directory supplied or checked out in the cache. Please supply a --dir."
       exit 1
     fi
+    log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
   fi
+}
+solos.rebuild_launch_directory() {
+  #
+  # Important: we want to approach the files inside of the launch
+  # dir as somewhat ephemeral and not worry about overwriting them.
+  # This is helpful too in future proofing the script against changes
+  # to the --dir flag.
+  #
+  local server_boot_dir="$vCLI_OPT_DIR/repo/servers/$vCLI_OPT_SERVER/$vSTATIC_BOOT_DIR"
+  local templates_dir="$vCLI_OPT_DIR/repo/$vSTATIC_REPO_TEMPLATES_DIR"
+  local target_launch_dir="$vCLI_OPT_DIR/$vSTATIC_PROJECT_LAUNCH_DIR"
+  local tmp_launch_dir="$vCLI_OPT_DIR/.tmp/$vSTATIC_PROJECT_LAUNCH_DIR"
+  if [ -d "$target_launch_dir" ]; then
+    log.warn "rebuilding the launch directory."
+  fi
+  rm -rf "$tmp_launch_dir"
+  mkdir -p "$tmp_launch_dir"
+  cp -a "$server_boot_dir/." "$tmp_launch_dir/"
+  cp -a "$templates_dir/." "$tmp_launch_dir/"
+  if ! utils.template_variables "$tmp_launch_dir" "commit" 2>&1; then
+    log.exit "something unexpected happened while injecting variables into the launch directory."
+    exit 1
+  fi
+  rm -rf "$target_launch_dir"
+  log.debug "deleted: $target_launch_dir"
+  mv "$tmp_launch_dir" "$target_launch_dir"
+  log.info "created launch directory: $target_launch_dir"
+}
+solos.import_project_repo() {
+  #
+  # Rather than download portions of the repo we need, we prefer
+  # to rely on a full clone in each project directory.
+  #
+  # Note: maybe in the future, if we want to prevent re-runs of the
+  # launch command from busting our version of the repo in our project
+  # we can automate forking the repo on the initial clone so that pulls
+  # won't cause any issues. But for now, the forking needs to occur
+  # manually by the user in their workspace.
+  #
+  if [ -d "$vCLI_OPT_DIR/repo" ]; then
+    log.warn "the SolOS repo was already cloned to $vCLI_OPT_DIR/repo."
+    log.info "pulling latest changes on checked out branch."
+    #
+    # Use the -C option instead of cd'ing to
+    # maintain working directory.
+    #
+    git -C "$vCLI_OPT_DIR/repo" pull 2>/dev/null
+    log.info "pulled latest changes."
+  else
+    git clone https://github.com/InterBolt/solos.git "$vCLI_OPT_DIR/repo" 2>/dev/null
+    log.info "cloned the SolOS repo to $vCLI_OPT_DIR/repo."
+  fi
+  if [ ! -d "$vCLI_OPT_DIR/repo/servers/$vCLI_OPT_SERVER" ]; then
+    cache.del "checkout_server"
+    log.debug "deleted the checkout_server cache since the server doesn't exist in the repo."
+    log.error "The server $vCLI_OPT_SERVER does not exist in the SolOS repo. Exiting."
+    exit 1
+  fi
+  find "$vCLI_OPT_DIR/repo" -type f -name "*.sh" -exec chmod +x {} \;
+  find "$vCLI_OPT_DIR/repo/bin" -type f -name "solos*" -exec chmod +x {} \;
+  chmod +x install
+  log.info "set permissions for all shell scripts in: $vCLI_OPT_DIR/repo"
+}
+solos.build_project_ssh_dir() {
+  #
+  # This is the dir we'll use to store all the keyfiles required
+  # by our local, docker dev container, and remote server.
+  # Important: if a dev manually deletes this dir before re-running a launch,
+  # infra will get recreated and the keys will get regenerated.
+  #
+  if [ ! -d "$(ssh.path.self)" ]; then
+    mkdir -p "$(ssh.path.self)"
+    log.info "created: $(ssh.path.self)"
+    ssh-keygen -t rsa -q -f "$(ssh.path_privkey.self)" -N ""
+    log.info "created private key: $(ssh.path_privkey.self), public key: $(ssh.path_pubkey.self)"
+    cat "$(ssh.path_pubkey.self)" >"$(ssh.path_authorized_keys.self)"
+    log.info "created $(ssh.path_authorized_keys.self)"
+  fi
+  chmod 644 "$(ssh.path_authorized_keys.self)"
+  log.debug "updated permissions: chmod 644 - $(ssh.path_authorized_keys.self)"
+  chmod 644 "$(ssh.path_pubkey.self)"
+  log.debug "updated permissions: chmod 644 - $(ssh.path_pubkey.self)"
+  chmod 644 "$(ssh.path_config.self)"
+  log.debug "updated permissions: chmod 644 - $(ssh.path_config.self)"
+  chmod 600 "$(ssh.path_privkey.self)"
+  log.debug "updated permissions: chmod 600 - $(ssh.path_privkey.self)"
 }
 # --------------------------------------------------------------------------------------------
 #
@@ -202,12 +302,29 @@ cmd.checkout() {
   precheck.throw_if_dangerous_dir
   precheck.throw_if_missing_installed_commands
   cache.set "checkout_dir" "$vCLI_OPT_DIR"
-
+  cache.set "checkout_server" "$vCLI_OPT_SERVER"
   log.info "checked out dir: $vCLI_OPT_DIR"
-
   if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ]; then
     vENV_SOLOS_ID="$(cat "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME")"
     log.debug "set \$vENV_SOLOS_ID= $vENV_SOLOS_ID"
+  fi
+  if [ -f "$(ssh.path_config.self)" ]; then
+    #
+    # For the most part we can just assume the ip we extract here
+    # is the correct one. The time where it isn't true is if we wipe our project's .ssh
+    # dir and re-run the launch command. In that case, the cache will tell
+    # us the most recent ip before the wipe and we can use that to de-provision
+    # resources as necessary.
+    #
+    # Important: a critical assumption is that the cache is never wiped between
+    # the time we deleted the .ssh dir and the time we re-run the launch command.
+    # In such a case, our script won't know what to de-provision and the user will
+    # have to do that themselves through their provider's UI.
+    # I think this is ok as long as clear warnings are put in place.
+    #
+    local most_recent_ip="$(ssh.extract_ip.remote)"
+    cache.set "most_recent_ip" "$most_recent_ip"
+    log.debug "updated the most recent ip in the cache."
   fi
 }
 cmd.launch() {
@@ -236,11 +353,12 @@ cmd.launch() {
   precheck.throw_on_nonsolos_dir
   if [ ! -d "$vCLI_OPT_DIR" ]; then
     mkdir -p "$vCLI_OPT_DIR"
-    log.info "created: $vCLI_OPT_DIR"
-    openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32 >"$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME"
-    log.debug "created: $vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME"
+    log.info "created new SolOS project at: $vCLI_OPT_DIR"
+    vENV_SOLOS_ID="$(utils.generate_secret)"
+    echo "$vENV_SOLOS_ID" >"$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME"
+    log.info "created new SolOS project at: $vCLI_OPT_DIR with id: $vENV_SOLOS_ID"
   fi
-  if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ] && [ -z "$vENV_SOLOS_ID" ]; then
+  if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ]; then
     vENV_SOLOS_ID="$(cat "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME")"
     log.debug "set \$vENV_SOLOS_ID= $vENV_SOLOS_ID"
   fi
@@ -252,6 +370,14 @@ cmd.launch() {
   if [ -n "$last_successful_run" ]; then
     log.warn "the last successful run was at: $last_successful_run"
   fi
+  solos.import_project_repo
+  #
+  # Confirm any assumptions we make later in the script.
+  # Ex: the specified server exists, templates are valid, server/.boot dir valid, etc.
+  # We want aggressive prechecks BEFORE the ssh keygen and vultr provisioning
+  # sections since those create things that are harder to undo and debug.
+  #
+  precheck.validate_project_repo "$vCLI_OPT_DIR/repo"
   #
   # Generate and collect things like the caprover password, postgres passwords.
   # api keys, etc.
@@ -259,8 +385,7 @@ cmd.launch() {
   # the cache or a force a hard reset.
   #
   local expects_these_things=(
-    "vENV_CAPROVER_PASSWORD"
-    "vENV_POSTGRES_PASSWORD"
+    "vENV_SEED_SECRET"
     "vENV_GITHUB_USERNAME"
     "vENV_GITHUB_EMAIL"
     "vENV_GITHUB_TOKEN"
@@ -269,11 +394,8 @@ cmd.launch() {
     "vENV_CLOUDFLARE_API_TOKEN"
   )
   # ------------------------------------------------------------------------------------------------------------
-  vENV_CAPROVER_PASSWORD="$(cache.overwrite_on_empty "vENV_CAPROVER_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
-  log.debug "set \$vENV_CAPROVER_PASSWORD= $vENV_CAPROVER_PASSWORD"
-  # ------------------------------------------------------------------------------------------------------------
-  vENV_POSTGRES_PASSWORD="$(cache.overwrite_on_empty "vENV_POSTGRES_PASSWORD" "$(openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32)")"
-  log.debug "set \$vENV_POSTGRES_PASSWORD= $vENV_POSTGRES_PASSWORD"
+  vENV_SEED_SECRET="$(cache.overwrite_on_empty "vENV_SEED_SECRET" "$(utils.generate_secret)")"
+  log.debug "set \$vENV_SEED_SECRET= $vENV_SEED_SECRET"
   # ------------------------------------------------------------------------------------------------------------
   vENV_GITHUB_USERNAME="$(cache.overwrite_on_empty "vENV_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
   log.debug "set \$vENV_GITHUB_USERNAME= $vENV_GITHUB_USERNAME"
@@ -299,115 +421,97 @@ cmd.launch() {
       exit 1
     fi
   done
-  for file in "${vSTATIC_REPO_BOOTFILES[@]}"; do
-    rm -f "$vCLI_OPT_DIR/bootfiles/$file"
-    wget --quiet --header="Cache-Control: no-cache" "https://raw.githubusercontent.com/InterBolt/solos/main/$vSTATIC_REPO_BOOTFILES_DIR/$file" -O "$vCLI_OPT_DIR/bootfiles/$file"
-    if [ "$(head -n 1 "$vCLI_OPT_DIR/bootfiles/$file" | cut -c1-2)" == "#!" ]; then
-      chmod +x "$vCLI_OPT_DIR/bootfiles/$file"
-    fi
-    #
-    # throw and remove any files that don't have valid variables.
-    #
-    if ! utils.template_variables "$vCLI_OPT_DIR/bootfiles/$file" "dry" 2>&1; then
-      log.exit "bad variables used in: $vCLI_OPT_DIR/bootfiles/$file"
-      exit 1
-    fi
-    log.info "downloaded: $vCLI_OPT_DIR/bootfiles/$file"
-  done
-  if [ ! -d "$(ssh.path.self)" ]; then
-    mkdir -p "$(ssh.path.self)"
-    log.info "created: $(ssh.path.self)"
-    ssh-keygen -t rsa -q -f "$(ssh.path_privkey.self)" -N ""
-    log.info "created private key: $(ssh.path_privkey.self), public key: $(ssh.path_pubkey.self)"
-    cat "$(ssh.path_pubkey.self)" >"$(ssh.path_authorized_keys.self)"
-    log.info "created $(ssh.path_authorized_keys.self)"
-  fi
-  chmod 644 "$(ssh.path_authorized_keys.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_authorized_keys.self)"
-  chmod 644 "$(ssh.path_pubkey.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_pubkey.self)"
-  chmod 644 "$(ssh.path_config.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_config.self)"
-  chmod 600 "$(ssh.path_privkey.self)"
-  log.debug "updated permissions: chmod 600 - $(ssh.path_privkey.self)"
+  solos.build_project_ssh_dir
   #
-  # Now that our SSH keys are ready, let us provision vultr stuff.
-  # It's possible that that stuff is already provisioned, in which case
-  # the provisioning subtasks should return early and would mean we won't have a ip to purge.
+  # On re-runs, the vultr provisioning functions will check for the existence
+  # of the old ip and if it's the same as the current ip, it will skip the
+  # provisioning process.
   #
   vultr.s3.provision
   log.success "vultr object storage is ready"
   #
-  # prev_id is NOT the same as old_ip.
+  # prev_id is NOT the same as ip_to_deprovision.
   # when prev_id is set and is associated with a matching
   # ssh key, we "promote" it to vENV_IP and skip
   # much (or all) of the vultr provisioning process.
   #
-  if [ -n "${prev_ip}" ]; then
-    log.info "the ip: $prev_ip from a previous run was found. will try not to re-install vultr instances."
+  local most_recent_ip="$(cache.get "most_recent_ip")"
+  local ip_to_deprovision="$(cache.get "ip_to_deprovision")"
+  if [ -n "${most_recent_ip}" ]; then
+    log.info "the ip \`$most_recent_ip\` from a previous run was found. will not re-install vultr instance"
   fi
-  vultr.compute.provision "$prev_ip"
+  vultr.compute.provision "$most_recent_ip"
+  vENV_IP="${vPREV_RETURN[0]}"
   log.success "vultr compute is ready"
+  #
+  # I'm treating the vultr. functions as a black box and then doing
+  # critical checks on the produced ip. Should throw when:
+  # 1) vENV_IP is empty after provisioning
+  # 2) the ip to deprovision in our cache is the same as vENV_IP
+  #
   if [ -z "$vENV_IP" ]; then
-    log.error "something went wrong. \$vENV_IP is empty."
+    log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
-  if [ "$vENV_IP" != "$prev_ip" ]; then
-    cache.set "old_ip" "$prev_ip"
-  else
-    #
-    # If we detected that the ip did NOT chang after vultr provisioning, we must
-    # clear the current old_ip value. Not doing so would cause the
-    # the current vultr instance to be deleted at the end of this script.
-    #
-    cache.del "old_ip"
+  if [ "$ip_to_deprovision" == "$vENV_IP" ]; then
+    log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
   fi
   #
-  # vENV_ variables => .env file and .env.sh files
+  # After the sanity checks, if the ip changed, we're safe
+  # to update the cache slots for the most recent ip and the
+  # ip to deprovision.
+  # By putting the ip to deprovision in the cache, we ensure that
+  # a hard reset won't stop our script from deprovisioning the old instance.
+  # on future runs.
+  #
+  if [ "$vENV_IP" != "$most_recent_ip" ]; then
+    cache.set "ip_to_deprovision" "$most_recent_ip"
+    cache.set "most_recent_ip" "$vENV_IP"
+  fi
+  #
+  # Generates the .env/.env.sh files by mapping all
+  # global variables starting with vENV_* to both files.
   #
   environment.generate_env_files
-  {
-    echo "Host 127.0.0.1"
-    echo "  HostName 127.0.0.1"
-    echo "  User root"
-    echo "  IdentityFile $(ssh.path_privkey.self)"
-    echo "  Port 2222"
-    echo ""
-    echo ""
-    echo "Host $vENV_IP"
-    echo "  HostName $vENV_IP"
-    echo "  User root"
-    echo "  IdentityFile $(ssh.path_privkey.self)"
-  } >"$(ssh.path_config.self)"
+  #
+  # Builds the ssh config file for the remote server and
+  # local docker dev container.
+  # Important: the ssh config file is the source of truth for
+  # our remote ip.
+  #
+  ssh.build.config "$ip"
   log.info "created: $(ssh.path_config.self)."
   #
-  # Checkpoint: once we're here, it's reasonable to assume
-  # that any variables we need to be set are set. That means
-  # we can inject them into downloaded/generated source files.
+  # Next, we want to form the launch directory inside of our project directory using the
+  # bootfiles from the server/.boot directory, and the built template files from bin/templates.
+  # These launch files are used later to bootstrap our environments.
+  # Important: these files are ephemeral and will be rebuilt/overwritten on each run.
   #
-  utils.template_variables "$vCLI_OPT_DIR" "commit"
-  log.info "injected vars into source files."
+  solos.rebuild_launch_directory
+  local launch_dir="$vCLI_OPT_DIR/$vSTATIC_PROJECT_LAUNCH_DIR"
   #
   # Build and start the local docker container.
-  # Warning: this will recreate the container on each run.
-  # Mounts the solos dir into the container.
-  # The command should look like this:
-  # "docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach"
-  # And we need to get the container id so we can perform future operations on it like
-  # are you running, are you bootstrapped, etc.
+  # We set the COMPOSE_PROJECT_NAME environment variable to
+  # the unique id of our project so that we can easily detect
+  # whether or not a specific project's dev container is running.
+  # Note: I'm being lazy and just cd'ing in and out to run the compose
+  # command. This keeps the compose.yml config a little simpler.
   #
+  local entry_dir="$PWD"
+  cd "$launch_dir"
   COMPOSE_PROJECT_NAME="solos-$vENV_SOLOS_ID" docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
   log.info "docker container is ready"
+  cd "$entry_dir"
   #
   # Remember: the docker container already has the env files at
-  # the /root/workspace directory, where we mount our solos dir.
+  # the /root/workspace directory, where we mount our SolOS dir.
   #
   ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" "/root/"
   ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME" "/root/"
   log.info "uploaded env files to both local and remote."
 
-  ssh.rsync_up.remote "$$vCLI_OPT_DIR/$vSTATIC_BOOTSTRAP_SH" "/root/"
-  ssh.cmd.remote "chmod +x /root/$vSTATIC_BOOTSTRAP_SH"
+  ssh.rsync_up.remote "$launch_dir/$vSTATIC_ENTRY_SH" "/root/"
+  ssh.cmd.remote "chmod +x /root/$vSTATIC_ENTRY_SH"
   log.info "uploaded and set permissions for remote bootstrap script."
   #
   # Create the folder where we'll store out caprover
@@ -422,7 +526,8 @@ cmd.launch() {
   # the local .solos folder to the container.
   #
   if ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
-    log.warn "remote already has a .solos config folder. skipping. see \`solos --help\` for more options."
+    log.warn "remote already has a .solos config folder. skipping."
+    log.info "see \`solos --help\` for how to re-sync your local or docker dev config folder to the remote."
   else
     ssh.cmd.remote "mkdir -p ${vSTATIC_DEBIAN_CONFIG_ROOT}"
     log.info "created empty remote .solos config folder."
@@ -436,7 +541,7 @@ cmd.launch() {
   # are mitigated by the fact that every script that contributes to the bootstrapping
   # is available via an aliased command.
   #
-  ssh.cmd.remote "/root/$vSTATIC_BOOTSTRAP_SH remote"
+  ssh.cmd.remote "/root/$vSTATIC_ENTRY_SH remote $vCLI_OPT_SERVER"
   #
   # I'm not doing anything with this status for now.
   # because I prefer that the bootstrapping script take
@@ -479,36 +584,31 @@ cmd.launch() {
   # if something bad happened and the old ip is the same as the current
   # we'll end up destroying the current instance. Yikes.
   #
-  if [ "$(cache.get "old_ip")" == "$vENV_IP" ]; then
-    log.error "The old and active ip's should never be the same! Skipping to avoid a disaster."
+  local ip_to_deprovision="$(cache.get "ip_to_deprovision")"
+  if [ "$ip_to_deprovision" == "$vENV_IP" ]; then
+    log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
   #
   # The active ip should never be empty.
   #
   if [ -z "$vENV_IP" ]; then
-    log.error "expected \$vENV_IP to be non-empty. Exiting"
+    log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
-  if [ -z "$(cache.get "old_ip")" ]; then
-    #
-    # Common if the user is installing for the first time.
-    #
-    log.info "no old ip found. skipping the purge process."
-  else
-    #
-    # If the user is re-installing, we want to make sure we don't leave behind an errant ip addresses throughout
-    # the installation folder, or that we don't leave dangling vultr resources
-    #
-    find "$vCLI_OPT_DIR" -type f -exec sed -i 's/'"$(cache.get "old_ip")"'/'"${vENV_IP}"'/g' {} \;
-    log.info "replaced $(cache.get "old_ip") with $vENV_IP in all files for extra safety."
-    log.warn "waiting 5 seconds before destroying the previous instance!"
+  if [ -n "$ip_to_deprovision" ]; then
+    log.warn "waiting 5 seconds before destroying instance: $ip_to_deprovision"
     sleep 5
-    vultr.compute.destroy_instance "$(vultr.compute.get_instance_id_from_ip "$(cache.get "old_ip")")"
-    log.info "destroyed the previous instance with ip: $(cache.get "old_ip")"
+    vultr.compute.get_instance_id_from_ip "$ip_to_deprovision"
+    local instance_id_to_deprovision="${vPREV_RETURN[0]}"
+    if [ "$instance_id_to_deprovision" == "null" ]; then
+      log.error "Unexpected error: couldn't find instance for ip: $ip_to_deprovision. Nothing to deprovision."
+      exit 1
+    fi
+    vultr.compute.destroy_instance "$instance_id_to_deprovision"
+    log.info "destroyed the previous instance with ip: $ip_to_deprovision"
   fi
   status.set "$vSTATUS_LAUNCH_SUCCEEDED" "$(utils.date)"
-
   log.success "launch completed successfully."
 }
 cmd.sync_config() {
@@ -710,7 +810,7 @@ flags.validate_options
 # We seperate the parsing and mapping concerns so that
 # frequent changes to business logic don't affect the parsing logic
 #
-state.map_parsed_cli
+solos.map_parsed_cli
 if [ -z "$vCLI_OPT_DIR" ]; then
   log.error "--dir is required. Exiting."
   exit 1

@@ -1,3 +1,2 @@
 disable=SC2155
 shell=bash
-external-sources=true

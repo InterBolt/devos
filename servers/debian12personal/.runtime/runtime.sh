@@ -1,41 +1,69 @@
 #!/usr/bin/env bash
 #!/usr/bin/env bash
-
+#
+# Pretty standard options for bash scripts.
+#
 set -o errexit
 set -o nounset
 set -o pipefail
-
+#
+# Takes us to the dir where this script lives
+# then out to the root of the repository.
+#
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit
 cd "$(git rev-parse --show-toplevel)" || exit
-
+#
+# We can feel free to use this variable now anytime
+# we need to reference the root directory of the repository.
+# Important: avoid the git rev-parse command if possible for
+# the rest of the scripts we create.
+#
 export repo_dir="$PWD"
-
+#
+# Why not do this at the top of the script?
+#
+mkdir -p "$repo_dir/.backups"
+mkdir -p "$repo_dir/.tmp"
+#
+# TODO: what this do?
+#
 (shopt -p inherit_errexit &>/dev/null) && shopt -s inherit_errexit
-
-# shellcheck source=../../bin/shared.log.sh
+#
+# Make sourcing server specific files a bit more reliable.
+#
+vSERVER_PATH="servers/debian12personal"
+#
+# Source any base libs that are needed
+#
+# shellcheck source=../../../bin/shared.log.sh
 . bin/shared.log.sh
-# shellcheck source=cmdargs.sh
-. debian12/.runtime/cmdargs.sh
-# shellcheck source=lobash.bash
-. debian12/.runtime/lobash.bash
-
-log.ready "host:$ENV_HOST" "${DEBUG_LEVEL:-0}"
-
 cd "$repo_dir"
-
+# shellcheck source=cmdargs.sh
+. "$vSERVER_PATH/.runtime/cmdargs.sh"
+cd "$repo_dir"
+# shellcheck source=lobash.bash
+. "$vSERVER_PATH/.runtime/lobash.bash"
+cd "$repo_dir"
+log.ready "host:$ENV_HOST" "${DEBUG_LEVEL:-0}"
+cd "$repo_dir"
+#
+# It's important that we only run this script on Debian 12.
+#
 if [ "$(lsb_release -is)" != "Debian" ] || [ "$(lsb_release -rs)" != "12" ]; then
-  echo "This script is only supported on Debian 12"
+  log.error "This script is only supported on Debian 12" >&2
   exit 1
 fi
-
-# shellcheck source=../../.env.sh
-. .env.sh
-# shellcheck source=../.boot/config.sh
-. debian12/.boot/config.sh
-
-dynamic_conn_string="db_connection"
-# The list of variables that are expected to be set at runtime.
-# The format is "name#description".
+#
+# Note: we don't source the .env.sh file because that happens inside
+# the .runtime/config.sh file. We can think of the config.sh file as
+# the place where we map env variables into configuration variables.
+#
+# shellcheck source=config.sh
+. "$vSERVER_PATH/.runtime/config.sh"
+#
+# The list of variables that are expected to be exported
+# from this script
+#
 runtime_expectations=(
   # variables
   "repo_dir#The directory of the repository."
@@ -48,7 +76,9 @@ runtime_expectations=(
   "fn_connect_db#A function that returns a connection string to a postgres database and throws if it can't establish a connection."
   "fn_sync_db_names#A function that syncs the database names to the config/.dbs file."
 )
-
+#
+# Important: please always prefix functions with fn_*
+#
 fn_fail_on_used_port() {
   local port="$1"
   if lsof -Pi :"$port" -sTCP:LISTEN -t >/dev/null; then
@@ -93,23 +123,12 @@ fn_sync_db_names() {
     fi
   done
 }
-
-# Check runtime_expectations and print documentation
+#
+# Check that our expectations are met.
+#
 for expected_runtime_variable in "${runtime_expectations[@]}"; do
   expected_runtime_variable_name=$(echo "$expected_runtime_variable" | cut -d "#" -f 1)
   if [ -z "$(eval echo "\$$expected_runtime_variable_name")" ]; then
     log.throw "$expected_runtime_variable_name is not set."
   fi
 done
-for runtime_variable in $(env | grep "^runtime_"); do
-  runtime_variable_name=$(echo "$runtime_variable" | cut -d "=" -f 1)
-  if [ -z "$(echo "${runtime_expectations[@]}" | grep "$runtime_variable_name")" ]; then
-    if [[ $runtime_variable_name == "runtime_$dynamic_conn_string"* ]]; then
-      continue
-    fi
-    log.throw "$runtime_variable_name is not expected."
-  fi
-done
-
-mkdir -p "$repo_dir/.backups"
-mkdir -p "$repo_dir/.tmp"

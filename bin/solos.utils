@@ -27,6 +27,9 @@ utils.exit_trap() {
   fi
   exit $code
 }
+utils.generate_secret() {
+  openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
+}
 #
 # This function is used to inject global variables into template files.
 # It will search for all instances of __[_A-Z]*__ in the file and replace them with the
@@ -138,4 +141,18 @@ utils.files_match_dir() {
       exit 1
     fi
   done
+}
+utils.curl() {
+  vPREV_CURL_ERR_STATUS_CODE=""
+  vPREV_CURL_ERR_MESSAGE=""
+  vPREV_CURL_RESPONSE=$(
+    curl --silent --show-error "$@"
+  )
+  local error_message="$(jq -r '.error' <<<"$vPREV_CURL_RESPONSE")"
+  if [ "$error_message" == "null" ]; then
+    echo ""
+    return
+  fi
+  vPREV_CURL_ERR_MESSAGE="$error_message"
+  vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"$vPREV_CURL_RESPONSE")"
 }

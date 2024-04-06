@@ -46,19 +46,27 @@ export vSTATIC_MY_CONFIG_ROOT="$HOME/.solos"
 export vSTATIC_DEBIAN_CONFIG_ROOT="${vSTATIC_DEBIAN_ROOT}/config"
 export vSTATIC_DEBIAN_CLONE_DIR="${vSTATIC_DEBIAN_ROOT}/solos"
 
-export vSTATIC_REPO_BOOTFILES_DIR="installer/bootfiles"
-export vSTATIC_BOOTSTRAP_SH="bootstrap.sh"
-export vSTATIC_REPO_BOOTFILES=(
-  "remote.code-workspace"
-  "docker.code-workspace"
-  "compose.yml"
-  "Dockerfile"
-  "$vSTATIC_BOOTSTRAP_SH"
-)
+export vSTATIC_SSH_CONF_DOCKER_HOSTNAME="solos-dev"
+export vSTATIC_SSH_CONF_REMOTE_HOSTNAME="solos-remote"
+export vSTATIC_REPO_TEMPLATES_DIR="bin/templates"
+export vSTATIC_BOOT_DIR=".boot"
+export vSTATIC_PROJECT_LAUNCH_DIR="launch"
+export vSTATIC_ENTRY_SH="entry.sh"
 export vSTATIC_VULTR_INSTANCE_DEFAULTS=(
   "voc-c-2c-4gb-50s-amd"
   "ewr"
   2136
+)
+export vSTATIC_SERVER_BOOTFILES=(
+  "$vSTATIC_ENTRY_SH" # bootstraps everything
+  "remote.sh"         # preps the deployment server
+  "docker.sh"         # preps the dev docker container
+  "Dockerfile"        # define our dev container
+)
+export vSTATIC_TEMPLATE_BOOTFILES=(
+  "compose.yml"           # defined dev container
+  "docker.code-workspace" # loads SSH remote to dev container
+  "remote.code-workspace" # loads SSH remote to deployment server
 )
 export vSTATIC_VULTR_API_URL="https://api.vultr.com/v2"
 export vSTATIC_ENV_FILENAME=".env"
@@ -71,3 +79,4 @@ export vSTATIC_SSH_CONFIG_FILENAME="solos_config"
 export vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME=".secret.database.json"
 export vSTATIC_USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
 export vSTATIC_SOLOS_ID_FILENAME=".solos_id"
+export vSTATIC_DEFAULT_SERVER="debian12personal"

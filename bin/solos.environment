@@ -13,8 +13,6 @@ environment.generate_env_files() {
   # Especially important if we aborted the process on a previous run.
   #
   local tmp_dir="$(mktemp -d 2>/dev/null)"
-  rm -f "$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
-  rm -f "$tmp_dir/$vSTATIC_ENV_FILENAME"
   local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vBIN_FILEPATH")
   for env_var in $env_vars; do
     local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
@@ -44,8 +42,7 @@ environment.generate_env_files() {
   mv "$tmp_dir/$vSTATIC_ENV_SH_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
   mv "$tmp_dir/$vSTATIC_ENV_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
   #
-  # Cleanup tmp files
+  # Cleanup tmp dir
   #
-  rm -f "$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
-  rm -f "$tmp_dir/$vSTATIC_ENV_FILENAME"
+  rm -rf "$tmp_dir"
 }
