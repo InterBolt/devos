@@ -74,34 +74,31 @@ precheck.docker_host_running() {
 }
 precheck.validate_project_repo() {
   local repo_dir="$1"
-  local server_dir="$repo_dir/servers/$vCLI_OPT_SERVER"
-  local templates_dir="$repo_dir/$vSTATIC_REPO_TEMPLATES_DIR"
+  local server_dir="$repo_dir/$vSTATIC_REPO_SERVERS_DIR/$vCLI_OPT_SERVER"
+  local server_launch_dir="$server_dir/$vSTATIC_LAUNCH_DIRNAME"
+  local bin_launch_dir="$repo_dir/$vSTATIC_BIN_LAUNCH_DIR"
   if [ ! -d "$repo_dir" ]; then
     log.error "The repo directory does not exist: $repo_dir. Exiting."
     exit 1
   fi
   if [ ! -d "$repo_dir/.git" ]; then
-    log.error "The repo directory does not contain a .git directory. Exiting."
+    log.error "Unexpected error: the repo directory does not contain a .git directory. Exiting."
     exit 1
   fi
   if [ ! -d "$server_dir" ]; then
-    log.error "The server: $vCLI_OPT_SERVER does not exist in the repo's server directory."
+    log.error "Unexpected error: the server directory does not exist: $server_dir. Exiting."
     exit 1
   fi
-  for template_file in "${vSTATIC_TEMPLATE_BOOTFILES[@]}"; do
-    if [ ! -f "$templates_dir/$template_file" ]; then
-      log.error "The template_file: $template_file does not exist in $templates_dir"
-      exit 1
-    fi
-  done
-  for boot_file in "${vSTATIC_SERVER_BOOTFILES[@]}"; do
-    if [ ! -f "$server_dir/$vSTATIC_BOOT_DIR/$boot_file" ]; then
-      log.error "The boot_file: $boot_file does not exist in $server_dir/$vSTATIC_BOOT_DIR/"
-      exit 1
-    fi
-  done
-  if ! utils.template_variables "$templates_dir" "dry" "allow_empty" 2>&1; then
-    log.error "bad variables used in: $templates_dir"
+  if [ ! -d "$server_launch_dir" ]; then
+    log.error "Unexpected error: the server's launch directory does not exist: $server_launch_dir. Exiting."
+    exit 1
+  fi
+  if [ ! -d "$bin_launch_dir" ]; then
+    log.error "Unexpected error: the bin launch directory does not exist: $bin_launch_dir. Exiting."
+    exit 1
+  fi
+  if ! utils.template_variables "$bin_launch_dir" "dry" "allow_empty" 2>&1; then
+    log.error "bad variables used in: $bin_launch_dir"
     exit 1
   fi
 }

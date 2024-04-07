@@ -161,20 +161,22 @@ ssh.build.config_file() {
     log.error "can't build the ssh config file with the invalid IP: $ip"
     exit 1
   fi
+  local privatekey_file="$(ssh.path_privkey.self)"
+  local config_file="$(ssh.path_config.self)"
   {
     echo "Host 127.0.0.1"
     echo "  HostName $vSTATIC_SSH_CONF_DOCKER_HOSTNAME"
     echo "  User root"
-    echo "  IdentityFile $(ssh.path_privkey.self)"
+    echo "  IdentityFile ${privatekey_file}"
     echo "  Port 2222"
     echo ""
     echo ""
     echo "Host $ip"
     echo "  HostName $vSTATIC_SSH_CONF_REMOTE_HOSTNAME"
     echo "  User root"
-    echo "  IdentityFile $(ssh.path_privkey.self)"
-  } >"$(ssh.path_config.self)"
-  log.info "created: $(ssh.path_config.self)."
+    echo "  IdentityFile ${privatekey_file}"
+  } >"${config_file}"
+  log.info "created: ${config_file}."
 }
 ssh.extract_ip.remote() {
   #

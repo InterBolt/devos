@@ -41,14 +41,14 @@ test.bootfiles() {
   # Check that all the variables we use in our bootfile templates are defined
   # in solos' global variables.
   #
-  utils.template_variables "$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_TEMPLATES_DIR" "dry" "allow_empty"
+  utils.template_variables "$vSTATIC_REPO_TEMPLATES_DIR" "dry" "allow_empty"
   cd "$entry_pwd"
   log.info "test passed: bootfiles are valid and match global variables."
   #
   # Check that the defualt server type exists
   #
-  if [ ! -d "$vSTATIC_RUNNING_REPO_ROOT/servers/$vSTATIC_DEFAULT_SERVER" ]; then
-    log.error "The default server type does not exist: $vSTATIC_DEFAULT_SERVER"
+  if [ ! -d "$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_SERVERS_DIR/$vSTATIC_DEFAULT_SERVER" ]; then
+    log.error "The default server type does not exist at: $vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_SERVERS_DIR/$vSTATIC_DEFAULT_SERVER"
     exit 1
   fi
 }
