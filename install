@@ -7,6 +7,7 @@ viREPO_BIN_EXECUTABLE_PATH="bin/solos"
 #
 # Important: please use "vi" prefix to avoid conflicts with other scripts
 # we source remotely.
+# Note: stands for "v" variable and "i" install.
 #
 viTMP_DIR="$(mktemp -d 2>/dev/null)"
 viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"

@@ -19,12 +19,6 @@ cache.clear() {
   # shellcheck disable=SC2115
   rm -rf "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
 }
-#
-# Important: this follows the same pattern as how we curl api endpoints.
-# We store the response in a global variable and then use the global var on subsequent lines.
-# While this feels like a shitty way to do this, it's actually quite nice AS LONG AS
-# there's only one way to "get" things in a particular category of functions.
-#
 cache.get() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
@@ -47,7 +41,7 @@ cache.prompt() {
   local input
   input="$(cache.get "$1")"
   if [ -z "$input" ]; then
-    echo "Enter the $1:"
+    echo -n "Enter the $1:"
     read -r input
     if [ -z "$input" ]; then
       log.error "the $1 cannot be empty. Exiting."

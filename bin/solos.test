@@ -18,20 +18,17 @@ test.variables() {
   #
   files=$(find . -type f -name "solos*")
   for file in $files; do
-    local global_vars
-    global_vars=$(utils.grep_global_vars "$file")
+    local global_vars=$(utils.grep_global_vars "$file")
     for global_var in $global_vars; do
       local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
       if [ "$result" == "unset" ]; then
-        log.error "Uknown variable: $global_var used in $file"
+        log.error "Unknown variable: $global_var used in $file"
         errored=true
       fi
     done
   done
   if [ "$errored" == true ]; then
     exit 1
-  else
-    log.debug "test passed: variables used in libs are all defined."
   fi
   cd "$entry_pwd"
   log.info "test passed: all referenced global variables are defined."
@@ -41,7 +38,7 @@ test.bootfiles() {
   local entry_pwd="$PWD"
   cd "$vSTATIC_RUNNING_REPO_ROOT"
   #
-  # Check that all the variables we use in our bootfile templates are defined.
+  # Check that all the variables we use in our bootfile templates are defined
   # in solos' global variables.
   #
   utils.template_variables "$vSTATIC_RUNNING_REPO_ROOT/$vSTATIC_REPO_TEMPLATES_DIR" "dry" "allow_empty"

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# check if lsb_release command exists
 export vSTATIC_HOST=""
 if [ "$(uname)" == "Darwin" ]; then
   export vSTATIC_HOST="local"
@@ -17,13 +16,10 @@ else
   export vSTATIC_RUNNING_IN_GIT_REPO=true
   export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 fi
-export vSTATIC_RESTRICTED_NAMES=(
-  "solos"
-  "bin"
-  ".logs"
-  ".ssh"
-  "workspace"
-)
+#
+# TODO: is there an automated way to scan our code and get a list of
+# TODO[c]: all the commands we assume the user has installed.
+#
 export vSTATIC_DEPENDENCY_COMMANDS=(
   "curl"
   "jq"
@@ -31,37 +27,40 @@ export vSTATIC_DEPENDENCY_COMMANDS=(
   "git"
   "rsync"
   "docker"
-  "aws" # TODO: remove and use vultr api instead of cli for s3
+  "aws"
 )
 export vSTATIC_DEBIAN_ROOT="/root"
 #
-# The reason for naming the debian config root differently is to avoid
-# annoying issues around dotfolders and to avoid the repo root being named
-# almost the same as the config root. (.solos vs solos).
+# Important: don't get fancy and rename the config on the remote.
+# It sucks to see .solos and solos both in the vscode file directory
+# but it's worth the benefits of having a consistent config directory.
+# Lots of tiny bugs start to happen if we can't blindly assume a consistent
+# config dir name.
 #
-# Ex: when displaying workspace folders in vscode, I don't want to see
-# `.solos` and `solos` right next to each other.
-#
-export vSTATIC_MY_CONFIG_ROOT="$HOME/.solos"
-export vSTATIC_DEBIAN_CONFIG_ROOT="${vSTATIC_DEBIAN_ROOT}/config"
+export vSTATIC_CONFIG_DIRNAME=".solos"
+export vSTATIC_MY_CONFIG_ROOT="$HOME/${vSTATIC_CONFIG_DIRNAME}"
+export vSTATIC_DEBIAN_CONFIG_ROOT="${vSTATIC_DEBIAN_ROOT}/${vSTATIC_CONFIG_DIRNAME}"
 export vSTATIC_DEBIAN_CLONE_DIR="${vSTATIC_DEBIAN_ROOT}/solos"
-
+export vSTATIC_MANUAL_FILENAME="manual.txt"
 export vSTATIC_SSH_CONF_DOCKER_HOSTNAME="solos-dev"
 export vSTATIC_SSH_CONF_REMOTE_HOSTNAME="solos-remote"
-export vSTATIC_REPO_TEMPLATES_DIR="bin/templates"
-export vSTATIC_BOOT_DIR=".boot"
-export vSTATIC_PROJECT_LAUNCH_DIR="launch"
-export vSTATIC_ENTRY_SH="entry.sh"
+export vSTATIC_LAUNCH_DIRNAME=".launch"
+export vSTATIC_BIN_LAUNCH_DIR="bin/$vSTATIC_LAUNCH_DIRNAME"
+export vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR="/root/project/$vSTATIC_LAUNCH_DIRNAME"
+export vSTATIC_REPO_SERVERS_DIR="servers"
+export vSTATIC_LINUX_SH_FILENAME="linux.sh"
+# export vSTATIC_LINUX_ENTRY_SH_FILE="bin/entries/linux.sh"
+# export vSTATIC_BOOT_DIR=".boot"
+# export vSTATIC_PROJECT_LAUNCH_DIR="launch"
 export vSTATIC_VULTR_INSTANCE_DEFAULTS=(
   "voc-c-2c-4gb-50s-amd"
   "ewr"
   2136
 )
 export vSTATIC_SERVER_BOOTFILES=(
-  "$vSTATIC_ENTRY_SH" # bootstraps everything
-  "remote.sh"         # preps the deployment server
-  "docker.sh"         # preps the dev docker container
-  "Dockerfile"        # define our dev container
+  "remote.sh"  # preps the deployment server
+  "docker.sh"  # preps the dev docker container
+  "Dockerfile" # define our dev container
 )
 export vSTATIC_TEMPLATE_BOOTFILES=(
   "compose.yml"           # defined dev container
@@ -79,4 +78,5 @@ export vSTATIC_SSH_CONFIG_FILENAME="solos_config"
 export vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME=".secret.database.json"
 export vSTATIC_USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
 export vSTATIC_SOLOS_ID_FILENAME=".solos_id"
+export vSTATIC_SERVER_TYPE_FILENAME=".solos_server_type"
 export vSTATIC_DEFAULT_SERVER="debian12personal"

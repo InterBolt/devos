@@ -1,7 +1,7 @@
 services:
   local:
     volumes:
-      - __vCLI_OPT_DIR__:/root/workspace
+      - __vCLI_OPT_DIR__:/root/project
       - __vSTATIC_MY_CONFIG_ROOT__:__vSTATIC_DEBIAN_CONFIG_ROOT__
     build:
       dockerfile: ./Dockerfile

@@ -156,3 +156,41 @@ utils.curl() {
   vPREV_CURL_ERR_MESSAGE="$error_message"
   vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"$vPREV_CURL_RESPONSE")"
 }
+# shellcheck disable=SC2120
+utils.curl.allows_error_status_codes() {
+  #
+  # The benefit of forcing the caller to "say" their intention rather
+  # than just leaving the arg list empty is purely for readability.
+  #
+  if [ -z "$1" ]; then
+    log.error "must declare \`none\` or a list of allowed status codes."
+    exit 1
+  fi
+  local error_message="error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
+  local allowed="true"
+  if [ -z "$vPREV_CURL_ERR_STATUS_CODE" ]; then
+    log.debug "no error status code found for curl request"
+    return
+  fi
+  if [ "$1" == "none" ]; then
+    allowed=""
+    shift
+  fi
+  local allowed_status_codes=()
+  if [ "$#" -gt 0 ]; then
+    allowed_status_codes=("$@")
+  fi
+  for allowed_status_code in "${allowed_status_codes[@]}"; do
+    if [ "$vPREV_CURL_ERR_STATUS_CODE" == "$allowed_status_code" ]; then
+      allowed="true"
+      log.debug "set allowed to true for status code: $allowed_status_code"
+    fi
+  done
+  if [ -z "$allowed" ]; then
+    log.error "$error_message"
+    exit 1
+  else
+    log.debug "allowed status code: $vPREV_CURL_ERR_STATUS_CODE"
+    log.debug "with error message: $vPREV_CURL_ERR_MESSAGE"
+  fi
+}

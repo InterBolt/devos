@@ -94,7 +94,7 @@ ssh.path.self() {
   echo "$vCLI_OPT_DIR/.ssh"
 }
 ssh.path.debian() {
-  echo "/root/workspace/.ssh"
+  echo "/root/project/.ssh"
 }
 ssh.path_pubkey.self() {
   echo "$(ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME"
@@ -155,7 +155,7 @@ ssh.path_config.debian() {
     echo ""
   fi
 }
-ssh.build.config() {
+ssh.build.config_file() {
   local ip="$1"
   if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     log.error "can't build the ssh config file with the invalid IP: $ip"

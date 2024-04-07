@@ -22,7 +22,7 @@ vBIN_SCRIPT_FILEPATH="$vCONFIG_DIR/bin/solos"
 vUSR_BIN_FILEPATH="/usr/local/bin/solos"
 vGITHUB_REPO="InterBolt/solos"
 vCLONE_DIR=/root/solos
-vDOCKER_ENV_PATH="/root/workspace/.env"
+vDOCKER_ENV_PATH="/root/project/.env"
 vREMOTE_ENV_PATH="/root/.env"
 vENV_PATH=""
 vSERVER_DIR=""
@@ -130,7 +130,8 @@ cd "$vSERVER_DIR"/.boot
 #
 # Important: Don't change to use the mounted repo's bin script.
 # I'd rather they be in sync and out of date than out of sync
-# and up to date.
+# and up to date. If we want to invoke the bin script in the repo
+# we should, just like, do that manually.
 #
 if [ -f "$vUSR_BIN_FILEPATH" ]; then
   rm -f "$vUSR_BIN_FILEPATH"

@@ -33,7 +33,7 @@ vPREV_RETURN=()
 #
 # These are used to keep track of various statuses, like "did the bootstrap complete"
 #
-vSTATUS_BOOTSTRAPPED_POSTGRES="bootstrapped-remote-postgres"
+STATUS_BOOTSTRAPPED_MANUALLY="bootstrapped-remote-postgres"
 vSTATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
 vSTATUS_LAUNCH_SUCCEEDED="successful-run"
 vSTATUS_BOOTSTRAPPED_DOCKER="bootstrapped-docker"
@@ -174,10 +174,17 @@ solos.map_parsed_cli() {
       log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
       ;;
     server=*)
-      val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      vCLI_OPT_SERVER="$val"
-      was_server_set=true
-      log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
+      #
+      # Always ignore unless this was provided for the launch command.
+      # Prefer the user to rely on the saved server type inside their projects
+      # dir (aka $vCLI_OPT_DIR).
+      #
+      if [ "$vCLI_PARSED_CMD" == "launch" ]; then
+        val="${vCLI_PARSED_OPTIONS[$i]#*=}"
+        vCLI_OPT_SERVER="$val"
+        was_server_set=true
+        log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
+      fi
       ;;
     tag=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
@@ -192,48 +199,106 @@ solos.map_parsed_cli() {
       ;;
     esac
   done
-  if [ "$was_server_set" == false ]; then
-    vCLI_OPT_SERVER="$(cache.get "checkout_server")"
-    if [ -z "$vCLI_OPT_SERVER" ]; then
-      vCLI_OPT_SERVER="$vSTATIC_DEFAULT_SERVER"
-      log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
-    fi
-  fi
   if [ -z "$vCLI_OPT_DIR" ]; then
-    vCLI_OPT_DIR="$(cache.get "checkout_dir")"
+    vCLI_OPT_DIR="$(cache.get "checked_out")"
     if [ -z "$vCLI_OPT_DIR" ]; then
       log.error "No directory supplied or checked out in the cache. Please supply a --dir."
       exit 1
     fi
     log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
   fi
+  #
+  # Now let's make sure that if the dir specificed already uses a different server than
+  # the one we assigned to $vCLI_OPT_SERVER, we throw an error.
+  #
+  # Note: we only throw if was_server_set=true, because that indicates an explicit user error.
+  # Otherwise, it's reasonable that an old value was found in the cache from a previously checked
+  # out directory.
+  #
+  local projects_server_type_file="${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
+  if [ "${was_server_set}" == true ]; then
+    if [ -f "${projects_server_type_file}" ]; then
+      local projects_server_type="$(cat "${projects_server_type_file}")"
+      if [ -z "${projects_server_type}" ]; then
+        log.error "Unexpected error: ${projects_server_type_file} is empty"
+        exit 1
+      fi
+      if [ -z "${vCLI_OPT_SERVER}" ]; then
+        log.error "Unexpected error: --server flag was provided with an empty value."
+        exit 1
+      fi
+      if [ "${projects_server_type}" != "${vCLI_OPT_SERVER}" ]; then
+        log.error "cannot change the server type after the initial launch command is run"
+        log.error "found: \`${projects_server_type}\`, you provided: \`${vCLI_OPT_SERVER}\`"
+        log.error "only a hard reset (use with caution) can change the server type."
+        log.info "\`solos --help\` for more info."
+        exit 1
+      fi
+    fi
+  elif [ -f "${projects_server_type_file}" ]; then
+    vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
+    log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
+  fi
+  if [ -z "$vCLI_OPT_SERVER" ]; then
+    log.error "Unexpected error: couldn't find a server type from either the --server flag or the checked out directory."
+    exit 1
+  fi
 }
 solos.rebuild_launch_directory() {
   #
   # Important: we want to approach the files inside of the launch
-  # dir as somewhat ephemeral and not worry about overwriting them.
+  # dir as ephemeral and not worry about overwriting them.
   # This is helpful too in future proofing the script against changes
-  # to the --dir flag.
+  # to the project directory location outside of the cli.
   #
-  local server_boot_dir="$vCLI_OPT_DIR/repo/servers/$vCLI_OPT_SERVER/$vSTATIC_BOOT_DIR"
-  local templates_dir="$vCLI_OPT_DIR/repo/$vSTATIC_REPO_TEMPLATES_DIR"
-  local target_launch_dir="$vCLI_OPT_DIR/$vSTATIC_PROJECT_LAUNCH_DIR"
-  local tmp_launch_dir="$vCLI_OPT_DIR/.tmp/$vSTATIC_PROJECT_LAUNCH_DIR"
-  if [ -d "$target_launch_dir" ]; then
+  #
+  # The server launch dir contains launch files specific to the server type.
+  #
+  local server_launch_dir="${vCLI_OPT_DIR}/repo/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}/${vSTATIC_LAUNCH_DIRNAME}"
+  #
+  # The bin launch dir contains launch files that are shared across all server types.
+  # Ex: code-workspace files, docker compose.yml file, standard linux startup script, etc.
+  #
+  local bin_launch_dir="${vCLI_OPT_DIR}/repo/${vSTATIC_BIN_LAUNCH_DIR}"
+  #
+  # We'll combine the above launch dir files and do something variable
+  # injection on them to create the final launch directory.
+  #
+  local project_launch_dir="${vCLI_OPT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
+  #
+  # Prevent an error from resulting in a partially incomplete launch dir
+  # by building everything in a tmp dir and then moving it over.
+  #
+  local tmp_dir="${vCLI_OPT_DIR}/.tmp"
+  local tmp_launch_dir="${tmp_dir}/${vSTATIC_LAUNCH_DIRNAME}"
+  if [ -d "$project_launch_dir" ]; then
     log.warn "rebuilding the launch directory."
   fi
-  rm -rf "$tmp_launch_dir"
-  mkdir -p "$tmp_launch_dir"
-  cp -a "$server_boot_dir/." "$tmp_launch_dir/"
-  cp -a "$templates_dir/." "$tmp_launch_dir/"
-  if ! utils.template_variables "$tmp_launch_dir" "commit" 2>&1; then
-    log.exit "something unexpected happened while injecting variables into the launch directory."
+  rm -rf "${tmp_launch_dir}"
+  mkdir -p "${tmp_launch_dir}"
+  #
+  # Clarification: I don't expect the server specific launch files to
+  # require variable injection, however variable injection will still work
+  # since we call the injection command on the fully built directory
+  # which contains both server specific and shared launch files.
+  #
+  # The only reason why I don't expect the server specific launch files to
+  # require variable injection is because they are meant to be aware of
+  # variables residing in this script.
+  #
+  cp -a "${server_launch_dir}/." "${tmp_launch_dir}/"
+  log.debug "copied: ${server_launch_dir} to ${tmp_launch_dir}"
+  cp -a "${bin_launch_dir}/." "${tmp_launch_dir}/"
+  log.debug "copied: ${bin_launch_dir} to ${tmp_launch_dir}"
+  if ! utils.template_variables "${tmp_launch_dir}" "commit" 2>&1; then
+    log.error "something unexpected happened while injecting variables into the launch directory."
     exit 1
   fi
-  rm -rf "$target_launch_dir"
-  log.debug "deleted: $target_launch_dir"
-  mv "$tmp_launch_dir" "$target_launch_dir"
-  log.info "created launch directory: $target_launch_dir"
+  log.debug "injected variables into the tmp launch directory."
+  rm -rf "${project_launch_dir}"
+  log.debug "deleted: ${project_launch_dir}"
+  mv "${tmp_launch_dir}" "${project_launch_dir}"
+  log.info "successfully rebuilt ${project_launch_dir}"
 }
 solos.import_project_repo() {
   #
@@ -244,65 +309,108 @@ solos.import_project_repo() {
   # launch command from busting our version of the repo in our project
   # we can automate forking the repo on the initial clone so that pulls
   # won't cause any issues. But for now, the forking needs to occur
-  # manually by the user in their workspace.
+  # manually by the user in their project.
   #
-  if [ -d "$vCLI_OPT_DIR/repo" ]; then
-    log.warn "the SolOS repo was already cloned to $vCLI_OPT_DIR/repo."
+  if [ -d "${vCLI_OPT_DIR}/repo" ]; then
+    log.warn "the SolOS repo was already cloned to ${vCLI_OPT_DIR}/repo."
     log.info "pulling latest changes on checked out branch."
     #
     # Use the -C option instead of cd'ing to
     # maintain working directory.
     #
-    git -C "$vCLI_OPT_DIR/repo" pull 2>/dev/null
+    git -C "${vCLI_OPT_DIR}/repo" pull 2>/dev/null
     log.info "pulled latest changes."
   else
-    git clone https://github.com/InterBolt/solos.git "$vCLI_OPT_DIR/repo" 2>/dev/null
-    log.info "cloned the SolOS repo to $vCLI_OPT_DIR/repo."
+    git clone https://github.com/InterBolt/solos.git "${vCLI_OPT_DIR}/repo" 2>/dev/null
+    log.info "cloned the SolOS repo to ${vCLI_OPT_DIR}/repo."
   fi
-  if [ ! -d "$vCLI_OPT_DIR/repo/servers/$vCLI_OPT_SERVER" ]; then
+  if [ ! -d "${vCLI_OPT_DIR}/repo/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}" ]; then
     cache.del "checkout_server"
     log.debug "deleted the checkout_server cache since the server doesn't exist in the repo."
-    log.error "The server $vCLI_OPT_SERVER does not exist in the SolOS repo. Exiting."
+    log.error "The server ${vCLI_OPT_SERVER} does not exist in the SolOS repo. Exiting."
     exit 1
   fi
-  find "$vCLI_OPT_DIR/repo" -type f -name "*.sh" -exec chmod +x {} \;
-  find "$vCLI_OPT_DIR/repo/bin" -type f -name "solos*" -exec chmod +x {} \;
+  find "${vCLI_OPT_DIR}/repo" -type f -name "*.sh" -exec chmod +x {} \;
+  find "${vCLI_OPT_DIR}/repo/bin" -type f -name "solos*" -exec chmod +x {} \;
   chmod +x install
-  log.info "set permissions for all shell scripts in: $vCLI_OPT_DIR/repo"
+  log.info "set permissions for all shell scripts in: ${vCLI_OPT_DIR}/repo"
 }
 solos.build_project_ssh_dir() {
+  local self_publickey_path="$(ssh.path_pubkey.self)"
+  local self_privkey_path="$(ssh.path_privkey.self)"
+  local self_authorized_keys_path="$(ssh.path_authorized_keys.self)"
+  local self_config_path="$(ssh.path_config.self)"
+  local self_ssh_dir_path="$(ssh.path.self)"
   #
   # This is the dir we'll use to store all the keyfiles required
   # by our local, docker dev container, and remote server.
   # Important: if a dev manually deletes this dir before re-running a launch,
   # infra will get recreated and the keys will get regenerated.
   #
-  if [ ! -d "$(ssh.path.self)" ]; then
-    mkdir -p "$(ssh.path.self)"
-    log.info "created: $(ssh.path.self)"
-    ssh-keygen -t rsa -q -f "$(ssh.path_privkey.self)" -N ""
-    log.info "created private key: $(ssh.path_privkey.self), public key: $(ssh.path_pubkey.self)"
-    cat "$(ssh.path_pubkey.self)" >"$(ssh.path_authorized_keys.self)"
-    log.info "created $(ssh.path_authorized_keys.self)"
+  if [ ! -d "${self_ssh_dir_path}" ]; then
+    mkdir -p "${self_ssh_dir_path}"
+    log.info "created: ${self_ssh_dir_path}"
+    ssh-keygen -t rsa -q -f "${self_privkey_path}" -N ""
+    log.info "created private key: ${self_privkey_path}, public key: ${self_publickey_path}"
+    cat "${self_publickey_path}" >"${self_authorized_keys_path}"
+    log.info "created ${self_authorized_keys_path}"
   fi
-  chmod 644 "$(ssh.path_authorized_keys.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_authorized_keys.self)"
-  chmod 644 "$(ssh.path_pubkey.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_pubkey.self)"
-  chmod 644 "$(ssh.path_config.self)"
-  log.debug "updated permissions: chmod 644 - $(ssh.path_config.self)"
-  chmod 600 "$(ssh.path_privkey.self)"
-  log.debug "updated permissions: chmod 600 - $(ssh.path_privkey.self)"
+  chmod 644 "${self_authorized_keys_path}"
+  log.debug "updated permissions: chmod 644 - ${self_authorized_keys_path}"
+  chmod 644 "${self_publickey_path}"
+  log.debug "updated permissions: chmod 644 - ${self_publickey_path}"
+  chmod 644 "${self_config_path}"
+  log.debug "updated permissions: chmod 644 - ${self_config_path}"
+  chmod 600 "${self_privkey_path}"
+  log.debug "updated permissions: chmod 600 - ${self_privkey_path}"
+}
+solos.require_completed_launch_status() {
+  if [ -z "$(status.get "$vSTATUS_LAUNCH_SUCCEEDED")" ]; then
+    log.error "Launch status is still incomplete. Run (or fix whatever issues occured and re-run) the launch command."
+    log.info "\`solos --help\` for more info."
+    exit 1
+  fi
+  #
+  # Feel free to add more paranoid checks here. The status above should cover us, but
+  # it does rely on some trust that either the user didn't delete the status file or
+  # that the launch script didn't leave out anything critical in a future change.
+  #
+  if ! ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
+    log.error "Unexpected error: ${vSTATIC_DEBIAN_CONFIG_ROOT} not found on the remote."
+    exit 1
+  fi
+}
+solos.warn_with_delay() {
+  local message="$1"
+  if [ -z "$message" ]; then
+    log.error "message must not be empty. Exiting."
+    exit 1
+  fi
+  log.warn "$message in 5 seconds."
+  sleep 3
+  log.warn "$message in 2 seconds."
+  sleep 2
+  log.warn "$message here we go..."
+  sleep 1
 }
 # --------------------------------------------------------------------------------------------
 #
 # COMMAND ENTRY FUNCTIONS
 #
 cmd.checkout() {
+  #
+  # Important: do these checks BEFORE saving the provided directory in the
+  # cache. Let's be sure any directories we put there are valid and safe.
+  #
   precheck.throw_if_dangerous_dir
   precheck.throw_if_missing_installed_commands
-  cache.set "checkout_dir" "$vCLI_OPT_DIR"
-  cache.set "checkout_server" "$vCLI_OPT_SERVER"
+  #
+  # The value of vCLI_OPT_SERVER is derived from either a flag value
+  # or from the server type of the associated checked out directory.
+  # If a flag is provided that does not match the server specificed
+  # in the checked out directory, we'll throw an error.
+  #
+  cache.set "checked_out" "$vCLI_OPT_DIR"
   log.info "checked out dir: $vCLI_OPT_DIR"
   if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ]; then
     vENV_SOLOS_ID="$(cat "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME")"
@@ -312,9 +420,8 @@ cmd.checkout() {
     #
     # For the most part we can just assume the ip we extract here
     # is the correct one. The time where it isn't true is if we wipe our project's .ssh
-    # dir and re-run the launch command. In that case, the cache will tell
-    # us the most recent ip before the wipe and we can use that to de-provision
-    # resources as necessary.
+    # dir and re-run the launch command. But since the cache files are in the global config
+    # dir, we can always find it despite a wiped project dir.
     #
     # Important: a critical assumption is that the cache is never wiped between
     # the time we deleted the .ssh dir and the time we re-run the launch command.
@@ -336,12 +443,7 @@ cmd.launch() {
     # doesn't have a .solos file.
     #
     precheck.throw_on_nonsolos
-    log.warn "DELETING: ${vCLI_OPT_DIR} in 5 seconds."
-    sleep 3
-    log.warn "DELETING: ${vCLI_OPT_DIR} in 2 seconds."
-    sleep 2
-    log.warn "DELETING: ${vCLI_OPT_DIR} here we go..."
-    sleep 1
+    solos.warn_with_delay "DANGER: about to \`rm -rf ${vCLI_OPT_DIR}\`"
     rm -rf "$vCLI_OPT_DIR"
     log.warn "wiped and created empty dir: $vCLI_OPT_DIR"
   fi
@@ -351,16 +453,26 @@ cmd.launch() {
   # since those will just result in new solos projects.
   #
   precheck.throw_on_nonsolos_dir
-  if [ ! -d "$vCLI_OPT_DIR" ]; then
-    mkdir -p "$vCLI_OPT_DIR"
-    log.info "created new SolOS project at: $vCLI_OPT_DIR"
+  if [ ! -d "${vCLI_OPT_DIR}" ]; then
+    mkdir -p "${vCLI_OPT_DIR}"
+    log.info "created new SolOS project at: ${vCLI_OPT_DIR}"
     vENV_SOLOS_ID="$(utils.generate_secret)"
-    echo "$vENV_SOLOS_ID" >"$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME"
-    log.info "created new SolOS project at: $vCLI_OPT_DIR with id: $vENV_SOLOS_ID"
+    echo "${vENV_SOLOS_ID}" >"${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
+    log.info "created new SolOS project at: ${vCLI_OPT_DIR} with id: ${vENV_SOLOS_ID}"
   fi
-  if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ]; then
-    vENV_SOLOS_ID="$(cat "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME")"
-    log.debug "set \$vENV_SOLOS_ID= $vENV_SOLOS_ID"
+  if [ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]; then
+    vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
+    log.debug "set \$vENV_SOLOS_ID= ${vENV_SOLOS_ID}"
+  fi
+  #
+  # We can only set the "server" once. Maybe in the future, we'll work in
+  # a way to change the server type after the fact, but for now, I'm considering
+  # it a one-time thing since there's so much logic tied to a particular server type
+  # and I don't want to have to write hard to reason about, defensive code.
+  #
+  if [ ! -f "${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}" ]; then
+    echo "${vCLI_OPT_SERVER}" >"${vSTATIC_SERVER_TYPE_FILENAME}"
+    log.info "set server type: ${vCLI_OPT_SERVER}"
   fi
   #
   # I like having a status but admittedly it's only role is to warn
@@ -453,13 +565,18 @@ cmd.launch() {
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
+  #
+  #
+  #
   if [ "$ip_to_deprovision" == "$vENV_IP" ]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
+    exit 1
   fi
   #
   # After the sanity checks, if the ip changed, we're safe
   # to update the cache slots for the most recent ip and the
   # ip to deprovision.
+  #
   # By putting the ip to deprovision in the cache, we ensure that
   # a hard reset won't stop our script from deprovisioning the old instance.
   # on future runs.
@@ -479,16 +596,15 @@ cmd.launch() {
   # Important: the ssh config file is the source of truth for
   # our remote ip.
   #
-  ssh.build.config "$ip"
+  ssh.build.config_file "$ip"
   log.info "created: $(ssh.path_config.self)."
   #
-  # Next, we want to form the launch directory inside of our project directory using the
-  # bootfiles from the server/.boot directory, and the built template files from bin/templates.
-  # These launch files are used later to bootstrap our environments.
-  # Important: these files are ephemeral and will be rebuilt/overwritten on each run.
+  # Next, we want to form the launch directory inside of our project directory
+  # using the `.launch` dirs from within the bin and server specific dirs.
+  # Note: launch files are used later to bootstrap our environments.
   #
   solos.rebuild_launch_directory
-  local launch_dir="$vCLI_OPT_DIR/$vSTATIC_PROJECT_LAUNCH_DIR"
+  local project_launch_dir="${vCLI_OPT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
   #
   # Build and start the local docker container.
   # We set the COMPOSE_PROJECT_NAME environment variable to
@@ -498,20 +614,25 @@ cmd.launch() {
   # command. This keeps the compose.yml config a little simpler.
   #
   local entry_dir="$PWD"
-  cd "$launch_dir"
-  COMPOSE_PROJECT_NAME="solos-$vENV_SOLOS_ID" docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
+  cd "${project_launch_dir}"
+  COMPOSE_PROJECT_NAME="solos-${vENV_SOLOS_ID}" docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
   log.info "docker container is ready"
   cd "$entry_dir"
   #
-  # Remember: the docker container already has the env files at
-  # the /root/workspace directory, where we mount our SolOS dir.
+  # Important: don't upload the env files to the remote at all!
+  # Instead, deployment scripts should take responsibility for
+  # packaging anything required from those files when uploading
+  # to the remote.
   #
-  ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" "/root/"
-  ssh.rsync_up.remote "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME" "/root/"
-  log.info "uploaded env files to both local and remote."
-
-  ssh.rsync_up.remote "$launch_dir/$vSTATIC_ENTRY_SH" "/root/"
-  ssh.cmd.remote "chmod +x /root/$vSTATIC_ENTRY_SH"
+  # Note: In a previous implementation I was making the above mistake.
+  #
+  local linux_sh_project_file="${project_launch_dir}/${vSTATIC_LINUX_SH_FILENAME}"
+  if [ ! -f "$linux_sh_project_file" ]; then
+    log.error "Unexpected error: $linux_sh_project_file not found. Exiting."
+    exit 1
+  fi
+  ssh.rsync_up.remote "$linux_sh_project_file" "/root/"
+  ssh.cmd.remote "chmod +x /root/${vSTATIC_LINUX_SH_FILENAME}"
   log.info "uploaded and set permissions for remote bootstrap script."
   #
   # Create the folder where we'll store out caprover
@@ -522,8 +643,7 @@ cmd.launch() {
   #
   # Before bootstrapping can occur, make sure we upload the .solos config folder
   # from our local machine to the remote machine.
-  # Important: we don't need to do this with the docker container because we rely on mounting
-  # the local .solos folder to the container.
+  # Important: we don't need to do this with the docker container because we mount it
   #
   if ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
     log.warn "remote already has a .solos config folder. skipping."
@@ -531,53 +651,50 @@ cmd.launch() {
   else
     ssh.cmd.remote "mkdir -p ${vSTATIC_DEBIAN_CONFIG_ROOT}"
     log.info "created empty remote .solos config folder."
-    ssh.rsync_up.remote "$vSTATIC_MY_CONFIG_ROOT/" "$vSTATIC_DEBIAN_CONFIG_ROOT/"
+    ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${vSTATIC_DEBIAN_CONFIG_ROOT}/"
     log.info "uploaded local .solos config folder to remote."
   fi
   #
   #
-  # Note: the bootstrapping script should be idempotent but it's still
-  # a long ass script so I like the ability to skip it. Also, the downsides of not re-running
-  # are mitigated by the fact that every script that contributes to the bootstrapping
-  # is available via an aliased command.
+  # The entry.sh file will run the boot scripts.
+  # Important: boot scripts should be idempotent and performant.
   #
-  ssh.cmd.remote "/root/$vSTATIC_ENTRY_SH remote $vCLI_OPT_SERVER"
+  ssh.cmd.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER}"
   #
-  # I'm not doing anything with this status for now.
-  # because I prefer that the bootstrapping script take
-  # responsibility for idempotency and performance.
+  # We might want this status in the future
   #
-  status.set "$vSTATUS_BOOTSTRAPPED_REMOTE" "$(utils.date)"
+  status.set "${vSTATUS_BOOTSTRAPPED_REMOTE}" "$(utils.date)"
   log.info "bootstrapped the remote server."
   #
-  # Bootstrapping postgres is a manual process so that's why I skip if
-  # it was already created.
+  # Boot scripts have the option to force manual action if needed.
+  # But the status.get skip check ensures it's a one time thing.
+  # TODO: right now its specific to postgres and caprover
   #
-  timestamp_of_postgres_bootstrap="$(status.get "$vSTATUS_BOOTSTRAPPED_POSTGRES")"
-  if [ -n "$timestamp_of_postgres_bootstrap" ]; then
-    log.warn "skipping all postgres bootstrap - previously completed at $timestamp_of_postgres_bootstrap"
+  bootstrapped_manually_at="$(status.get "${STATUS_BOOTSTRAPPED_MANUALLY}")"
+  if [ -n "${bootstrapped_manually_at}" ]; then
+    log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
-    ssh.rsync_down.remote "$vSTATIC_DEBIAN_CLONE_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME" "$vCLI_OPT_DIR/"
-    log.info "downloaded caprover one-click-app template."
+    ssh.rsync_down.remote "${vSTATIC_DEBIAN_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vCLI_OPT_DIR}/"
+    log.debug "downloaded manual file to: ${vCLI_OPT_DIR}"
+    log.info "review the manual instructions before continuing"
     utils.echo_line
     echo ""
-    cat "$vCLI_OPT_DIR/$vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME"
+    cat "${vCLI_OPT_DIR}/${vSTATIC_MANUAL_FILENAME}"
     echo ""
     utils.echo_line
-    echo "Setup the caprover Postgres database and hit enter."
+    echo -n "Hit enter (0/2) to continue."
     read -r
-    status.set "$vSTATUS_BOOTSTRAPPED_POSTGRES" "$(utils.date)"
+    echo -n "Hit enter (1/2) to continue."
+    read -r
+    status.set "${STATUS_BOOTSTRAPPED_MANUALLY}" "$(utils.date)"
+    log.info "completed manual bootstrap step. see \`solos --help\` for how to re-display manual instructions."
   fi
-  #
-  # Make sure the local bin executable is up to date.
-  #
-  ssh.ssh.rsync_up.docker "$vSTATIC_USR_LOCAL_BIN_EXECUTABLE" "/usr/local/bin/"
   #
   # The logic here is simpler because the bootstrap script for the docker container
   # will never deal with things like databases or service orchestration.
   #
-  ssh.cmd.docker "$STORE_TARGET_NAMED_BOOTSTRAP_SH_FILE docker"
-  status.set "$vSTATUS_BOOTSTRAPPED_DOCKER" "$(utils.date)"
+  ssh.cmd.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR} docker ${vCLI_OPT_SERVER}"
+  status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(utils.date)"
   log.info "bootstrapped the local docker container."
   #
   # This is redundant, but it's a good safety check because
@@ -585,92 +702,65 @@ cmd.launch() {
   # we'll end up destroying the current instance. Yikes.
   #
   local ip_to_deprovision="$(cache.get "ip_to_deprovision")"
-  if [ "$ip_to_deprovision" == "$vENV_IP" ]; then
+  if [ "${ip_to_deprovision}" == "${vENV_IP}" ]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
   #
   # The active ip should never be empty.
   #
-  if [ -z "$vENV_IP" ]; then
+  if [ -z "${vENV_IP}" ]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
-  if [ -n "$ip_to_deprovision" ]; then
-    log.warn "waiting 5 seconds before destroying instance: $ip_to_deprovision"
-    sleep 5
-    vultr.compute.get_instance_id_from_ip "$ip_to_deprovision"
+  if [ -n "${ip_to_deprovision}" ]; then
+    solos.warn_with_delay "DANGER: destroying instance: ${ip_to_deprovision}"
+    vultr.compute.get_instance_id_from_ip "${ip_to_deprovision}"
     local instance_id_to_deprovision="${vPREV_RETURN[0]}"
-    if [ "$instance_id_to_deprovision" == "null" ]; then
-      log.error "Unexpected error: couldn't find instance for ip: $ip_to_deprovision. Nothing to deprovision."
+    if [ "${instance_id_to_deprovision}" == "null" ]; then
+      log.error "Unexpected error: couldn't find instance for ip: \`${ip_to_deprovision}\`. Nothing to deprovision."
       exit 1
     fi
-    vultr.compute.destroy_instance "$instance_id_to_deprovision"
-    log.info "destroyed the previous instance with ip: $ip_to_deprovision"
+    vultr.compute.destroy_instance "${instance_id_to_deprovision}"
+    log.info "destroyed the previous instance with ip: ${ip_to_deprovision}"
+    cache.del "ip_to_deprovision"
+    log.debug "deleted the ip_to_deprovision cache entry."
   fi
-  status.set "$vSTATUS_LAUNCH_SUCCEEDED" "$(utils.date)"
+  status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(utils.date)"
   log.success "launch completed successfully."
 }
+#
+# This command likely occurs most often from within our docker dev container since that's where we'll do all
+# our development work. Keep in mind syncing from local=>docker doesn't ever make sense since the docker container
+# contains a mounted volume with the same config folder (renamed to /root/config instead of /root/.solos) as the local machine.
+#
 cmd.sync_config() {
+  solos.require_completed_launch_status
   cmd.checkout
-
-  if [ "$vSTATIC_HOST" == "local" ]; then
-    precheck.docker_host_running
-  fi
-  if ! ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
-    log.error "remote does not have a config folder. are you sure this server is launched? Exiting."
-  fi
-  log.warn "will overwrite the remote config folder in 5 seconds."
-  sleep 3
-  log.warn "will overwrite the remote config folder in 2 seconds."
-  sleep 2
-  log.warn "will overwrite the remote config folder in 1 second."
-  sleep 1
-  #
-  # Do not rm -rf in the first command because we want as little downtime as possible.
-  # instead, forcefully move the rsync'd local config folder to overwrite the remote one.
-  #
+  solos.warn_with_delay "overwriting the remote config folder: ${vSTATIC_DEBIAN_CONFIG_ROOT}"
   local tmp_dir="/root/.tmp"
-  local config_dirname=".solos"
-  ssh.cmd.remote "mkdir -p  ${tmp_dir}"
-  log.info "remote tmp folder exists"
-  ssh.cmd.remote "mkdir -p ${tmp_dir}/${config_dirname} && rm -rf ${tmp_dir}/${config_dirname}"
-  log.info "wiped remote tmp/${config_dirname} folder in preparation for rsync."
-  ssh.rsync_up.remote "$vSTATIC_MY_CONFIG_ROOT/" "${tmp_dir}/${config_dirname}/"
-  log.info "uploaded local ${config_dirname} config folder to remote."
-  ssh.cmd.remote "mv --force ${tmp_dir}/${config_dirname} ${vSTATIC_DEBIAN_CONFIG_ROOT}"
-  log.info "overwrote remote ${config_dirname} config folder with our local one."
-  ssh.cmd.remote "rm -rf ${tmp_dir}"
-  log.info "cleaned up remote tmp folder."
-
-  log.info "success: uploaded local .solos config folder to remote."
-}
-cmd.sync_bin() {
-  cmd.checkout
-
-  if [ "$vSTATIC_HOST" != "local" ]; then
-    log.error "this command must be run from the local host. Exiting."
-    exit 1
-  fi
-  precheck.docker_host_running
-  ssh.ssh.rsync_up.docker "$vSTATIC_USR_LOCAL_BIN_EXECUTABLE" "/usr/local/bin/"
+  local tmp_remote_config_dir="${tmp_dir}/${vSTATIC_CONFIG_DIRNAME}"
+  #
+  # Rsync the config up to a tmp dir first. Once everything is A+, force delete
+  # the old config folder and move the new one to its place. Should limit downtime.
+  #
+  # Note: like most commands, we should be able to run this from within our docker container
+  # no differently than if we were on the local machine. vSTATIC_MY_CONFIG_ROOT handles the
+  # different absolute paths for local and docker since it uses the built-in $HOME variable.
+  #
+  ssh.cmd.remote "rm -rf ${tmp_remote_config_dir} && mkdir -p ${tmp_remote_config_dir}"
+  log.info "wiped remote ${tmp_remote_config_dir} folder in preparation for rsync."
+  ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${tmp_remote_config_dir}/"
+  log.info "uploaded local ${vSTATIC_MY_CONFIG_ROOT} config folder to remote."
+  ssh.cmd.remote "rm -rf ${vSTATIC_DEBIAN_CONFIG_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_DEBIAN_CONFIG_ROOT}"
+  log.info "overwrote remote's config:${vSTATIC_DEBIAN_CONFIG_ROOT} with ${vSTATIC_HOST}'s config: ${vSTATIC_MY_CONFIG_ROOT}."
+  ssh.cmd.remote "rm -rf ${tmp_remote_config_dir}"
+  log.debug "removed ${tmp_remote_config_dir} on the remote."
+  log.info "success: synced config folder to remote."
 }
 cmd.sync_env() {
+  solos.require_completed_launch_status
   cmd.checkout
-
-  if [ "$vSTATIC_HOST" == "remote" ]; then
-    log.error "this command cannot be run from the remote host. Exiting."
-    exit 1
-  fi
-  if [ "$vSTATIC_HOST" == "local" ]; then
-    precheck.docker_host_running
-  fi
-  log.warn "will overwrite the remote .solos config folder in 5 seconds."
-  sleep 3
-  log.warn "will overwrite the remote .solos config folder in 2 seconds."
-  sleep 2
-  log.warn "will overwrite the remote .solos config folder in 1 second."
-  sleep 1
   #
   # Do not rm -rf in the first command because we want as little downtime as possible.
   # instead, forcefully move the rsync'd local config folder to overwrite the remote one.
@@ -698,6 +788,7 @@ cmd.sync_env() {
   log.info "success: uploaded local .env and .env.sh files to remote."
 }
 cmd.code() {
+  solos.require_completed_launch_status
   cmd.checkout
 
   if ! command -v "code" &>/dev/null; then
@@ -712,6 +803,7 @@ cmd.code() {
   log.warn "would open vscode"
 }
 cmd.restore() {
+  solos.require_completed_launch_status
   cmd.checkout
 
   if [ "$vSTATIC_HOST" == "local" ]; then
@@ -720,6 +812,7 @@ cmd.restore() {
   log.warn "TODO: implementation needed"
 }
 cmd.backup() {
+  solos.require_completed_launch_status
   cmd.checkout
 
   if [ "$vSTATIC_HOST" == "local" ]; then
@@ -735,7 +828,7 @@ cmd.status() {
   local status_remote_ready="NO"
   local status_postgres_ready="NO"
   if [ -z "$vCLI_OPT_DIR" ]; then
-    vCLI_OPT_DIR="$(cache.get "checkout_dir")"
+    vCLI_OPT_DIR="$(cache.get "checked_out")"
   fi
   if [ -z "$vCLI_OPT_DIR" ]; then
     log.error "no project found at: $vCLI_OPT_DIR. if you moved it, use the --dir flag to specify the new location."
@@ -768,7 +861,7 @@ cmd.status() {
   if [ -n "$(status.get "$vSTATUS_BOOTSTRAPPED_REMOTE")" ]; then
     status_remote_ready="YES"
   fi
-  if [ -n "$(status.get "$vSTATUS_BOOTSTRAPPED_POSTGRES")" ]; then
+  if [ -n "$(status.get "$STATUS_BOOTSTRAPPED_MANUALLY")" ]; then
     status_postgres_ready="YES"
   fi
   if [ -n "$(status.get "$vSTATUS_BOOTSTRAPPED_DOCKER")" ]; then

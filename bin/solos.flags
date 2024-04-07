@@ -69,7 +69,6 @@ Sync the .solos config folder to the remote server.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to sync. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -85,7 +84,6 @@ Print the status of a solos project.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to check. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -101,7 +99,6 @@ Sync the .env and .env.sh files to the remote server.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to sync to. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -117,7 +114,6 @@ Run tests on the installation to ensure it's working as expected.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to test. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -133,7 +129,6 @@ Launch a new installation, complete a partial installation, or repair an existin
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to checkout. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -149,7 +144,6 @@ Open the vscode workspaces associated with the installation.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to connect to via SSH. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 EOF
 }
@@ -165,14 +159,8 @@ Backup the installation, caprover, and postgres to the s3 bucket.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to backup. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 --tag=<string>      - The tag to use for the backup.
---allow-local       - Allow the \`.solos\` folder we backup to come from the 
-                      local machine. This is useful for restoring a backup
-                      to a new machine. By default, it will always try to backup
-                      the \`.solos\` folder from the container since that's our primary
-                      workspace.
 EOF
 }
 #
@@ -187,7 +175,6 @@ Restore the installation, caprover, and postgres from the s3 bucket.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
---server            - The type of server to restore. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
 --tag=<string>      - When supplied, we'll restore the latest backup that 
                       matches the tag. If no tag is supplied, we'll restore

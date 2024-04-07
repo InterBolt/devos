@@ -8,32 +8,42 @@
 . "solos.static"
 
 precheck.throw_if_dangerous_dir() {
-  if [ "$vCLI_OPT_DIR" == "$HOME" ]; then
+  if [ "${vCLI_OPT_DIR}" == "$HOME" ]; then
     log.error "Danger: you are trying to wipe the home directory. Exiting."
     exit 1
   fi
-  if [[ "$HOME" == "$vCLI_OPT_DIR"* ]]; then
+  if [[ "$HOME" == "${vCLI_OPT_DIR}"* ]]; then
     log.error "Danger: you are trying to wipe a parent directory of your home directory. Exiting."
     exit 1
   fi
+  if [ "${vSTATIC_MY_CONFIG_ROOT}" == "${vCLI_OPT_DIR}" ]; then
+    log.error "Danger: this would wipe the solos config directory. Exiting."
+    exit 1
+  fi
 }
+#
+# Important: rely on the server type file over anything else to determine if a valid project dir.
+# The server type file is created immediately upon launch and gives us the best chance of correctly
+# determining that a folder is a solos project since early exits before the server type file is created
+# are extremely unlikely.
+#
 precheck.throw_on_nonsolos() {
   precheck.throw_if_dangerous_dir
 
-  if [ ! -d "$vCLI_OPT_DIR" ]; then
-    log.error "Invalid directory supplied for --dir flag: $vCLI_OPT_DIR. Exiting."
+  if [ ! -d "${vCLI_OPT_DIR}" ]; then
+    log.error "Invalid directory supplied for --dir flag: ${vCLI_OPT_DIR}. Exiting."
     exit 1
   fi
-  if [ ! -f "$vCLI_OPT_DIR/.solos-id" ]; then
-    log.error "The supplied directory does not contain a .solos-id file. Exiting."
+  if [ ! -f "${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}" ]; then
+    log.error "The supplied directory does not contain a ${vSTATIC_SERVER_TYPE_FILENAME} file. Exiting."
     exit 1
   fi
 }
 precheck.throw_on_nonsolos_dir() {
   precheck.throw_if_dangerous_dir
 
-  if [ -d "$vCLI_OPT_DIR" ] && [ ! -f "$vCLI_OPT_DIR/.solos-id" ]; then
-    log.error "The supplied directory already exists and does not contain a .solos-id file. Exiting."
+  if [ -d "${vCLI_OPT_DIR}" ] && [ ! -f "${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}" ]; then
+    log.error "The supplied directory already exists and does not contain a ${vSTATIC_SERVER_TYPE_FILENAME} file. Exiting."
   fi
 }
 precheck.throw_if_missing_installed_commands() {
@@ -50,7 +60,7 @@ precheck.docker_host_running() {
     exit 1
   fi
   if [ -z "$vENV_SOLOS_ID" ]; then
-    log.error "no solos id found. this is stored at $vSTATIC_MY_CONFIG_ROOT/$vSTATIC_SOLOS_ID_FILENAME"
+    log.error "no solos id found. this is stored at $vSTATIC_MY_CONFIG_ROOT/$vSTATIC_SERVER_TYPE_FILENAME"
     exit 1
   fi
   if ! docker info &>/dev/null; then
@@ -91,7 +101,7 @@ precheck.validate_project_repo() {
     fi
   done
   if ! utils.template_variables "$templates_dir" "dry" "allow_empty" 2>&1; then
-    log.exit "bad variables used in: $templates_dir"
+    log.error "bad variables used in: $templates_dir"
     exit 1
   fi
 }

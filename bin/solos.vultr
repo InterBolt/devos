@@ -24,14 +24,7 @@ vultr.compute.instance_contains_tag() {
   utils.curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
-  if [ -n "$err_status_code" ]; then
-    log.error "Vultr failed with the status code: $err_status_code"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   tags=$(jq -r '.instance.tags' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!tags[@]}"; do
     if [ "${tags[$i]}" == "${tag}" ]; then
@@ -42,6 +35,8 @@ vultr.compute.instance_contains_tag() {
   echo "$found"
 }
 vultr.compute.destroy_instance() {
+  vPREV_RETURN=()
+
   local instance_id="$1"
   if [ -z "${instance_id}" ]; then
     log.error "you supplied an empty instance id as the first argument to vultr.compute.destroy_instance"
@@ -50,17 +45,11 @@ vultr.compute.destroy_instance() {
   utils.curl "$vSTATIC_VULTR_API_URL/instances/$instance_id" \
     -X DELETE \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
-  if [ -n "$err_status_code" ]; then
-    log.error "Vultr failed with the status code: $err_status_code"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
 }
 vultr.compute.create_instance() {
   vPREV_RETURN=()
+
   local plan="$1"
   local region="$2"
   local os_id="$3"
@@ -88,10 +77,7 @@ vultr.compute.create_instance() {
         "'"${sshkey_id}"'"
       ]
     }'
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   local ip="$(jq -r '.instance.main_ip' <<<"$vPREV_CURL_RESPONSE")"
   local instance_id="$(jq -r '.instance.id' <<<"$vPREV_CURL_RESPONSE")"
   vPREV_RETURN=("$ip" "$instance_id")
@@ -99,19 +85,18 @@ vultr.compute.create_instance() {
 }
 vultr.compute.get_instance_id_from_ip() {
   vPREV_RETURN=()
+
   local ip="$1"
   utils.curl "$vSTATIC_VULTR_API_URL/instances?main_ip=${ip}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   local instance_id="$(jq -r '.instances[0].id' <<<"$vPREV_CURL_RESPONSE")"
   vPREV_RETURN=("$instance_id")
 }
 vultr.compute.find_existing_sshkey_id() {
   vPREV_RETURN=()
+
   local found_ssh_keys
   local found_ssh_key_names
   local match_exists=false
@@ -127,10 +112,7 @@ vultr.compute.find_existing_sshkey_id() {
   utils.curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$vPREV_CURL_RESPONSE")
   found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$vPREV_CURL_RESPONSE")
   found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"$vPREV_CURL_RESPONSE")
@@ -177,6 +159,7 @@ vultr.compute.find_existing_sshkey_id() {
 }
 vultr.compute.wait_for_ready_instance() {
   vPREV_RETURN=()
+
   local instance_id="$1"
   local expected_status="active"
   local expected_server_status="ok"
@@ -190,11 +173,7 @@ vultr.compute.wait_for_ready_instance() {
     utils.curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
       -X GET \
       -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-    if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-      log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-      log.error
-      exit 1
-    fi
+    utils.curl.allows_error_status_codes "none"
     local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL_RESPONSE")"
     local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL_RESPONSE")"
     if [ "$queried_server_status" == "${expected_server_status}" ] && [ "$queried_status" == "${expected_status}" ]; then
@@ -208,6 +187,7 @@ vultr.compute.wait_for_ready_instance() {
 }
 vultr.compute.provision() {
   vPREV_RETURN=()
+
   local prev_ip="$1"
   local created_sshkey_id=""
   local instance_id=""
@@ -227,11 +207,7 @@ vultr.compute.provision() {
           "name" : "solos",
           "ssh_key" : "'"$(ssh.cat_pubkey.self)"'"
         }'
-    if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-      log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-      log.error
-      exit 1
-    fi
+    utils.curl.allows_error_status_codes "none"
     created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$vPREV_CURL_RESPONSE")"
   else
     created_sshkey_id="${found_valid_sshkey_id}"
@@ -286,6 +262,7 @@ vultr.compute.provision() {
 }
 vultr.s3.bucket_exists() {
   vPREV_RETURN=()
+
   local bucket="$1"
   exists=false
   error=""
@@ -313,20 +290,19 @@ vultr.s3.bucket_exists() {
 }
 vultr.s3.create_bucket() {
   vPREV_RETURN=()
+
   local bucket="$1"
   aws --region "us-east-1" s3 mb s3://"$bucket" >/dev/null
 }
 vultr.s3.get_object_storage_id() {
   vPREV_RETURN=()
+
   local label="$1"
   local object_storage_id=""
   utils.curl "$vSTATIC_VULTR_API_URL/object-storage" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL_RESPONSE")
   local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!object_storage_labels[@]}"; do
@@ -340,18 +316,12 @@ vultr.s3.get_object_storage_id() {
 }
 vultr.s3.get_ewr_cluster_id() {
   vPREV_RETURN=()
+
   local cluster_id=""
   utils.curl "$vSTATIC_VULTR_API_URL/object-storage/clusters" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
-  if [ -n "$err_status_code" ]; then
-    log.error "Vultr failed with the status code: $err_status_code"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL_RESPONSE")
   local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!cluster_regions[@]}"; do
@@ -365,6 +335,7 @@ vultr.s3.get_ewr_cluster_id() {
 }
 vultr.s3.create_storage() {
   vPREV_RETURN=()
+
   local cluster_id="$1"
   local label="$2"
   utils.curl "$vSTATIC_VULTR_API_URL/object-storage" \
@@ -375,16 +346,14 @@ vultr.s3.create_storage() {
         "label" : "'"${label}"'",
         "cluster_id" : '"${cluster_id}"'
       }'
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   local object_storage_id=$(jq -r '.object_storage.id' <<<"$vPREV_CURL_RESPONSE")
   vPREV_RETURN=("$object_storage_id")
   echo "$object_storage_id"
 }
 vultr.s3.provision() {
   vPREV_RETURN=()
+
   local object_storage_id=""
   local label="solos"
   object_storage_id="$(vultr.s3.get_object_storage_id "${label}")"
@@ -400,10 +369,7 @@ vultr.s3.provision() {
   utils.curl "$vSTATIC_VULTR_API_URL/object-storage/$object_storage_id" \
     -X GET \
     -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
-  if [ -n "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.error "Vultr api error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
-    exit 1
-  fi
+  utils.curl.allows_error_status_codes "none"
   vENV_VULTR_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
   log.debug "set \$vENV_VULTR_S3_HOST= $vENV_VULTR_S3_HOST"
   vENV_VULTR_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"

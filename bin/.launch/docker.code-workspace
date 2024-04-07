@@ -4,13 +4,20 @@
       "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root"
     },
     {
-      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/workspace"
+      "name": "server-__vCLI_OPT_SERVER__",
+      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/project/repo/__vSTATIC_REPO_SERVERS_DIR__/__vCLI_OPT_SERVER__"
     },
     {
-      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/solos/servers/__vCLI_OPT_SERVER__"
+      "name": "solos-project",
+      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/project"
     },
     {
-      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/config"
+      "name": "solos-repo",
+      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/project/repo"
+    },
+    {
+      "name": "solos-global-config",
+      "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/root/__vSTATIC_CONFIG_DIRNAME__"
     },
     {
       "uri": "vscode-remote://ssh-remote+127.0.0.1:2222/"
