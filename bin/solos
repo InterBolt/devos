@@ -3,17 +3,81 @@
 set -o errexit
 set -o pipefail
 set -o errtrace
-
+#
+# Variable naming notes:
+#
+#   - vENTRY_* tell things about the script at the moment it was invoked.
+#   - vCLI_* derived from cli arguments and options
+#   - vENV_* used to populate env files
+#   - vSTATIC_* exported variables that are used across multiple scripts
+#     - sourced from a file called solos.static.
+#       makes them accessible to non-bin scripts too if needed
+#   - vPREV_* hold values from previous commands. allows more traditional
+#     return based logic.
+#   - vSTATUS_* strings that we use to track important statuses like
+#     "did the bootstrap complete" or "did the launch succeed"
+#
+# Control flow notes:
+#
+#   => We define the most important variables first, vSTATIC_* and vENTRY_*.
+#      These variables are should be treated like constant values and never re-assigned.
+#   => We then initialize the empty definitions for all the variables that are subject to change.
+#   => Next, initialize the logger and source all the solos.* libs we need.
+#   => Next, define the trap logic to use utils.exit_trap and ensure that utils.exit_trap is defined.
+#   => Next, defines some helper functions prefixed with solos.*.
+#      These might become their own categories in the future.
+#   => Then define the cmd.<command_name> functions where the <command_name> part maps to a command defined in the usage docs.
+#      See the solos.flags file for those usage docs. The cmd.<command_name> functions are where the main logic of the script
+#      is defined.
+#   => Before a command is invoked a few things happen:
+#        1. The cli arguments are parsed and the vCLI_* variables are set.
+#        2. Verification logic is run to catch early errors. Things like checking dir contents, installed commands, etc.
+#        3. Warnings are provided if the command and/or flag combinations will lead to destructive actions.
+#        4. Finally, the command is run. If a cmd.* function doesn't exist, the script will throw.
+#
+# Pre-supplied configuratin:
+#
+# => I'm seeing some generalities start to form around byoPROVIDER and byoOBJECTSTORE.
+#    Eventually we'll have some variables which are jq responses of a config json file that
+#    the user can supply. We can build validation logic around these variables to ensure
+#    that the user has supplied things we support. Like right now only vultr is supported.
+#
+# Misc notes:
+#
+#  => The launch command must be run to completion first. if it fails, it can be safely re-run once the issue is addressed.
+#  => Zero code sharing between the server/* directories and these bin script files.
+#  => The server/* directories are meant to be as self-contained as possible and rely on hook scripts to interact with the bin scripts.
+#  => The bin script code prioritizes compatibility with popular linux distros and macOS.
+#  => The cli is meant to be run on the developers original work machine.
+#  => The server/* directories are where we can go crazy to target a specific platform.
+#
+# Lib testing notes:
+#
+# => multi step process to start:
+#    1. run `solos test-generate` to create a .test dir with empty unit tests for each script's deifned command.
+#    2. make manual modifications to the unit tests
+#    3. run `solos test <lib>` to run the tests for a specific lib. or `solos test` to run all tests.
+# => what happens if lots of things change?
+#    1. it's not perfect, but just run the test generation command again, be human, and diff the changes.
+#    2. additionally we can use `solos test-cover` to fill in missing coverage of new functions that will auto fail if not covered.
+#
+# Integration testing notes:
+#
+# => I think the pre-reqs to creating a good integration test are:
+#      1. the vultr provisioning code and any other infra stuff must live behind a common interface.
+#         then we can sub out the interface with some reasonable fakes and mocks and at least test the majority of the code paths.
+#      2. the ssh code must be able to be subbed out with a fake ssh server.
+#      3. we need a stub or fake server/* type directory that can be used to test the hooks.
+# => We'll leave testing specific infra provisioning logic to our unit tests.
+#
 cd "$(dirname "${BASH_SOURCE[0]}")"
-vBIN_DIR="$(pwd)"
-vBIN_FILEPATH="$vBIN_DIR/$0"
-vDEBUG_LEVEL=${DEBUG_LEVEL:-0}
-#
-# These variables are shared between this script AND every helper script
-# in the installer/bin directory.
-#
+
 # shellcheck source=solos.static
 . "solos.static"
+
+vENTRY_BIN_DIR="$(pwd)"
+vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
+vENTRY_DEBUG_LEVEL=${DEBUG_LEVEL:-0}
 #
 # `dotglob` option ensures that dotfiles and folders are included when using globs.
 # Helpful for looping through files in a directory.
@@ -33,23 +97,66 @@ vPREV_RETURN=()
 #
 # These are used to keep track of various statuses, like "did the bootstrap complete"
 #
-STATUS_BOOTSTRAPPED_MANUALLY="bootstrapped-remote-postgres"
-vSTATUS_BOOTSTRAPPED_REMOTE="bootstrapped-remote"
-vSTATUS_LAUNCH_SUCCEEDED="successful-run"
-vSTATUS_BOOTSTRAPPED_DOCKER="bootstrapped-docker"
+vSTATUS_BOOTSTRAPPED_MANUALLY="completed-manual"
+vSTATUS_BOOTSTRAPPED_REMOTE="completed-remote"
+vSTATUS_LAUNCH_SUCCEEDED="completed-launch"
+vSTATUS_BOOTSTRAPPED_DOCKER="completed-docker"
 # --------------------------------------------------------------------------------------------
 #
-# SOURCE SCRIPTS
+# OPTIONS DERIVED FROM THE CLI
 #
-# Think of these like libraries.
-# Except they are tightly coupled to the variables defined in this script.
+vCLI_USAGE_ALLOWS_CMDS=()
+vCLI_USAGE_ALLOWS_OPTIONS=()
+vCLI_PARSED_CMD=""
+vCLI_PARSED_OPTIONS=()
+vCLI_OPT_HARD_RESET=false
+vCLI_OPT_CLEAR_CACHE=false
+vCLI_OPT_TAG=""
+vCLI_OPT_DIR=""
+vCLI_OPT_SERVER=""
+# --------------------------------------------------------------------------------------------
 #
-# shellcheck source=shared.log.sh
-. "shared.log.sh"
-log.ready "cli"
+# config that get passed to each environment.
+#
+# shellcheck disable=SC2034
+vENV_OPENAI_API_KEY=""
+# shellcheck disable=SC2034
+vENV_PROVIDER_API_KEY=""
+# shellcheck disable=SC2034
+vENV_PROVIDER_NAME="vultr"
+# shellcheck disable=SC2034
+vENV_PROVIDER_API_ENDPOINT="https://api.vultr.com/v2"
+# shellcheck disable=SC2034
+vENV_GITHUB_TOKEN=""
+# shellcheck disable=SC2034
+vENV_IP=""
+# shellcheck disable=SC2034
+vENV_S3_HOST=""
+# shellcheck disable=SC2034
+vENV_S3_OBJECT_STORE=""
+# shellcheck disable=SC2034
+vENV_S3_ACCESS_KEY=""
+# shellcheck disable=SC2034
+vENV_S3_SECRET=""
+# shellcheck disable=SC2034
+vENV_GITHUB_USERNAME=""
+# shellcheck disable=SC2034
+vENV_GITHUB_EMAIL=""
+# shellcheck disable=SC2034
+vENV_SEED_SECRET=""
+# shellcheck disable=SC2034
+vENV_DB_PORT=5432
+# shellcheck disable=SC2034
+vENV_SOLOS_ID=""
 #
 # Now source all the things we need.
 #
+# shellcheck source=shared.log.sh
+. "shared.log.sh"
+#
+# The log must be initialized before other dependent libs are sourced.
+#
+log.ready "cli"
 # shellcheck source=solos.cache
 . "solos.cache"
 # shellcheck source=solos.flags
@@ -71,65 +178,7 @@ log.ready "cli"
 #
 # Return to the previous directory just in case.
 #
-cd "$vBIN_DIR"
-#
-# --------------------------------------------------------------------------------------------
-#
-# OPTIONS DERIVED FROM THE CLI
-#
-vCLI_USAGE_ALLOWS_CMDS=()
-vCLI_USAGE_ALLOWS_OPTIONS=()
-vCLI_PARSED_CMD=""
-vCLI_PARSED_OPTIONS=()
-vCLI_OPT_HARD_RESET=false
-vCLI_OPT_CLEAR_CACHE=false
-vCLI_OPT_TAG=""
-vCLI_OPT_DIR=""
-vCLI_OPT_SERVER=""
-# --------------------------------------------------------------------------------------------
-#
-# config that get passed to each environment.
-#
-# shellcheck disable=SC2034
-vENV_OPENAI_API_KEY=""
-# shellcheck disable=SC2034
-vENV_VULTR_API_KEY=""
-# shellcheck disable=SC2034
-vENV_CLOUDFLARE_API_TOKEN=""
-# shellcheck disable=SC2034
-vENV_GITHUB_TOKEN=""
-# shellcheck disable=SC2034
-vENV_IP=""
-# shellcheck disable=SC2034
-vENV_VULTR_S3_HOST=""
-# shellcheck disable=SC2034
-vENV_VULTR_S3_OBJECT_STORE=""
-# shellcheck disable=SC2034
-vENV_VULTR_S3_ACCESS_KEY=""
-# shellcheck disable=SC2034
-vENV_VULTR_S3_SECRET=""
-# shellcheck disable=SC2034
-vENV_GITHUB_USERNAME=""
-# shellcheck disable=SC2034
-vENV_GITHUB_EMAIL=""
-# shellcheck disable=SC2034
-vENV_SEED_SECRET=""
-# shellcheck disable=SC2034
-vENV_CAPROVER_NAME="interbolt"
-# shellcheck disable=SC2034
-vENV_ROOT_DOMAIN="interbolt.org"
-# shellcheck disable=SC2034
-vENV_CAPROVER_SUBDOMAIN="server"
-# shellcheck disable=SC2034
-vENV_DEBIAN_NODE_VERSION="20.11.1"
-# shellcheck disable=SC2034
-vENV_DB_USER="solos"
-# shellcheck disable=SC2034
-vENV_DB_NAME="manager"
-# shellcheck disable=SC2034
-vENV_DB_PORT=5432
-# shellcheck disable=SC2034
-vENV_SOLOS_ID=""
+cd "$vENTRY_BIN_DIR"
 # --------------------------------------------------------------------------------------------
 #
 # TRAPPING LOGIC
@@ -493,9 +542,14 @@ cmd.launch() {
     "vENV_GITHUB_EMAIL"
     "vENV_GITHUB_TOKEN"
     "vENV_OPENAI_API_KEY"
-    "vENV_VULTR_API_KEY"
-    "vENV_CLOUDFLARE_API_TOKEN"
+    "vENV_PROVIDER_API_KEY"
+    "vENV_PROVIDER_NAME"
+    "vENV_PROVIDER_API_ENDPOINT"
   )
+  #
+  # TODO: we should rely on anything called `cache` for storing a value that when changed might
+  # TODO[c]: bust lots of stuff on our remote server.
+  #
   # ------------------------------------------------------------------------------------------------------------
   vENV_SEED_SECRET="$(cache.overwrite_on_empty "vENV_SEED_SECRET" "$(utils.generate_secret)")"
   log.debug "set \$vENV_SEED_SECRET= $vENV_SEED_SECRET"
@@ -512,11 +566,14 @@ cmd.launch() {
   vENV_OPENAI_API_KEY="$(cache.prompt "vENV_OPENAI_API_KEY")"
   log.debug "set \$vENV_OPENAI_API_KEY= $vENV_OPENAI_API_KEY"
   # ------------------------------------------------------------------------------------------------------------
-  vENV_VULTR_API_KEY="$(cache.prompt "vENV_VULTR_API_KEY")"
-  log.debug "set \$vENV_VULTR_API_KEY= $vENV_VULTR_API_KEY"
+  vENV_PROVIDER_API_KEY="$(cache.prompt "vENV_PROVIDER_API_KEY")"
+  log.debug "set \$vENV_PROVIDER_API_KEY= $vENV_PROVIDER_API_KEY"
   # ------------------------------------------------------------------------------------------------------------
-  vENV_CLOUDFLARE_API_TOKEN="$(cache.prompt "vENV_CLOUDFLARE_API_TOKEN")"
-  log.debug "set \$vENV_CLOUDFLARE_API_TOKEN= $vENV_CLOUDFLARE_API_TOKEN"
+  vENV_PROVIDER_NAME="$(cache.prompt "vENV_PROVIDER_NAME")"
+  log.debug "set \$vENV_PROVIDER_NAME= $vENV_PROVIDER_NAME"
+  # ------------------------------------------------------------------------------------------------------------
+  vENV_PROVIDER_API_ENDPOINT="$(cache.prompt "vENV_PROVIDER_API_ENDPOINT")"
+  log.debug "set \$vENV_PROVIDER_API_ENDPOINT= $vENV_PROVIDER_API_ENDPOINT"
   # ------------------------------------------------------------------------------------------------------------
   for i in "${!expects_these_things[@]}"; do
     if [ -z "${!expects_these_things[$i]}" ]; then
@@ -666,7 +723,7 @@ cmd.launch() {
   # but now it doesn't care. Instead, we'll put all the info for how to setup
   # any one-click-apps, databases, extra infra, etc. in the manual.txt file.
   #
-  bootstrapped_manually_at="$(status.get "${STATUS_BOOTSTRAPPED_MANUALLY}")"
+  bootstrapped_manually_at="$(status.get "${vSTATUS_BOOTSTRAPPED_MANUALLY}")"
   if [ -n "${bootstrapped_manually_at}" ]; then
     log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
@@ -682,7 +739,7 @@ cmd.launch() {
     read -r
     echo -n "Hit enter (1/2) to continue."
     read -r
-    status.set "${STATUS_BOOTSTRAPPED_MANUALLY}" "$(utils.date)"
+    status.set "${vSTATUS_BOOTSTRAPPED_MANUALLY}" "$(utils.date)"
     log.info "completed manual bootstrap step. see \`solos --help\` for how to re-display manual instructions."
   fi
   #

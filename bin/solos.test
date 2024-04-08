@@ -9,7 +9,7 @@
 
 test.variables() {
   local entry_pwd="$PWD"
-  cd "$vBIN_DIR"
+  cd "$vENTRY_BIN_DIR"
   local errored=false
   local files
   #

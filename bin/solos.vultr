@@ -21,9 +21,9 @@ vultr.compute.instance_contains_tag() {
   local instance_id="$2"
   local tags
   local found=false
-  utils.curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
   tags=$(jq -r '.instance.tags' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!tags[@]}"; do
@@ -42,9 +42,9 @@ vultr.compute.destroy_instance() {
     log.error "you supplied an empty instance id as the first argument to vultr.compute.destroy_instance"
     exit 1
   fi
-  utils.curl "$vSTATIC_VULTR_API_URL/instances/$instance_id" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/$instance_id" \
     -X DELETE \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
 }
 vultr.compute.create_instance() {
@@ -59,9 +59,9 @@ vultr.compute.create_instance() {
   # and return the ip and instance id seperated by a space.
   # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
   #
-  utils.curl "$vSTATIC_VULTR_API_URL/instances" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances" \
     -X POST \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
       "region" : "'"${region}"'",
@@ -87,9 +87,9 @@ vultr.compute.get_instance_id_from_ip() {
   vPREV_RETURN=()
 
   local ip="$1"
-  utils.curl "$vSTATIC_VULTR_API_URL/instances?main_ip=${ip}" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances?main_ip=${ip}" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
   local instance_id="$(jq -r '.instances[0].id' <<<"$vPREV_CURL_RESPONSE")"
   vPREV_RETURN=("$instance_id")
@@ -109,9 +109,9 @@ vultr.compute.find_existing_sshkey_id() {
   # If so, we echo the ssh key id and exit. We'll echo an empty
   # string if the key doesn't exist.
   #
-  utils.curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
   found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$vPREV_CURL_RESPONSE")
   found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$vPREV_CURL_RESPONSE")
@@ -170,9 +170,9 @@ vultr.compute.wait_for_ready_instance() {
       exit 1
     fi
     log.warn "pinging the instance: ${instance_id} to check if it has reached the expected server status: ${expected_status}"
-    utils.curl "$vSTATIC_VULTR_API_URL/instances/${instance_id}" \
+    utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
       -X GET \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+      -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
     utils.curl.allows_error_status_codes "none"
     local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL_RESPONSE")"
     local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL_RESPONSE")"
@@ -199,9 +199,9 @@ vultr.compute.provision() {
   #
   local found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
   if [ -z "${found_valid_sshkey_id}" ]; then
-    utils.curl "$vSTATIC_VULTR_API_URL/ssh-keys" \
+    utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
       -X POST \
-      -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
+      -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
       -H "Content-Type: application/json" \
       --data '{
           "name" : "solos",
@@ -299,9 +299,9 @@ vultr.s3.get_object_storage_id() {
 
   local label="$1"
   local object_storage_id=""
-  utils.curl "$vSTATIC_VULTR_API_URL/object-storage" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
   local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL_RESPONSE")
   local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL_RESPONSE")
@@ -318,9 +318,9 @@ vultr.s3.get_ewr_cluster_id() {
   vPREV_RETURN=()
 
   local cluster_id=""
-  utils.curl "$vSTATIC_VULTR_API_URL/object-storage/clusters" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/clusters" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
   local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL_RESPONSE")
   local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL_RESPONSE")
@@ -338,9 +338,9 @@ vultr.s3.create_storage() {
 
   local cluster_id="$1"
   local label="$2"
-  utils.curl "$vSTATIC_VULTR_API_URL/object-storage" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
     -X POST \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}" \
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
         "label" : "'"${label}"'",
@@ -366,22 +366,22 @@ vultr.s3.provision() {
   else
     log.info "found object storage with the label: ${label} and id: ${object_storage_id}"
   fi
-  utils.curl "$vSTATIC_VULTR_API_URL/object-storage/$object_storage_id" \
+  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/$object_storage_id" \
     -X GET \
-    -H "Authorization: Bearer ${vENV_VULTR_API_KEY}"
+    -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   utils.curl.allows_error_status_codes "none"
-  vENV_VULTR_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_VULTR_S3_HOST= $vENV_VULTR_S3_HOST"
-  vENV_VULTR_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_VULTR_S3_ACCESS_KEY= $vENV_VULTR_S3_ACCESS_KEY"
-  vENV_VULTR_S3_SECRET="$(jq -r '.object_storage.s3_secret_key' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_VULTR_S3_SECRET= $vENV_VULTR_S3_SECRET"
-  vENV_VULTR_S3_OBJECT_STORE="$(jq -r '.object_storage.label' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_VULTR_S3_OBJECT_STORE= $vENV_VULTR_S3_OBJECT_STORE"
+  vENV_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
+  log.debug "set \$vENV_S3_HOST= $vENV_S3_HOST"
+  vENV_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"
+  log.debug "set \$vENV_S3_ACCESS_KEY= $vENV_S3_ACCESS_KEY"
+  vENV_S3_SECRET="$(jq -r '.object_storage.s3_secret_key' <<<"$vPREV_CURL_RESPONSE")"
+  log.debug "set \$vENV_S3_SECRET= $vENV_S3_SECRET"
+  vENV_S3_OBJECT_STORE="$(jq -r '.object_storage.label' <<<"$vPREV_CURL_RESPONSE")"
+  log.debug "set \$vENV_S3_OBJECT_STORE= $vENV_S3_OBJECT_STORE"
 
-  export AWS_ACCESS_KEY_ID=$vENV_VULTR_S3_ACCESS_KEY
-  export AWS_SECRET_ACCESS_KEY=$vENV_VULTR_S3_SECRET
-  export AWS_ENDPOINT_URL="https://$vENV_VULTR_S3_HOST"
+  export AWS_ACCESS_KEY_ID=$vENV_S3_ACCESS_KEY
+  export AWS_SECRET_ACCESS_KEY=$vENV_S3_SECRET
+  export AWS_ENDPOINT_URL="https://$vENV_S3_HOST"
 
   local bucket_exists="$(vultr.s3.bucket_exists "postgres")"
   if [ "$bucket_exists" == false ]; then

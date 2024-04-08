@@ -154,7 +154,7 @@ log._base() {
   local date="$(date "${date_format}")"
   local date_s="$(date "+%s")"
   local level="${1}"
-  local debug_level="${vDEBUG_LEVEL:-0}"
+  local debug_level="${vENTRY_DEBUG_LEVEL:-0}"
   shift
   local source="${1}"
   shift
@@ -238,9 +238,9 @@ log.ready() {
     LIB_LOG_PREFIX="${LIB_LOG_PREFIX}."
   fi
   LIB_READY_LOG=true
-  vDEBUG_LEVEL="${2:-0}"
+  vENTRY_DEBUG_LEVEL="${2:-0}"
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
-  log.debug "shared.log - setting debug level: ${vDEBUG_LEVEL:-0}"
+  log.debug "shared.log - setting debug level: ${vENTRY_DEBUG_LEVEL:-0}"
   log.debug "shared.log - ready"
 }

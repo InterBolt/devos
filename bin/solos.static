@@ -64,7 +64,6 @@ export vSTATIC_TEMPLATE_BOOTFILES=(
   "docker.code-workspace" # loads SSH remote to dev container
   "remote.code-workspace" # loads SSH remote to deployment server
 )
-export vSTATIC_VULTR_API_URL="https://api.vultr.com/v2"
 export vSTATIC_ENV_FILENAME=".env"
 export vSTATIC_ENV_SH_FILENAME=".env.sh"
 export vSTATIC_LOGS_DIRNAME=".logs"
