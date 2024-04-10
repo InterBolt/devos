@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 
-# shellcheck source=solos
-. "static.sh"
-# shellcheck source=solos.utils
-. "static.sh"
-# shellcheck source=static.sh
-. "static.sh"
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
+
+# shellcheck source=solos.sh
+. "__shared__/static.sh"
+# shellcheck source=solos.utils.sh
+. "__shared__/static.sh"
+# shellcheck source=__shared__/static.sh
+. "__shared__/static.sh"
 
 ssh._validate() {
   if [ -z "${!vENV_IP+x}" ]; then

@@ -3,6 +3,11 @@
 set -o errexit
 set -o pipefail
 set -o errtrace
+
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
 #
 # Variable naming notes:
 #
@@ -72,8 +77,8 @@ set -o errtrace
 #
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-# shellcheck source=static.sh
-. "static.sh"
+# shellcheck source=__shared__/static.sh
+. "__shared__/static.sh"
 
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
@@ -150,32 +155,37 @@ vENV_DB_PORT=5432
 # shellcheck disable=SC2034
 vENV_SOLOS_ID=""
 #
-# Now source all the things we need.
+# The log script has no awareness of the variables in this script.
+# That means we need to provide any context via it's log.ready
+# function.
 #
-# shellcheck source=shared.log.sh
-. "shared.log.sh"
+# shellcheck source=__shared__/log.sh
+. "__shared__/log.sh"
 #
 # The log must be initialized before other dependent libs are sourced.
 #
-log.ready "cli"
-# shellcheck source=solos.cache
-. "solos.cache"
-# shellcheck source=solos.flags
-. "solos.flags"
-# shellcheck source=solos.ssh
-. "solos.ssh"
-# shellcheck source=solos.status
-. "solos.status"
-# shellcheck source=solos.utils
-. "solos.utils"
-# shellcheck source=solos.vultr
-. "solos.vultr"
-# shellcheck source=solos.validate
-. "solos.validate"
-# shellcheck source=solos.precheck
-. "solos.precheck"
-# shellcheck source=solos.environment
-. "solos.environment"
+log.ready "cli" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
+#
+# Make the libraries we need available.
+#
+# shellcheck source=solos.cache.sh
+. "solos.cache.sh"
+# shellcheck source=solos.flags.sh
+. "solos.flags.sh"
+# shellcheck source=solos.ssh.sh
+. "solos.ssh.sh"
+# shellcheck source=solos.status.sh
+. "solos.status.sh"
+# shellcheck source=solos.utils.sh
+. "solos.utils.sh"
+# shellcheck source=solos.vultr.sh
+. "solos.vultr.sh"
+# shellcheck source=solos.validate.sh
+. "solos.validate.sh"
+# shellcheck source=solos.precheck.sh
+. "solos.precheck.sh"
+# shellcheck source=solos.environment.sh
+. "solos.environment.sh"
 #
 # Return to the previous directory just in case.
 #
@@ -897,9 +907,9 @@ cmd.tests() {
 
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
     if [ -z "$vCLI_OPT_LIB" ]; then
-      tests.sh
+      cmd.tests.sh
     else
-      tests.sh "$vCLI_OPT_LIB"
+      cmd.tests.sh "$vCLI_OPT_LIB"
     fi
   else
     log.error "this command can only be run from within a git repo."

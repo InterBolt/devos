@@ -1,14 +1,21 @@
 #!/usr/bin/env bash
 
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
+
+# shellcheck source=solos.sh
+. "__shared__/static.sh"
+# shellcheck source=solos.utils.sh
+. "__shared__/static.sh"
+# shellcheck source=__shared__/static.sh
+. "__shared__/static.sh"
+#
+# Lib only vars - must always begin with LIB_*
+#
 LIB_FLAGS_HEADER_AVAILABLE_COMMANDS="Available commands:"
 LIB_FLAGS_HEADER_AVAILABLE_OPTIONS="Available options:"
-
-# shellcheck source=solos
-. "static.sh"
-# shellcheck source=solos.utils
-. "static.sh"
-# shellcheck source=static.sh
-. "static.sh"
 #
 # Print top level usage information
 #

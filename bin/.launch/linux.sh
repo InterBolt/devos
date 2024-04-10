@@ -18,7 +18,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 # the environment variables that are sourced from the .env file.
 #
 vCONFIG_DIR="/root/config"
-vBIN_SCRIPT_FILEPATH="$vCONFIG_DIR/bin/solos"
+vBIN_SCRIPT_FILEPATH="$vCONFIG_DIR/bin/solos.sh"
 vUSR_BIN_FILEPATH="/usr/local/bin/solos"
 vGITHUB_REPO="InterBolt/solos"
 vCLONE_DIR=/root/solos
@@ -109,14 +109,15 @@ if [ ! -d "$vSERVER_DIR" ]; then
   echo "The repo on this server must be out of sync with the local repo. Exiting." >&2
   exit 1
 fi
+#
 # Make the things executable
+#
 find . -type f -name "*.sh" -exec chmod +x {} \;
-find bin -type f -name "solos*" -exec chmod +x {} \;
 chmod +x install
 #
 # Run the remaining commands from within the boot folder
 #
-cd "$vSERVER_DIR"/.boot
+cd "$vSERVER_DIR"/.launch
 #
 # Run the start script associated with the host
 #

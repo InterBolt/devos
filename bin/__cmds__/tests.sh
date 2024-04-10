@@ -1,13 +1,46 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2103,SC2164
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+cd ..
 
-# shellcheck source=static.sh
-source static.sh
-# shellcheck source=shared.log.sh
-source shared.log.sh
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
 
-log.ready "tests"
+# shellcheck source=../__shared__/static.sh
+source __shared__/static.sh
+# shellcheck source=../__shared__/log.sh
+source __shared__/log.sh
+
+log.ready "tests" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
+
+LIB_TEST_FILE_OPENING_LINES=()
+
+tests._update_beginning_file_lines() {
+  local lib_file="$1"
+  LIB_TEST_FILE_OPENING_LINES=(
+    "#!/usr/bin/env bash"
+    ""
+    "if [ \"\$(basename \"\$(pwd)\")\" != \"bin\" ]; then"
+    "  echo \"error: must be run from the bin folder\""
+    "  exit 1"
+    "fi"
+    ""
+    " # shellcheck source=../${lib_file}"
+    "source \"${lib_file}\""
+    ""
+    "pre.test() {"
+    "  log.info \"running pre.test\""
+    "}"
+    ""
+    "post.test() {"
+    "  log.info \"running post.test\""
+    "}"
+    ""
+  )
+}
 
 tests._insert_variable_into_test_file() {
   local file="$1"
@@ -69,7 +102,7 @@ tests._grep_test_defined_functions() {
 tests.unit.create_lib_test() {
   local lib_unit_name="$1"
   local force="${2:-false}"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
@@ -86,21 +119,8 @@ tests.unit.create_lib_test() {
   fi
   local defined_functions="$(tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
   local variables="$(tests._grep_lib_used_variables "${lib_file}")"
-  local lines=(
-    "#!/usr/bin/env bash"
-    ""
-    "# shellcheck source=../${lib_file}"
-    "source \"${lib_file}\""
-    ""
-    "pre.test() {"
-    "  log.info \"running pre.test\""
-    "}"
-    ""
-    "post.test() {"
-    "  log.info \"running post.test\""
-    "}"
-    ""
-  )
+  tests._update_beginning_file_lines "${lib_file}"
+  local lines=("${LIB_TEST_FILE_OPENING_LINES[@]}")
   local n=$'\n'
   for variable in $variables; do
     lines+=("$variable=\"\"")
@@ -116,7 +136,7 @@ tests.unit.create_lib_test() {
 
 tests.unit.tests_add_missing_function_coverage() {
   local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
@@ -152,7 +172,7 @@ tests.unit.tests_add_missing_function_coverage() {
 
 tests.unit.get_stale_test_functions() {
   local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
@@ -183,7 +203,7 @@ tests.unit.get_stale_test_functions() {
 
 tests.unit.get_undefined_test_variables() {
   local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   local test_lib_file="__tests__/__test__.${lib_file}"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
@@ -208,7 +228,7 @@ tests.unit.get_undefined_test_variables() {
 
 tests.unit.get_stale_test_variables() {
   local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   local test_lib_file="__tests__/__test__.${lib_file}"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
@@ -239,8 +259,8 @@ tests.step.verify_test_source_exists() {
   local missing_source_files=()
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(basename "${lib_file}" | sed 's/^__test__\.solos\.//')"
-    if [ ! -f "solos.${lib_unit_name}" ]; then
-      missing_source_files+=("solos.${lib_unit_name}")
+    if [ ! -f "solos.${lib_unit_name}.sh" ]; then
+      missing_source_files+=("solos.${lib_unit_name}.sh")
     fi
   done
   if [ ${#missing_source_files[@]} -gt 0 ]; then
@@ -256,7 +276,7 @@ tests.step.verify_function_coverage() {
   done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
-    local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}"
+    local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local defined_lib_functions="$(tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
     local defined_test_functions="$(tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
     if [ "${#defined_lib_functions[@]}" -ne "${#defined_test_functions[@]}" ]; then
@@ -275,7 +295,7 @@ tests.step.verify_variable_coverage() {
   done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
-    local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}"
+    local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local used_variables_in_lib="$(tests._grep_lib_used_variables "${lib_file}")"
     local defined_variables_in_test="$(tests._grep_lib_defined_variables "${target_test_file_path}")"
     if [ "${#used_variables_in_lib[@]}" -ne "${#defined_variables_in_test[@]}" ]; then
@@ -308,7 +328,7 @@ tests.step.cover_variables() {
     local undefined_variables="$(tests.unit.get_undefined_test_variables "${lib_unit_name}")"
     if [ -n "$undefined_variables" ]; then
       for undefined_variable in $undefined_variables; do
-        tests._insert_variable_into_test_file "__tests__/__test__.solos.${lib_unit_name}" "${undefined_variable}"
+        tests._insert_variable_into_test_file "__tests__/__test__.solos.${lib_unit_name}.sh" "${undefined_variable}"
       done
     fi
   done
@@ -349,12 +369,12 @@ tests.verify() {
 
 tests.run.unit() {
   local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}"
+  local lib_file="solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: ${lib_file}"
     exit 1
   fi
-  local lib_test_file="__tests__/__test__.solos.${lib_unit_name}"
+  local lib_test_file="__tests__/__test__.solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_test_file}" ]; then
     log.error "test file not found: $1"
     exit 1
@@ -387,12 +407,12 @@ tests.run() {
     done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
   else
     local lib_unit_name="$1"
-    local lib_test_file="$PWD/__tests__/__test__.solos.${lib_unit_name}"
+    local lib_test_file="$PWD/__tests__/__test__.solos.${lib_unit_name}.sh"
     if [ ! -f "${lib_test_file}" ]; then
       log.error "test file not found: $1"
       exit 1
     fi
-    lib_files+=("$PWD/solos.${lib_unit_name}")
+    lib_files+=("$PWD/solos.${lib_unit_name}.sh")
   fi
   tests.init
   tests.cover

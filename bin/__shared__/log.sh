@@ -2,32 +2,9 @@
 # shellcheck disable=SC2145
 # shellcheck disable=SC2124
 
-# shellcheck source=static.sh
-. "static.sh"
+DEBUG_LEVEL=${DEBUG_LEVEL:-0}
 
-# -----------------------------------------------------------------------------
-#
-# FILE NOTES:
-#
-# This file is a logging library that can be sourced into a bash script.
-# Unlike bin/lib.* scripts, this script is prefixed bin/shared.* to indicate
-# that is something we might want to use in our aliased dev env scripts.
-# The code was adapted from this library: https://github.com/Zordrak/bashlog
-
-#
-# The level variables below are doing the work of
-# what a map might do if mapping the level number and color to
-# the name of the level.
-#
-# -----------------------------------------------------------------------------
-#
-# SCRIPT VARS
-#
-# Script-specific variables that come from the invocation of log.ready.
-#
-#
-# Tracks whether or not log.ready was called.
-#
+LIB_DIR=""
 LIB_READY_LOG=false
 #
 # results in logfile - $LIB_LOG_PREFIX.<rollindex>.json
@@ -154,7 +131,7 @@ log._base() {
   local date="$(date "${date_format}")"
   local date_s="$(date "+%s")"
   local level="${1}"
-  local debug_level="${vENTRY_DEBUG_LEVEL:-0}"
+  local debug_level="${DEBUG_LEVEL:-0}"
   shift
   local source="${1}"
   shift
@@ -233,14 +210,20 @@ log.warn() {
   log._base "WARN" "$filename:$linenumber" "$@"
 }
 log.ready() {
-  LIB_LOG_PREFIX="${1:-""}"
-  if [ -n "${LIB_LOG_PREFIX}" ]; then
-    LIB_LOG_PREFIX="${LIB_LOG_PREFIX}."
+  LIB_LOG_PREFIX="$1"
+  LIB_DIR="$2"
+  if [ -z "${LIB_LOG_PREFIX}" ]; then
+    log.error "log prefix not set at log.ready"
+    exit 1
+  fi
+  if [ -z "${LIB_DIR}" ]; then
+    log.error "log directory not set at log.ready"
+    exit 1
   fi
   LIB_READY_LOG=true
-  vENTRY_DEBUG_LEVEL="${2:-0}"
+  DEBUG_LEVEL="${2:-0}"
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
-  log.debug "shared.log - setting debug level: ${vENTRY_DEBUG_LEVEL:-0}"
+  log.debug "shared.log - setting debug level: ${DEBUG_LEVEL:-0}"
   log.debug "shared.log - ready"
 }

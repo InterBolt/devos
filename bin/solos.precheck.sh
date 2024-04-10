@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 
-# shellcheck source=solos
-. "static.sh"
-# shellcheck source=solos.utils
-. "static.sh"
-# shellcheck source=static.sh
-. "static.sh"
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
+
+# shellcheck source=solos.sh
+. "__shared__/static.sh"
+# shellcheck source=solos.utils.sh
+. "__shared__/static.sh"
+# shellcheck source=__shared__/static.sh
+. "__shared__/static.sh"
 
 precheck.variables() {
   local entry_pwd="$PWD"
@@ -34,16 +39,16 @@ precheck.variables() {
   log.info "test passed: all referenced global variables are defined."
 }
 
-precheck.bootfiles() {
+precheck.launchfiles() {
   local entry_pwd="$PWD"
-  cd "$vSTATIC_RUNNING_REPO_ROOT"
+  cd "${vSTATIC_RUNNING_REPO_ROOT}"
   #
   # Check that all the variables we use in our bootfile templates are defined
   # in solos' global variables.
   #
-  utils.template_variables "$vSTATIC_REPO_TEMPLATES_DIR" "dry" "allow_empty"
+  utils.template_variables "${vSTATIC_REPO_TEMPLATES_DIR}" "dry" "allow_empty"
   cd "$entry_pwd"
-  log.info "test passed: bootfiles are valid and match global variables."
+  log.info "test passed: launchfiles are valid and match global variables."
   #
   # Check that the defualt server type exists
   #
@@ -55,5 +60,5 @@ precheck.bootfiles() {
 
 precheck.all() {
   precheck.variables
-  precheck.bootfiles
+  precheck.launchfiles
 }

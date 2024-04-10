@@ -3,7 +3,7 @@ set -o errexit
 set -o pipefail
 set -o errtrace
 cd "$(dirname "${BASH_SOURCE[0]}")"
-viREPO_BIN_EXECUTABLE_PATH="bin/solos"
+viREPO_BIN_EXECUTABLE_PATH="bin/solos.sh"
 #
 # Important: please use "vi" prefix to avoid conflicts with other scripts
 # we source remotely.
@@ -28,26 +28,25 @@ cd "$viTMP_CLONED_DIR"
 # Source anything we need an make sure the user has a
 # config dir in the home folder.
 #
-# shellcheck source=bin/solos.static
-. "bin/solos.static"
+# shellcheck source=bin/__shared__/static.sh
+. "bin/__shared__/static.sh"
 viINSTALL_DIR_EXISTED=false
 if [ -d "$vSTATIC_MY_CONFIG_ROOT" ]; then
   viINSTALL_DIR_EXISTED=true
 fi
 mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
-# shellcheck source=bin/shared.log.sh
-. "bin/shared.log.sh"
-log.ready "installer"
+# shellcheck source=bin/__shared__/log.sh
+. "bin/__shared__/log.sh"
+log.ready "installer" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 log.info "installing solos..."
 #
 # Will download the bin script + all lib scripts to the user's local
 # solos config folder at config/bin/.
 # Then, the main executable at the user's path can call the main script as a command.
 #
-viEXECUTABLE_NAME="solos"
 viMY_CONFIG_BIN="$vSTATIC_MY_CONFIG_ROOT/bin"
-viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/${viEXECUTABLE_NAME}"
-viBIN_SCRIPT_COMMENT_TAG="# org:interbolt"
+viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
+viBIN_SCRIPT_COMMENT_TAG="# from:solos"
 #
 # Warn the user about the consequences of overwriting files.
 #
@@ -66,7 +65,8 @@ if [ -f "$viUSR_LOCAL_BIN_EXECUTABLE" ]; then
     log.warn "overwriting $viUSR_LOCAL_BIN_EXECUTABLE"
     rm -f "$viUSR_LOCAL_BIN_EXECUTABLE"
   else
-    log.error "line: \`$viBIN_SCRIPT_COMMENT_TAG\` was not found in $viUSR_LOCAL_BIN_EXECUTABLE. can't verify that it was installed by solos."
+    log.error "line: \`$viBIN_SCRIPT_COMMENT_TAG\` was not found in $viUSR_LOCAL_BIN_EXECUTABLE."
+    log.error "can't verify that it was installed by solos."
     exit 1
   fi
 fi
