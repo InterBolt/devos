@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
 # shellcheck source=solos
-. "solos.static"
+. "static.sh"
 # shellcheck source=solos.utils
-. "solos.static"
-# shellcheck source=solos.static
-. "solos.static"
+. "static.sh"
+# shellcheck source=static.sh
+. "static.sh"
 
 # --------------------------------------------------------------------------------------------
 #

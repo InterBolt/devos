@@ -10,7 +10,7 @@ set -o errtrace
 #   - vCLI_* derived from cli arguments and options
 #   - vENV_* used to populate env files
 #   - vSTATIC_* exported variables that are used across multiple scripts
-#     - sourced from a file called solos.static.
+#     - sourced from a file called static.
 #       makes them accessible to non-bin scripts too if needed
 #   - vPREV_* hold values from previous commands. allows more traditional
 #     return based logic.
@@ -72,8 +72,8 @@ set -o errtrace
 #
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-# shellcheck source=solos.static
-. "solos.static"
+# shellcheck source=static.sh
+. "static.sh"
 
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
@@ -112,6 +112,7 @@ vCLI_PARSED_OPTIONS=()
 vCLI_OPT_HARD_RESET=false
 vCLI_OPT_CLEAR_CACHE=false
 vCLI_OPT_TAG=""
+vCLI_OPT_LIB=""
 vCLI_OPT_DIR=""
 vCLI_OPT_SERVER=""
 # --------------------------------------------------------------------------------------------
@@ -169,12 +170,12 @@ log.ready "cli"
 . "solos.utils"
 # shellcheck source=solos.vultr
 . "solos.vultr"
+# shellcheck source=solos.validate
+. "solos.validate"
 # shellcheck source=solos.precheck
 . "solos.precheck"
 # shellcheck source=solos.environment
 . "solos.environment"
-# shellcheck source=solos.test
-. "solos.test"
 #
 # Return to the previous directory just in case.
 #
@@ -240,6 +241,17 @@ solos.map_parsed_cli() {
       if [ -n "$val" ]; then
         vCLI_OPT_TAG="$val"
         log.debug "set \$vCLI_OPT_TAG= $vCLI_OPT_TAG"
+      fi
+      ;;
+    lib=*)
+      val="${vCLI_PARSED_OPTIONS[$i]#*=}"
+      if [ -n "$val" ]; then
+        vCLI_OPT_LIB="$val"
+        if [ ! -f "solos.$vCLI_OPT_LIB" ]; then
+          log.error "Unknown lib: $vCLI_OPT_LIB"
+          exit 1
+        fi
+        log.debug "set \$vCLI_OPT_LIB= $vCLI_OPT_LIB"
       fi
       ;;
     "--clear-cache")
@@ -372,7 +384,7 @@ solos.import_project_repo() {
   find "${vCLI_OPT_DIR}/repo" -type f -name "*.sh" -exec chmod +x {} \;
   chmod +x "${vCLI_OPT_DIR}/repo/bin/solos"
   find "${vCLI_OPT_DIR}/repo/bin" -type f -name "solos*" -exec chmod +x {} \;
-  chmod +x ${vCLI_OPT_DIR}/repo/install
+  chmod +x "${vCLI_OPT_DIR}/repo/install"
   log.info "set permissions for all shell scripts in: ${vCLI_OPT_DIR}/repo"
 }
 solos.build_project_ssh_dir() {
@@ -442,8 +454,8 @@ cmd.checkout() {
   # Important: do these checks BEFORE saving the provided directory in the
   # cache. Let's be sure any directories we put there are valid and safe.
   #
-  precheck.throw_if_dangerous_dir
-  precheck.throw_if_missing_installed_commands
+  validate.throw_if_dangerous_dir
+  validate.throw_if_missing_installed_commands
   #
   # The value of vCLI_OPT_SERVER is derived from either a flag value
   # or from the server type of the associated checked out directory.
@@ -483,7 +495,7 @@ cmd.launch() {
     # Will throw on a dir path that is either non-existent OR
     # doesn't contain any file/files specific to a solos project.
     #
-    precheck.throw_on_nonsolos
+    validate.throw_on_nonsolos
     solos.warn_with_delay "DANGER: about to \`rm -rf ${vCLI_OPT_DIR}\`"
     rm -rf "$vCLI_OPT_DIR"
     log.warn "wiped and created empty dir: $vCLI_OPT_DIR"
@@ -493,7 +505,7 @@ cmd.launch() {
   # doesn't have a solos project-specific file. Doesn't care about non-existent dirs
   # since those will just result in new solos projects.
   #
-  precheck.throw_on_nonsolos_dir
+  validate.throw_on_nonsolos_dir
   if [ ! -d "${vCLI_OPT_DIR}" ]; then
     mkdir -p "${vCLI_OPT_DIR}"
     log.info "created new SolOS project at: ${vCLI_OPT_DIR}"
@@ -526,10 +538,10 @@ cmd.launch() {
   #
   # Confirm any assumptions we make later in the script.
   # Ex: the specified server exists, templates are valid, server/.boot dir valid, etc.
-  # We want aggressive prechecks BEFORE the ssh keygen and vultr provisioning
+  # We want aggressive validates BEFORE the ssh keygen and vultr provisioning
   # sections since those create things that are harder to undo and debug.
   #
-  precheck.validate_project_repo "$vCLI_OPT_DIR/repo"
+  validate.validate_project_repo "$vCLI_OPT_DIR/repo"
   #
   # Generate and collect things like the caprover password, postgres passwords.
   # api keys, etc.
@@ -829,7 +841,7 @@ cmd.code() {
     log.error "this command must be run from the local host. Exiting."
     exit 1
   fi
-  precheck.docker_host_running
+  validate.docker_host_running
 
   log.warn "would open vscode"
 }
@@ -838,7 +850,7 @@ cmd.restore() {
   cmd.checkout
 
   if [ "$vSTATIC_HOST" == "local" ]; then
-    precheck.docker_host_running
+    validate.docker_host_running
   fi
   log.warn "TODO: implementation needed"
 }
@@ -847,7 +859,7 @@ cmd.backup() {
   cmd.checkout
 
   if [ "$vSTATIC_HOST" == "local" ]; then
-    precheck.docker_host_running
+    validate.docker_host_running
   fi
   log.warn "TODO: implementation needed"
 }
@@ -870,12 +882,25 @@ cmd.status() {
   #
   log.info "TODO: implementation needed"
 }
-cmd.test() {
+cmd.prechecks() {
   cmd.checkout
 
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
-    test.variables
-    test.bootfiles
+    precheck.all
+  else
+    log.error "this command can only be run from within a git repo."
+    exit 1
+  fi
+}
+cmd.tests() {
+  cmd.checkout
+
+  if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
+    if [ -z "$vCLI_OPT_LIB" ]; then
+      tests.sh
+    else
+      tests.sh "$vCLI_OPT_LIB"
+    fi
   else
     log.error "this command can only be run from within a git repo."
     exit 1
@@ -908,7 +933,7 @@ fi
 #
 if [ "$vCLI_OPT_CLEAR_CACHE" == "true" ]; then
   solos.warn_with_delay "DANGER: clearing cache files associated with: ${vCLI_OPT_DIR}"
-  state.clear.cache
+  cache.clear
 fi
 #
 # Run the command specified in the cli args.

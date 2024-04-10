@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+
+# shellcheck source=../solos.utils
+source "solos.utils"
+
+pre.test() {
+  log.info "running pre.test"
+}
+
+post.test() {
+  log.info "running post.test"
+}
+
+vPREV_CURL_ERR_MESSAGE=""
+vPREV_CURL_ERR_STATUS_CODE=""
+vPREV_CURL_RESPONSE=""
+
+__test__.utils.curl() {
+  log.error "utils.curl not implemented yet"
+  return 1
+}
+
+__test__.utils.curl.allows_error_status_codes() {
+  log.error "utils.curl.allows_error_status_codes not implemented yet"
+  return 1
+}
+
+__test__.utils.date() {
+  log.error "utils.date not implemented yet"
+  return 1
+}
+
+__test__.utils.debug_dump_vars() {
+  log.error "utils.debug_dump_vars not implemented yet"
+  return 1
+}
+
+__test__.utils.echo_line() {
+  log.error "utils.echo_line not implemented yet"
+  return 1
+}
+
+__test__.utils.exit_trap() {
+  log.error "utils.exit_trap not implemented yet"
+  return 1
+}
+
+__test__.utils.files_match_dir() {
+  log.error "utils.files_match_dir not implemented yet"
+  return 1
+}
+
+__test__.utils.generate_secret() {
+  log.error "utils.generate_secret not implemented yet"
+  return 1
+}
+
+__test__.utils.grep_global_vars() {
+  log.error "utils.grep_global_vars not implemented yet"
+  return 1
+}
+
+__test__.utils.template_variables() {
+  log.error "utils.template_variables not implemented yet"
+  return 1
+}

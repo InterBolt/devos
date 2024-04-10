@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+
+# shellcheck source=../solos.flags
+source "solos.flags"
+
+pre.test() {
+  log.info "running pre.test"
+}
+
+post.test() {
+  log.info "running post.test"
+}
+
+vCLI_PARSED_CMD=""
+vCLI_PARSED_OPTIONS=""
+vCLI_USAGE_ALLOWS_CMDS=""
+vCLI_USAGE_ALLOWS_OPTIONS=""
+vOTHER_VAR=""
+vSOME_VAR=""
+vSTATIC_DEFAULT_SERVER=""
+
+__test__.flags._is_valid_help_command() {
+  log.error "flags._is_valid_help_command not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.backup.help() {
+  log.error "flags.cmd.backup.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.checkout.help() {
+  log.error "flags.cmd.checkout.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.code.help() {
+  log.error "flags.cmd.code.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.generate_tests.help() {
+  log.error "flags.cmd.generate_tests.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.launch.help() {
+  log.error "flags.cmd.launch.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.restore.help() {
+  log.error "flags.cmd.restore.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.status.help() {
+  log.error "flags.cmd.status.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.sync_config.help() {
+  log.error "flags.cmd.sync_config.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.test.help() {
+  log.error "flags.cmd.test.help not implemented yet"
+  return 1
+}
+
+__test__.flags.help() {
+  log.error "flags.help not implemented yet"
+  return 1
+}
+
+__test__.flags.parse_cmd() {
+  log.error "flags.parse_cmd not implemented yet"
+  return 1
+}
+
+__test__.flags.parse_requirements() {
+  log.error "flags.parse_requirements not implemented yet"
+  return 1
+}
+
+__test__.flags.somefn() {
+  log.error "flags.somefn not implemented yet"
+  return 1
+}
+
+__test__.flags.validate_options() {
+  log.error "flags.validate_options not implemented yet"
+  return 1
+}

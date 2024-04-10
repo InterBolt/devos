@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+
+# shellcheck source=../solos.precheck
+source "solos.precheck"
+
+pre.test() {
+  log.info "running pre.test"
+}
+
+post.test() {
+  log.info "running post.test"
+}
+
+vCLI_OPT_DIR=""
+vCLI_OPT_SERVER=""
+vENV_SOLOS_ID=""
+vSTATIC_BIN_LAUNCH_DIR=""
+vSTATIC_DEPENDENCY_COMMANDS=""
+vSTATIC_HOST=""
+vSTATIC_LAUNCH_DIRNAME=""
+vSTATIC_MY_CONFIG_ROOT=""
+vSTATIC_REPO_SERVERS_DIR=""
+vSTATIC_SERVER_TYPE_FILENAME=""
+vENTRY_BIN_DIR=""
+vSTATIC_DEFAULT_SERVER=""
+vSTATIC_REPO_TEMPLATES_DIR=""
+vSTATIC_RUNNING_REPO_ROOT=""
+
+__test__.precheck.docker_host_running() {
+  log.error "precheck.docker_host_running not implemented yet"
+  return 1
+}
+
+__test__.precheck.throw_if_dangerous_dir() {
+  log.error "precheck.throw_if_dangerous_dir not implemented yet"
+  return 1
+}
+
+__test__.precheck.throw_if_missing_installed_commands() {
+  log.error "precheck.throw_if_missing_installed_commands not implemented yet"
+  return 1
+}
+
+__test__.precheck.throw_on_nonsolos() {
+  log.error "precheck.throw_on_nonsolos not implemented yet"
+  return 1
+}
+
+__test__.precheck.throw_on_nonsolos_dir() {
+  log.error "precheck.throw_on_nonsolos_dir not implemented yet"
+  return 1
+}
+
+__test__.precheck.validate_project_repo() {
+  log.error "precheck.validate_project_repo not implemented yet"
+  return 1
+}
+
+__test__.precheck.all() {
+  log.error "precheck.all not implemented yet"
+  return 1
+}
+
+__test__.precheck.bootfiles() {
+  log.error "precheck.bootfiles not implemented yet"
+  return 1
+}
+
+__test__.precheck.variables() {
+  log.error "precheck.variables not implemented yet"
+  return 1
+}

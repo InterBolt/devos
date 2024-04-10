@@ -2,8 +2,8 @@
 # shellcheck disable=SC2145
 # shellcheck disable=SC2124
 
-# shellcheck source=solos.static
-. "solos.static"
+# shellcheck source=static.sh
+. "static.sh"
 
 # -----------------------------------------------------------------------------
 #

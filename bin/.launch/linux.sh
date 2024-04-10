@@ -29,7 +29,7 @@ vSERVER_DIR=""
 vARG_HOST="$1"
 vARG_SERVER="$2"
 #
-# Add a check since we can't get this directory from the solos.static
+# Add a check since we can't get this directory from the static
 # script. vCONFIG_DIR should be the .solos folder that we uploaded or mounted
 # to the server from our local machine.
 #

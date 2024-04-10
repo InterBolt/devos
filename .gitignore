@@ -14,6 +14,7 @@ node_modules/
 .backups/*
 .logs/*
 secret.*
+.archive.*
 .secret*
 test.sh
 reference.txt
@@ -21,3 +22,4 @@ reference.txt
 !.gitkeep
 
 .DS_Store
+!__test__.*
