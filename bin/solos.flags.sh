@@ -49,7 +49,7 @@ EOF
 #
 # Print launch command usage information
 #
-flags.cmd.launch.help() {
+flags.command.launch.help() {
   cat <<EOF
 Usage: solos launch [--OPTS...]
 
@@ -67,7 +67,7 @@ EOF
 #
 # Print sync-config command usage information
 #
-flags.cmd.sync_config.help() {
+flags.command.sync_config.help() {
   cat <<EOF
 Usage: solos sync-config [--OPTS...]
 
@@ -82,7 +82,7 @@ EOF
 #
 # Print sync-config command usage information
 #
-flags.cmd.status.help() {
+flags.command.status.help() {
   cat <<EOF
 Usage: solos status [--OPTS...]
 
@@ -94,7 +94,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --help              - Print this help and exit
 EOF
 }
-flags.cmd.tests.help() {
+flags.command.tests.help() {
   cat <<EOF
 Usage: solos tests [--OPTS...]
 
@@ -109,7 +109,7 @@ EOF
 #
 # Print checkout command usage information
 #
-flags.cmd.checkout.help() {
+flags.command.checkout.help() {
   cat <<EOF
 Usage: solos checkout [--OPTS...]
 
@@ -124,7 +124,7 @@ EOF
 #
 # Print launch command usage information
 #
-flags.cmd.code.help() {
+flags.command.code.help() {
   cat <<EOF
 Usage: solos code [--OPTS...]
 
@@ -136,7 +136,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --help              - Print this help and exit
 EOF
 }
-flags.cmd.backup.help() {
+flags.command.backup.help() {
   cat <<EOF
 Usage: solos backup [--OPTS...]
 
@@ -149,7 +149,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --tag=<string>      - The tag to use for the backup.
 EOF
 }
-flags.cmd.restore.help() {
+flags.command.restore.help() {
   cat <<EOF
 Usage: solos restore [--OPTS...]
 
@@ -164,7 +164,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
                       the latest backup.
 EOF
 }
-flags.cmd.prechecks.help() {
+flags.command.prechecks.help() {
   cat <<EOF
 Usage: solos prechecks [--OPTS...]
 
@@ -248,7 +248,7 @@ flags.parse_requirements() {
   for cmd in "${vCLI_USAGE_ALLOWS_CMDS[@]}"; do
     opts="$cmd("
     first=true
-    for cmd_option in $(flags.cmd."$cmd".help | grep -E "^--" | awk '{print $1}'); do
+    for cmd_option in $(flags.command."$cmd".help | grep -E "^--" | awk '{print $1}'); do
       cmd_option=$(echo "$cmd_option" | awk -F '=' '{print $1}' | sed 's/^--//')
       if [ "$first" = true ]; then
         opts="$opts$cmd_option"

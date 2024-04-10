@@ -12,6 +12,9 @@ fi
 # shellcheck source=__shared__/static.sh
 . "__shared__/static.sh"
 
+ssh.new_funchere() {
+  echo "HMMMMM"
+}
 ssh._validate() {
   if [ -z "${!vENV_IP+x}" ]; then
     log.error "vENV_IP must be defined. Exiting."

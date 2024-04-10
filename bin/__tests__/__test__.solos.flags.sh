@@ -5,7 +5,7 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
   exit 1
 fi
 
- # shellcheck source=../solos.flags.sh
+# shellcheck source=../solos.flags.sh
 source "solos.flags.sh"
 
 testhook.before_file() {
@@ -53,48 +53,38 @@ __test__.flags._is_valid_help_command() {
   return 1
 }
 
-__test__.flags.cmd.backup.help() {
-  log.error "flags.cmd.backup.help not implemented yet"
+__test__.flags.command.backup.help() {
+  log.error "flags.command.backup.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.checkout.help() {
-  log.error "flags.cmd.checkout.help not implemented yet"
+__test__.flags.command.checkout.help() {
+  log.error "flags.command.checkout.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.code.help() {
-  log.error "flags.cmd.code.help not implemented yet"
+__test__.flags.command.code.help() {
+  log.error "flags.command.code.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.generate_tests.help() {
-  log.error "flags.cmd.generate_tests.help not implemented yet"
+__test__.flags.command.launch.help() {
+  log.error "flags.command.launch.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.launch.help() {
-  log.error "flags.cmd.launch.help not implemented yet"
+__test__.flags.command.restore.help() {
+  log.error "flags.command.restore.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.restore.help() {
-  log.error "flags.cmd.restore.help not implemented yet"
+__test__.flags.command.status.help() {
+  log.error "flags.command.status.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.status.help() {
-  log.error "flags.cmd.status.help not implemented yet"
-  return 1
-}
-
-__test__.flags.cmd.sync_config.help() {
-  log.error "flags.cmd.sync_config.help not implemented yet"
-  return 1
-}
-
-__test__.flags.cmd.test.help() {
-  log.error "flags.cmd.test.help not implemented yet"
+__test__.flags.command.sync_config.help() {
+  log.error "flags.command.sync_config.help not implemented yet"
   return 1
 }
 
@@ -123,12 +113,12 @@ __test__.flags.validate_options() {
   return 1
 }
 
-__test__.flags.cmd.prechecks.help() {
-  log.error "flags.cmd.prechecks.help not implemented yet"
+__test__.flags.command.prechecks.help() {
+  log.error "flags.command.prechecks.help not implemented yet"
   return 1
 }
 
-__test__.flags.cmd.tests.help() {
-  log.error "flags.cmd.tests.help not implemented yet"
+__test__.flags.command.tests.help() {
+  log.error "flags.command.tests.help not implemented yet"
   return 1
 }

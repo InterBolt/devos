@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2103,SC2164
+set -o errexit
+set -o pipefail
+set -o errtrace
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 cd ..
@@ -313,12 +316,18 @@ tests.step.verify_function_coverage() {
     local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local defined_lib_functions="$(tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
     local defined_test_functions="$(tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
-    if [ "${#defined_lib_functions[@]}" -ne "${#defined_test_functions[@]}" ]; then
-      log.error "function coverage failed for ${lib_unit_name}"
-      log.error "defined functions: ${defined_lib_functions[*]}"
-      log.error "test functions: ${defined_test_functions[*]}"
-      exit 1
-    fi
+    for defined_lib_function in $defined_lib_functions; do
+      if ! echo "$defined_test_functions" | grep -q "^${defined_lib_function}$"; then
+        log.error "defined lib function: ${defined_lib_function} is not covered in ${lib_unit_name} test file"
+        exit 1
+      fi
+    done
+    for defined_test_function in $defined_test_functions; do
+      if ! echo "$defined_lib_functions" | grep -q "^${defined_test_function}$"; then
+        log.error "defined test function: ${defined_test_function} does not cover an existing function in the ${lib_unit_name} file"
+        exit 1
+      fi
+    done
   done
 }
 
@@ -332,12 +341,18 @@ tests.step.verify_variable_coverage() {
     local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local used_variables_in_lib="$(tests._grep_lib_used_variables "${lib_file}")"
     local defined_variables_in_test="$(tests._grep_lib_defined_variables "${target_test_file_path}")"
-    if [ "${#used_variables_in_lib[@]}" -ne "${#defined_variables_in_test[@]}" ]; then
-      log.error "variable coverage failed for ${lib_unit_name}"
-      log.error "used variables: ${used_variables_in_lib[*]}"
-      log.error "defined variables: ${defined_variables_in_test[*]}"
-      exit 1
-    fi
+    for used_variable_in_lib in $used_variables_in_lib; do
+      if ! echo "$defined_variables_in_test" | grep -q "^${used_variable_in_lib}$"; then
+        log.error "used variable in lib: ${used_variable_in_lib} was not defined in ${lib_unit_name} test file"
+        exit 1
+      fi
+    done
+    for defined_variable_in_test in $defined_variables_in_test; do
+      if ! echo "$used_variables_in_lib" | grep -q "^${defined_variable_in_test}$"; then
+        log.error "defined variable in test: ${used_variable_in_lib} is not used in ${lib_unit_name} file"
+        exit 1
+      fi
+    done
   done
 }
 

@@ -154,3 +154,8 @@ __test__.ssh.rsync_up.remote() {
   log.error "ssh.rsync_up.remote not implemented yet"
   return 1
 }
+
+__test__.ssh.new_funchere() {
+  log.error "ssh.new_funchere not implemented yet"
+  return 1
+}
