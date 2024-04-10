@@ -107,3 +107,17 @@ validate.validate_project_repo() {
     exit 1
   fi
 }
+validate.checked_out_server_and_dir() {
+  if [ -z "$vCLI_OPT_DIR" ]; then
+    vCLI_OPT_DIR="$(cache.get "checked_out")"
+    if [ -z "$vCLI_OPT_DIR" ]; then
+      log.error "No directory supplied or checked out in the cache. Please supply a --dir."
+      exit 1
+    fi
+    log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
+  fi
+  if [ -z "$vCLI_OPT_SERVER" ]; then
+    log.error "Unexpected error: couldn't find a server type from either the --server flag or the checked out directory."
+    exit 1
+  fi
+}

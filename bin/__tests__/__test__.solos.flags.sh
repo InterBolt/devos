@@ -122,3 +122,13 @@ __test__.flags.validate_options() {
   log.error "flags.validate_options not implemented yet"
   return 1
 }
+
+__test__.flags.cmd.prechecks.help() {
+  log.error "flags.cmd.prechecks.help not implemented yet"
+  return 1
+}
+
+__test__.flags.cmd.tests.help() {
+  log.error "flags.cmd.tests.help not implemented yet"
+  return 1
+}

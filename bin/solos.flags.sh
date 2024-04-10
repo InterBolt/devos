@@ -94,18 +94,15 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --help              - Print this help and exit
 EOF
 }
-#
-# Print launch command usage information
-#
-flags.cmd.test.help() {
+flags.cmd.tests.help() {
   cat <<EOF
-Usage: solos test [--OPTS...]
+Usage: solos tests [--OPTS...]
 
-Run tests on the installation to ensure it's working as expected.
+Run tests on either a specific library or all solos.* libraries.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--lib               - (ex: "ssh" tests "solos.ssh") The name of the library to test.
 --help              - Print this help and exit
 EOF
 }
@@ -167,19 +164,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
                       the latest backup.
 EOF
 }
-flags.cmd.test.help() {
-  cat <<EOF
-Usage: solos tests [--OPTS...]
-
-Run tests on either a specific library or all solos.* libraries.
-
-$LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
-
---lib               - (ex: "ssh" tests "solos.ssh") The name of the library to test.
---help              - Print this help and exit
-EOF
-}
-flags.cmd.generate_tests.help() {
+flags.cmd.prechecks.help() {
   cat <<EOF
 Usage: solos prechecks [--OPTS...]
 

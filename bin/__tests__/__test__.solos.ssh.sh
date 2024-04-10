@@ -5,7 +5,7 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
   exit 1
 fi
 
- # shellcheck source=../solos.ssh.sh
+# shellcheck source=../solos.ssh.sh
 source "solos.ssh.sh"
 
 testhook.before_file() {
@@ -75,13 +75,13 @@ __test__.ssh.cat_pubkey.self() {
   return 1
 }
 
-__test__.ssh.cmd.docker() {
-  log.error "ssh.cmd.docker not implemented yet"
+__test__.ssh.command.docker() {
+  log.error "ssh.command.docker not implemented yet"
   return 1
 }
 
-__test__.ssh.cmd.remote() {
-  log.error "ssh.cmd.remote not implemented yet"
+__test__.ssh.command.remote() {
+  log.error "ssh.command.remote not implemented yet"
   return 1
 }
 

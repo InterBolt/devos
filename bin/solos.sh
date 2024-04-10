@@ -3,11 +3,6 @@
 set -o errexit
 set -o pipefail
 set -o errtrace
-
-if [ "$(basename "$(pwd)")" != "bin" ]; then
-  echo "error: must be run from the bin folder"
-  exit 1
-fi
 #
 # Variable naming notes:
 #
@@ -76,6 +71,11 @@ fi
 # => We'll leave testing specific infra provisioning logic to our unit tests.
 #
 cd "$(dirname "${BASH_SOURCE[0]}")"
+
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  echo "error: must be run from the bin folder"
+  exit 1
+fi
 
 # shellcheck source=__shared__/static.sh
 . "__shared__/static.sh"
@@ -270,14 +270,6 @@ solos.map_parsed_cli() {
       ;;
     esac
   done
-  if [ -z "$vCLI_OPT_DIR" ]; then
-    vCLI_OPT_DIR="$(cache.get "checked_out")"
-    if [ -z "$vCLI_OPT_DIR" ]; then
-      log.error "No directory supplied or checked out in the cache. Please supply a --dir."
-      exit 1
-    fi
-    log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
-  fi
   local projects_server_type_file="${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
   if [ "${was_server_set}" == "true" ]; then
     if [ -f "${projects_server_type_file}" ]; then
@@ -301,10 +293,6 @@ solos.map_parsed_cli() {
   elif [ -f "${projects_server_type_file}" ]; then
     vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
     log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
-  fi
-  if [ -z "$vCLI_OPT_SERVER" ]; then
-    log.error "Unexpected error: couldn't find a server type from either the --server flag or the checked out directory."
-    exit 1
   fi
 }
 solos.rebuild_project_launch_dir() {
@@ -437,7 +425,7 @@ solos.require_completed_launch_status() {
   # it does rely on some trust that either the user didn't delete the status file or
   # that the launch script didn't leave out anything critical in a future change.
   #
-  if ! ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
+  if ! ssh.command.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
     log.error "Unexpected error: ${vSTATIC_DEBIAN_CONFIG_ROOT} not found on the remote."
     exit 1
   fi
@@ -464,6 +452,7 @@ cmd.checkout() {
   # Important: do these checks BEFORE saving the provided directory in the
   # cache. Let's be sure any directories we put there are valid and safe.
   #
+  validate.checked_out_server_and_dir
   validate.throw_if_dangerous_dir
   validate.throw_if_missing_installed_commands
   #
@@ -703,24 +692,24 @@ cmd.launch() {
     exit 1
   fi
   ssh.rsync_up.remote "$linux_sh_project_file" "/root/"
-  ssh.cmd.remote "chmod +x /root/${vSTATIC_LINUX_SH_FILENAME}"
+  ssh.command.remote "chmod +x /root/${vSTATIC_LINUX_SH_FILENAME}"
   log.info "uploaded and set permissions for remote bootstrap script."
   #
   # Create the folder where we'll store out caprover
   # deployment tar files.
   #
-  ssh.cmd.remote "mkdir -p /root/deployments"
+  ssh.command.remote "mkdir -p /root/deployments"
   log.info "created remote deployment dir: /root/deployments"
   #
   # Before bootstrapping can occur, make sure we upload the .solos config folder
   # from our local machine to the remote machine.
   # Important: we don't need to do this with the docker container because we mount it
   #
-  if ssh.cmd.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
+  if ssh.command.remote '[ -d '"${vSTATIC_DEBIAN_CONFIG_ROOT}"' ]'; then
     log.warn "remote already has the global solos config folder. skipping."
     log.info "see \`solos --help\` for how to re-sync your local or docker dev config folder to the remote."
   else
-    ssh.cmd.remote "mkdir -p ${vSTATIC_DEBIAN_CONFIG_ROOT}"
+    ssh.command.remote "mkdir -p ${vSTATIC_DEBIAN_CONFIG_ROOT}"
     log.info "created empty remote .solos config folder."
     ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${vSTATIC_DEBIAN_CONFIG_ROOT}/"
     log.info "uploaded local .solos config folder to remote."
@@ -730,7 +719,7 @@ cmd.launch() {
   # The linux.sh file will run the env specific launch scripts.
   # Important: these env specific scripts should be idempotent and performant.
   #
-  ssh.cmd.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER}"
+  ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER}"
   #
   # We might want this status in the future
   #
@@ -768,7 +757,7 @@ cmd.launch() {
   # The logic here is simpler because the bootstrap script for the docker container
   # will never deal with things like databases or service orchestration.
   #
-  ssh.cmd.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER}"
+  ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER}"
   status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(utils.date)"
   log.info "bootstrapped the local docker container."
   #
@@ -830,13 +819,13 @@ cmd.sync_config() {
   # no differently than if we were on the local machine. vSTATIC_MY_CONFIG_ROOT handles the
   # different absolute paths for local and docker since it uses the built-in $HOME variable.
   #
-  ssh.cmd.remote "rm -rf ${tmp_remote_config_dir} && mkdir -p ${tmp_remote_config_dir}"
+  ssh.command.remote "rm -rf ${tmp_remote_config_dir} && mkdir -p ${tmp_remote_config_dir}"
   log.info "wiped remote ${tmp_remote_config_dir} folder in preparation for rsync."
   ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${tmp_remote_config_dir}/"
   log.info "uploaded ${vSTATIC_MY_CONFIG_ROOT} to the remote server"
-  ssh.cmd.remote "rm -rf ${vSTATIC_DEBIAN_CONFIG_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_DEBIAN_CONFIG_ROOT}"
+  ssh.command.remote "rm -rf ${vSTATIC_DEBIAN_CONFIG_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_DEBIAN_CONFIG_ROOT}"
   log.info "overwrote remote's config:${vSTATIC_DEBIAN_CONFIG_ROOT} with ${vSTATIC_HOST}'s config: ${vSTATIC_MY_CONFIG_ROOT}."
-  ssh.cmd.remote "rm -rf ${tmp_remote_config_dir}"
+  ssh.command.remote "rm -rf ${tmp_remote_config_dir}"
   log.debug "removed ${tmp_remote_config_dir} on the remote."
   log.info "success: synced config folder to remote."
 }
@@ -874,17 +863,7 @@ cmd.backup() {
   log.warn "TODO: implementation needed"
 }
 cmd.status() {
-  if [ -z "$vCLI_OPT_DIR" ]; then
-    vCLI_OPT_DIR="$(cache.get "checked_out")"
-  fi
-  if [ -z "$vCLI_OPT_DIR" ]; then
-    log.error "no project found at: $vCLI_OPT_DIR. if you moved it, use the --dir flag to specify the new location."
-    exit 1
-  fi
-  if [ ! -f "$vCLI_OPT_DIR/$vSTATIC_SERVER_TYPE_FILENAME" ]; then
-    log.error "$vCLI_OPT_DIR doesn't appear to be a solos project. Exiting."
-    exit 1
-  fi
+  cmd.checkout
   #
   # If we're here, we know we have a project directory.
   # Let's go ahead and throw errors when base assumptions
@@ -903,8 +882,6 @@ cmd.prechecks() {
   fi
 }
 cmd.tests() {
-  cmd.checkout
-
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
     if [ -z "$vCLI_OPT_LIB" ]; then
       __cmds__/tests.sh

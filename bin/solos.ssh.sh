@@ -24,7 +24,7 @@ ssh._require_ip() {
     exit 1
   fi
 }
-ssh.cmd.docker() {
+ssh.command.docker() {
   ssh._validate
   if [ "$vSTATIC_HOST" != "local" ]; then
     log.error "$0 must be run locally to interact with docker over SSH. Exiting."
@@ -34,7 +34,7 @@ ssh.cmd.docker() {
   shift
   ssh -p 2222 -i "$(ssh.path_privkey.self)" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@127.0.0.1 "$cmd"
 }
-ssh.cmd.remote() {
+ssh.command.remote() {
   ssh._validate
   ssh._require_ip
   if [ "$vSTATIC_HOST" == "remote" ]; then

@@ -80,3 +80,8 @@ __test__.validate.validate_project_repo() {
   log.error "validate.validate_project_repo not implemented yet"
   return 1
 }
+
+__test__.validate.checked_out_server_and_dir() {
+  log.error "validate.checked_out_server_and_dir not implemented yet"
+  return 1
+}
