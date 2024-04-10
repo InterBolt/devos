@@ -10,6 +10,7 @@ pre.test() {
 post.test() {
   log.info "running post.test"
 }
+
 vCLI_OPT_DIR=""
 vENV_IP=""
 vSTATIC_HOST=""
