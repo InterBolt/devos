@@ -17,6 +17,8 @@ source __shared__/log.sh
 log.ready "tests" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 
 LIB_TEST_FILE_OPENING_LINES=()
+LIB_FAILED=()
+LIB_PASSED=()
 
 tests._update_beginning_file_lines() {
   local lib_file="$1"
@@ -425,12 +427,14 @@ tests.run.unit() {
     fi
     testhook.before_fn
     if ! "${test_function}"; then
-      log.error "failed: $(tests._extract_clean_lib_name_from_test "${lib_test_file}"):${defined_function}"
+      log.error "failed: ${defined_function}"
       something_failed=true
       testhook.after_fn_fails
+      LIB_FAILED+=("${defined_function}")
     else
-      log.success "passed: $(tests._extract_clean_lib_name_from_test "${lib_test_file}"):${defined_function}"
+      log.success "passed: ${defined_function}"
       testhook.after_fn_success
+      LIB_PASSED+=("${defined_function}")
     fi
     testhook.after_fn
   done
@@ -464,6 +468,11 @@ tests.run() {
     local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.run.unit "${lib_unit_name}"
   done
+  if [ ${#LIB_FAILED[@]} -gt 0 ]; then
+    for failed in "${LIB_FAILED[@]}"; do
+      log.error "failed: ${failed}"
+    done
+  fi
 }
 
 tests.run "$@"
