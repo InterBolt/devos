@@ -31,15 +31,47 @@ tests._update_beginning_file_lines() {
     " # shellcheck source=../${lib_file}"
     "source \"${lib_file}\""
     ""
-    "pre.test() {"
-    "  log.info \"running pre.test\""
+    "testhook.before_file() {"
+    "  log.info \"testhook.before_file\""
     "}"
     ""
-    "post.test() {"
-    "  log.info \"running post.test\""
+    "testhook.after_file() {"
+    "  log.info \"running testhook.after_file\""
+    "}"
+    ""
+    "testhook.before_fn() {"
+    "  log.info \"running testhook.before_fn\""
+    "}"
+    ""
+    "testhook.after_fn() {"
+    "  log.info \"running testhook.after_fn\""
+    "}"
+    ""
+    "testhook.after_fn_success() {"
+    "  log.info \"testhook.after_fn_success\""
+    "}"
+    ""
+    "testhook.after_fn_fails() {"
+    "  log.info \"testhook.after_fn_fails\""
+    "}"
+    ""
+    "testhook.after_file_success() {"
+    "  log.info \"testhook.after_file_success\""
+    "}"
+    ""
+    "testhook.after_file_fails() {"
+    "  log.info \"testhook.after_file_fails\""
     "}"
     ""
   )
+}
+
+tests._extract_clean_lib_name_from_source() {
+  basename "$1" | sed 's/^solos\.//' | sed 's/\.sh//'
+}
+
+tests._extract_clean_lib_name_from_test() {
+  basename "$1" | sed 's/^__test__\.solos\.//' | sed 's/\.sh//'
 }
 
 tests._insert_variable_into_test_file() {
@@ -258,7 +290,7 @@ tests.step.verify_test_source_exists() {
   done < <(find '__tests__' -maxdepth 1 -type f -name '__test__.solos.*' -print0)
   local missing_source_files=()
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^__test__\.solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_test "${lib_file}")"
     if [ ! -f "solos.${lib_unit_name}.sh" ]; then
       missing_source_files+=("solos.${lib_unit_name}.sh")
     fi
@@ -273,9 +305,9 @@ tests.step.verify_function_coverage() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local defined_lib_functions="$(tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
     local defined_test_functions="$(tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
@@ -292,9 +324,9 @@ tests.step.verify_variable_coverage() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="__tests__/__test__.solos.${lib_unit_name}.sh"
     local used_variables_in_lib="$(tests._grep_lib_used_variables "${lib_file}")"
     local defined_variables_in_test="$(tests._grep_lib_defined_variables "${target_test_file_path}")"
@@ -311,9 +343,9 @@ tests.step.cover_functions() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.unit.tests_add_missing_function_coverage "${lib_unit_name}"
   done
 }
@@ -322,9 +354,9 @@ tests.step.cover_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     local undefined_variables="$(tests.unit.get_undefined_test_variables "${lib_unit_name}")"
     if [ -n "$undefined_variables" ]; then
       for undefined_variable in $undefined_variables; do
@@ -338,9 +370,9 @@ tests.dangerously_recreate() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.unit.create_lib_test "${lib_unit_name}" true
   done
 }
@@ -349,9 +381,9 @@ tests.init() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+  done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.unit.create_lib_test "${lib_unit_name}"
   done
 }
@@ -383,20 +415,31 @@ tests.run.unit() {
   chmod +x "$lib_test_file"
   # shellcheck disable=SC1090
   source "$lib_test_file"
-  pre.test
+  testhook.before_file
+  local something_failed=false
   for defined_function in ${defined_functions}; do
     local test_function="__test__.${defined_function}"
     if ! type "${test_function}" &>/dev/null; then
       log.error "test function not found: ${test_function}"
       exit 1
     fi
+    testhook.before_fn
     if ! "${test_function}"; then
-      log.error "failed: ${lib_test_file}:${test_function}"
+      log.error "failed: $(tests._extract_clean_lib_name_from_test "${lib_test_file}"):${defined_function}"
+      something_failed=true
+      testhook.after_fn_fails
     else
-      log.success "passed: ${lib_test_file}:${test_function}"
+      log.success "passed: $(tests._extract_clean_lib_name_from_test "${lib_test_file}"):${defined_function}"
+      testhook.after_fn_success
     fi
+    testhook.after_fn
   done
-  post.test
+  if [ "${something_failed}" == "true" ]; then
+    testhook.after_file_fails
+  else
+    testhook.after_file_success
+  fi
+  testhook.after_file
 }
 
 tests.run() {
@@ -404,7 +447,7 @@ tests.run() {
   if [ "$#" -eq 0 ]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
-    done < <(find . -maxdepth 1 -type f -name 'solos.*' -print0)
+    done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   else
     local lib_unit_name="$1"
     local lib_test_file="$PWD/__tests__/__test__.solos.${lib_unit_name}.sh"
@@ -418,7 +461,7 @@ tests.run() {
   tests.cover
   tests.verify
   for lib_file in "${lib_files[@]}"; do
-    local lib_unit_name="$(basename "${lib_file}" | sed 's/^solos\.//')"
+    local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.run.unit "${lib_unit_name}"
   done
 }

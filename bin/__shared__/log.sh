@@ -221,7 +221,6 @@ log.ready() {
     exit 1
   fi
   LIB_READY_LOG=true
-  DEBUG_LEVEL="${2:-0}"
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
   log.debug "shared.log - setting debug level: ${DEBUG_LEVEL:-0}"

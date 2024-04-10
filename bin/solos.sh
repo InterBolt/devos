@@ -907,9 +907,9 @@ cmd.tests() {
 
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
     if [ -z "$vCLI_OPT_LIB" ]; then
-      cmd.tests.sh
+      __cmds__/tests.sh
     else
-      cmd.tests.sh "$vCLI_OPT_LIB"
+      __cmds__/tests.sh "$vCLI_OPT_LIB"
     fi
   else
     log.error "this command can only be run from within a git repo."
