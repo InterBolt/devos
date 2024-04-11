@@ -22,6 +22,7 @@ fi
 log.ready "cmd_tests" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 
 LIB_TEST_FILE_OPENING_LINES=()
+LIB_FILES_FAILED=()
 LIB_FAILED=()
 LIB_PASSED=()
 
@@ -374,6 +375,9 @@ tests.verify() {
   tests.step.verify_source_existence
 }
 
+#
+# TODO: refactor the log.stripped logic so we don't need to set/unset so many times
+#
 tests.run.unit() {
   local lib_unit_name="$1"
   shift
@@ -409,20 +413,18 @@ tests.run.unit() {
     for function_to_test in ${functions_to_test}; do
       local test_function="__test__.${function_to_test}"
       if ! type "${test_function}" &>/dev/null; then
-        log.error "missing: ${test_function}"
+        LIB_FAILED+=("${function_to_test}")
         continue
       fi
       if ! __hook__.before_fn "${function_to_test}"; then
-        log.error "skipping function: before function hook failed for ${function_to_test}"
+        LIB_FAILED+=("${function_to_test}")
         continue
       fi
       if ! "${test_function}"; then
-        log.error "failed: ${function_to_test}"
         something_failed=true
         __hook__.after_fn_fails "${function_to_test}" || true
         LIB_FAILED+=("${function_to_test}")
       else
-        log.success "passed: ${function_to_test}"
         __hook__.after_fn_success "${function_to_test}" || true
         LIB_PASSED+=("${function_to_test}")
       fi
@@ -430,12 +432,13 @@ tests.run.unit() {
     done
     if [ "${something_failed}" == "true" ]; then
       __hook__.after_file_fails || true
+      LIB_FILES_FAILED+=("${lib_unit_name}")
     else
       __hook__.after_file_success || true
     fi
     __hook__.after_file || true
   else
-    log.error "skipping file: before file hook failed for ${lib_unit_name}"
+    LIB_FILES_FAILED+=("${lib_unit_name}")
   fi
 }
 
@@ -462,9 +465,14 @@ tests.run() {
     local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
     tests.run.unit "${lib_unit_name}" "$@"
   done
+  if [ ${#LIB_FILES_FAILED[@]} -gt 0 ]; then
+    for failed in "${LIB_FILES_FAILED[@]}"; do
+      log.error "failing file: ${failed}"
+    done
+  fi
   if [ ${#LIB_FAILED[@]} -gt 0 ]; then
     for failed in "${LIB_FAILED[@]}"; do
-      log.error "failed: ${failed}"
+      log.error "failing function: ${failed}"
     done
   fi
 }

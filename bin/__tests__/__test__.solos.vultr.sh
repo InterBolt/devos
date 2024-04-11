@@ -9,47 +9,47 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
   exit 1
 fi
 
- # shellcheck source=../solos.vultr.sh
+# shellcheck source=../solos.vultr.sh
 . "solos.vultr.sh"
 
 __hook__.before_file() {
   log.error "__hook__.before_file"
-  return 1
+  return 0
 }
 
 __hook__.after_file() {
   log.error "running __hook__.after_file"
-  return 1
+  return 0
 }
 
 __hook__.before_fn() {
   log.error "running __hook__.before_fn $1"
-  return 1
+  return 0
 }
 
 __hook__.after_fn() {
   log.error "running __hook__.after_fn $1"
-  return 1
+  return 0
 }
 
 __hook__.after_fn_success() {
   log.error "__hook__.after_fn_success $1"
-  return 1
+  return 0
 }
 
 __hook__.after_fn_fails() {
   log.error "__hook__.after_fn_fails $1"
-  return 1
+  return 0
 }
 
 __hook__.after_file_success() {
   log.error "__hook__.after_file_success"
-  return 1
+  return 0
 }
 
 __hook__.after_file_fails() {
   log.error "__hook__.after_file_fails"
-  return 1
+  return 0
 }
 
 vENV_IP=""

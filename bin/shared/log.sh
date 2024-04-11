@@ -215,7 +215,7 @@ log.warn() {
 }
 # this should make the log output more readable and less verbose.
 log.stripped() {
-  LIB_STRIPPED_LOGS=true
+  LIB_STRIPPED_LOGS="${1:-true}"
 }
 log.ready() {
   LIB_LOG_PREFIX="$1."
