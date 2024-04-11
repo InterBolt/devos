@@ -42,5 +42,3 @@ cmd.checkout() {
     log.debug "updated the most recent ip in the lib.cache."
   fi
 }
-
-cmd.checkout

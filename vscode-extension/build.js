@@ -12,6 +12,7 @@ const findGitRoot = (dir) => {
   return findGitRoot(parent)
 }
 
+const extensionDirname = path.basename(__dirname)
 const repoRoot = findGitRoot(__dirname)
 
 const toTitleCase = (string) => {
@@ -27,12 +28,12 @@ const formatName = (string) => {
 }
 
 const createCommand = (name, title) => ({
-  "command": `dev-os.${formatName(name)}`,
+  "command": `solos.${formatName(name)}`,
   "title": title,
-  "category": "dev-os"
+  "category": "solos"
 })
 
-const commands = fs.readdirSync(path.join(repoRoot, 'extension', 'snippets'))
+const commands = fs.readdirSync(path.join(repoRoot, extensionDirname, 'snippets'))
   .filter(filename => filename.endsWith('.txt'))
   .map(textFilename => createCommand(
     textFilename.replace('.txt', ''),

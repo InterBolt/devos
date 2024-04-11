@@ -128,20 +128,20 @@ log.ready "solos" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 #
 # Load our CLI parsing commands.
 #
-# shellcheck source=cli/parse.sh
-. "cli/parse.sh"
+# shellcheck source=cli/__source__.sh
+. "cli/__source__.sh"
 #
-# Generate source statements for each command in the __exports__.sh file.
+# Generate source statements for each command in the __source__.sh file.
 # Ensures I won't release a version of solos that is mising commands.
 #
 if [ "$vMODE" != "production" ]; then
-  . cmds/gen.sh
+  . cmd/gen.sh
 fi
 #
 # Now make the commands we need available.
 #
-# shellcheck source=cmds/__exports__.sh
-. "cmds/__exports__.sh"
+# shellcheck source=cmd/__source__.sh
+. "cmd/__source__.sh"
 #
 # --------------------------------------------------------------------------------------------
 #

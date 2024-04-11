@@ -13,22 +13,26 @@ export function activate(context: vscode.ExtensionContext) {
     fs.readFileSync(path.join(__dirname, "package.json"), "utf8")
   ).contributes.commands;
 
-  const printLLMFile = (cmd: Command) => {
+  const printFile = (cmd: Command) => {
     const [, camelCaseName] = cmd.command.split(".");
     const dashCaseName = camelCaseName
       .replace(/([a-z])([A-Z])/g, "$1-$2")
       .toLowerCase()
       .replace("-snippet", ".snippet");
-    const repoWorkspaceFolder = vscode.workspace.workspaceFolders?.[2];
-    if (!repoWorkspaceFolder) {
+    const preferredWorkspaceIndex = 3;
+    const fallbackWorkspaceIndex = 0;
+    const workspaceDir =
+      vscode.workspace.workspaceFolders?.[preferredWorkspaceIndex] ||
+      vscode.workspace.workspaceFolders?.[fallbackWorkspaceIndex];
+    if (!workspaceDir) {
       vscode.window.showErrorMessage(
-        `Dev OS: did you change the code-workspace folder recently. The folder containing the LLM txt files is not found.`
+        `SolOS: neither workspace folder #${preferredWorkspaceIndex} or #${fallbackWorkspaceIndex} were found.`
       );
       return "";
     }
     const snippetFilePath = path.join(
-      repoWorkspaceFolder.uri.fsPath,
-      "extension",
+      workspaceDir.uri.fsPath,
+      "vscode-extension",
       "snippets",
       `${dashCaseName}.txt`
     );
@@ -59,7 +63,7 @@ export function activate(context: vscode.ExtensionContext) {
               vscode.TextEdit.delete(rangeToRemove),
             ];
             completionItem.insertText = new vscode.SnippetString(
-              printLLMFile(cmd)
+              printFile(cmd)
             );
             return completionItem;
           });

@@ -69,11 +69,11 @@ subcmd.tests._update_beginning_file_lines() {
 }
 
 subcmd.tests._extract_clean_lib_name_from_source() {
-  basename "$1" | sed 's/^lib\.//' | sed 's/\.sh//'
+  basename "$1" | sed 's/\.sh//'
 }
 
 subcmd.tests._extract_clean_lib_name_from_test() {
-  basename "$1" | sed 's/^__test__\.lib\.//' | sed 's/\.sh//'
+  basename "$1" | sed 's/^__test__\.//' | sed 's/\.sh//'
 }
 
 subcmd.tests._insert_variable_into_test_file() {
@@ -136,12 +136,12 @@ subcmd.tests._grep_test_defined_functions() {
 subcmd.tests.unit.create_lib_test() {
   local lib_unit_name="$1"
   local force="${2:-false}"
-  local lib_file="lib.${lib_unit_name}.sh"
+  local lib_file="${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
   fi
-  local test_dir="__tests__"
+  local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
   if [ -f "${target_test_file_path}" ] && [ "${force}" == "false" ]; then
@@ -170,12 +170,12 @@ subcmd.tests.unit.create_lib_test() {
 
 subcmd.tests.unit.tests_add_missing_function_coverage() {
   local lib_unit_name="$1"
-  local lib_file="lib.${lib_unit_name}.sh"
+  local lib_file="${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
   fi
-  local test_dir="__tests__"
+  local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
   if [ ! -f "${target_test_file_path}" ]; then
@@ -206,8 +206,8 @@ subcmd.tests.unit.tests_add_missing_function_coverage() {
 
 subcmd.tests.unit.get_undefined_test_variables() {
   local lib_unit_name="$1"
-  local lib_file="lib.${lib_unit_name}.sh"
-  local test_lib_file="__tests__/__test__.${lib_file}"
+  local lib_file="${lib_unit_name}.sh"
+  local test_lib_file="tests/__test__.${lib_file}"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: $1"
     exit 1
@@ -233,12 +233,12 @@ subcmd.tests.step.verify_source_existence() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find '__tests__' -maxdepth 1 -type f -name '__test__.lib.*' -print0)
+  done < <(find 'tests' -maxdepth 1 -type f -name '__test__.*' -print0)
   local missing_source_files=()
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_test "${lib_file}")"
-    if [ ! -f "lib.${lib_unit_name}.sh" ]; then
-      missing_source_files+=("lib.${lib_unit_name}.sh")
+    if [ ! -f "${lib_unit_name}.sh" ]; then
+      missing_source_files+=("${lib_unit_name}.sh")
     fi
   done
   if [ ${#missing_source_files[@]} -gt 0 ]; then
@@ -251,10 +251,10 @@ subcmd.tests.step.verify_function_coverage() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
-    local target_test_file_path="__tests__/__test__.lib.${lib_unit_name}.sh"
+    local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
     local defined_lib_functions="$(subcmd.tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
     local defined_test_functions="$(subcmd.tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
     for defined_lib_function in $defined_lib_functions; do
@@ -276,10 +276,10 @@ subcmd.tests.step.verify_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
-    local target_test_file_path="__tests__/__test__.lib.${lib_unit_name}.sh"
+    local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
     local used_variables_in_lib="$(subcmd.tests._grep_lib_used_variables "${lib_file}")"
     local defined_variables_in_test="$(subcmd.tests._grep_lib_defined_variables "${target_test_file_path}")"
     for used_variable_in_lib in $used_variables_in_lib; do
@@ -301,7 +301,7 @@ subcmd.tests.step.cover_functions() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.tests_add_missing_function_coverage "${lib_unit_name}"
@@ -312,13 +312,13 @@ subcmd.tests.step.cover_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     local undefined_variables="$(subcmd.tests.unit.get_undefined_test_variables "${lib_unit_name}")"
     if [ -n "$undefined_variables" ]; then
       for undefined_variable in $undefined_variables; do
-        subcmd.tests._insert_variable_into_test_file "__tests__/__test__.lib.${lib_unit_name}.sh" "${undefined_variable}"
+        subcmd.tests._insert_variable_into_test_file "tests/__test__.${lib_unit_name}.sh" "${undefined_variable}"
       done
     fi
   done
@@ -328,7 +328,7 @@ subcmd.tests.dangerously_recreate() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.create_lib_test "${lib_unit_name}" true
@@ -339,7 +339,7 @@ subcmd.tests.init() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.create_lib_test "${lib_unit_name}"
@@ -363,12 +363,12 @@ subcmd.tests.verify() {
 subcmd.tests.unit() {
   local lib_unit_name="$1"
   shift
-  local lib_file="lib.${lib_unit_name}.sh"
+  local lib_file="${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: ${lib_file}"
     exit 1
   fi
-  local lib_test_file="__tests__/__test__.lib.${lib_unit_name}.sh"
+  local lib_test_file="tests/__test__.${lib_unit_name}.sh"
   if [ ! -f "${lib_test_file}" ]; then
     log.error "test file not found: $1"
     exit 1
@@ -433,20 +433,25 @@ cmd.tests() {
     log.error "this command must be run from your local machine. Exiting."
     exit 1
   fi
-
+  if [ ! -d "lib" ]; then
+    log.error "lib directory not found. Exiting."
+    exit 1
+  fi
+  local entry_dir="$PWD"
+  cd "lib" || exit 1
   local lib_files=()
   if [ -z "${vCLI_OPT_LIB}" ]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
-    done < <(find . -maxdepth 1 -type f -name 'lib.*.sh' -print0)
+    done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
   else
     local lib_unit_name="${vCLI_OPT_LIB}"
-    local lib_test_file="$PWD/__tests__/__test__.lib.${lib_unit_name}.sh"
+    local lib_test_file="$PWD/tests/__test__.${lib_unit_name}.sh"
     if [ ! -f "${lib_test_file}" ]; then
       log.error "test file not found: ${lib_test_file}"
       exit 1
     fi
-    lib_files+=("$PWD/lib.${lib_unit_name}.sh")
+    lib_files+=("$PWD/${lib_unit_name}.sh")
   fi
   subcmd.tests.init
   subcmd.tests.cover
@@ -465,6 +470,5 @@ cmd.tests() {
       log.error "failing function: ${failed}"
     done
   fi
+  cd "$entry_dir" || exit 1
 }
-
-cmd.tests

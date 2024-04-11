@@ -3,7 +3,7 @@
 # shellcheck source=../shared/solos_base.sh
 . shared/solos_base.sh
 
-cmd.restore() {
+cmd.backup() {
   solos.require_completed_launch_status
   cmd.checkout
 
@@ -12,5 +12,3 @@ cmd.restore() {
   fi
   log.warn "TODO: implementation needed"
 }
-
-cmd.restore

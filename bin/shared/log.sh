@@ -97,6 +97,10 @@ log._get_filesize() {
 }
 log._get_active_logfile() {
   local dir="$LIB_DIR"
+  if [ -z "${dir}" ]; then
+    echo ""
+    return
+  fi
   local curr_logfile
   local curr_idx=0
 
@@ -225,12 +229,18 @@ log.ready() {
     exit 1
   fi
   if [ -z "${LIB_DIR}" ]; then
-    log.error "log directory not set at log.ready"
-    exit 1
+    log.warn "did not specify a log dir. will not save logs to disk."
+  else
+    mkdir -p "${LIB_DIR}"
   fi
   LIB_READY_LOG=true
-  mkdir -p "${LIB_DIR}"
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
   log.debug "shared.log - setting debug level: ${DEBUG_LEVEL:-0}"
   log.debug "shared.log - ready"
+}
+log.fallback_ready() {
+  if [ "${LIB_READY_LOG}" == "false" ]; then
+    log.stripped "true"
+    log.ready "solos"
+  fi
 }

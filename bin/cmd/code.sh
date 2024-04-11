@@ -10,7 +10,7 @@ cmd.code() {
   if ! command -v "code" &>/dev/null; then
     log.error "vscode is not installed to your path. cannot continue."
   fi
-  if [ "$vSTATIC_HOST" != "local" ]; then
+  if [ "${vSTATIC_HOST}" != "local" ]; then
     log.error "this command must be run from the local host. Exiting."
     exit 1
   fi
@@ -18,5 +18,3 @@ cmd.code() {
 
   log.warn "would open vscode"
 }
-
-cmd.code

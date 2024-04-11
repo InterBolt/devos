@@ -73,5 +73,3 @@ cmd.precheck() {
     exit 1
   fi
 }
-
-cmd.precheck

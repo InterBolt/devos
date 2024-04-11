@@ -6,18 +6,21 @@ const fs = require("fs");
 const path = require("path");
 function activate(context) {
     const commandsFromPkgJSON = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8")).contributes.commands;
-    const printLLMFile = (cmd) => {
+    const printFile = (cmd) => {
         const [, camelCaseName] = cmd.command.split(".");
         const dashCaseName = camelCaseName
             .replace(/([a-z])([A-Z])/g, "$1-$2")
             .toLowerCase()
             .replace("-snippet", ".snippet");
-        const repoWorkspaceFolder = vscode.workspace.workspaceFolders?.[2];
-        if (!repoWorkspaceFolder) {
-            vscode.window.showErrorMessage(`Dev OS: did you change the code-workspace folder recently. The folder containing the LLM txt files is not found.`);
+        const preferredWorkspaceIndex = 3;
+        const fallbackWorkspaceIndex = 0;
+        const workspaceDir = vscode.workspace.workspaceFolders?.[preferredWorkspaceIndex] ||
+            vscode.workspace.workspaceFolders?.[fallbackWorkspaceIndex];
+        if (!workspaceDir) {
+            vscode.window.showErrorMessage(`SolOS: neither workspace folder #${preferredWorkspaceIndex} or #${fallbackWorkspaceIndex} were found.`);
             return "";
         }
-        const snippetFilePath = path.join(repoWorkspaceFolder.uri.fsPath, "extension", "snippets", `${dashCaseName}.txt`);
+        const snippetFilePath = path.join(workspaceDir.uri.fsPath, "vscode-extension", "snippets", `${dashCaseName}.txt`);
         const contents = fs.readFileSync(snippetFilePath, "utf8");
         return dashCaseName.endsWith(".snippet")
             ? contents
@@ -32,7 +35,7 @@ function activate(context) {
                 completionItem.additionalTextEdits = [
                     vscode.TextEdit.delete(rangeToRemove),
                 ];
-                completionItem.insertText = new vscode.SnippetString(printLLMFile(cmd));
+                completionItem.insertText = new vscode.SnippetString(printFile(cmd));
                 return completionItem;
             });
             return completionItems;

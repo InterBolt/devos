@@ -1,9 +1,9 @@
 {
-  "name": "dev-os",
-  "displayName": "Dev-OS LLM",
-  "description": "Dev-OS LLM Extension for consistent scripting completions.",
+  "name": "solos",
+  "displayName": "SolOS Snippets",
+  "description": "Snippets for all things SolOS",
   "version": "0.0.1",
-  "publisher": "interbolt",
+  "publisher": "solos",
   "private": true,
   "engines": {
     "vscode": "^1.87.2"
@@ -16,17 +16,19 @@
     "configuration": [],
     "commands": [
       {
-        "command": "dev-os.runtimeSnippet",
-        "title": "Runtime.snippet",
-        "category": "dev-os"
+        "command": "solos.cdNaked",
+        "title": "Cd Naked",
+        "category": "solos"
       }
     ]
   },
   "scripts": {
-    "check": "node ./check.js",
-    "build": "npm install && node ./build.js && npx tsc && cp package.json out/package.json && vsce package --allow-missing-repository --allow-star-activation --skip-license",
-    "code:install": "code --uninstall-extension interbolt.dev-os && code --install-extension ./dev-os-0.0.1.vsix --force",
-    "sync": "npm run check && npm run build && npm run code:install"
+    "build": "npm run s:compile && npm run s:copy && npm run s:vscode-package",
+    "install": "code --uninstall-extension solos.solos || true && code --install-extension ./solos-0.0.1.vsix --force",
+    "sync": "npm run build && npm run install",
+    "s:compile": "npm install && node ./build.js && npx tsc",
+    "s:copy": "cp package.json out/package.json",
+    "s:vscode-package": "vsce package --allow-missing-repository --allow-star-activation"
   },
   "devDependencies": {
     "@types/node": "^16.18.34",

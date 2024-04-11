@@ -34,5 +34,3 @@ cmd.sync_config() {
   log.debug "removed ${tmp_remote_config_dir} on the remote."
   log.info "success: synced config folder to remote."
 }
-
-cmd.sync_config

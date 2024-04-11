@@ -314,5 +314,3 @@ cmd.launch() {
   lib.status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(lib.utils.date)"
   log.success "launch completed successfully."
 }
-
-cmd.launch

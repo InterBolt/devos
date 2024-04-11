@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 
 # shellcheck source=backup.sh
-. backup.sh
+. cmd/backup.sh
 # shellcheck source=checkout.sh
-. checkout.sh
+. cmd/checkout.sh
 # shellcheck source=code.sh
-. code.sh
-# shellcheck source=launch.sh
-. launch.sh
-# shellcheck source=precheck.sh
-. precheck.sh
-# shellcheck source=restore.sh
-. restore.sh
-# shellcheck source=sync_config.sh
-. sync_config.sh
-# shellcheck source=tests.sh
-. tests.sh
+. cmd/code.sh
 # shellcheck source=gen.sh
-. gen.sh
+. cmd/gen.sh
+# shellcheck source=launch.sh
+. cmd/launch.sh
+# shellcheck source=precheck.sh
+. cmd/precheck.sh
+# shellcheck source=restore.sh
+. cmd/restore.sh
+# shellcheck source=sync_config.sh
+. cmd/sync_config.sh
+# shellcheck source=tests.sh
+. cmd/tests.sh
