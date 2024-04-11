@@ -17,17 +17,9 @@ utils.echo_line() {
   line=$(printf "%${terminal_width}s" | tr " " "-")
   echo "$line"
 }
-utils.debug_dump_vars() {
-  utils.echo_line
-  compgen -A variable -X '!v[A-Z_]*' | sort | while read -r line; do
-    echo "$line=${!line}"
-  done
-  utils.echo_line
-}
 utils.exit_trap() {
   local code=$?
   if [ $code -eq 1 ]; then
-    # utils.debug_dump_vars
     exit 1
   fi
   exit $code
@@ -115,7 +107,7 @@ utils.date() {
   date +"%Y-%m-%d %H:%M:%S"
 }
 utils.grep_global_vars() {
-  grep -o -w '^$*v[A-Z_]\+' "$1" | grep -v "#" || echo ""
+  grep -Eo 'v[A-Z0-9_]{2,}' "$1" | grep -v "#" || echo ""
 }
 utils.files_match_dir() {
   local dir_to_match="$1"

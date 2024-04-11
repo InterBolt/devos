@@ -32,7 +32,7 @@ launch                   - Launch a SolOS project.
 checkout                 - Checkout a project directory to avoid having to provide the directory
                            on every command.
 status                   - Print the status of a SolOS project.
-sync-config              - Sync the \`.solos\` config folder to the remote server.
+sync-config              - Sync the \`.solos\` config folder to a remote server.
 backup                   - Archive a SolOS project and upload it to an s3 bucket.
 restore                  - Restore a SolOS project from an s3 bucket.
 code                     - Open the VSCode workspaces associated with the installation.

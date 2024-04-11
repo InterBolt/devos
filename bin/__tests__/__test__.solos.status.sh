@@ -9,39 +9,47 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
   exit 1
 fi
 
-# shellcheck source=../solos.status.sh
-source "solos.status.sh"
+ # shellcheck source=../solos.status.sh
+. "solos.status.sh"
 
 __hook__.before_file() {
-  log.info "__hook__.before_file"
+  log.error "__hook__.before_file"
+  return 1
 }
 
 __hook__.after_file() {
-  log.info "running __hook__.after_file"
+  log.error "running __hook__.after_file"
+  return 1
 }
 
 __hook__.before_fn() {
-  log.info "running __hook__.before_fn $1"
+  log.error "running __hook__.before_fn $1"
+  return 1
 }
 
 __hook__.after_fn() {
-  log.info "running __hook__.after_fn $1"
+  log.error "running __hook__.after_fn $1"
+  return 1
 }
 
 __hook__.after_fn_success() {
-  log.info "__hook__.after_fn_success $1"
+  log.error "__hook__.after_fn_success $1"
+  return 1
 }
 
 __hook__.after_fn_fails() {
-  log.info "__hook__.after_fn_fails $1"
+  log.error "__hook__.after_fn_fails $1"
+  return 1
 }
 
 __hook__.after_file_success() {
-  log.info "__hook__.after_file_success"
+  log.error "__hook__.after_file_success"
+  return 1
 }
 
 __hook__.after_file_fails() {
-  log.info "__hook__.after_file_fails"
+  log.error "__hook__.after_file_fails"
+  return 1
 }
 
 vCLI_OPT_DIR=""

@@ -14,7 +14,7 @@ fi
 
 environment.generate_env_files() {
   local tmp_dir="$(mktemp -d 2>/dev/null)"
-  local env_vars=$(grep -o -w 'vENV_[A-Z_]\+' "$vENTRY_BIN_FILEPATH")
+  local env_vars=$(grep -Eo 'vENV_[A-Z0-9_]{2,}' "$vENTRY_BIN_FILEPATH")
   for env_var in $env_vars; do
     local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
     if [ "$result" == "unset" ]; then

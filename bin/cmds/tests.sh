@@ -40,38 +40,46 @@ tests._update_beginning_file_lines() {
     "fi"
     ""
     " # shellcheck source=../${lib_file}"
-    "source \"${lib_file}\""
+    ". \"${lib_file}\""
     ""
     "__hook__.before_file() {"
-    "  log.info \"__hook__.before_file\""
+    "  log.error \"__hook__.before_file\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_file() {"
-    "  log.info \"running __hook__.after_file\""
+    "  log.error \"running __hook__.after_file\""
+    "  return 1"
     "}"
     ""
     "__hook__.before_fn() {"
-    "  log.info \"running __hook__.before_fn \$1\""
+    "  log.error \"running __hook__.before_fn \$1\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_fn() {"
-    "  log.info \"running __hook__.after_fn \$1\""
+    "  log.error \"running __hook__.after_fn \$1\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_fn_success() {"
-    "  log.info \"__hook__.after_fn_success \$1\""
+    "  log.error \"__hook__.after_fn_success \$1\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_fn_fails() {"
-    "  log.info \"__hook__.after_fn_fails \$1\""
+    "  log.error \"__hook__.after_fn_fails \$1\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_file_success() {"
-    "  log.info \"__hook__.after_file_success\""
+    "  log.error \"__hook__.after_file_success\""
+    "  return 1"
     "}"
     ""
     "__hook__.after_file_fails() {"
-    "  log.info \"__hook__.after_file_fails\""
+    "  log.error \"__hook__.after_file_fails\""
+    "  return 1"
     "}"
     ""
   )
@@ -92,7 +100,7 @@ tests._insert_variable_into_test_file() {
     log.error "file not found: $file"
     exit 1
   fi
-  local line_number="$(grep -nE '^v[A-Z_]{2,}=' "${file}" | tail -n 1 | cut -d: -f1)"
+  local line_number="$(grep -nE '^v[A-Z0-9_]{2,}=' "${file}" | tail -n 1 | cut -d: -f1)"
   local tmp_file="${file}.tmp.$(date +%s)"
   awk 'NR=='"$((line_number + 1))"'{print "'"${variable}="'\"\""}1' "${file}" >"${tmp_file}"
   cp -f "${tmp_file}" "${file}"
@@ -110,7 +118,7 @@ tests._grep_lib_used_variables() {
     log.error "file not found: $lib_file"
     exit 1
   fi
-  grep -Eo 'v[A-Z_]{2,}' "$lib_file" | sort -u
+  grep -Eo 'v[A-Z0-9_]{2,}' "$lib_file" | sort -u
 }
 
 tests._grep_lib_defined_variables() {
@@ -119,7 +127,7 @@ tests._grep_lib_defined_variables() {
     log.error "file not found: $file"
     exit 1
   fi
-  grep -Eo 'v[A-Z_]{2,}=' "${file}" | cut -d= -f1 | sort -u
+  grep -Eo 'v[A-Z0-9_]{2,}=' "${file}" | cut -d= -f1 | sort -u
 }
 
 tests._grep_lib_defined_functions() {
@@ -395,34 +403,40 @@ tests.run.unit() {
   fi
   chmod +x "$lib_test_file"
   # shellcheck disable=SC1090
-  source "$lib_test_file"
-  __hook__.before_file
-  local something_failed=false
-  for function_to_test in ${functions_to_test}; do
-    local test_function="__test__.${function_to_test}"
-    if ! type "${test_function}" &>/dev/null; then
-      log.error "test function not found: ${test_function}"
-      exit 1
-    fi
-    __hook__.before_fn "${function_to_test}"
-    if ! "${test_function}"; then
-      log.error "failed: ${function_to_test}"
-      something_failed=true
-      __hook__.after_fn_fails "${function_to_test}"
-      LIB_FAILED+=("${function_to_test}")
+  . "$lib_test_file"
+  if __hook__.before_file; then
+    local something_failed=false
+    for function_to_test in ${functions_to_test}; do
+      local test_function="__test__.${function_to_test}"
+      if ! type "${test_function}" &>/dev/null; then
+        log.error "missing: ${test_function}"
+        continue
+      fi
+      if ! __hook__.before_fn "${function_to_test}"; then
+        log.error "skipping function: before function hook failed for ${function_to_test}"
+        continue
+      fi
+      if ! "${test_function}"; then
+        log.error "failed: ${function_to_test}"
+        something_failed=true
+        __hook__.after_fn_fails "${function_to_test}" || true
+        LIB_FAILED+=("${function_to_test}")
+      else
+        log.success "passed: ${function_to_test}"
+        __hook__.after_fn_success "${function_to_test}" || true
+        LIB_PASSED+=("${function_to_test}")
+      fi
+      __hook__.after_fn "${function_to_test}" || true
+    done
+    if [ "${something_failed}" == "true" ]; then
+      __hook__.after_file_fails || true
     else
-      log.success "passed: ${function_to_test}"
-      __hook__.after_fn_success "${function_to_test}"
-      LIB_PASSED+=("${function_to_test}")
+      __hook__.after_file_success || true
     fi
-    __hook__.after_fn "${function_to_test}"
-  done
-  if [ "${something_failed}" == "true" ]; then
-    __hook__.after_file_fails
+    __hook__.after_file || true
   else
-    __hook__.after_file_success
+    log.error "skipping file: before file hook failed for ${lib_unit_name}"
   fi
-  __hook__.after_file
 }
 
 tests.run() {
