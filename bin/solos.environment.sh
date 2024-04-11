@@ -6,11 +6,11 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
 fi
 
 # shellcheck source=solos.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
 # shellcheck source=solos.utils.sh
-. "__shared__/static.sh"
-# shellcheck source=__shared__/static.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
+# shellcheck source=shared/static.sh
+. "shared/empty.sh"
 
 environment.generate_env_files() {
   local tmp_dir="$(mktemp -d 2>/dev/null)"

@@ -6,11 +6,11 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
 fi
 
 # shellcheck source=solos.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
 # shellcheck source=solos.utils.sh
-. "__shared__/static.sh"
-# shellcheck source=__shared__/static.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
+# shellcheck source=shared/static.sh
+. "shared/empty.sh"
 
 utils.echo_line() {
   terminal_width=$(tput cols)
@@ -198,4 +198,17 @@ utils.curl.allows_error_status_codes() {
     log.debug "allowed status code: $vPREV_CURL_ERR_STATUS_CODE"
     log.debug "with error message: $vPREV_CURL_ERR_MESSAGE"
   fi
+}
+utils.warn_with_delay() {
+  local message="$1"
+  if [ -z "$message" ]; then
+    log.error "message must not be empty. Exiting."
+    exit 1
+  fi
+  log.warn "$message in 5 seconds."
+  sleep 3
+  log.warn "$message in 2 seconds."
+  sleep 2
+  log.warn "$message here we go..."
+  sleep 1
 }

@@ -11,9 +11,9 @@ LIB_READY_LOG=false
 #
 LIB_LOG_PREFIX=""
 #
-# roughly 10 megabytes per log file.
+# roughly 1 megabytes per log file.
 #
-LIB_LOG_ROLLSIZE_KBS=10000
+LIB_LOG_ROLLSIZE_KBS=1000
 #
 # Level variables.
 #
@@ -95,7 +95,7 @@ log._get_filesize() {
   fi
 }
 log._get_active_logfile() {
-  local dir="$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
+  local dir="$LIB_DIR"
   local curr_logfile
   local curr_idx=0
 
@@ -105,16 +105,16 @@ log._get_active_logfile() {
       curr_idx=$logfile_idx
     fi
   done
-  curr_logfile="$dir/$LIB_LOG_PREFIX$curr_idx.json"
+  curr_logfile="${dir}/${LIB_LOG_PREFIX}${curr_idx}.json"
   should_rotate=0
-  size="$(log._get_filesize "$curr_logfile")"
+  size="$(log._get_filesize "${curr_logfile}")"
   if [ $((size)) -gt $((LIB_LOG_ROLLSIZE_KBS)) ]; then
     should_rotate=1
   fi
   if [ $should_rotate -eq 1 ]; then
-    echo "$dir/$LIB_LOG_PREFIX$((curr_idx + 1)).json"
+    echo "${dir}/${LIB_LOG_PREFIX}$((curr_idx + 1)).json"
   else
-    echo "$dir/$LIB_LOG_PREFIX$curr_idx.json"
+    echo "${dir}/${LIB_LOG_PREFIX}${curr_idx}.json"
   fi
 }
 #
@@ -122,7 +122,7 @@ log._get_active_logfile() {
 #
 log._base() {
   local json_path=""
-  if [ "${LIB_READY_LOG}" != "false" ]; then
+  if [ "${LIB_READY_LOG}" == "false" ]; then
     json_path=""
   else
     json_path="$(log._get_active_logfile)"
@@ -210,7 +210,7 @@ log.warn() {
   log._base "WARN" "$filename:$linenumber" "$@"
 }
 log.ready() {
-  LIB_LOG_PREFIX="$1"
+  LIB_LOG_PREFIX="$1."
   LIB_DIR="$2"
   if [ -z "${LIB_LOG_PREFIX}" ]; then
     log.error "log prefix not set at log.ready"
@@ -221,7 +221,7 @@ log.ready() {
     exit 1
   fi
   LIB_READY_LOG=true
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$vSTATIC_LOGS_DIRNAME"
+  mkdir -p "${LIB_DIR}"
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
   log.debug "shared.log - setting debug level: ${DEBUG_LEVEL:-0}"
   log.debug "shared.log - ready"

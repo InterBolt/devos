@@ -6,11 +6,11 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
 fi
 
 # shellcheck source=solos.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
 # shellcheck source=solos.utils.sh
-. "__shared__/static.sh"
-# shellcheck source=__shared__/static.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
+# shellcheck source=shared/static.sh
+. "shared/empty.sh"
 #
 # Lib only vars - must always begin with LIB_*
 #
@@ -36,7 +36,7 @@ sync-config              - Sync the \`.solos\` config folder to the remote serve
 backup                   - Archive a SolOS project and upload it to an s3 bucket.
 restore                  - Restore a SolOS project from an s3 bucket.
 code                     - Open the VSCode workspaces associated with the installation.
-prechecks                - (for dev) Run prechecks to verify any assumptions made by the solos script.
+precheck                 - (for dev) Run some prechecks to verify any assumptions made by the solos script.
 tests                    - (for dev) Generates unit tests for each solos.* library.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
@@ -164,9 +164,9 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
                       the latest backup.
 EOF
 }
-flags.command.prechecks.help() {
+flags.command.precheck.help() {
   cat <<EOF
-Usage: solos prechecks [--OPTS...]
+Usage: solos precheck [--OPTS...]
 
 Performs as many checks as possible on the solos runtime to ensure it will work
 as expected.

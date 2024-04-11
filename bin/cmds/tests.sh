@@ -1,23 +1,25 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2103,SC2164
+
 set -o errexit
 set -o pipefail
 set -o errtrace
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
-cd ..
-
+if [ "$(basename "$(pwd)")" != "bin" ]; then
+  cd "$(dirname "${BASH_SOURCE[0]}")"
+  cd ..
+fi
 if [ "$(basename "$(pwd)")" != "bin" ]; then
   echo "error: must be run from the bin folder"
   exit 1
 fi
 
-# shellcheck source=../__shared__/static.sh
-source __shared__/static.sh
-# shellcheck source=../__shared__/log.sh
-source __shared__/log.sh
+# shellcheck source=../shared/static.sh
+. shared/static.sh
+# shellcheck source=../shared/log.sh
+. shared/log.sh
 
-log.ready "tests" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
+log.ready "cmd_tests" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 
 LIB_TEST_FILE_OPENING_LINES=()
 LIB_FAILED=()
@@ -28,6 +30,10 @@ tests._update_beginning_file_lines() {
   LIB_TEST_FILE_OPENING_LINES=(
     "#!/usr/bin/env bash"
     ""
+    "set -o errexit"
+    "set -o pipefail"
+    "set -o errtrace"
+    ""
     "if [ \"\$(basename \"\$(pwd)\")\" != \"bin\" ]; then"
     "  echo \"error: must be run from the bin folder\""
     "  exit 1"
@@ -36,36 +42,36 @@ tests._update_beginning_file_lines() {
     " # shellcheck source=../${lib_file}"
     "source \"${lib_file}\""
     ""
-    "testhook.before_file() {"
-    "  log.info \"testhook.before_file\""
+    "__hook__.before_file() {"
+    "  log.info \"__hook__.before_file\""
     "}"
     ""
-    "testhook.after_file() {"
-    "  log.info \"running testhook.after_file\""
+    "__hook__.after_file() {"
+    "  log.info \"running __hook__.after_file\""
     "}"
     ""
-    "testhook.before_fn() {"
-    "  log.info \"running testhook.before_fn\""
+    "__hook__.before_fn() {"
+    "  log.info \"running __hook__.before_fn \$1\""
     "}"
     ""
-    "testhook.after_fn() {"
-    "  log.info \"running testhook.after_fn\""
+    "__hook__.after_fn() {"
+    "  log.info \"running __hook__.after_fn \$1\""
     "}"
     ""
-    "testhook.after_fn_success() {"
-    "  log.info \"testhook.after_fn_success\""
+    "__hook__.after_fn_success() {"
+    "  log.info \"__hook__.after_fn_success \$1\""
     "}"
     ""
-    "testhook.after_fn_fails() {"
-    "  log.info \"testhook.after_fn_fails\""
+    "__hook__.after_fn_fails() {"
+    "  log.info \"__hook__.after_fn_fails \$1\""
     "}"
     ""
-    "testhook.after_file_success() {"
-    "  log.info \"testhook.after_file_success\""
+    "__hook__.after_file_success() {"
+    "  log.info \"__hook__.after_file_success\""
     "}"
     ""
-    "testhook.after_file_fails() {"
-    "  log.info \"testhook.after_file_fails\""
+    "__hook__.after_file_fails() {"
+    "  log.info \"__hook__.after_file_fails\""
     "}"
     ""
   )
@@ -207,37 +213,6 @@ tests.unit.tests_add_missing_function_coverage() {
   done
 }
 
-tests.unit.get_stale_test_functions() {
-  local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}.sh"
-  if [ ! -f "${lib_file}" ]; then
-    log.error "file not found: $1"
-    exit 1
-  fi
-  local test_dir="__tests__"
-  local target_test_file="__test__.${lib_file}"
-  local target_test_file_path="${test_dir}/${target_test_file}"
-  if [ ! -f "${target_test_file_path}" ]; then
-    log.error "test file not found: ${target_test_file_path}"
-    return
-  fi
-
-  local defined_functions="$(tests._grep_lib_defined_functions "${lib_file}" "${lib_unit_name}")"
-  local test_functions="$(tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
-  local missing_functions=()
-  for test_function in $test_functions; do
-    if ! echo "$defined_functions" | grep -q "^${test_function}$"; then
-      missing_functions+=("$test_function")
-    fi
-  done
-  if [ ${#missing_functions[@]} -eq 0 ]; then
-    return
-  fi
-  for missing_function in "${missing_functions[@]}"; do
-    echo "${missing_function}"
-  done
-}
-
 tests.unit.get_undefined_test_variables() {
   local lib_unit_name="$1"
   local lib_file="solos.${lib_unit_name}.sh"
@@ -263,32 +238,7 @@ tests.unit.get_undefined_test_variables() {
   echo "${missing_variables[*]}"
 }
 
-tests.unit.get_stale_test_variables() {
-  local lib_unit_name="$1"
-  local lib_file="solos.${lib_unit_name}.sh"
-  local test_lib_file="__tests__/__test__.${lib_file}"
-  if [ ! -f "${lib_file}" ]; then
-    log.error "file not found: $1"
-    exit 1
-  fi
-  if [ ! -f "${test_lib_file}" ]; then
-    return
-  fi
-  local defined_test_variables="$(tests._grep_lib_defined_variables "${test_lib_file}")"
-  local used_lib_variables="$(tests._grep_lib_used_variables "${lib_file}")"
-  local stale_variables=()
-  for defined_variable in $defined_test_variables; do
-    if ! echo "$used_lib_variables" | grep -q "^${defined_variable}$"; then
-      stale_variables+=("$defined_variable")
-    fi
-  done
-  if [ ${#stale_variables[@]} -eq 0 ]; then
-    return
-  fi
-  echo "${stale_variables[*]}"
-}
-
-tests.step.verify_test_source_exists() {
+tests.step.verify_source_existence() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
@@ -331,7 +281,7 @@ tests.step.verify_function_coverage() {
   done
 }
 
-tests.step.verify_variable_coverage() {
+tests.step.verify_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
@@ -412,12 +362,13 @@ tests.cover() {
 
 tests.verify() {
   tests.step.verify_function_coverage
-  tests.step.verify_variable_coverage
-  tests.step.verify_test_source_exists
+  tests.step.verify_variables
+  tests.step.verify_source_existence
 }
 
 tests.run.unit() {
   local lib_unit_name="$1"
+  shift
   local lib_file="solos.${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: ${lib_file}"
@@ -428,37 +379,50 @@ tests.run.unit() {
     log.error "test file not found: $1"
     exit 1
   fi
+  local functions_to_test
   local defined_functions="$(tests._grep_test_defined_functions "${lib_unit_name}" "${lib_test_file}")"
+  local supplied_functions=("$@")
+  if [ ${#supplied_functions[@]} -gt 0 ]; then
+    for supplied_function in "${supplied_functions[@]}"; do
+      if ! echo "$defined_functions" | grep -q "^${supplied_function}$"; then
+        log.error "function not found: ${supplied_function}"
+        exit 1
+      fi
+    done
+    functions_to_test="${supplied_functions[*]}"
+  else
+    functions_to_test="${defined_functions[*]}"
+  fi
   chmod +x "$lib_test_file"
   # shellcheck disable=SC1090
   source "$lib_test_file"
-  testhook.before_file
+  __hook__.before_file
   local something_failed=false
-  for defined_function in ${defined_functions}; do
-    local test_function="__test__.${defined_function}"
+  for function_to_test in ${functions_to_test}; do
+    local test_function="__test__.${function_to_test}"
     if ! type "${test_function}" &>/dev/null; then
       log.error "test function not found: ${test_function}"
       exit 1
     fi
-    testhook.before_fn
+    __hook__.before_fn "${function_to_test}"
     if ! "${test_function}"; then
-      log.error "failed: ${defined_function}"
+      log.error "failed: ${function_to_test}"
       something_failed=true
-      testhook.after_fn_fails
-      LIB_FAILED+=("${defined_function}")
+      __hook__.after_fn_fails "${function_to_test}"
+      LIB_FAILED+=("${function_to_test}")
     else
-      log.success "passed: ${defined_function}"
-      testhook.after_fn_success
-      LIB_PASSED+=("${defined_function}")
+      log.success "passed: ${function_to_test}"
+      __hook__.after_fn_success "${function_to_test}"
+      LIB_PASSED+=("${function_to_test}")
     fi
-    testhook.after_fn
+    __hook__.after_fn "${function_to_test}"
   done
   if [ "${something_failed}" == "true" ]; then
-    testhook.after_file_fails
+    __hook__.after_file_fails
   else
-    testhook.after_file_success
+    __hook__.after_file_success
   fi
-  testhook.after_file
+  __hook__.after_file
 }
 
 tests.run() {
@@ -469,6 +433,7 @@ tests.run() {
     done < <(find . -maxdepth 1 -type f -name 'solos.*.sh' -print0)
   else
     local lib_unit_name="$1"
+    shift
     local lib_test_file="$PWD/__tests__/__test__.solos.${lib_unit_name}.sh"
     if [ ! -f "${lib_test_file}" ]; then
       log.error "test file not found: $1"
@@ -481,7 +446,7 @@ tests.run() {
   tests.verify
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(tests._extract_clean_lib_name_from_source "$lib_file")"
-    tests.run.unit "${lib_unit_name}"
+    tests.run.unit "${lib_unit_name}" "$@"
   done
   if [ ${#LIB_FAILED[@]} -gt 0 ]; then
     for failed in "${LIB_FAILED[@]}"; do

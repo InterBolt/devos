@@ -77,8 +77,8 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
   exit 1
 fi
 
-# shellcheck source=__shared__/static.sh
-. "__shared__/static.sh"
+# shellcheck source=shared/static.sh
+. "shared/empty.sh"
 
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
@@ -159,8 +159,8 @@ vENV_SOLOS_ID=""
 # That means we need to provide any context via it's log.ready
 # function.
 #
-# shellcheck source=__shared__/log.sh
-. "__shared__/log.sh"
+# shellcheck source=shared/log.sh
+. "shared/log.sh"
 #
 # The log must be initialized before other dependent libs are sourced.
 #
@@ -182,8 +182,6 @@ log.ready "cli" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 . "solos.vultr.sh"
 # shellcheck source=solos.validate.sh
 . "solos.validate.sh"
-# shellcheck source=solos.precheck.sh
-. "solos.precheck.sh"
 # shellcheck source=solos.environment.sh
 . "solos.environment.sh"
 #
@@ -430,19 +428,6 @@ solos.require_completed_launch_status() {
     exit 1
   fi
 }
-solos.warn_with_delay() {
-  local message="$1"
-  if [ -z "$message" ]; then
-    log.error "message must not be empty. Exiting."
-    exit 1
-  fi
-  log.warn "$message in 5 seconds."
-  sleep 3
-  log.warn "$message in 2 seconds."
-  sleep 2
-  log.warn "$message here we go..."
-  sleep 1
-}
 # --------------------------------------------------------------------------------------------
 #
 # COMMAND ENTRY FUNCTIONS
@@ -495,7 +480,7 @@ cmd.launch() {
     # doesn't contain any file/files specific to a solos project.
     #
     validate.throw_on_nonsolos
-    solos.warn_with_delay "DANGER: about to \`rm -rf ${vCLI_OPT_DIR}\`"
+    utils.warn_with_delay "DANGER: about to \`rm -rf ${vCLI_OPT_DIR}\`"
     rm -rf "$vCLI_OPT_DIR"
     log.warn "wiped and created empty dir: $vCLI_OPT_DIR"
   fi
@@ -782,7 +767,7 @@ cmd.launch() {
   # delete the cache entry so this never happens twice.
   #
   if [ -n "${ip_to_deprovision}" ]; then
-    solos.warn_with_delay "DANGER: destroying instance: ${ip_to_deprovision}"
+    utils.warn_with_delay "DANGER: destroying instance: ${ip_to_deprovision}"
     vultr.compute.get_instance_id_from_ip "${ip_to_deprovision}"
     local instance_id_to_deprovision="${vPREV_RETURN[0]}"
     if [ "${instance_id_to_deprovision}" == "null" ]; then
@@ -808,7 +793,7 @@ cmd.sync_config() {
   #
   solos.require_completed_launch_status
   cmd.checkout
-  solos.warn_with_delay "overwriting the remote config folder: ${vSTATIC_DEBIAN_CONFIG_ROOT}"
+  utils.warn_with_delay "overwriting the remote config folder: ${vSTATIC_DEBIAN_CONFIG_ROOT}"
   local tmp_dir="/root/.tmp"
   local tmp_remote_config_dir="${tmp_dir}/${vSTATIC_CONFIG_DIRNAME}"
   #
@@ -871,11 +856,11 @@ cmd.status() {
   #
   log.info "TODO: implementation needed"
 }
-cmd.prechecks() {
+cmd.precheck() {
   cmd.checkout
 
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
-    precheck.all
+    . cmds/precheck.sh
   else
     log.error "this command can only be run from within a git repo."
     exit 1
@@ -884,9 +869,9 @@ cmd.prechecks() {
 cmd.tests() {
   if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
     if [ -z "$vCLI_OPT_LIB" ]; then
-      __cmds__/tests.sh
+      . cmds/tests.sh
     else
-      __cmds__/tests.sh "$vCLI_OPT_LIB"
+      . cmds/tests.sh "$vCLI_OPT_LIB"
     fi
   else
     log.error "this command can only be run from within a git repo."
@@ -919,7 +904,7 @@ fi
 # We're only allowed to clear cache files associated with a particular named installation.
 #
 if [ "$vCLI_OPT_CLEAR_CACHE" == "true" ]; then
-  solos.warn_with_delay "DANGER: clearing cache files associated with: ${vCLI_OPT_DIR}"
+  utils.warn_with_delay "DANGER: clearing cache files associated with: ${vCLI_OPT_DIR}"
   cache.clear
 fi
 #

@@ -6,11 +6,11 @@ if [ "$(basename "$(pwd)")" != "bin" ]; then
 fi
 
 # shellcheck source=solos.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
 # shellcheck source=solos.utils.sh
-. "__shared__/static.sh"
-# shellcheck source=__shared__/static.sh
-. "__shared__/static.sh"
+. "shared/empty.sh"
+# shellcheck source=shared/static.sh
+. "shared/empty.sh"
 
 LIB_CACHE_DIR=".cache"
 
