@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+export vMODE="${MODE:-"production"}"
 export vSTATIC_HOST=""
 if [ "$(uname)" == "Darwin" ]; then
   export vSTATIC_HOST="local"
@@ -29,7 +30,7 @@ export vSTATIC_DEPENDENCY_COMMANDS=(
   "docker"
   "aws"
 )
-export vSTATIC_DEBIAN_ROOT="/root"
+export vSTATIC_SERVER_ROOT="/root"
 #
 # Important: don't get fancy and rename the config on the remote.
 # It sucks to see .solos and solos both in the vscode file directory
@@ -39,8 +40,8 @@ export vSTATIC_DEBIAN_ROOT="/root"
 #
 export vSTATIC_CONFIG_DIRNAME=".solos"
 export vSTATIC_MY_CONFIG_ROOT="$HOME/${vSTATIC_CONFIG_DIRNAME}"
-export vSTATIC_DEBIAN_CONFIG_ROOT="${vSTATIC_DEBIAN_ROOT}/${vSTATIC_CONFIG_DIRNAME}"
-export vSTATIC_DEBIAN_CLONE_DIR="${vSTATIC_DEBIAN_ROOT}/solos"
+export vSTATIC_SERVER_CONFIG_ROOT="${vSTATIC_SERVER_ROOT}/${vSTATIC_CONFIG_DIRNAME}"
+export vSTATIC_SERVER_CLONE_DIR="${vSTATIC_SERVER_ROOT}/solos"
 export vSTATIC_MANUAL_FILENAME="manual.txt"
 export vSTATIC_SSH_CONF_DOCKER_HOSTNAME="solos-dev"
 export vSTATIC_SSH_CONF_REMOTE_HOSTNAME="solos-remote"
@@ -67,8 +68,8 @@ export vSTATIC_TEMPLATE_BOOTFILES=(
 export vSTATIC_ENV_FILENAME=".env"
 export vSTATIC_ENV_SH_FILENAME=".env.sh"
 export vSTATIC_LOGS_DIRNAME=".logs"
-export vSTATIC_SSH_RSA_KEYNAME="solos.rsa"
-export vSTATIC_SSH_PUB_KEYNAME="solos.pub"
+export vSTATIC_SSH_RSA_KEYNAME="lib.rsa"
+export vSTATIC_SSH_PUB_KEYNAME="lib.pub"
 export vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME="authorized_keys"
 export vSTATIC_SSH_CONFIG_FILENAME="solos_config"
 export vSTATIC_DB_ONE_CLICK_TEMPLATE_FILENAME=".secret.database.json"

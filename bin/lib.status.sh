@@ -7,14 +7,14 @@ fi
 
 # shellcheck source=solos.sh
 . "shared/empty.sh"
-# shellcheck source=solos.utils.sh
+# shellcheck source=lib.utils.sh
 . "shared/empty.sh"
 # shellcheck source=shared/static.sh
 . "shared/empty.sh"
 
 LIB_STATUS_DIR=".status"
 
-status.get() {
+lib.status.get() {
   local status="$1"
   if [ -z "${status}" ]; then
     log.error "must supply a non-empty status type. Exiting."
@@ -32,7 +32,7 @@ status.get() {
     echo ""
   fi
 }
-status.set() {
+lib.status.set() {
   local status="$1"
   if [ -z "$status" ]; then
     log.error "must supply a non-empty status type. Exiting."
@@ -48,7 +48,7 @@ status.set() {
   local contents="${2:-"0"}"
   echo "$contents" >"${status_file}"
 }
-status.clear() {
+lib.status.clear() {
   local status="$1"
   if [ -z "${status}" ]; then
     log.error "must supply a non-empty status type. Exiting."

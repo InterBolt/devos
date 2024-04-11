@@ -7,12 +7,12 @@ fi
 
 # shellcheck source=solos.sh
 . "shared/empty.sh"
-# shellcheck source=solos.utils.sh
+# shellcheck source=lib.utils.sh
 . "shared/empty.sh"
 # shellcheck source=shared/static.sh
 . "shared/empty.sh"
 
-environment.generate_env_files() {
+lib.env.generate_files() {
   local tmp_dir="$(mktemp -d 2>/dev/null)"
   local env_vars=$(grep -Eo 'vENV_[A-Z0-9_]{2,}' "$vENTRY_BIN_FILEPATH")
   for env_var in $env_vars; do

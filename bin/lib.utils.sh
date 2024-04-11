@@ -7,24 +7,24 @@ fi
 
 # shellcheck source=solos.sh
 . "shared/empty.sh"
-# shellcheck source=solos.utils.sh
+# shellcheck source=lib.utils.sh
 . "shared/empty.sh"
 # shellcheck source=shared/static.sh
 . "shared/empty.sh"
 
-utils.echo_line() {
+lib.utils.echo_line() {
   terminal_width=$(tput cols)
   line=$(printf "%${terminal_width}s" | tr " " "-")
   echo "$line"
 }
-utils.exit_trap() {
+lib.utils.exit_trap() {
   local code=$?
   if [ $code -eq 1 ]; then
     exit 1
   fi
   exit $code
 }
-utils.generate_secret() {
+lib.utils.generate_secret() {
   openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
 }
 #
@@ -34,17 +34,17 @@ utils.generate_secret() {
 # If the behavior is set to "commit", it will replace the variables in the file.
 # If the behavior is set to "dry", it will only check if the variables are set.
 #
-utils.template_variables() {
+lib.utils.template_variables() {
   local dir_or_file="$1"
   local behavior="$2"
   local empty_behavior="{$3:-fail_on_empty}"
   local eligible_files=()
   if [ -z "$behavior" ]; then
-    log.error "utils.template_variables: behavior cannot be empty"
+    log.error "lib.utils.template_variables: behavior cannot be empty"
     exit 1
   fi
   if [ "$behavior" != "dry" ] && [ "$behavior" != "commit" ]; then
-    log.error "utils.template_variables: \$2 must equal either \"dry\" or \"commit\""
+    log.error "lib.utils.template_variables: \$2 must equal either \"dry\" or \"commit\""
     exit 1
   fi
   #
@@ -54,7 +54,7 @@ utils.template_variables() {
   if [ -d "$dir_or_file" ]; then
     for file in "$dir_or_file"/*; do
       if [ -d "$file" ]; then
-        utils.template_variables "$file" "$2"
+        lib.utils.template_variables "$file" "$2"
       fi
       if [ -f "$file" ]; then
         eligible_files+=("$file")
@@ -103,13 +103,13 @@ utils.template_variables() {
     exit 1
   fi
 }
-utils.date() {
+lib.utils.date() {
   date +"%Y-%m-%d %H:%M:%S"
 }
-utils.grep_global_vars() {
+lib.utils.grep_global_vars() {
   grep -Eo 'v[A-Z0-9_]{2,}' "$1" | grep -v "#" || echo ""
 }
-utils.files_match_dir() {
+lib.utils.files_match_dir() {
   local dir_to_match="$1"
   if [ ! -d "$dir_to_match" ]; then
     log.error "directory does not exist: $dir_to_match"
@@ -139,7 +139,7 @@ utils.files_match_dir() {
     fi
   done
 }
-utils.curl() {
+lib.utils.curl() {
   vPREV_CURL_ERR_STATUS_CODE=""
   vPREV_CURL_ERR_MESSAGE=""
   vPREV_CURL_RESPONSE=$(
@@ -154,7 +154,7 @@ utils.curl() {
   vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"$vPREV_CURL_RESPONSE")"
 }
 # shellcheck disable=SC2120
-utils.curl.allows_error_status_codes() {
+lib.utils.curl.allows_error_status_codes() {
   #
   # The benefit of forcing the caller to "say" their intention rather
   # than just leaving the arg list empty is purely for readability.
@@ -191,7 +191,7 @@ utils.curl.allows_error_status_codes() {
     log.debug "with error message: $vPREV_CURL_ERR_MESSAGE"
   fi
 }
-utils.warn_with_delay() {
+lib.utils.warn_with_delay() {
   local message="$1"
   if [ -z "$message" ]; then
     log.error "message must not be empty. Exiting."

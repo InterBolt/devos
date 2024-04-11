@@ -7,24 +7,24 @@ fi
 
 # shellcheck source=solos.sh
 . "shared/empty.sh"
-# shellcheck source=solos.utils.sh
+# shellcheck source=lib.utils.sh
 . "shared/empty.sh"
 # shellcheck source=shared/static.sh
 . "shared/empty.sh"
 
 LIB_CACHE_DIR=".cache"
 
-cache.del() {
+lib.cache.del() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   rm -f "$tmp_filepath"
 }
-cache.clear() {
+lib.cache.clear() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   # shellcheck disable=SC2115
   rm -rf "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
 }
-cache.get() {
+lib.cache.get() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   if [ -f "$tmp_filepath" ]; then
@@ -33,7 +33,7 @@ cache.get() {
     echo ""
   fi
 }
-cache.set() {
+lib.cache.set() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local tmp_filepath="$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR/$1"
   if [ ! -f "$tmp_filepath" ]; then
@@ -41,10 +41,10 @@ cache.set() {
   fi
   echo "$2" >"$tmp_filepath"
 }
-cache.prompt() {
+lib.cache.prompt() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local input
-  input="$(cache.get "$1")"
+  input="$(lib.cache.get "$1")"
   if [ -z "$input" ]; then
     echo -n "Enter the $1:"
     read -r input
@@ -52,17 +52,17 @@ cache.prompt() {
       log.error "the $1 cannot be empty. Exiting."
       exit 1
     fi
-    cache.set "$1" "$input"
+    lib.cache.set "$1" "$input"
   fi
-  cache.get "$1"
+  lib.cache.get "$1"
 }
-cache.overwrite_on_empty() {
+lib.cache.overwrite_on_empty() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT/$LIB_CACHE_DIR"
   local cached_val
-  cached_val="$(cache.get "$1")"
+  cached_val="$(lib.cache.get "$1")"
   local next_val="$2"
   if [ -z "$cached_val" ]; then
-    cache.set "$1" "$next_val"
+    lib.cache.set "$1" "$next_val"
   fi
-  cache.get "$1"
+  lib.cache.get "$1"
 }

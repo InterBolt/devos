@@ -1,30 +1,9 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2103,SC2164
-set -o errexit
-set -o pipefail
-set -o errtrace
 
-if [ "$(basename "$(pwd)")" != "bin" ]; then
-  cd "$(dirname "${BASH_SOURCE[0]}")"
-  cd ..
-fi
-if [ "$(basename "$(pwd)")" != "bin" ]; then
-  echo "error: must be run from the bin folder"
-  exit 1
-fi
+# shellcheck source=../shared/solos_base.sh
+. shared/solos_base.sh
 
-# shellcheck source=../solos.sh
-. shared/empty.sh
-# shellcheck source=../solos.utils.sh
-. solos.utils.sh
-# shellcheck source=../shared/static.sh
-. shared/static.sh
-# shellcheck source=../shared/log.sh
-. shared/log.sh
-
-log.ready "cmd_precheck" "${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}"
-
-precheck.variables() {
+subcmd.precheck.variables() {
   local entry_pwd="$PWD"
   cd "$vENTRY_BIN_DIR"
   local errored=false
@@ -35,7 +14,7 @@ precheck.variables() {
   #
   files=$(find . -type f -name "solos*")
   for file in $files; do
-    local global_vars=$(utils.grep_global_vars "$file")
+    local global_vars=$(lib.utils.grep_global_vars "$file")
     for global_var in $global_vars; do
       local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
       if [ "$result" == "unset" ]; then
@@ -51,14 +30,14 @@ precheck.variables() {
   log.info "test passed: all referenced global variables are defined."
 }
 
-precheck.launchfiles() {
+subcmd.precheck.launchfiles() {
   local entry_pwd="$PWD"
   cd "${vSTATIC_RUNNING_REPO_ROOT}"
   #
   # Check that all the variables we use in the bin's .launch dir are defined
   # in solos' global variables.
   #
-  utils.template_variables "${vSTATIC_BIN_LAUNCH_DIR}" "dry" "allow_empty"
+  lib.utils.template_variables "${vSTATIC_BIN_LAUNCH_DIR}" "dry" "allow_empty"
   cd "$entry_pwd"
   log.info "test passed: launchfiles are valid and match global variables."
   #
@@ -85,9 +64,14 @@ precheck.launchfiles() {
   done
 }
 
-precheck.run() {
-  precheck.variables
-  precheck.launchfiles
+cmd.precheck() {
+  if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
+    subcmd.precheck.variables
+    subcmd.precheck.launchfiles
+  else
+    log.error "this command can only be run from within a git repo."
+    exit 1
+  fi
 }
 
-precheck.run
+cmd.precheck

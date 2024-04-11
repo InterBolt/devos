@@ -7,7 +7,7 @@ fi
 
 # shellcheck source=solos.sh
 . "shared/empty.sh"
-# shellcheck source=solos.utils.sh
+# shellcheck source=lib.utils.sh
 . "shared/empty.sh"
 # shellcheck source=shared/static.sh
 . "shared/empty.sh"
@@ -15,7 +15,7 @@ fi
 #
 # VULTR FUNCTIONS
 #
-vultr.compute.instance_contains_tag() {
+lib.vultr.compute.instance_contains_tag() {
   vPREV_RETURN=()
   #
   # This function is useful for checking if an instance has the matching
@@ -25,10 +25,10 @@ vultr.compute.instance_contains_tag() {
   local instance_id="$2"
   local tags
   local found=false
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   tags=$(jq -r '.instance.tags' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!tags[@]}"; do
     if [ "${tags[$i]}" == "${tag}" ]; then
@@ -38,20 +38,20 @@ vultr.compute.instance_contains_tag() {
   vPREV_RETURN=("$found")
   echo "$found"
 }
-vultr.compute.destroy_instance() {
+lib.vultr.compute.destroy_instance() {
   vPREV_RETURN=()
 
   local instance_id="$1"
   if [ -z "${instance_id}" ]; then
-    log.error "you supplied an empty instance id as the first argument to vultr.compute.destroy_instance"
+    log.error "you supplied an empty instance id as the first argument to lib.vultr.compute.destroy_instance"
     exit 1
   fi
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/$instance_id" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/$instance_id" \
     -X DELETE \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
 }
-vultr.compute.create_instance() {
+lib.vultr.compute.create_instance() {
   vPREV_RETURN=()
 
   local plan="$1"
@@ -63,7 +63,7 @@ vultr.compute.create_instance() {
   # and return the ip and instance id seperated by a space.
   # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
   #
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances" \
     -X POST \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -81,24 +81,24 @@ vultr.compute.create_instance() {
         "'"${sshkey_id}"'"
       ]
     }'
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   local ip="$(jq -r '.instance.main_ip' <<<"$vPREV_CURL_RESPONSE")"
   local instance_id="$(jq -r '.instance.id' <<<"$vPREV_CURL_RESPONSE")"
   vPREV_RETURN=("$ip" "$instance_id")
   echo "$ip $instance_id"
 }
-vultr.compute.get_instance_id_from_ip() {
+lib.vultr.compute.get_instance_id_from_ip() {
   vPREV_RETURN=()
 
   local ip="$1"
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances?main_ip=${ip}" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances?main_ip=${ip}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   local instance_id="$(jq -r '.instances[0].id' <<<"$vPREV_CURL_RESPONSE")"
   vPREV_RETURN=("$instance_id")
 }
-vultr.compute.find_existing_sshkey_id() {
+lib.vultr.compute.find_existing_sshkey_id() {
   vPREV_RETURN=()
 
   local found_ssh_keys
@@ -113,10 +113,10 @@ vultr.compute.find_existing_sshkey_id() {
   # If so, we echo the ssh key id and exit. We'll echo an empty
   # string if the key doesn't exist.
   #
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$vPREV_CURL_RESPONSE")
   found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$vPREV_CURL_RESPONSE")
   found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"$vPREV_CURL_RESPONSE")
@@ -124,7 +124,7 @@ vultr.compute.find_existing_sshkey_id() {
     if [ "solos" == "${found_ssh_key_names[$i]}" ]; then
       matching_ssh_key_name_found=true
     fi
-    if [ "$(ssh.cat_pubkey.self)" == "${found_ssh_keys[$i]}" ]; then
+    if [ "$(lib.ssh.cat_pubkey.self)" == "${found_ssh_keys[$i]}" ]; then
       matching_ssh_key_found=true
     fi
     if [ "$matching_ssh_key_found" == true ] && [ "$matching_ssh_key_name_found" == true ]; then
@@ -161,7 +161,7 @@ vultr.compute.find_existing_sshkey_id() {
     echo ""
   fi
 }
-vultr.compute.wait_for_ready_instance() {
+lib.vultr.compute.wait_for_ready_instance() {
   vPREV_RETURN=()
 
   local instance_id="$1"
@@ -174,10 +174,10 @@ vultr.compute.wait_for_ready_instance() {
       exit 1
     fi
     log.warn "pinging the instance: ${instance_id} to check if it has reached the expected server status: ${expected_status}"
-    utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
+    lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
       -X GET \
       -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-    utils.curl.allows_error_status_codes "none"
+    lib.utils.curl.allows_error_status_codes "none"
     local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL_RESPONSE")"
     local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL_RESPONSE")"
     if [ "$queried_server_status" == "${expected_server_status}" ] && [ "$queried_status" == "${expected_status}" ]; then
@@ -189,7 +189,7 @@ vultr.compute.wait_for_ready_instance() {
   done
   log.info "instance: ${instance_id} has reached the expected server status: ${expected_server_status} and status: ${expected_status}"
 }
-vultr.compute.provision() {
+lib.vultr.compute.provision() {
   vPREV_RETURN=()
 
   local prev_ip="$1"
@@ -201,17 +201,17 @@ vultr.compute.provision() {
   # we need to ask, "is this keypair on vultr?".
   # If it's not, we must create it.
   #
-  local found_valid_sshkey_id="$(vultr.compute.find_existing_sshkey_id)"
+  local found_valid_sshkey_id="$(lib.vultr.compute.find_existing_sshkey_id)"
   if [ -z "${found_valid_sshkey_id}" ]; then
-    utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
+    lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
       -X POST \
       -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
       -H "Content-Type: application/json" \
       --data '{
           "name" : "solos",
-          "ssh_key" : "'"$(ssh.cat_pubkey.self)"'"
+          "ssh_key" : "'"$(lib.ssh.cat_pubkey.self)"'"
         }'
-    utils.curl.allows_error_status_codes "none"
+    lib.utils.curl.allows_error_status_codes "none"
     created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$vPREV_CURL_RESPONSE")"
   else
     created_sshkey_id="${found_valid_sshkey_id}"
@@ -227,20 +227,20 @@ vultr.compute.provision() {
   # Otherwise, we can skip the provisioning process and move on to the next cmd.
   #
   if [ -z "${prev_ip}" ]; then
-    vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
+    lib.vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
     next_ip="${vPREV_RETURN[0]}"
     instance_id="${vPREV_RETURN[1]}"
     log.info "waiting for the instance with id:${instance_id} and ip:${vENV_IP} to be ready."
-    vultr.compute.wait_for_ready_instance "$instance_id"
+    lib.vultr.compute.wait_for_ready_instance "$instance_id"
   else
-    vultr.compute.get_instance_id_from_ip "${prev_ip}"
+    lib.vultr.compute.get_instance_id_from_ip "${prev_ip}"
     instance_id="${vPREV_RETURN[0]}"
     if [ -z "${instance_id}" ]; then
       log.error "no instance found with the ip: ${prev_ip}. you might need to do a hard reset."
       exit 1
     fi
     log.info "looking for a tag that tells us if the instance has a matching ssh key."
-    ssh_tag_exists="$(vultr.compute.instance_contains_tag "ssh_${created_sshkey_id}" "$instance_id")"
+    ssh_tag_exists="$(lib.vultr.compute.instance_contains_tag "ssh_${created_sshkey_id}" "$instance_id")"
     if [ "${ssh_tag_exists}" == "true" ]; then
       log.info "found matching instance tag: ssh_${created_sshkey_id}"
       log.info "nothing to do. the instance is already provisioned."
@@ -249,13 +249,13 @@ vultr.compute.provision() {
       log.warn "warning: waiting 5 seconds to begin the re-installation process."
       sleep 5
       log.info "deleting instance: ${instance_id}"
-      vultr.compute.destroy_instance "$instance_id"
+      lib.vultr.compute.destroy_instance "$instance_id"
       log.info "creating instance with settings: ${vSTATIC_VULTR_INSTANCE_DEFAULTS[*]}"
-      vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
+      lib.vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
       next_ip="${vPREV_RETURN[0]}"
       instance_id="${vPREV_RETURN[1]}"
       log.info "waiting for the instance with id:${instance_id} and ip:${vENV_IP} to be ready."
-      vultr.compute.wait_for_ready_instance "$instance_id"
+      lib.vultr.compute.wait_for_ready_instance "$instance_id"
     fi
   fi
   if [ -z "${next_ip}" ]; then
@@ -264,7 +264,7 @@ vultr.compute.provision() {
   fi
   vPREV_RETURN=("$next_ip")
 }
-vultr.s3.bucket_exists() {
+lib.vultr.s3.bucket_exists() {
   vPREV_RETURN=()
 
   local bucket="$1"
@@ -292,21 +292,21 @@ vultr.s3.bucket_exists() {
   vPREV_RETURN=("$exists")
   echo "$exists"
 }
-vultr.s3.create_bucket() {
+lib.vultr.s3.create_bucket() {
   vPREV_RETURN=()
 
   local bucket="$1"
   aws --region "us-east-1" s3 mb s3://"$bucket" >/dev/null
 }
-vultr.s3.get_object_storage_id() {
+lib.vultr.s3.get_object_storage_id() {
   vPREV_RETURN=()
 
   local label="$1"
   local object_storage_id=""
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL_RESPONSE")
   local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!object_storage_labels[@]}"; do
@@ -318,14 +318,14 @@ vultr.s3.get_object_storage_id() {
   vPREV_RETURN=("$object_storage_id")
   echo "$object_storage_id"
 }
-vultr.s3.get_ewr_cluster_id() {
+lib.vultr.s3.get_ewr_cluster_id() {
   vPREV_RETURN=()
 
   local cluster_id=""
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/clusters" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/clusters" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL_RESPONSE")
   local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL_RESPONSE")
   for i in "${!cluster_regions[@]}"; do
@@ -337,12 +337,12 @@ vultr.s3.get_ewr_cluster_id() {
   vPREV_RETURN=("$cluster_id")
   echo "$cluster_id"
 }
-vultr.s3.create_storage() {
+lib.vultr.s3.create_storage() {
   vPREV_RETURN=()
 
   local cluster_id="$1"
   local label="$2"
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
     -X POST \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -350,30 +350,30 @@ vultr.s3.create_storage() {
         "label" : "'"${label}"'",
         "cluster_id" : '"${cluster_id}"'
       }'
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   local object_storage_id=$(jq -r '.object_storage.id' <<<"$vPREV_CURL_RESPONSE")
   vPREV_RETURN=("$object_storage_id")
   echo "$object_storage_id"
 }
-vultr.s3.provision() {
+lib.vultr.s3.provision() {
   vPREV_RETURN=()
 
   local object_storage_id=""
   local label="solos"
-  object_storage_id="$(vultr.s3.get_object_storage_id "${label}")"
+  object_storage_id="$(lib.vultr.s3.get_object_storage_id "${label}")"
   if [ -z "${object_storage_id}" ]; then
     log.info "no object storage found with the label: ${label}. creating a new one."
-    local cluster_id="$(vultr.s3.get_ewr_cluster_id)"
+    local cluster_id="$(lib.vultr.s3.get_ewr_cluster_id)"
     log.info "using the ewr cluster id: ${cluster_id}"
-    object_storage_id="$(vultr.s3.create_storage "${cluster_id}" "${label}")"
+    object_storage_id="$(lib.vultr.s3.create_storage "${cluster_id}" "${label}")"
     log.info "created object storage with the id: ${object_storage_id}"
   else
     log.info "found object storage with the label: ${label} and id: ${object_storage_id}"
   fi
-  utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/$object_storage_id" \
+  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/$object_storage_id" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
-  utils.curl.allows_error_status_codes "none"
+  lib.utils.curl.allows_error_status_codes "none"
   vENV_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
   log.debug "set \$vENV_S3_HOST= $vENV_S3_HOST"
   vENV_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"
@@ -387,9 +387,9 @@ vultr.s3.provision() {
   export AWS_SECRET_ACCESS_KEY=$vENV_S3_SECRET
   export AWS_ENDPOINT_URL="https://$vENV_S3_HOST"
 
-  local bucket_exists="$(vultr.s3.bucket_exists "postgres")"
+  local bucket_exists="$(lib.vultr.s3.bucket_exists "postgres")"
   if [ "$bucket_exists" == false ]; then
-    vultr.s3.create_bucket "postgres"
+    lib.vultr.s3.create_bucket "postgres"
     log.info "created bucket postgres for object storage ${label}"
   else
     log.warn "bucket postgres already exists at object storage ${label}"
