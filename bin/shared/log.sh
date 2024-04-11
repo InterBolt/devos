@@ -10,6 +10,7 @@ LIB_READY_LOG=false
 # results in logfile - $LIB_LOG_PREFIX.<rollindex>.json
 #
 LIB_LOG_PREFIX=""
+LIB_STRIPPED_LOGS=false
 #
 # roughly 1 megabytes per log file.
 #
@@ -153,6 +154,9 @@ log._base() {
   local norm="${DEFAULT_COLOR}"
   local color="${!color_name}"
   local std_line="[${source}]: ${date} ${color}[${level}]${DEFAULT_LOG_COLOR} ${line}${norm}"
+  if [ "${LIB_STRIPPED_LOGS}" == "true" ]; then
+    std_line="${color}[${level}]${DEFAULT_LOG_COLOR} ${line}${norm}"
+  fi
   case "${level}" in
   'INFO' | 'WARN')
     echo -e "${std_line}"
@@ -208,6 +212,10 @@ log.warn() {
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
   log._base "WARN" "$filename:$linenumber" "$@"
+}
+# this should make the log output more readable and less verbose.
+log.stripped() {
+  LIB_STRIPPED_LOGS=true
 }
 log.ready() {
   LIB_LOG_PREFIX="$1."

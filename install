@@ -33,6 +33,7 @@ mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=bin/shared/log.sh
 . "bin/shared/log.sh"
 log.ready "installer" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
+log.stripped
 log.info "installing solos..."
 #
 # Will download the bin script + all lib scripts to the user's local
