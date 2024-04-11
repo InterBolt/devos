@@ -156,7 +156,7 @@ cli.usage.command.gen.help() {
   cat <<EOF
 Usage: solos gen [--OPTS...]
 
-Generates source code, like __exports__.sh files. Development only.
+Generates source code, like __source__.sh files. Development only.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
