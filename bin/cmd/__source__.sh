@@ -6,8 +6,6 @@
 . cmd/checkout.sh
 # shellcheck source=code.sh
 . cmd/code.sh
-# shellcheck source=gen.sh
-. cmd/gen.sh
 # shellcheck source=launch.sh
 . cmd/launch.sh
 # shellcheck source=precheck.sh

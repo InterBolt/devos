@@ -2,9 +2,10 @@
 set -o errexit
 set -o pipefail
 set -o errtrace
+vFROM_BIN_SCRIPT=false
 PARENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && cd .. && pwd)"
 if [ "$(basename "${PARENT_PATH}")" == "bin" ]; then
   cd "${PARENT_PATH}"
+  vFROM_BIN_SCRIPT="true"
 fi
-vFROM_BIN_SCRIPT="true"
 # TODO: remove the above. was generated via snippet

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2103,SC2164
+
 # shellcheck source=../shared/solos_base.sh
 . shared/solos_base.sh
 
@@ -17,13 +18,10 @@ subcmd.tests._update_beginning_file_lines() {
     "set -o pipefail"
     "set -o errtrace"
     ""
-    "if [ \"\$(basename \"\$(pwd)\")\" != \"bin\" ]; then"
-    "  echo \"error: must be run from the bin folder\""
-    "  exit 1"
-    "fi"
+    "cd \"\$(git rev-parse --show-toplevel 2>/dev/null)/bin\""
     ""
     " # shellcheck source=../${lib_file}"
-    ". \"${lib_file}\""
+    ". \"lib/${lib_file}\""
     ""
     "__hook__.before_file() {"
     "  log.error \"__hook__.before_file\""
@@ -120,7 +118,7 @@ subcmd.tests._grep_lib_defined_functions() {
     log.error "file not found: $lib_file"
     exit 1
   fi
-  grep -Eo "$lib_unit_name\.[a-z_\.]{2,}\(\)" "$lib_file" | sort -u | sed 's/()//'
+  grep -Eo "lib.$lib_unit_name\.[a-z_\.]{2,}\(\)" "$lib_file" | sort -u | sed 's/()//'
 }
 
 subcmd.tests._grep_test_defined_functions() {
@@ -130,7 +128,7 @@ subcmd.tests._grep_test_defined_functions() {
     log.error "file not found: $lib_test_filepath"
     exit 1
   fi
-  grep -Eo "__test__\.${lib_unit_name}\.[a-z_\.]{2,}\(\)" "$lib_test_filepath" | sort -u | sed 's/()//' | sed 's/__test__\.//'
+  grep -Eo "__test__\.${lib_unit_name}\.[a-z_\.]{2,}\(\)" "$lib_test_filepath" | sort -u | sed 's/()//' | sed 's/__test__\./lib\./'
 }
 
 subcmd.tests.unit.create_lib_test() {
@@ -251,7 +249,7 @@ subcmd.tests.step.verify_function_coverage() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
@@ -259,13 +257,13 @@ subcmd.tests.step.verify_function_coverage() {
     local defined_test_functions="$(subcmd.tests._grep_test_defined_functions "${lib_unit_name}" "${target_test_file_path}")"
     for defined_lib_function in $defined_lib_functions; do
       if ! echo "$defined_test_functions" | grep -q "^${defined_lib_function}$"; then
-        log.error "defined lib function: ${defined_lib_function} is not covered in ${lib_unit_name} test file"
+        log.error "${defined_lib_function} is not covered in ${lib_unit_name} test file"
         exit 1
       fi
     done
     for defined_test_function in $defined_test_functions; do
       if ! echo "$defined_lib_functions" | grep -q "^${defined_test_function}$"; then
-        log.error "defined test function: ${defined_test_function} does not cover an existing function in the ${lib_unit_name} file"
+        log.error "${defined_test_function} does not cover an existing function in the ${lib_unit_name} file"
         exit 1
       fi
     done
@@ -276,7 +274,7 @@ subcmd.tests.step.verify_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
@@ -301,7 +299,7 @@ subcmd.tests.step.cover_functions() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.tests_add_missing_function_coverage "${lib_unit_name}"
@@ -312,7 +310,7 @@ subcmd.tests.step.cover_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     local undefined_variables="$(subcmd.tests.unit.get_undefined_test_variables "${lib_unit_name}")"
@@ -328,7 +326,7 @@ subcmd.tests.dangerously_recreate() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.create_lib_test "${lib_unit_name}" true
@@ -339,7 +337,7 @@ subcmd.tests.init() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit.create_lib_test "${lib_unit_name}"
@@ -362,7 +360,6 @@ subcmd.tests.verify() {
 #
 subcmd.tests.unit() {
   local lib_unit_name="$1"
-  shift
   local lib_file="${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
     log.error "file not found: ${lib_file}"
@@ -373,44 +370,47 @@ subcmd.tests.unit() {
     log.error "test file not found: $1"
     exit 1
   fi
-  local functions_to_test
-  local defined_functions="$(subcmd.tests._grep_test_defined_functions "${lib_unit_name}" "${lib_test_file}")"
-  local supplied_functions=("$@")
-  if [ ${#supplied_functions[@]} -gt 0 ]; then
-    for supplied_function in "${supplied_functions[@]}"; do
-      if ! echo "$defined_functions" | grep -q "^${supplied_function}$"; then
-        log.error "function not found: ${supplied_function}"
-        exit 1
-      fi
-    done
-    functions_to_test="${supplied_functions[*]}"
-  else
-    functions_to_test="${defined_functions[*]}"
+  local supplied_functions=()
+  local functions_to_test="$(subcmd.tests._grep_test_defined_functions "${lib_unit_name}" "${lib_test_file}")"
+  for arg in "${@:2}"; do
+    if [ -z "${arg}" ]; then
+      continue
+    fi
+    if ! echo "$functions_to_test" | grep -q "^${arg}$"; then
+      log.error "function not found: ${arg}"
+      exit 1
+    else
+      supplied_functions+=("$arg")
+    fi
+  done
+  # if supplied_functions length is zero, then we test all functions
+  if [ ${#supplied_functions[@]} -eq 0 ]; then
+    supplied_functions=("${functions_to_test[@]}")
   fi
   chmod +x "$lib_test_file"
   # shellcheck disable=SC1090
   . "$lib_test_file"
   if __hook__.before_file; then
     local something_failed=false
-    for function_to_test in ${functions_to_test}; do
-      local test_function="__test__.${function_to_test}"
+    for supplied_function in "${supplied_functions[@]}"; do
+      local test_function="__test__.${supplied_function}"
       if ! type "${test_function}" &>/dev/null; then
-        LIB_FAILED+=("${function_to_test}")
+        LIB_FAILED+=("${supplied_function}")
         continue
       fi
-      if ! __hook__.before_fn "${function_to_test}"; then
-        LIB_FAILED+=("${function_to_test}")
+      if ! __hook__.before_fn "${supplied_function}"; then
+        LIB_FAILED+=("${supplied_function}")
         continue
       fi
       if ! "${test_function}"; then
         something_failed=true
-        __hook__.after_fn_fails "${function_to_test}" || true
-        LIB_FAILED+=("${function_to_test}")
+        __hook__.after_fn_fails "${supplied_function}" || true
+        LIB_FAILED+=("${supplied_function}")
       else
-        __hook__.after_fn_success "${function_to_test}" || true
-        LIB_PASSED+=("${function_to_test}")
+        __hook__.after_fn_success "${supplied_function}" || true
+        LIB_PASSED+=("${supplied_function}")
       fi
-      __hook__.after_fn "${function_to_test}" || true
+      __hook__.after_fn "${supplied_function}" || true
     done
     if [ "${something_failed}" == "true" ]; then
       __hook__.after_file_fails || true
@@ -439,11 +439,12 @@ cmd.tests() {
   fi
   local entry_dir="$PWD"
   cd "lib" || exit 1
+  local lib_dir="$PWD"
   local lib_files=()
   if [ -z "${vCLI_OPT_LIB}" ]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
-    done < <(find . -maxdepth 1 -type f -name '*.sh' -print0)
+    done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   else
     local lib_unit_name="${vCLI_OPT_LIB}"
     local lib_test_file="$PWD/tests/__test__.${lib_unit_name}.sh"
@@ -459,6 +460,7 @@ cmd.tests() {
   for lib_file in "${lib_files[@]}"; do
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit "${lib_unit_name}" "${vCLI_OPT_FN}"
+    cd "$lib_dir" || exit 1
   done
   if [ ${#LIB_FILES_FAILED[@]} -gt 0 ]; then
     for failed in "${LIB_FILES_FAILED[@]}"; do

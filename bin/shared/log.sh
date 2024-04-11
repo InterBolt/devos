@@ -229,7 +229,7 @@ log.ready() {
     exit 1
   fi
   if [ -z "${LIB_DIR}" ]; then
-    log.warn "did not specify a log dir. will not save logs to disk."
+    log.debug "did not specify a log dir. will not save logs to disk."
   else
     mkdir -p "${LIB_DIR}"
   fi

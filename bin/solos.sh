@@ -3,7 +3,6 @@
 set -o errexit
 set -o pipefail
 set -o errtrace
-
 #
 # In the solos_base.sh script, we use the existence of this variable
 # to determine if we should continue. We do this because we're using
@@ -12,22 +11,28 @@ set -o errtrace
 #
 vFROM_BIN_SCRIPT=true
 
+#
+# The parent must always be a bin folder. This covers dev case and
+# `/usr/local/bin/solos` case.
+#
 cd "$(dirname "${BASH_SOURCE[0]}")"
-
 if [ "$(basename "$(pwd)")" != "bin" ]; then
   echo "error: must be run from the bin folder"
   exit 1
 fi
-
+#
+# Anything sourced in this script will expect these variables to exist.
+#
 # shellcheck source=shared/static.sh
 . "shared/static.sh"
-
+#
+# Save some information about this bin script.
+#
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
 vENTRY_DEBUG_LEVEL=${DEBUG_LEVEL:-0}
 #
-# `dotglob` option ensures that dotfiles and folders are included when using globs.
-# Helpful for looping through files in a directory.
+# Will include dotfiles/folders in globs.
 #
 shopt -s dotglob
 # --------------------------------------------------------------------------------------------
@@ -109,37 +114,20 @@ vENV_SOLOS_ID=""
 #
 log.ready "solos" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 #
-# Make the libraries we need available.
-#
-# shellcheck source=lib.cache.sh
-. "lib.cache.sh"
-# shellcheck source=lib.env.sh
-. "lib.env.sh"
-# shellcheck source=lib.ssh.sh
-. "lib.ssh.sh"
-# shellcheck source=lib.status.sh
-. "lib.status.sh"
-# shellcheck source=lib.utils.sh
-. "lib.utils.sh"
-# shellcheck source=lib.validate.sh
-. "lib.validate.sh"
-# shellcheck source=lib.vultr.sh
-. "lib.vultr.sh"
-#
-# Load our CLI parsing commands.
-#
-# shellcheck source=cli/__source__.sh
-. "cli/__source__.sh"
-#
-# Generate source statements for each command in the __source__.sh file.
-# Ensures I won't release a version of solos that is mising commands.
+# Make sure all of our code is generated before we start running it.
+# Only do this in dev. It makes the CLI slow.
 #
 if [ "$vMODE" != "production" ]; then
-  . cmd/gen.sh
+  chmod +x "shared/codegen.sh"
+  shared/codegen.sh
 fi
 #
-# Now make the commands we need available.
+# source the main libs
 #
+# shellcheck source=lib/__source__.sh
+. "lib/__source__.sh"
+# shellcheck source=cli/__source__.sh
+. "cli/__source__.sh"
 # shellcheck source=cmd/__source__.sh
 . "cmd/__source__.sh"
 #
@@ -210,7 +198,7 @@ solos.apply_parsed_cli_args() {
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [ -n "$val" ]; then
         vCLI_OPT_LIB="$val"
-        if [ ! -f "lib.$vCLI_OPT_LIB" ]; then
+        if [ ! -f "lib/$vCLI_OPT_LIB.sh" ]; then
           log.error "Unknown lib: $vCLI_OPT_LIB"
           exit 1
         fi
