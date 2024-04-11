@@ -4,13 +4,14 @@
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/root"
     },
     {
-      "name": "solos-rsynced-global-config",
+      "name": "config",
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/root/__vSTATIC_CONFIG_DIRNAME__"
     },
     {
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/root/deployments"
     },
     {
+      "name": "system",
       "uri": "vscode-remote://ssh-remote+__vENV_IP__/"
     }
   ],

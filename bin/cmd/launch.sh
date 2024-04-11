@@ -236,7 +236,7 @@ cmd.launch() {
   # The linux.sh file will run the env specific launch scripts.
   # Important: these env specific scripts should be idempotent and performant.
   #
-  lib.ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER}"
+  lib.ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER} ${vENV_GITHUB_USERNAME} ${vENV_GITHUB_EMAIL} ${vENV_GITHUB_TOKEN}"
   #
   # We might want this status in the future
   #
@@ -274,7 +274,7 @@ cmd.launch() {
   # The logic here is simpler because the bootstrap script for the docker container
   # will never deal with things like databases or service orchestration.
   #
-  lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER}"
+  lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER} ${vENV_GITHUB_USERNAME} ${vENV_GITHUB_EMAIL} ${vENV_GITHUB_TOKEN}"
   lib.status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(lib.utils.date)"
   log.info "bootstrapped the local docker container."
   #
