@@ -25,17 +25,18 @@ if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
   echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
   exit 1
 fi
-cd "${viTMP_REPO}"
+#
+# Important: the remainder of the script assumes we're in the bin folder.
+#
+cd "${viTMP_REPO}/bin"
 #
 # Source anything we need an make sure the user has a
 # config dir in the home folder.
 #
 # shellcheck source=bin/shared/static.sh
-. "bin/shared/static.sh"
-cd bin
+. "shared/static.sh"
 # shellcheck source=bin/pkg/gum.sh
 . "pkg/gum.sh"
-cd ..
 
 #
 # Fundamentally, we must clone the repo before we can source the static.sh file.
@@ -48,7 +49,7 @@ fi
 
 mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 # shellcheck source=bin/shared/log.sh
-. "bin/shared/log.sh"
+. "shared/log.sh"
 log.ready "installer" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 log.info "installing solos..."
 
