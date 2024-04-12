@@ -128,8 +128,6 @@ log.ready() {
     mkdir -p "${LIB_DIR}"
   fi
   LIB_READY_LOG=true
-  log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
-  log.debug "shared.log - ready"
 }
 log.use_bare() {
   LIB_BARE_LOG=true
