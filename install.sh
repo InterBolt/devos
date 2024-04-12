@@ -101,6 +101,6 @@ do_install() {
   chmod +x "$viUSR_LOCAL_BIN_EXECUTABLE"
 }
 
-pkg.gum.spinner "Installing SolOS..." "do_install"
+pkg.gum.spinner "Installing SolOS..." do_install
 log.info "success: solos installed at: ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
 log.info "run 'solos --help' to get started."

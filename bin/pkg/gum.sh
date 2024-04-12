@@ -76,14 +76,30 @@ pkg.gum.warning_box() {
 }
 
 pkg.gum.spinner() {
+  if [ -z "$1" ]; then
+    echo "gum spinner requires a title" >&2
+    exit 1
+  fi
   if [ "$#" -lt 2 ]; then
-    echo "usage: pkg.gum.spinner <title> <command>" >&2
+    echo "gum spinner requires at least one command" >&2
     exit 1
   fi
   local title="$1"
   shift
-  typeset -xf "$1"
-  pkg.gum spin --spinner dot --show-output --title "$title" -- bash -c ''"'${1}'"''
+  local cmds_declared_externally=()
+  local args=()
+  while [ "$#" -gt 0 ]; do
+    if [ "$(type -t "$1" || echo "")" == "function" ]; then
+      declare -xf "$1"
+      cmds_declared_externally+=("$1")
+    fi
+    args+=("$1")
+    shift
+  done
+  pkg.gum spin --spinner dot --show-output --title "$title" -- bash -c "${args[@]}"
+  for cmd_declared_externally in "${cmds_declared_externally[@]}"; do
+    bash -c unset -f "${cmd_declared_externally}"
+  done
 }
 
 LIB_GUM_INSTALL_PATH="$(pkg.gum.install)"
