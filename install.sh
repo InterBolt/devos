@@ -5,56 +5,55 @@ set -o errtrace
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 viREPO_BIN_EXECUTABLE_PATH="bin/solos.sh"
-#
-# Important: please use "vi" prefix to avoid conflicts with other scripts
-# we source remotely.
-# Note: stands for "v" variable and "i" install.
-#
-viTMP_DIR="$(mktemp -d 2>/dev/null)"
-viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
-i.cleanup() {
-  rm -rf "$viTMP_DIR"
-  rm -rf "$viMY_TMP_CONFIG_BIN_DIR"
-}
-trap "i.cleanup" EXIT
-viTMP_REPO="${viTMP_DIR}/solos"
-viREPO_URL="https://github.com/InterBolt/solos.git"
-
-git clone "${viREPO_URL}" "${viTMP_REPO}" &>/dev/null
-if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
-  echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
-  exit 1
-fi
-#
-# Important: the remainder of the script assumes we're in the bin folder.
-#
-cd "${viTMP_REPO}/bin"
-#
-# Source anything we need an make sure the user has a
-# config dir in the home folder.
-#
-# shellcheck source=bin/shared/static.sh
-. "shared/static.sh"
-# shellcheck source=bin/pkg/gum.sh
-. "pkg/gum.sh"
-
-#
-# Fundamentally, we must clone the repo before we can source the static.sh file.
-#
-#
-if [ "${viREPO_URL}" != "${vSTATIC_REPO_URL}" ]; then
-  echo "repo url mismatch: ${viREPO_URL} != ${vSTATIC_REPO_URL}" >&2
-  exit 1
-fi
-
-mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
-# shellcheck source=bin/shared/log.sh
-. "shared/log.sh"
-log.ready "install" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 
 do_install() {
-  echo "Installing SolOS..."
-  sleep 2
+  #
+  # Important: please use "vi" prefix to avoid conflicts with other scripts
+  # we source remotely.
+  # Note: stands for "v" variable and "i" install.
+  #
+  viTMP_DIR="$(mktemp -d 2>/dev/null)"
+  viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
+  i.cleanup() {
+    rm -rf "$viTMP_DIR"
+    rm -rf "$viMY_TMP_CONFIG_BIN_DIR"
+  }
+  trap "i.cleanup" EXIT
+  viTMP_REPO="${viTMP_DIR}/solos"
+  viREPO_URL="https://github.com/InterBolt/solos.git"
+
+  git clone "${viREPO_URL}" "${viTMP_REPO}" &>/dev/null
+  if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
+    echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
+    exit 1
+  fi
+  #
+  # Important: the remainder of the script assumes we're in the bin folder.
+  #
+  cd "${viTMP_REPO}/bin"
+  #
+  # Source anything we need an make sure the user has a
+  # config dir in the home folder.
+  #
+  # shellcheck source=bin/shared/static.sh
+  . "shared/static.sh"
+  # shellcheck source=bin/pkg/gum.sh
+  . "pkg/gum.sh"
+
+  #
+  # Fundamentally, we must clone the repo before we can source the static.sh file.
+  #
+  #
+  if [ "${viREPO_URL}" != "${vSTATIC_REPO_URL}" ]; then
+    echo "repo url mismatch: ${viREPO_URL} != ${vSTATIC_REPO_URL}" >&2
+    exit 1
+  fi
+
+  mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
+  # shellcheck source=bin/shared/log.sh
+  . "shared/log.sh"
+  log.ready "install" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
+  log.use_bare
   #
   # Will download the bin script + all lib scripts to the user's local
   # solos config folder at config/bin/.
@@ -99,8 +98,34 @@ do_install() {
     echo "\"${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH\" \"\$@\""
   } >>"$viUSR_LOCAL_BIN_EXECUTABLE"
   chmod +x "$viUSR_LOCAL_BIN_EXECUTABLE"
+  log.info "success: ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
+  log.info "run 'solos --help' to get started."
 }
 
-pkg.gum.spinner "Installing SolOS..." do_install
-log.info "success: solos installed at: ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
-log.info "run 'solos --help' to get started."
+spinner() {
+  # make sure we use non-unicode character type locale
+  # (that way it works for any locale as long as the font supports the characters)
+  local LC_CTYPE=C
+
+  local pid=$1   # Process Id of the previous running command
+  local title=$2 # Text to display
+
+  local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+  local charwidth=3
+
+  local i=0
+  local length_of_title=${#title}
+  tput civis # cursor invisible
+  while kill -0 "${pid}" 2>/dev/null; do
+    local i=$(((charwidth + i) % ${#spin}))
+    printf "\e[96m%b\e[0m" "${spin:$i:$charwidth} ${title}"
+    echo -en "\033[$((length_of_title + 2))D"
+    sleep .1
+  done
+  tput cnorm
+  wait "${pid}" # capture exit code
+  return $?
+}
+
+do_install &
+spinner $! "installing solos..."

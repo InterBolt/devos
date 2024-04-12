@@ -9,6 +9,7 @@ lib.utils.echo_line() {
   echo "$line"
 }
 lib.utils.exit_trap() {
+  tput cnorm
   local code=$?
   if [ $code -eq 1 ]; then
     exit 1
@@ -194,4 +195,29 @@ lib.utils.warn_with_delay() {
   sleep 2
   log.warn "$message here we go..."
   sleep 1
+}
+
+lib.utils.spinner() {
+  # make sure we use non-unicode character type locale
+  # (that way it works for any locale as long as the font supports the characters)
+  local LC_CTYPE=C
+
+  local pid=$1   # Process Id of the previous running command
+  local title=$2 # Text to display
+
+  local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+  local charwidth=3
+
+  local i=0
+  local length_of_title=${#title}
+  tput civis # cursor invisible
+  while kill -0 "${pid}" 2>/dev/null; do
+    local i=$(((charwidth + i) % ${#spin}))
+    printf "\e[96m%b\e[0m" "${spin:$i:$charwidth} ${title}"
+    echo -en "\033[$((length_of_title + 2))D"
+    sleep .1
+  done
+  tput cnorm
+  wait "${pid}" # capture exit code
+  return $?
 }

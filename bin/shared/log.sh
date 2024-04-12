@@ -5,6 +5,7 @@
 # shellcheck source=../pkg/gum.sh
 source "pkg/gum.sh"
 
+LIB_BARE_LOG=false
 LIB_DIR=""
 LIB_READY_LOG=false
 #
@@ -69,6 +70,10 @@ log._base() {
   local msg="${1}"
   shift
   local line="${@}"
+  if [ "${LIB_BARE_LOG}" == "true" ]; then
+    pkg.gum log --level "${level}" "${msg}"
+    return
+  fi
   if [ -z "${active_logfile}" ]; then
     pkg.gum log --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}"
   else
@@ -125,4 +130,7 @@ log.ready() {
   LIB_READY_LOG=true
   log.debug "shared.log - setting log prefix: ${LIB_LOG_PREFIX}"
   log.debug "shared.log - ready"
+}
+log.use_bare() {
+  LIB_BARE_LOG=true
 }
