@@ -20,7 +20,7 @@ trap "i.cleanup" EXIT
 viTMP_REPO="${viTMP_DIR}/solos"
 viREPO_URL="https://github.com/InterBolt/solos.git"
 
-git clone "${viREPO_URL}" "${viTMP_REPO}"
+git clone "${viREPO_URL}" "${viTMP_REPO}" &>/dev/null
 if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
   echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
   exit 1
@@ -53,6 +53,7 @@ mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
 log.ready "install" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 
 do_install() {
+  echo "Installing SolOS..."
   sleep 2
   #
   # Will download the bin script + all lib scripts to the user's local
@@ -100,6 +101,6 @@ do_install() {
   chmod +x "$viUSR_LOCAL_BIN_EXECUTABLE"
 }
 
-pkg.gum.spinner "Installing SolOS..." "$(do_install)"
+pkg.gum.spinner "Installing SolOS..." "do_install"
 log.info "success: solos installed at: ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
 log.info "run 'solos --help' to get started."
