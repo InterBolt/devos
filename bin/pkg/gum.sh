@@ -81,7 +81,9 @@ pkg.gum.spinner() {
     exit 1
   fi
   local title="$1"
-  pkg.gum spin --spinner dot --title "${title}" -- "${@:2}"
+  shift
+  typeset -xf "$1"
+  pkg.gum spin --spinner dot --show-output --title "$title" -- bash -c ''"'${1}'"''
 }
 
 LIB_GUM_INSTALL_PATH="$(pkg.gum.install)"
