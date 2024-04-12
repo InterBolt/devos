@@ -13,7 +13,7 @@ node_modules/
 .tmp/*
 .backups/*
 .logs/*
-.binaries/
+.releases/
 secret.*
 .archive.*
 .secret*

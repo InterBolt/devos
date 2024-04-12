@@ -29,6 +29,5 @@ fi
 #
 if [ "${vFROM_BIN_SCRIPT}" != "true" ]; then
   log.error "this script must be sourced from the main bin script"
-  log.warn "tip: set vFROM_BIN_SCRIPT=true inside the script where you're sourcing solo_base.sh to suppress this error."
   exit 1
 fi

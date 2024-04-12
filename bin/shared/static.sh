@@ -17,6 +17,7 @@ else
   export vSTATIC_RUNNING_IN_GIT_REPO=true
   export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 fi
+export vSTATIC_REPO_URL="https://github.com/InterBolt/solos.git"
 #
 # TODO: is there an automated way to scan our code and get a list of
 # TODO[c]: all the commands we assume the user has installed.

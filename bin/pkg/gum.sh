@@ -1,33 +1,30 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
-# # shellcheck source=../shared/solos_base.sh
-# . shared/solos_base.sh
-
 LIB_ENTRY_DIR="$PWD"
 LIB_PKG_DIR="${LIB_ENTRY_DIR}/pkg"
+LIB_RELEASES_DIRNAME=".releases"
+LIB_GUM_VERSION="0.13.0"
+LIB_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
 if [ ! -d "${LIB_PKG_DIR}" ]; then
   echo "failed to find bin/pkg directory. cannot install gum" >&2
   exit 1
 fi
 
-GUM_VERSION="0.13.0"
-GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
-
 pkg.gum._get_release_download_url() {
   local release=""
   if [[ $(uname) == 'Darwin' ]]; then
     if [[ $(uname -m) == 'arm64' ]]; then
-      release="${GUM_RELEASES_URL}/v${GUM_VERSION}/gum_${GUM_VERSION}_Darwin_arm64.tar.gz"
+      release="${LIB_GUM_RELEASES_URL}/v${LIB_GUM_VERSION}/gum_${LIB_GUM_VERSION}_Darwin_arm64.tar.gz"
     else
-      release="${GUM_RELEASES_URL}/v${GUM_VERSION}/gum_${GUM_VERSION}_Darwin_x86_64.tar.gz"
+      release="${LIB_GUM_RELEASES_URL}/v${LIB_GUM_VERSION}/gum_${LIB_GUM_VERSION}_Darwin_x86_64.tar.gz"
     fi
   else
     if [[ $(uname -m) == 'arm64' ]]; then
-      release="${GUM_RELEASES_URL}/v${GUM_VERSION}/gum_${GUM_VERSION}_Linux_arm64.tar.gz"
+      release="${LIB_GUM_RELEASES_URL}/v${LIB_GUM_VERSION}/gum_${LIB_GUM_VERSION}_Linux_arm64.tar.gz"
     else
-      release="${GUM_RELEASES_URL}/v${GUM_VERSION}/gum_${GUM_VERSION}_Linux_x86_64.tar.gz"
+      release="${LIB_GUM_RELEASES_URL}/v${LIB_GUM_VERSION}/gum_${LIB_GUM_VERSION}_Linux_x86_64.tar.gz"
     fi
   fi
   echo "${release}"
@@ -36,7 +33,7 @@ pkg.gum._get_release_download_url() {
 pkg.gum.install() {
   local release="$(pkg.gum._get_release_download_url)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
-  local location_dir="${LIB_PKG_DIR}/.binaries/${release_download_dirname}"
+  local location_dir="${LIB_PKG_DIR}/${LIB_RELEASES_DIRNAME}/${release_download_dirname}"
   mkdir -p "${location_dir}"
   if [ ! -f "${location_dir}/gum" ]; then
     curl -L --silent --show-error "${release}" | tar -xz -C "${location_dir}"
@@ -76,6 +73,15 @@ pkg.gum.warning_box() {
     --foreground "#B94" --border-foreground "#B94" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "2 4" \
     "$@"
+}
+
+pkg.gum.spinner() {
+  if [ "$#" -lt 2 ]; then
+    echo "usage: pkg.gum.spinner <title> <command>" >&2
+    exit 1
+  fi
+  local title="$1"
+  pkg.gum spin --spinner dot --title "${title}" -- "${@:2}"
 }
 
 LIB_GUM_INSTALL_PATH="$(pkg.gum.install)"

@@ -151,9 +151,6 @@ trap "lib.utils.exit_trap" EXIT
 # them with lib.* to keep them organized and separate from the rest of the lib
 # functions.
 #
-solos.gum() {
-  "$vENTRY_BIN_DIR/pkgs/gum" "$@"
-}
 solos.apply_parsed_cli_args() {
   local was_server_set=false
   if [ -z "$vCLI_PARSED_CMD" ]; then
@@ -247,7 +244,7 @@ solos.apply_parsed_cli_args() {
     log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
   fi
 }
-solos.rebuild_project_launch_dir() {
+solos.merge_launch_dirs() {
   #
   # Important: we want to approach the files inside of the launch
   # dir as ephemeral and not worry about overwriting them.
@@ -314,30 +311,25 @@ solos.import_project_repo() {
   # won't cause any issues. But for now, the forking needs to occur
   # manually by the user in their project.
   #
-  if [ -d "${vCLI_OPT_DIR}/repo" ]; then
-    log.warn "the SolOS repo was already cloned to ${vCLI_OPT_DIR}/repo."
+  local clone_target_dir="${vCLI_OPT_DIR}/repo"
+  local repo_server_dir="${clone_target_dir}/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}"
+  if [ -d "${clone_target_dir}" ]; then
+    log.warn "the SolOS repo was already cloned to ${clone_target_dir}."
     log.info "pulling latest changes on checked out branch."
-    #
-    # Use the -C option instead of cd'ing to
-    # maintain working directory.
-    #
-    git -C "${vCLI_OPT_DIR}/repo" pull 2>/dev/null
+    git -C "${clone_target_dir}" pull >/dev/null
     log.info "pulled latest changes."
   else
-    git clone https://github.com/InterBolt/lib.git "${vCLI_OPT_DIR}/repo" 2>/dev/null
-    log.info "cloned the SolOS repo to ${vCLI_OPT_DIR}/repo."
+    git clone ${vSTATIC_REPO_URL} "${clone_target_dir}" >/dev/null
+    log.info "cloned the SolOS repo to ${clone_target_dir}."
   fi
-  if [ ! -d "${vCLI_OPT_DIR}/repo/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}" ]; then
+  if [ ! -d "${repo_server_dir}" ]; then
     log.error "The server ${vCLI_OPT_SERVER} does not exist in the SolOS repo. Exiting."
     exit 1
   fi
-  find "${vCLI_OPT_DIR}/repo" -type f -name "*.sh" -exec chmod +x {} \;
-  chmod +x "${vCLI_OPT_DIR}/repo/bin/solos"
-  find "${vCLI_OPT_DIR}/repo/bin" -type f -name "solos*" -exec chmod +x {} \;
-  chmod +x "${vCLI_OPT_DIR}/repo/install"
-  log.info "set permissions for all shell scripts in: ${vCLI_OPT_DIR}/repo"
+  find "${clone_target_dir}" -type f -name "*.sh" -exec chmod +x {} \;
+  log.info "set permissions for all shell scripts in: ${clone_target_dir}"
 }
-solos.build_project_ssh_dir() {
+solos.create_ssh_files() {
   local self_publickey_path="$(lib.ssh.path_pubkey.self)"
   local self_privkey_path="$(lib.ssh.path_privkey.self)"
   local self_authorized_keys_path="$(lib.ssh.path_authorized_keys.self)"

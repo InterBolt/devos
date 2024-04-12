@@ -14,12 +14,12 @@ log.ready "codegen.sh"
 
 LIB_GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$LIB_GIT_DIR" ]; then
-  log.debug "must be run from within a git repository. Exiting"
+  log.error "must be run from within a git repository. Exiting"
   exit 1
 fi
 LIB_BIN_DIR="${LIB_GIT_DIR}/bin"
 if [ ! -d "${LIB_BIN_DIR}" ]; then
-  log.debug "${LIB_BIN_DIR} not found. Exiting."
+  log.error "${LIB_BIN_DIR} not found. Exiting."
   exit 1
 fi
 LIB_SOURCE_DIRNAME="__source__.sh"
@@ -28,7 +28,7 @@ codegen.source_relative_files() {
   local dirname="${1}"
   local dir="${LIB_BIN_DIR}/${dirname}"
   if [ ! -d "${dir}" ]; then
-    log.debug "A valid directory was not provided."
+    log.error "A valid directory was not provided."
     exit 1
   fi
   local tmp_sourced_file="$(mktemp 2>/dev/null)"

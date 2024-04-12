@@ -18,11 +18,11 @@ cmd.checkout() {
   # If a flag is provided that does not match the server specificed
   # in the checked out directory, we'll throw an error.
   #
-  lib.cache.set "checked_out" "$vCLI_OPT_DIR"
-  log.info "checked out dir: $vCLI_OPT_DIR"
-  if [ -f "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME" ]; then
-    vENV_SOLOS_ID="$(cat "$vCLI_OPT_DIR/$vSTATIC_SOLOS_ID_FILENAME")"
-    log.debug "set \$vENV_SOLOS_ID= $vENV_SOLOS_ID"
+  lib.cache.set "checked_out" "${vCLI_OPT_DIR}"
+  log.info "checked out dir: ${vCLI_OPT_DIR}"
+  if [ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]; then
+    vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
+    log.info "set \$vENV_SOLOS_ID= ${vENV_SOLOS_ID}"
   fi
   if [ -f "$(lib.ssh.path_config.self)" ]; then
     #
@@ -38,7 +38,7 @@ cmd.checkout() {
     # I think this is ok as long as clear warnings are put in place.
     #
     local most_recent_ip="$(lib.ssh.extract_ip.remote)"
-    lib.cache.set "most_recent_ip" "$most_recent_ip"
-    log.debug "updated the most recent ip in the lib.cache."
+    lib.cache.set "most_recent_ip" "${most_recent_ip}"
+    log.info "updated the most recent ip in the lib.cache."
   fi
 }

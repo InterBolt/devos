@@ -130,7 +130,6 @@ fi
 # Make the things executable
 #
 find . -type f -name "*.sh" -exec chmod +x {} \;
-chmod +x install
 #
 # Run the remaining commands from within the boot folder
 #

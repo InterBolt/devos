@@ -31,7 +31,6 @@ cmd.launch() {
   fi
   if [ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]; then
     vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
-    log.debug "set \$vENV_SOLOS_ID= ${vENV_SOLOS_ID}"
   fi
   #
   # We can only set the "server" once. Maybe in the future, we'll work in
@@ -74,42 +73,35 @@ cmd.launch() {
     "vENV_PROVIDER_NAME"
     "vENV_PROVIDER_API_ENDPOINT"
   )
+  local some_vars_not_set=false
+  for expected_var in "${expects_these_things[@]}"; do
+    if [ -z "${!expected_var+x}" ]; then
+      log.error "var: ${expected_var} is not defined"
+      some_vars_not_set=true
+    fi
+  done
+  if [ "${some_vars_not_set}" == "true" ]; then
+    exit 1
+  fi
   #
   # TODO: we should rely on anything called `cache` for storing a value that when changed might
   # TODO[c]: bust lots of stuff on our remote server.
   #
-  # ------------------------------------------------------------------------------------------------------------
   vENV_SEED_SECRET="$(lib.cache.overwrite_on_empty "vENV_SEED_SECRET" "$(lib.utils.generate_secret)")"
-  log.debug "set \$vENV_SEED_SECRET= $vENV_SEED_SECRET"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_GITHUB_USERNAME="$(lib.cache.overwrite_on_empty "vENV_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
-  log.debug "set \$vENV_GITHUB_USERNAME= $vENV_GITHUB_USERNAME"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_GITHUB_EMAIL="$(lib.cache.overwrite_on_empty "vENV_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)")"
-  log.debug "set \$vENV_GITHUB_EMAIL= $vENV_GITHUB_EMAIL"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_GITHUB_TOKEN="$(lib.cache.prompt "vENV_GITHUB_TOKEN")"
-  log.debug "set \$vENV_GITHUB_TOKEN= $vENV_GITHUB_TOKEN"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_OPENAI_API_KEY="$(lib.cache.prompt "vENV_OPENAI_API_KEY")"
-  log.debug "set \$vENV_OPENAI_API_KEY= $vENV_OPENAI_API_KEY"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_PROVIDER_API_KEY="$(lib.cache.prompt "vENV_PROVIDER_API_KEY")"
-  log.debug "set \$vENV_PROVIDER_API_KEY= $vENV_PROVIDER_API_KEY"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_PROVIDER_NAME="$(lib.cache.prompt "vENV_PROVIDER_NAME")"
-  log.debug "set \$vENV_PROVIDER_NAME= $vENV_PROVIDER_NAME"
-  # ------------------------------------------------------------------------------------------------------------
   vENV_PROVIDER_API_ENDPOINT="$(lib.cache.prompt "vENV_PROVIDER_API_ENDPOINT")"
-  log.debug "set \$vENV_PROVIDER_API_ENDPOINT= $vENV_PROVIDER_API_ENDPOINT"
-  # ------------------------------------------------------------------------------------------------------------
   for i in "${!expects_these_things[@]}"; do
     if [ -z "${!expects_these_things[$i]}" ]; then
       log.error "${expects_these_things[$i]} is empty. Exiting."
       exit 1
     fi
   done
-  solos.build_project_ssh_dir
+  solos.create_ssh_files
   #
   # On re-runs, the vultr provisioning functions will check for the existence
   # of the old ip and if it's the same as the current ip, it will skip the
@@ -126,10 +118,10 @@ cmd.launch() {
   local most_recent_ip="$(lib.cache.get "most_recent_ip")"
   local ip_to_deprovision="$(lib.cache.get "ip_to_deprovision")"
   if [ -n "${most_recent_ip}" ]; then
-    log.info "the ip \`$most_recent_ip\` from a previous run was found."
+    log.info "the ip \`${most_recent_ip}\` from a previous run was found."
     log.info "if ssh keyfiles are the same, we will skip provisioning."
   fi
-  lib.vultr.compute.provision "$most_recent_ip"
+  lib.vultr.compute.provision "${most_recent_ip}"
   vENV_IP="${vPREV_RETURN[0]}"
   log.success "vultr compute is ready"
   #
@@ -180,7 +172,7 @@ cmd.launch() {
   # using the `.launch` dirs from within the bin and server specific dirs.
   # Note: launch files are used later to bootstrap our environments.
   #
-  solos.rebuild_project_launch_dir
+  solos.merge_launch_dirs
   local project_launch_dir="${vCLI_OPT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
   #
   # Build and start the local docker container.
