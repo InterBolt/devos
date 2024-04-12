@@ -17,6 +17,21 @@ i.cleanup() {
 }
 trap "i.cleanup" EXIT
 viTMP_REPO="${viTMP_DIR}/solos"
+
+get_gum_release_download_link() {
+  local release=""
+  if [[ $(uname) == 'Darwin' ]]; then
+    if [[ $(uname -m) == 'arm64' ]]; then
+      release="https://github.com/charmbracelet/gum/releases/download/v0.13.0/gum_0.13.0_Darwin_arm64.tar.gz"
+    else
+      release="https://github.com/charmbracelet/gum/releases/download/v0.13.0/gum_0.13.0_Darwin_x86_64.tar.gz"
+    fi
+  else
+    release="https://github.com/charmbracelet/gum/releases/download/v0.13.0/gum_0.13.0_Linux_arm.tar.gz"
+  fi
+  echo "$release"
+}
+
 git clone "https://github.com/InterBolt/solos.git" "${viTMP_REPO}"
 if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
   echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting."

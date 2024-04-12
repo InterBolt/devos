@@ -5,10 +5,12 @@ set -o pipefail
 set -o errtrace
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+LIB_ENTRY_DIR="$(pwd)"
 
+cd ..
 # shellcheck source=log.sh
-. log.sh
-log.fallback_ready
+. shared/log.sh
+log.ready "codegen.sh"
 
 LIB_GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "$LIB_GIT_DIR" ]; then
@@ -51,9 +53,12 @@ codegen.source_relative_files() {
   rm -f "${tmp_sourced_file}"
 }
 
+cd "${LIB_ENTRY_DIR}"
+codegen.source_relative_files "pkg"
+log.info "generated ${LIB_BIN_DIR}/pkg/${LIB_SOURCE_DIRNAME}."
 codegen.source_relative_files "cmd"
-log.debug "generated ${LIB_BIN_DIR}/cmd/${LIB_SOURCE_DIRNAME}."
+log.info "generated ${LIB_BIN_DIR}/cmd/${LIB_SOURCE_DIRNAME}."
 codegen.source_relative_files "cli"
-log.debug "generated ${LIB_BIN_DIR}/cli/${LIB_SOURCE_DIRNAME}."
+log.info "generated ${LIB_BIN_DIR}/cli/${LIB_SOURCE_DIRNAME}."
 codegen.source_relative_files "lib"
-log.debug "generated ${LIB_BIN_DIR}/lib/${LIB_SOURCE_DIRNAME}."
+log.info "generated ${LIB_BIN_DIR}/lib/${LIB_SOURCE_DIRNAME}."

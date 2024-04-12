@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
+
 set -o errexit
 set -o pipefail
 set -o errtrace
@@ -107,6 +108,13 @@ vENV_SOLOS_ID=""
 # That means we need to provide any context via it's log.ready
 # function.
 #
+# TODO: add a switch so this can't run in prod
+#
+chmod +x "shared/codegen.sh"
+shared/codegen.sh
+#
+# The codegen doesn't need the log stuff sourced. its a cmd.
+#
 # shellcheck source=shared/log.sh
 . "shared/log.sh"
 #
@@ -114,16 +122,10 @@ vENV_SOLOS_ID=""
 #
 log.ready "solos" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
 #
-# Make sure all of our code is generated before we start running it.
-# Only do this in dev. It makes the CLI slow.
-#
-if [ "$vMODE" != "production" ]; then
-  chmod +x "shared/codegen.sh"
-  shared/codegen.sh
-fi
-#
 # source the main libs
 #
+# shellcheck source=pkg/__source__.sh
+. "pkg/__source__.sh"
 # shellcheck source=lib/__source__.sh
 . "lib/__source__.sh"
 # shellcheck source=cli/__source__.sh
@@ -149,6 +151,9 @@ trap "lib.utils.exit_trap" EXIT
 # them with lib.* to keep them organized and separate from the rest of the lib
 # functions.
 #
+solos.gum() {
+  "$vENTRY_BIN_DIR/pkgs/gum" "$@"
+}
 solos.apply_parsed_cli_args() {
   local was_server_set=false
   if [ -z "$vCLI_PARSED_CMD" ]; then
@@ -209,10 +214,6 @@ solos.apply_parsed_cli_args() {
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [ -n "${val}" ]; then
         vCLI_OPT_FN="${val}"
-        if ! declare -f "${vCLI_OPT_FN}" >/dev/null; then
-          log.error "Unknown function: ${vCLI_OPT_FN}. Cannot run tests."
-          exit 1
-        fi
         log.debug "set \$vCLI_OPT_FN= ${vCLI_OPT_FN}"
       else
         log.error "The --fn flag must be followed by a function name."

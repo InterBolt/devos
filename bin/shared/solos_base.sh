@@ -22,13 +22,6 @@ fi
 if ! command -v log.ready &>/dev/null; then
   # shellcheck source=log.sh
   . shared/log.sh
-  #
-  # Make sure the log.* functions are available if we are running in a script that
-  # sources this file but for some reason isn't sourced from the main bin script.
-  # NOTE: in reality, we only expect this to happen in the prototype phase of
-  # writing a new script before depdendencies are established.
-  #
-  log.fallback_ready
 fi
 #
 # Checking for the vFROM_BIN_SCRIPT variable protects us against accidentally running
