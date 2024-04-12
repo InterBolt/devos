@@ -87,8 +87,13 @@ gh extension install --force github/gh-copilot >/dev/null
 vSUGGEST_ALIAS="?"
 if [[ "$(type -t "${vSUGGEST_ALIAS}")" != 'alias' ]]; then
   # shellcheck disable=SC2016
-  echo 'eval "$(gh copilot alias -- bash)"' >>"$vBASHRC_FILEPATH"
-  echo 'alias "'"${vSUGGEST_ALIAS}"'"="ghcs -t shell"' >>"${vBASHRC_FILEPATH}"
+  {
+    echo 'eval "$(gh copilot alias -- bash)"'
+    echo 'alias "'"${vSUGGEST_ALIAS}"'"="ghcs -t shell"'
+    echo 'alias "'"${vSUGGEST_ALIAS}"'"="ghcs -t shell"'
+    echo 'alias ge="ghce -t shell"'
+    echo 'alias gs="ghcs -t shell"'
+  } >>"$vBASHRC_FILEPATH"
 fi
 #
 # When running in docker, use the same repo we cloned locally

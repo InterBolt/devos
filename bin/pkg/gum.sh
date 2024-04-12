@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
-set -o errexit
-set -o pipefail
-set -o errtrace
+# # shellcheck source=../shared/solos_base.sh
+# . shared/solos_base.sh
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
-cd ..
-LIB_ENTRYPOINT_DIR="$(pwd)"
+LIB_ENTRY_DIR="$PWD"
+LIB_PKG_DIR="${LIB_ENTRY_DIR}/pkg"
+
+if [ ! -d "${LIB_PKG_DIR}" ]; then
+  echo "failed to find bin/pkg directory. cannot install gum" >&2
+  exit 1
+fi
 
 GUM_VERSION="0.13.0"
 GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
@@ -33,7 +36,7 @@ pkg.gum._get_release_download_url() {
 pkg.gum.install() {
   local release="$(pkg.gum._get_release_download_url)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
-  local location_dir="${LIB_ENTRYPOINT_DIR}/pkg/.binaries/${release_download_dirname}"
+  local location_dir="${LIB_PKG_DIR}/.binaries/${release_download_dirname}"
   mkdir -p "${location_dir}"
   if [ ! -f "${location_dir}/gum" ]; then
     curl -L --silent --show-error "${release}" | tar -xz -C "${location_dir}"
@@ -49,6 +52,30 @@ pkg.gum() {
     echo "failed to install gum" >&2
     exit 1
   fi
+}
+
+pkg.gum.danger_box() {
+  local terminal_width=$(tput cols)
+  pkg.gum style \
+    --foreground "#F02" --border-foreground "#F02" --border thick \
+    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "2 4" \
+    "$@"
+}
+
+pkg.gum.success_box() {
+  local terminal_width=$(tput cols)
+  pkg.gum style \
+    --foreground "#5E4" --border-foreground "#5E4" --border thick \
+    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "2 4" \
+    "$@"
+}
+
+pkg.gum.warning_box() {
+  local terminal_width=$(tput cols)
+  pkg.gum style \
+    --foreground "#B94" --border-foreground "#B94" --border thick \
+    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "2 4" \
+    "$@"
 }
 
 LIB_GUM_INSTALL_PATH="$(pkg.gum.install)"

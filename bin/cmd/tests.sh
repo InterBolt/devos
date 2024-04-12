@@ -420,18 +420,18 @@ subcmd.tests.unit() {
       local function_name_without_prefix="${supplied_function/lib./}"
       local test_function="__test__.${function_name_without_prefix}"
       if ! __hook__.before_fn "${supplied_function}"; then
-        LIB_FAILED+=("$function_name_without_prefix")
+        LIB_FAILED+=("${supplied_function}")
         continue
       fi
       if ! "${test_function}"; then
         something_failed=true
         __hook__.after_fn_fails "${supplied_function}" || true
-        LIB_FAILED+=("$function_name_without_prefix")
+        LIB_FAILED+=("${supplied_function}")
       else
-        __hook__.after_fn_success "$function_name_without_prefix" || true
-        LIB_PASSED+=("$function_name_without_prefix")
+        __hook__.after_fn_success "${supplied_function}" || true
+        LIB_PASSED+=("${supplied_function}")
       fi
-      __hook__.after_fn "$function_name_without_prefix" || true
+      __hook__.after_fn "${supplied_function}" || true
     done
     if [ "${something_failed}" == "true" ]; then
       __hook__.after_file_fails || true
@@ -473,6 +473,8 @@ cmd.tests() {
   local fn_to_test="${vCLI_OPT_FN}"
   local lib_dir="$PWD"
   local lib_files=()
+  local lib_test_file=""
+  local lib_unit_name=""
   if [ -z "${lib_to_test}" ] && [ -z "${fn_to_test}" ]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
@@ -490,29 +492,31 @@ cmd.tests() {
         lib_to_test="${inferred_lib_to_test}"
       fi
     fi
-    local lib_unit_name="${lib_to_test}"
-    local lib_test_file="$PWD/tests/__test__.${lib_unit_name}.sh"
-    if [ ! -f "${lib_test_file}" ]; then
-      log.error "test file not found: ${lib_test_file}"
-      exit 1
-    fi
+    lib_unit_name="${lib_to_test}"
+    lib_test_file="$lib_dir/tests/__test__.${lib_unit_name}.sh"
     lib_files+=("$lib_dir/${lib_unit_name}.sh")
   fi
   #
   # Init tests that don't exist, make sure all functions are covered from the source libs,
   # and verify some basic things like variable usage and function coverage.
   #
-  local no_errors=true
   subcmd.tests.init
   subcmd.tests.cover
   subcmd.tests.verify
+  #
+  # Wait until things are generated before testing for existence.
+  #
+  if [ -n "${lib_test_file}" ] && [ ! -f "${lib_test_file}" ]; then
+    log.error "test file not found: ${lib_test_file}"
+    exit 1
+  fi
   #
   # Run each test associated with a lib.
   # If we provided a --fn flag, only run that function.
   #
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
-    local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
+    lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.tests.unit "${lib_unit_name}" "${fn_to_test}"
     cd "$lib_dir" || exit 1
   done
@@ -520,23 +524,13 @@ cmd.tests() {
   # Collect the status of the ran tests and output the results.
   #
   if [ ${#LIB_FILES_FAILED[@]} -gt 0 ]; then
-    no_errors=false
+    pkg.gum.danger_box 'FAILED LIBS:' "${LIB_FILES_FAILED[@]}"
   fi
   if [ ${#LIB_FAILED[@]} -gt 0 ]; then
-    for failed in "${LIB_FAILED[@]}"; do
-      log.error "failed: ${failed}"
-      no_errors=false
-    done
+    pkg.gum.danger_box 'FAILED FUNCTIONS:' "${LIB_FAILED[@]}"
   fi
   if [ ${#LIB_PASSED[@]} -gt 0 ]; then
-    for passed in "${LIB_PASSED[@]}"; do
-      log.info "passed: ${passed}"
-    done
-  fi
-  if [ "${no_errors}" == "true" ]; then
-    log.info "SUCCESS: all tests passed"
-  else
-    log.error "FAILED: some tests failed"
+    pkg.gum.success_box 'PASSED FUNCTIONS:' "${LIB_PASSED[@]}"
   fi
   cd "$entry_dir" || exit 1
 }
