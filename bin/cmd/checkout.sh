@@ -9,6 +9,8 @@ cmd.checkout() {
   log.info "waited a couple seconds for fun"
   sleep 2
   log.info "waited a couple more seconds for fun"
+  sleep 4
+  log.info "bro it bout to fail"
   #
   # Important: do these checks BEFORE saving the provided directory in the
   # lib.cache. Let's be sure any directories we put there are valid and safe.
