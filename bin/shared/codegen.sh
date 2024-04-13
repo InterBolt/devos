@@ -10,17 +10,21 @@ cd ..
 # shellcheck source=log.sh
 . shared/log.sh
 
-LIB_GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-if [[ -z "$LIB_GIT_DIR" ]]; then
-  log.error "must be run from within a git repository. Exiting"
-  exit 1
-fi
-LIB_BIN_DIR="${LIB_GIT_DIR}/bin"
-if [[ ! -d "${LIB_BIN_DIR}" ]]; then
-  log.error "${LIB_BIN_DIR} not found. Exiting."
-  exit 1
-fi
-LIB_SOURCE_DIRNAME="__source__.sh"
+LIB_GIT_DIR="$(git rev-parse --show-toplevel &>/dev/null)"
+LIB_BIN_DIR=""
+LIB_SOURCE_DIRNAME=""
+
+codegen.allowed() {
+  if [[ -z "$LIB_GIT_DIR" ]]; then
+    return 1
+  fi
+  LIB_BIN_DIR="${LIB_GIT_DIR}/bin"
+  if [[ ! -d "${LIB_BIN_DIR}" ]]; then
+    return 1
+  fi
+  LIB_SOURCE_DIRNAME="__source__.sh"
+  return 0
+}
 
 codegen.source_relative_files() {
   local dirname="${1}"
@@ -51,9 +55,11 @@ codegen.source_relative_files() {
   rm -f "${tmp_sourced_file}"
 }
 
-cd "${LIB_ENTRY_DIR}"
-codegen.source_relative_files "pkg"
-codegen.source_relative_files "cmd"
-codegen.source_relative_files "cli"
-codegen.source_relative_files "lib"
-log.info "generated ${LIB_SOURCE_DIRNAME} files"
+if codegen.allowed; then
+  cd "${LIB_ENTRY_DIR}" || exit 1
+  codegen.source_relative_files "pkg"
+  codegen.source_relative_files "cmd"
+  codegen.source_relative_files "cli"
+  codegen.source_relative_files "lib"
+  log.info "generated ${LIB_SOURCE_DIRNAME} files"
+fi
