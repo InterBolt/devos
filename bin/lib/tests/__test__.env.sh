@@ -3,7 +3,7 @@
 set -o pipefail
 set -o errtrace
 
-cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin"
+cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin" || exit 1
 
 # shellcheck source=../env.sh
 . "lib/env.sh"

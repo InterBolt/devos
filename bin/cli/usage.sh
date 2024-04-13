@@ -26,9 +26,7 @@ sync-config              - Sync the \`.solos\` config folder to a remote server.
 backup                   - Archive a SolOS project and upload it to an s3 bucket.
 restore                  - Restore a SolOS project from an s3 bucket.
 code                     - Open the VSCode workspaces associated with the installation.
-precheck                 - (for dev) Run some prechecks to verify any assumptions made by the solos script.
 tests                    - (for dev) Generates and runs unit tests for each lib.* library.
-gen                      - (for dev) Generates source code.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -152,30 +150,5 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --tag=<string>      - When supplied, we'll restore the latest backup that 
                       matches the tag. If no tag is supplied, we'll restore
                       the latest backup.
-EOF
-}
-cli.usage.command.precheck.help() {
-  cat <<EOF
-Usage: solos precheck [--OPTS...]
-
-Performs as many checks as possible on the solos runtime to ensure it will work
-as expected.
-
-$LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
-
---help              - Print this help and exit
-EOF
-}
-cli.usage.command.gen.help() {
-  cat <<EOF
-Usage: solos gen [--OPTS...]
-
-Generates source code, like __source__.sh files. Development only.
-
-$LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
-
---help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
 EOF
 }

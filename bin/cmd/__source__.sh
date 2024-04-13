@@ -8,8 +8,6 @@
 . cmd/code.sh
 # shellcheck source=launch.sh
 . cmd/launch.sh
-# shellcheck source=precheck.sh
-. cmd/precheck.sh
 # shellcheck source=restore.sh
 . cmd/restore.sh
 # shellcheck source=sync_config.sh
