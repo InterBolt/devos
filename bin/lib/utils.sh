@@ -314,7 +314,7 @@ lib.utils.spinner() {
       pkg.gum.logs_box \
         "Viewing ${subset_label} [${vSTATIC_LOG_FILEPATH}$newline:${start_linecount}]" \
         "TIP: use --foreground next time to see logs in real-time." \
-        "${every_log}"
+        "${subset_logs}"
     elif [[ "$choice" = "${every_log_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing all logs [${vSTATIC_LOG_FILEPATH}:${start_linecount}]$newline" \
