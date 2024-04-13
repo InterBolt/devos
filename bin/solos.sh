@@ -396,4 +396,4 @@ fi
 #
 # Run the command specified in the cli args.
 #
-"cmd.$vCLI_PARSED_CMD"
+lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"
