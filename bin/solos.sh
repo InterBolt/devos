@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
-set -o errexit
 set -o pipefail
 set -o errtrace
 #
@@ -17,7 +16,7 @@ vFROM_BIN_SCRIPT=true
 # `/usr/local/bin/solos` case.
 #
 cd "$(dirname "${BASH_SOURCE[0]}")"
-if [ "$(basename "$(pwd)")" != "bin" ]; then
+if [[ "$(basename "$(pwd)")" != "bin" ]]; then
   echo "error: must be run from the bin folder"
   exit 1
 fi
@@ -29,6 +28,14 @@ fi
 #
 # Save some information about this bin script.
 #
+vENTRY_FOREGROUND=false
+for entry_arg in "$@"; do
+  if [[ "$entry_arg" = "--foreground" ]]; then
+    vENTRY_FOREGROUND=true
+  fi
+done
+vENTRY_START_SECONDS="$SECONDS"
+vENTRY_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
 vENTRY_DEBUG_LEVEL=${DEBUG_LEVEL:-0}
@@ -149,7 +156,7 @@ trap "lib.utils.exit_trap" EXIT
 #
 solos.apply_parsed_cli_args() {
   local was_server_set=false
-  if [ -z "$vCLI_PARSED_CMD" ]; then
+  if [[ -z "$vCLI_PARSED_CMD" ]]; then
     log.error "No command supplied. Please supply a command."
     exit 1
   fi
@@ -160,11 +167,11 @@ solos.apply_parsed_cli_args() {
       ;;
     dir=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [ "$val" == "$HOME" ]; then
+      if [[ "$val" = "$HOME" ]]; then
         log.error "Danger: --dir flag cannot be set to the home directory. Exiting."
         exit 1
       fi
-      if [[ "$HOME" == "$val"* ]]; then
+      if [[ "$HOME" = "$val"* ]]; then
         log.error "Danger: --dir flag cannot be set to a parent directory of the home directory. Exiting."
         exit 1
       fi
@@ -176,7 +183,7 @@ solos.apply_parsed_cli_args() {
       # Prefer the user to rely on the saved server type inside their projects
       # dir (aka $vCLI_OPT_DIR).
       #
-      if [ "$vCLI_PARSED_CMD" == "launch" ]; then
+      if [[ "$vCLI_PARSED_CMD" = "launch" ]]; then
         val="${vCLI_PARSED_OPTIONS[$i]#*=}"
         vCLI_OPT_SERVER="$val"
         was_server_set=true
@@ -184,15 +191,15 @@ solos.apply_parsed_cli_args() {
       ;;
     tag=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [ -n "$val" ]; then
+      if [[ -n "$val" ]]; then
         vCLI_OPT_TAG="$val"
       fi
       ;;
     lib=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [ -n "$val" ]; then
+      if [[ -n "$val" ]]; then
         vCLI_OPT_LIB="$val"
-        if [ ! -f "lib/$vCLI_OPT_LIB.sh" ]; then
+        if [[ ! -f "lib/$vCLI_OPT_LIB.sh" ]]; then
           log.error "Unknown lib: $vCLI_OPT_LIB"
           exit 1
         fi
@@ -200,7 +207,7 @@ solos.apply_parsed_cli_args() {
       ;;
     fn=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [ -n "${val}" ]; then
+      if [[ -n "${val}" ]]; then
         vCLI_OPT_FN="${val}"
       else
         log.error "The --fn flag must be followed by a function name."
@@ -210,18 +217,18 @@ solos.apply_parsed_cli_args() {
     esac
   done
   local projects_server_type_file="${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
-  if [ "${was_server_set}" == "true" ]; then
-    if [ -f "${projects_server_type_file}" ]; then
+  if [[ "${was_server_set}" = "true" ]]; then
+    if [[ -f "${projects_server_type_file}" ]]; then
       local projects_server_type="$(cat "${projects_server_type_file}")"
-      if [ -z "${projects_server_type}" ]; then
+      if [[ -z "${projects_server_type}" ]]; then
         log.error "Unexpected error: ${projects_server_type_file} is empty"
         exit 1
       fi
-      if [ -z "${vCLI_OPT_SERVER}" ]; then
+      if [[ -z "${vCLI_OPT_SERVER}" ]]; then
         log.error "Unexpected error: --server flag was provided with an empty value."
         exit 1
       fi
-      if [ "${projects_server_type}" != "${vCLI_OPT_SERVER}" ]; then
+      if [[ "${projects_server_type}" != "${vCLI_OPT_SERVER}" ]]; then
         log.error "cannot change the server type after the initial launch command is run"
         log.error "found: \`${projects_server_type}\`, you provided: \`${vCLI_OPT_SERVER}\`"
         log.error "only a hard reset (use with caution) can change the server type."
@@ -229,7 +236,7 @@ solos.apply_parsed_cli_args() {
         exit 1
       fi
     fi
-  elif [ -f "${projects_server_type_file}" ]; then
+  elif [[ -f "${projects_server_type_file}" ]]; then
     vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
   fi
 }
@@ -260,7 +267,7 @@ solos.merge_launch_dirs() {
   #
   local tmp_dir="${vCLI_OPT_DIR}/.tmp"
   local tmp_launch_dir="${tmp_dir}/${vSTATIC_LAUNCH_DIRNAME}"
-  if [ -d "$project_launch_dir" ]; then
+  if [[ -d "$project_launch_dir" ]]; then
     log.warn "rebuilding the launch directory."
   fi
   rm -rf "${tmp_launch_dir}"
@@ -302,7 +309,7 @@ solos.import_project_repo() {
   #
   local clone_target_dir="${vCLI_OPT_DIR}/repo"
   local repo_server_dir="${clone_target_dir}/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}"
-  if [ -d "${clone_target_dir}" ]; then
+  if [[ -d "${clone_target_dir}" ]]; then
     log.warn "the SolOS repo was already cloned to ${clone_target_dir}."
     log.info "pulling latest changes on checked out branch."
     git -C "${clone_target_dir}" pull >/dev/null
@@ -311,7 +318,7 @@ solos.import_project_repo() {
     git clone ${vSTATIC_REPO_URL} "${clone_target_dir}" >/dev/null
     log.info "cloned the SolOS repo to ${clone_target_dir}."
   fi
-  if [ ! -d "${repo_server_dir}" ]; then
+  if [[ ! -d "${repo_server_dir}" ]]; then
     log.error "The server ${vCLI_OPT_SERVER} does not exist in the SolOS repo. Exiting."
     exit 1
   fi
@@ -330,7 +337,7 @@ solos.create_ssh_files() {
   # Important: if a dev manually deletes this dir before re-running a launch,
   # infra will get recreated and the keys will get regenerated.
   #
-  if [ ! -d "${self_ssh_dir_path}" ]; then
+  if [[ ! -d "${self_ssh_dir_path}" ]]; then
     mkdir -p "${self_ssh_dir_path}"
     log.info "created: ${self_ssh_dir_path}"
     ssh-keygen -t rsa -q -f "${self_privkey_path}" -N ""
@@ -348,7 +355,7 @@ solos.create_ssh_files() {
   log.info "updated permissions: chmod 600 - ${self_privkey_path}"
 }
 solos.require_completed_launch_status() {
-  if [ -z "$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")" ]; then
+  if [[ -z "$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")" ]]; then
     log.error "Launch status is still incomplete. Run (or fix whatever issues occured and re-run) the launch command."
     log.info "\`solos --help\` for more info."
     exit 1

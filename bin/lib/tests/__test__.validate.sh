@@ -1,12 +1,11 @@
- #!/usr/bin/env bash
+#!/usr/bin/env bash
 
-set -o errexit
 set -o pipefail
 set -o errtrace
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin"
 
- # shellcheck source=../validate.sh
+# shellcheck source=../validate.sh
 . "lib/validate.sh"
 
 __hook__.before_file() {
@@ -48,7 +47,7 @@ __hook__.after_file_fails() {
   log.error "__hook__.after_file_fails"
   return 1
 }
- 
+
 vCLI_OPT_DIR=""
 vCLI_OPT_SERVER=""
 vENV_SOLOS_ID=""

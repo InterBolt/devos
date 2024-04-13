@@ -1,12 +1,11 @@
- #!/usr/bin/env bash
+#!/usr/bin/env bash
 
-set -o errexit
 set -o pipefail
 set -o errtrace
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin"
 
- # shellcheck source=../vultr.sh
+# shellcheck source=../vultr.sh
 . "lib/vultr.sh"
 
 __hook__.before_file() {
@@ -48,7 +47,7 @@ __hook__.after_file_fails() {
   log.error "__hook__.after_file_fails"
   return 1
 }
- 
+
 vENV_IP=""
 vENV_PROVIDER_API_ENDPOINT=""
 vENV_PROVIDER_API_KEY=""

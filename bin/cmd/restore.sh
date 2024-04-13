@@ -7,7 +7,7 @@ cmd.restore() {
   solos.require_completed_launch_status
   cmd.checkout
 
-  if [ "$vSTATIC_HOST" == "local" ]; then
+  if [[ "$vSTATIC_HOST" = "local" ]]; then
     lib.validate.docker_host_running
   fi
   log.warn "TODO: implementation needed"

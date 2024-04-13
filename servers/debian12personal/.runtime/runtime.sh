@@ -3,7 +3,6 @@
 #
 # Pretty standard options for bash scripts.
 #
-set -o errexit
 set -o nounset
 set -o pipefail
 #
@@ -25,10 +24,6 @@ export repo_dir="$PWD"
 mkdir -p "$repo_dir/.backups"
 mkdir -p "$repo_dir/.tmp"
 #
-# TODO: what this do?
-#
-(shopt -p inherit_errexit &>/dev/null) && shopt -s inherit_errexit
-#
 # Make sourcing server specific files a bit more reliable.
 #
 vSERVER_PATH="servers/debian12personal"
@@ -40,9 +35,6 @@ vSERVER_PATH="servers/debian12personal"
 cd "$repo_dir"
 # shellcheck source=cmdargs.sh
 . "$vSERVER_PATH/.runtime/cmdargs.sh"
-cd "$repo_dir"
-# shellcheck source=lobash.bash
-. "$vSERVER_PATH/.runtime/lobash.bash"
 cd "$repo_dir"
 #
 # It's important that we only run this script on Debian 12.

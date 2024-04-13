@@ -11,15 +11,15 @@ LIB_PASSED=()
 
 subcmd.tests._normalize_function_name() {
   local name="$1"
-  if [ -z "${name}" ]; then
+  if [[ -z "${name}" ]]; then
     log.error "function name is empty"
     exit 1
   fi
-  if [[ "${name}" == *".sh" ]]; then
+  if [[ "${name}" = *".sh" ]]; then
     log.error "function name cannot end in .sh"
     exit 1
   fi
-  if [[ "${name}" == "__test__."* ]]; then
+  if [[ "${name}" = "__test__."* ]]; then
     name="${name/__test__./}"
   fi
   if [[ "${name}" != "lib."* ]]; then
@@ -96,7 +96,7 @@ subcmd.tests._extract_clean_lib_name_from_test() {
 subcmd.tests._insert_variable_into_test_file() {
   local file="$1"
   local variable="$2"
-  if [ ! -f "$file" ]; then
+  if [[ ! -f "$file" ]]; then
     log.error "file not found: $file"
     exit 1
   fi
@@ -114,7 +114,7 @@ subcmd.tests._blank_failing_test() {
 
 subcmd.tests._grep_lib_used_variables() {
   local lib_file="$1"
-  if [ ! -f "$lib_file" ]; then
+  if [[ ! -f "$lib_file" ]]; then
     log.error "file not found: $lib_file"
     exit 1
   fi
@@ -123,7 +123,7 @@ subcmd.tests._grep_lib_used_variables() {
 
 subcmd.tests._grep_lib_defined_variables() {
   local file="$1"
-  if [ ! -f "$file" ]; then
+  if [[ ! -f "$file" ]]; then
     log.error "file not found: $file"
     exit 1
   fi
@@ -132,7 +132,7 @@ subcmd.tests._grep_lib_defined_variables() {
 
 subcmd.tests._grep_lib_defined_functions() {
   local lib_unit_name="$1"
-  if [ ! -f "${lib_unit_name}.sh" ]; then
+  if [[ ! -f "${lib_unit_name}.sh" ]]; then
     log.error "file not found: $lib_file"
     exit 1
   fi
@@ -141,7 +141,7 @@ subcmd.tests._grep_lib_defined_functions() {
 
 subcmd.tests._grep_test_defined_functions() {
   local lib_unit_name="$1"
-  if [ ! -f "${lib_unit_name}.sh" ]; then
+  if [[ ! -f "${lib_unit_name}.sh" ]]; then
     log.error "file not found: ${lib_unit_name}.sh"
     exit 1
   fi
@@ -152,17 +152,17 @@ subcmd.tests.unit.create_lib_test() {
   local lib_unit_name="$1"
   local force="${2:-false}"
   local lib_file="${lib_unit_name}.sh"
-  if [ ! -f "${lib_file}" ]; then
+  if [[ ! -f "${lib_file}" ]]; then
     log.error "file not found: ${lib_file} $PWD"
     exit 1
   fi
   local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
-  if [ -f "${target_test_file_path}" ] && [ "${force}" == "false" ]; then
+  if [[ -f "${target_test_file_path}" ]] && [[ "${force}" = "false" ]]; then
     return
   fi
-  if [ "$force" == "true" ] && [ -f "${target_test_file_path}" ]; then
+  if [[ "$force" = "true" ]] && [[ -f "${target_test_file_path}" ]]; then
     mv "${target_test_file_path}" "${test_dir}/.archive.$(date +%s).${target_test_file}"
     log.warn "archived previous test file at: .archive.${target_test_file_path}"
   fi
@@ -186,14 +186,14 @@ subcmd.tests.unit.create_lib_test() {
 subcmd.tests.unit.tests_add_missing_function_coverage() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
-  if [ ! -f "${lib_file}" ]; then
+  if [[ ! -f "${lib_file}" ]]; then
     log.error "file not found: $1"
     exit 1
   fi
   local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
-  if [ ! -f "${target_test_file_path}" ]; then
+  if [[ ! -f "${target_test_file_path}" ]]; then
     subcmd.tests.unit.create_lib_test "${lib_unit_name}"
     return
   fi
@@ -205,7 +205,7 @@ subcmd.tests.unit.tests_add_missing_function_coverage() {
       missing_functions+=("$defined_function")
     fi
   done
-  if [ ${#missing_functions[@]} -eq 0 ]; then
+  if [[ ${#missing_functions[@]} -eq 0 ]]; then
     return
   fi
   local lines=()
@@ -222,11 +222,11 @@ subcmd.tests.unit.get_undefined_test_variables() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
   local test_lib_file="tests/__test__.${lib_file}"
-  if [ ! -f "${lib_file}" ]; then
+  if [[ ! -f "${lib_file}" ]]; then
     log.error "file not found: $1"
     exit 1
   fi
-  if [ ! -f "${test_lib_file}" ]; then
+  if [[ ! -f "${test_lib_file}" ]]; then
     return
   fi
   local defined_test_variables="$(subcmd.tests._grep_lib_defined_variables "${test_lib_file}")"
@@ -237,7 +237,7 @@ subcmd.tests.unit.get_undefined_test_variables() {
       missing_variables+=("$used_variable")
     fi
   done
-  if [ ${#missing_variables[@]} -eq 0 ]; then
+  if [[ ${#missing_variables[@]} -eq 0 ]]; then
     return
   fi
   echo "${missing_variables[*]}"
@@ -252,11 +252,11 @@ subcmd.tests.step.verify_source_existence() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_test "${lib_file}")"
-    if [ ! -f "${lib_unit_name}.sh" ]; then
+    if [[ ! -f "${lib_unit_name}.sh" ]]; then
       missing_source_files+=("${lib_unit_name}.sh")
     fi
   done
-  if [ ${#missing_source_files[@]} -gt 0 ]; then
+  if [[ ${#missing_source_files[@]} -gt 0 ]]; then
     log.error "missing source files: ${missing_source_files[*]}"
     exit 1
   fi
@@ -335,7 +335,7 @@ subcmd.tests.step.cover_variables() {
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
     local undefined_variables="$(subcmd.tests.unit.get_undefined_test_variables "${lib_unit_name}")"
-    if [ -n "$undefined_variables" ]; then
+    if [[ -n "$undefined_variables" ]]; then
       for undefined_variable in $undefined_variables; do
         subcmd.tests._insert_variable_into_test_file "tests/__test__.${lib_unit_name}.sh" "${undefined_variable}"
       done
@@ -382,22 +382,21 @@ subcmd.tests.verify() {
 # TODO: refactor the log.stripped logic so we don't need to set/unset so many times
 #
 subcmd.tests.unit() {
-  local status=0
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
-  if [ ! -f "${lib_file}" ]; then
+  if [[ ! -f "${lib_file}" ]]; then
     log.error "file not found: ${lib_file}"
     exit 1
   fi
   local lib_test_file="tests/__test__.${lib_unit_name}.sh"
-  if [ ! -f "${lib_test_file}" ]; then
+  if [[ ! -f "${lib_test_file}" ]]; then
     log.error "test file not found: $1"
     exit 1
   fi
   local supplied_functions=()
   local functions_found_in_test="$(subcmd.tests._grep_test_defined_functions "${lib_unit_name}")"
   for arg in "${@:2}"; do
-    if [ -z "${arg}" ]; then
+    if [[ -z "${arg}" ]]; then
       continue
     fi
     if ! echo "$functions_found_in_test" | grep -q "^${arg}$"; then
@@ -407,7 +406,7 @@ subcmd.tests.unit() {
       supplied_functions+=("$(subcmd.tests._normalize_function_name "$arg")")
     fi
   done
-  if [ ${#supplied_functions[@]} -eq 0 ]; then
+  if [[ ${#supplied_functions[@]} -eq 0 ]]; then
     for function_found_in_test in $functions_found_in_test; do
       supplied_functions+=("$function_found_in_test")
     done
@@ -422,54 +421,51 @@ subcmd.tests.unit() {
       local test_function="__test__.${function_name_without_prefix}"
       if ! __hook__.before_fn "${supplied_function}"; then
         LIB_FAILED+=("${supplied_function}")
-        status=1
         continue
       fi
       if ! "${test_function}"; then
         something_failed=true
         __hook__.after_fn_fails "${supplied_function}" || true
         LIB_FAILED+=("${supplied_function}")
-        status=1
       else
         __hook__.after_fn_success "${supplied_function}" || true
         LIB_PASSED+=("${supplied_function}")
       fi
       __hook__.after_fn "${supplied_function}" || true
     done
-    if [ "${something_failed}" == "true" ]; then
+    if [[ "${something_failed}" = "true" ]]; then
       __hook__.after_file_fails || true
       LIB_FILES_FAILED+=("$lib_unit_name")
-      status=1
     else
       __hook__.after_file_success || true
     fi
     __hook__.after_file || true
   else
     LIB_FILES_FAILED+=("$lib_unit_name")
-    status=1
   fi
-
-  if [ "${status}" -ne 0 ]; then
-    return 1
-  else
-    return 0
-  fi
+  return 0
 }
 
 cmd.tests() {
   #
+  # This is the only command where we always do things and logs in the foreground.
+  # Public facing commands should simply show a single line output of the command's
+  # progress and then show the final result.
+  #
+  vENTRY_FOREGROUND=true
+  #
   # Make sure we're in a git repo and that we're either in our docker dev container
   # or on a local machine. We can't run tests in a remote environment.
   #
-  if [ "${vSTATIC_RUNNING_IN_GIT_REPO}" != "true" ]; then
+  if [[ "${vSTATIC_RUNNING_IN_GIT_REPO}" != "true" ]]; then
     log.error "this command can only be run from within a git repo."
     exit 1
   fi
-  if [ "${vSTATIC_HOST}" == "remote" ]; then
+  if [[ "${vSTATIC_HOST}" = "remote" ]]; then
     log.error "this command cannot be run in a remote environment."
     exit 1
   fi
-  if [ ! -d "lib" ]; then
+  if [[ ! -d "lib" ]]; then
     log.error "lib directory not found. Exiting."
     exit 1
   fi
@@ -486,16 +482,16 @@ cmd.tests() {
   local lib_files=()
   local lib_test_file=""
   local lib_unit_name=""
-  if [ -z "${lib_to_test}" ] && [ -z "${fn_to_test}" ]; then
+  if [[ -z "${lib_to_test}" ]] && [[ -z "${fn_to_test}" ]]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
     done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   else
-    if [ -n "${fn_to_test}" ]; then
+    if [[ -n "${fn_to_test}" ]]; then
       fn_to_test="$(subcmd.tests._normalize_function_name "${fn_to_test}")"
       local inferred_lib_to_test="$(echo "${fn_to_test}" | cut -d. -f2)"
-      if [ -n "${lib_to_test}" ]; then
-        if [ "${lib_to_test}" != "${inferred_lib_to_test}" ]; then
+      if [[ -n "${lib_to_test}" ]]; then
+        if [[ "${lib_to_test}" != "${inferred_lib_to_test}" ]]; then
           log.error "the --lib and --fn flags specify different libraries. Exiting."
           exit 1
         fi
@@ -507,20 +503,16 @@ cmd.tests() {
     lib_test_file="$lib_dir/tests/__test__.${lib_unit_name}.sh"
     lib_files+=("$lib_dir/${lib_unit_name}.sh")
   fi
-  #
-  # Init tests that don't exist, make sure all functions are covered from the source libs,
-  # and verify some basic things like variable usage and function coverage.
-  #
-  subcmd.tests.init &
-  lib.utils.spinner $! "Initializing tests..."
-  subcmd.tests.cover &
-  lib.utils.spinner $! "Adding any missing test coverage..."
-  subcmd.tests.verify &
-  lib.utils.spinner $! "Verifying tests..."
+  subcmd.tests.init
+  log.info "initialized any missing test files"
+  subcmd.tests.cover
+  log.info "covered any missing functions and variables"
+  subcmd.tests.verify
+  log.info "verified function and variable coverage"
   #
   # Wait until things are generated before testing for existence.
   #
-  if [ -n "${lib_test_file}" ] && [ ! -f "${lib_test_file}" ]; then
+  if [[ -n "${lib_test_file}" ]] && [[ ! -f "${lib_test_file}" ]]; then
     log.error "test file not found: ${lib_test_file}"
     exit 1
   fi
@@ -531,21 +523,18 @@ cmd.tests() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
-    subcmd.tests.unit "${lib_unit_name}" "${fn_to_test}" &
-    lib.utils.spinner $! "Testing ${lib_unit_name}..."
+    subcmd.tests.unit "${lib_unit_name}" "${fn_to_test}"
     cd "$lib_dir"
   done
   #
-  # Collect the status of the ran tests and output the results.
-  #
-  if [ ${#LIB_FILES_FAILED[@]} -gt 0 ]; then
-    pkg.gum.danger_box 'FAILED LIBS:' "${LIB_FILES_FAILED[@]}"
+  if [[ ${#LIB_FILES_FAILED[@]} -gt 0 ]]; then
+    pkg.gum.danger_box 'TESTS FAILED:' "${LIB_FILES_FAILED[@]/#/lib.}"
   fi
-  if [ ${#LIB_FAILED[@]} -gt 0 ]; then
-    pkg.gum.danger_box 'FAILED FUNCTIONS:' "${LIB_FAILED[@]}"
+  if [[ ${#LIB_FAILED[@]} -gt 0 ]]; then
+    pkg.gum.danger_box 'WHICH FUNCTIONS FAILED:' "${LIB_FAILED[@]/#/lib.}"
   fi
-  if [ ${#LIB_PASSED[@]} -gt 0 ]; then
-    pkg.gum.success_box 'PASSED FUNCTIONS:' "${LIB_PASSED[@]}"
+  if [[ ${#LIB_PASSED[@]} -gt 0 ]]; then
+    pkg.gum.success_box 'TESTS PASSING FOR:' "${LIB_PASSED[@]/#/lib.}"
   fi
   cd "$entry_dir"
 }

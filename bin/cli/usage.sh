@@ -33,6 +33,8 @@ gen                      - (for dev) Generates source code.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --help                   - Print this help and exit
+--foreground              - Avoids usage of the progress spinner and subshells so that logging happens in 
+                           the foreground.
 
 Source: https://github.com/InterBolt/solos
 EOF
@@ -51,6 +53,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --dir               - The directory of your SolOS project. (required on the first run)
 --server            - The type of server to bootstrap. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 --hard-reset        - Dangerously recreate project files and infrastructure.
 EOF
 }
@@ -80,6 +84,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --lib               - (ex: "ssh" tests "lib.ssh") The name of the library to test.
 --fn                - (ex: "lib.<category>.<fn>") The name of the lib function to test.
 --help              - Print this help and exit
+--foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 EOF
 }
 #
@@ -95,6 +101,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 EOF
 }
 #
@@ -110,6 +118,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 EOF
 }
 cli.usage.command.backup.help() {
@@ -122,6 +132,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 --tag=<string>      - The tag to use for the backup.
 EOF
 }
@@ -135,6 +147,8 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 --tag=<string>      - When supplied, we'll restore the latest backup that 
                       matches the tag. If no tag is supplied, we'll restore
                       the latest backup.
@@ -161,5 +175,7 @@ Generates source code, like __source__.sh files. Development only.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --help              - Print this help and exit
+--foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+                      the foreground.
 EOF
 }

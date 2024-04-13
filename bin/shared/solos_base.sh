@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2103,SC2164
-set -o errexit
 set -o pipefail
 set -o errtrace
 
-if [ "$(basename "$(pwd)")" != "bin" ]; then
+if [[ "$(basename "$(pwd)")" != "bin" ]]; then
   cd "$(dirname "${BASH_SOURCE[0]}")"
   cd ..
 fi
-if [ "$(basename "$(pwd)")" != "bin" ]; then
+if [[ "$(basename "$(pwd)")" != "bin" ]]; then
   echo "error: must be run from the bin folder"
   exit 1
 fi
@@ -27,7 +26,7 @@ fi
 # Checking for the vFROM_BIN_SCRIPT variable protects us against accidentally running
 # a script that should almost always only be source directly.
 #
-if [ "${vFROM_BIN_SCRIPT}" != "true" ]; then
+if [[ "${vFROM_BIN_SCRIPT}" != "true" ]]; then
   log.error "this script must be sourced from the main bin script"
   exit 1
 fi

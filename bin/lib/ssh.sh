@@ -4,20 +4,20 @@
 . shared/solos_base.sh
 
 lib.ssh._validate() {
-  if [ -z "${!vENV_IP+x}" ]; then
+  if [[ -z "${!vENV_IP+x}" ]]; then
     log.error "vENV_IP must be defined. Exiting."
     exit 1
   fi
 }
 lib.ssh._require_ip() {
-  if [ -z "${vENV_IP}" ]; then
+  if [[ -z "${vENV_IP}" ]]; then
     log.error "vENV_IP must be defined. Exiting."
     exit 1
   fi
 }
 lib.ssh.command.docker() {
   lib.ssh._validate
-  if [ "$vSTATIC_HOST" != "local" ]; then
+  if [[ "$vSTATIC_HOST" != "local" ]]; then
     log.error "$0 must be run locally to interact with docker over SSH. Exiting."
     exit 1
   fi
@@ -28,7 +28,7 @@ lib.ssh.command.docker() {
 lib.ssh.command.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [ "$vSTATIC_HOST" == "remote" ]; then
+  if [[ "$vSTATIC_HOST" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
@@ -38,7 +38,7 @@ lib.ssh.command.remote() {
 }
 lib.ssh.rsync_up.docker() {
   lib.ssh._validate
-  if [ "$vSTATIC_HOST" != "local" ]; then
+  if [[ "$vSTATIC_HOST" != "local" ]]; then
     log.error "$0 must be run locally to interact with docker over SSH. Exiting."
     exit 1
   fi
@@ -50,7 +50,7 @@ lib.ssh.rsync_up.docker() {
 }
 lib.ssh.rsync_down.docker() {
   lib.ssh._validate
-  if [ "$vSTATIC_HOST" != "local" ]; then
+  if [[ "$vSTATIC_HOST" != "local" ]]; then
     log.error "$0 must be run locally. Exiting."
     exit 1
   fi
@@ -63,7 +63,7 @@ lib.ssh.rsync_down.docker() {
 lib.ssh.rsync_up.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [ "$vSTATIC_HOST" == "remote" ]; then
+  if [[ "$vSTATIC_HOST" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
@@ -76,7 +76,7 @@ lib.ssh.rsync_up.remote() {
 lib.ssh.rsync_down.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [ "$vSTATIC_HOST" == "remote" ]; then
+  if [[ "$vSTATIC_HOST" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
@@ -96,56 +96,56 @@ lib.ssh.path_pubkey.self() {
   echo "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME"
 }
 lib.ssh.cat_pubkey.self() {
-  if [ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME" ]; then
+  if [[ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME" ]]; then
     cat "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME"
   else
     echo ""
   fi
 }
 lib.ssh.cat_pubkey.debian() {
-  if [ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_PUB_KEYNAME" ]; then
+  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_PUB_KEYNAME" ]]; then
     cat "$(lib.ssh.path.debian)$vSTATIC_SSH_PUB_KEYNAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_privkey.self() {
-  if [ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_RSA_KEYNAME" ]; then
+  if [[ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_RSA_KEYNAME" ]]; then
     echo "$(lib.ssh.path.self)/$vSTATIC_SSH_RSA_KEYNAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_privkey.debian() {
-  if [ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_RSA_KEYNAME" ]; then
+  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_RSA_KEYNAME" ]]; then
     echo "$(lib.ssh.path.debian)$vSTATIC_SSH_RSA_KEYNAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_authorized_keys.self() {
-  if [ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
+  if [[ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]]; then
     echo "$(lib.ssh.path.self)/$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_authorized_keys.debian() {
-  if [ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]; then
+  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME" ]]; then
     echo "$(lib.ssh.path.debian)$vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_config.self() {
-  if [ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_CONFIG_FILENAME" ]; then
+  if [[ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_CONFIG_FILENAME" ]]; then
     echo "$(lib.ssh.path.self)/$vSTATIC_SSH_CONFIG_FILENAME"
   else
     echo ""
   fi
 }
 lib.ssh.path_config.debian() {
-  if [ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_CONFIG_FILENAME" ]; then
+  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_CONFIG_FILENAME" ]]; then
     echo "$(lib.ssh.path.debian)$vSTATIC_SSH_CONFIG_FILENAME"
   else
     echo ""

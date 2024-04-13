@@ -14,7 +14,7 @@ LIB_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
 mkdir -p "${LIB_DIR}"
 
 LIB_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
-if [ "${LIB_FILESIZE}" -gt 1000 ]; then
+if [[ "${LIB_FILESIZE}" -gt 1000 ]]; then
   LIB_BARE_LOG=true
   log.warn "LOG FILE IS GROWING LARGE: $((LIB_FILESIZE / 1000))MB"
   log.info "${vSTATIC_LOG_FILEPATH}"
@@ -28,13 +28,37 @@ fi
 # HELPER FUNCTIONS
 #
 log._get_filesize() {
-  if [ -f "${1}" ]; then
+  if [[ -f "${1}" ]]; then
     du -k "${1}" | cut -f 1
   else
     echo 0
   fi
 }
+log._get_level_color() {
+  local level="${1}"
+  case "${level}" in
+  "info")
+    echo "#3B78FF"
+    ;;
+  "debug")
+    echo "#A0A"
+    ;;
+  "error")
+    echo "#F02"
+    ;;
+  "fatal")
+    echo "#F02"
+    ;;
+  "warn")
+    echo "#FA0"
+    ;;
+  *)
+    echo "#FFF"
+    ;;
+  esac
+}
 log._base() {
+  local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
   local level="${1}"
@@ -43,14 +67,18 @@ log._base() {
   shift
   local msg="${1}"
   shift
-  local line="${@}"
-  if [ "${LIB_BARE_LOG}" == "true" ]; then
-    pkg.gum log --level "${level}" "${msg}"
-    return
+  local args=()
+  #
+  # `bare` logs don't include lots of info and don't log to a file.
+  #
+  if [[ $LIB_BARE_LOG = true ]]; then
+    args=(--level "${level}" "${msg}")
+  else
+    args=(--time "kitchen" --structured --level "${level}" "${msg}" source "(${source})" date "${formatted_date}")
+    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}"
   fi
-  pkg.gum log --file "${vSTATIC_LOG_FILEPATH}" --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}"
-  if [ "${level}" == "fatal" ] || [ "${DEBUG:-false}" == "true" ] || [ "${DEBUG:-false}" == "1" ]; then
-    pkg.gum log --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}"
+  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $vENTRY_FOREGROUND = true ]]; then
+    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}"
   fi
 }
 # -----------------------------------------------------------------------------

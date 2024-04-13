@@ -17,13 +17,13 @@ subcmd.precheck.variables() {
     local global_vars=$(lib.utils.grep_global_vars "$file")
     for global_var in $global_vars; do
       local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
-      if [ "$result" == "unset" ]; then
+      if [[ "$result" = "unset" ]]; then
         log.error "Unknown variable: $global_var used in $file"
         errored=true
       fi
     done
   done
-  if [ "$errored" == true ]; then
+  if [[ "$errored" = true ]]; then
     exit 1
   fi
   cd "$entry_pwd"
@@ -44,7 +44,7 @@ subcmd.precheck.launchfiles() {
   # Check that the defualt server type exists
   #
   local servers_dir="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_REPO_SERVERS_DIR}"
-  if [ ! -d "${servers_dir}/${vSTATIC_DEFAULT_SERVER}" ]; then
+  if [[ ! -d "${servers_dir}/${vSTATIC_DEFAULT_SERVER}" ]]; then
     log.error "The default server type does not exist at: ${servers_dir}/${vSTATIC_DEFAULT_SERVER}"
     exit 1
   fi
@@ -52,12 +52,12 @@ subcmd.precheck.launchfiles() {
   # Check that each server type has a .launch dir
   #
   for server in "${servers_dir}"/*; do
-    if [ ! -d "$server" ]; then
+    if [[ ! -d "$server" ]]; then
       continue
     fi
     local server_name
     server_name=$(basename "$server")
-    if [ ! -d "${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}" ]; then
+    if [[ ! -d "${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}" ]]; then
       log.error "The server type: ${server_name} does not have a launch dir at: ${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}"
       exit 1
     fi
@@ -65,7 +65,7 @@ subcmd.precheck.launchfiles() {
 }
 
 cmd.precheck() {
-  if [ "$vSTATIC_RUNNING_IN_GIT_REPO" == "true" ] && [ "$vSTATIC_HOST" == "local" ]; then
+  if [[ "$vSTATIC_RUNNING_IN_GIT_REPO" = "true" ]] && [[ "$vSTATIC_HOST" = "local" ]]; then
     subcmd.precheck.variables
     subcmd.precheck.launchfiles
   else

@@ -2,15 +2,15 @@
 
 export vMODE="${MODE:-"production"}"
 export vSTATIC_HOST=""
-if [ "$(uname)" == "Darwin" ]; then
+if [[ "$(uname)" = "Darwin" ]]; then
   export vSTATIC_HOST="local"
-elif [ -f /.dockerenv ]; then
+elif [[ -f /.dockerenv ]]; then
   export vSTATIC_HOST="docker"
 else
   export vSTATIC_HOST="remote"
 fi
 export vSTATIC_RUNNING_REPO_ROOT=""
-if [ -z "$(git rev-parse --show-toplevel 2>/dev/null)" ]; then
+if [[ -z "$(git rev-parse --show-toplevel 2>/dev/null)" ]]; then
   export vSTATIC_RUNNING_IN_GIT_REPO=false
   export vSTATIC_RUNNING_REPO_ROOT=""
 else
@@ -18,19 +18,6 @@ else
   export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 fi
 export vSTATIC_REPO_URL="https://github.com/InterBolt/solos.git"
-export vSTATIC_LOGS_FILENAME="bin.log"
-export vSTATIC_LOG_FILEPATH=""
-if [ -d "${vSTATIC_MY_CONFIG_ROOT}" ]; then
-  vSTATIC_LOG_FILEPATH="${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
-elif [ -n "${vSTATIC_RUNNING_REPO_ROOT}" ]; then
-  vSTATIC_LOG_FILEPATH="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
-else
-  vSTATIC_LOG_FILEPATH="${PWD}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
-fi
-mkdir -p "$(dirname "${vSTATIC_LOG_FILEPATH}")"
-if [ ! -f "${vSTATIC_LOG_FILEPATH}" ]; then
-  touch "${vSTATIC_LOG_FILEPATH}"
-fi
 #
 # TODO: is there an automated way to scan our code and get a list of
 # TODO[c]: all the commands we assume the user has installed.
@@ -91,3 +78,17 @@ export vSTATIC_USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
 export vSTATIC_SOLOS_ID_FILENAME=".solos_id"
 export vSTATIC_SERVER_TYPE_FILENAME=".solos_server_type"
 export vSTATIC_DEFAULT_SERVER="debian12personal"
+
+export vSTATIC_LOGS_FILENAME="bin.log"
+export vSTATIC_LOG_FILEPATH=""
+if [[ -d "${vSTATIC_MY_CONFIG_ROOT}" ]]; then
+  vSTATIC_LOG_FILEPATH="${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+elif [[ -n "${vSTATIC_RUNNING_REPO_ROOT}" ]]; then
+  vSTATIC_LOG_FILEPATH="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+else
+  vSTATIC_LOG_FILEPATH="${PWD}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+fi
+mkdir -p "$(dirname "${vSTATIC_LOG_FILEPATH}")"
+if [[ ! -f "${vSTATIC_LOG_FILEPATH}" ]]; then
+  touch "${vSTATIC_LOG_FILEPATH}"
+fi

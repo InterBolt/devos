@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -o errexit
 set -o pipefail
 set -o errtrace
 
@@ -53,6 +52,9 @@ vPREV_CURL_ERR_MESSAGE=""
 vPREV_CURL_ERR_STATUS_CODE=""
 vPREV_CURL_RESPONSE=""
 vSTATIC_LOG_FILEPATH=""
+vENTRY_LOG_LINE_COUNT=""
+vENTRY_START_SECONDS=""
+vENTRY_FOREGROUND=""
 
 __test__.utils.curl() {
   log.error "utils.curl not implemented yet"
@@ -100,5 +102,13 @@ __test__.utils.spinner() {
 }
 __test__.utils.logdiff() {
   log.error "utils.logdiff not implemented yet"
+  return 1
+}
+__test__.utils.do_task() {
+  log.error "utils.do_task not implemented yet"
+  return 1
+}
+__test__.utils.from_hex() {
+  log.error "utils.from_hex not implemented yet"
   return 1
 }

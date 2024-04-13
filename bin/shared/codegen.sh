@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-set -o errexit
 set -o pipefail
 set -o errtrace
 
@@ -12,12 +11,12 @@ cd ..
 . shared/log.sh
 
 LIB_GIT_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
-if [ -z "$LIB_GIT_DIR" ]; then
+if [[ -z "$LIB_GIT_DIR" ]]; then
   log.error "must be run from within a git repository. Exiting"
   exit 1
 fi
 LIB_BIN_DIR="${LIB_GIT_DIR}/bin"
-if [ ! -d "${LIB_BIN_DIR}" ]; then
+if [[ ! -d "${LIB_BIN_DIR}" ]]; then
   log.error "${LIB_BIN_DIR} not found. Exiting."
   exit 1
 fi
@@ -26,7 +25,7 @@ LIB_SOURCE_DIRNAME="__source__.sh"
 codegen.source_relative_files() {
   local dirname="${1}"
   local dir="${LIB_BIN_DIR}/${dirname}"
-  if [ ! -d "${dir}" ]; then
+  if [[ ! -d "${dir}" ]]; then
     log.error "A valid directory was not provided."
     exit 1
   fi
@@ -35,11 +34,11 @@ codegen.source_relative_files() {
   echo "#!/usr/bin/env bash" >"${tmp_sourced_file}"
   echo "" >>"${tmp_sourced_file}"
   for file in "${dir}"/*.sh; do
-    if [ ! -f "${file}" ]; then
+    if [[ ! -f "${file}" ]]; then
       continue
     fi
     local filename=$(basename "${file}")
-    if [ "${filename}" == "${LIB_SOURCE_DIRNAME}" ]; then
+    if [[ "${filename}" = "${LIB_SOURCE_DIRNAME}" ]]; then
       continue
     fi
     {

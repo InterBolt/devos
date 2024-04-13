@@ -17,7 +17,8 @@ node_modules/
 secret.*
 .archive.*
 .secret*
-test.sh
+test.*
+test.experiments/
 reference.txt
 *.test
 !.gitkeep

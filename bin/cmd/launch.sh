@@ -6,7 +6,7 @@
 cmd.launch() {
   cmd.checkout
 
-  if [ "$vCLI_OPT_HARD_RESET" == true ]; then
+  if [[ "$vCLI_OPT_HARD_RESET" = true ]]; then
     #
     # Will throw on a dir path that is either non-existent OR
     # doesn't contain any file/files specific to a solos project.
@@ -22,14 +22,14 @@ cmd.launch() {
   # since those will just result in new solos projects.
   #
   lib.validate.throw_on_nonsolos_dir
-  if [ ! -d "${vCLI_OPT_DIR}" ]; then
+  if [[ ! -d "${vCLI_OPT_DIR}" ]]; then
     mkdir -p "${vCLI_OPT_DIR}"
     log.info "created new SolOS project at: ${vCLI_OPT_DIR}"
     vENV_SOLOS_ID="$(lib.utils.generate_secret)"
     echo "${vENV_SOLOS_ID}" >"${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
     log.info "created new SolOS project at: ${vCLI_OPT_DIR} with id: ${vENV_SOLOS_ID}"
   fi
-  if [ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]; then
+  if [[ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]]; then
     vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
   fi
   #
@@ -38,7 +38,7 @@ cmd.launch() {
   # it a one-time thing since there's so much logic tied to a particular server type
   # and I don't want to have to write hard to reason about, defensive code.
   #
-  if [ ! -f "${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}" ]; then
+  if [[ ! -f "${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}" ]]; then
     echo "${vCLI_OPT_SERVER}" >"${vSTATIC_SERVER_TYPE_FILENAME}"
     log.info "set server type: ${vCLI_OPT_SERVER}"
   fi
@@ -46,7 +46,7 @@ cmd.launch() {
   # This script is idempotent. But a warning doesn't hurt.
   #
   last_successful_run="$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")"
-  if [ -n "$last_successful_run" ]; then
+  if [[ -n "$last_successful_run" ]]; then
     log.warn "the last successful run was at: $last_successful_run"
   fi
   solos.import_project_repo
@@ -75,12 +75,12 @@ cmd.launch() {
   )
   local some_vars_not_set=false
   for expected_var in "${expects_these_things[@]}"; do
-    if [ -z "${!expected_var+x}" ]; then
+    if [[ -z "${!expected_var+x}" ]]; then
       log.error "var: ${expected_var} is not defined"
       some_vars_not_set=true
     fi
   done
-  if [ "${some_vars_not_set}" == "true" ]; then
+  if [[ "${some_vars_not_set}" = "true" ]]; then
     exit 1
   fi
   #
@@ -96,7 +96,7 @@ cmd.launch() {
   vENV_PROVIDER_NAME="$(lib.cache.prompt "vENV_PROVIDER_NAME")"
   vENV_PROVIDER_API_ENDPOINT="$(lib.cache.prompt "vENV_PROVIDER_API_ENDPOINT")"
   for i in "${!expects_these_things[@]}"; do
-    if [ -z "${!expects_these_things[$i]}" ]; then
+    if [[ -z "${!expects_these_things[$i]}" ]]; then
       log.error "${expects_these_things[$i]} is empty. Exiting."
       exit 1
     fi
@@ -117,7 +117,7 @@ cmd.launch() {
   #
   local most_recent_ip="$(lib.cache.get "most_recent_ip")"
   local ip_to_deprovision="$(lib.cache.get "ip_to_deprovision")"
-  if [ -n "${most_recent_ip}" ]; then
+  if [[ -n "${most_recent_ip}" ]]; then
     log.info "the ip \`${most_recent_ip}\` from a previous run was found."
     log.info "if ssh keyfiles are the same, we will skip provisioning."
   fi
@@ -130,14 +130,14 @@ cmd.launch() {
   # 1) vENV_IP is empty after provisioning
   # 2) the ip to deprovision in our cache is the same as vENV_IP
   #
-  if [ -z "$vENV_IP" ]; then
+  if [[ -z "$vENV_IP" ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
   #
   #
   #
-  if [ "$ip_to_deprovision" == "$vENV_IP" ]; then
+  if [[ "$ip_to_deprovision" = "$vENV_IP" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
@@ -150,7 +150,7 @@ cmd.launch() {
   # a hard reset won't stop our script from deprovisioning the old instance.
   # on future runs.
   #
-  if [ "$vENV_IP" != "$most_recent_ip" ]; then
+  if [[ "$vENV_IP" != "$most_recent_ip" ]]; then
     lib.cache.set "ip_to_deprovision" "$most_recent_ip"
     lib.cache.set "most_recent_ip" "$vENV_IP"
   fi
@@ -196,7 +196,7 @@ cmd.launch() {
   # Note: In a previous implementation I was making the above mistake.
   #
   local linux_sh_project_file="${project_launch_dir}/${vSTATIC_LINUX_SH_FILENAME}"
-  if [ ! -f "$linux_sh_project_file" ]; then
+  if [[ ! -f "$linux_sh_project_file" ]]; then
     log.error "Unexpected error: $linux_sh_project_file not found. Exiting."
     exit 1
   fi
@@ -244,7 +244,7 @@ cmd.launch() {
   # any one-click-apps, databases, extra infra, etc. in the manual.txt file.
   #
   bootstrapped_manually_at="$(lib.status.get "${vSTATUS_BOOTSTRAPPED_MANUALLY}")"
-  if [ -n "${bootstrapped_manually_at}" ]; then
+  if [[ -n "${bootstrapped_manually_at}" ]]; then
     log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
     lib.ssh.rsync_down.remote "${vSTATIC_SERVER_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vCLI_OPT_DIR}/"
@@ -275,14 +275,14 @@ cmd.launch() {
   # we'll end up destroying the current instance. Yikes.
   #
   local ip_to_deprovision="$(lib.cache.get "ip_to_deprovision")"
-  if [ "${ip_to_deprovision}" == "${vENV_IP}" ]; then
+  if [[ "${ip_to_deprovision}" = "${vENV_IP}" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
   #
   # The active ip should never be empty.
   #
-  if [ -z "${vENV_IP}" ]; then
+  if [[ -z "${vENV_IP}" ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
@@ -290,11 +290,11 @@ cmd.launch() {
   # Destroy the vultr instance associated with the old ip and then
   # delete the cache entry so this never happens twice.
   #
-  if [ -n "${ip_to_deprovision}" ]; then
+  if [[ -n "${ip_to_deprovision}" ]]; then
     lib.utils.warn_with_delay "DANGER: destroying instance: ${ip_to_deprovision}"
     lib.vultr.compute.get_instance_id_from_ip "${ip_to_deprovision}"
     local instance_id_to_deprovision="${vPREV_RETURN[0]}"
-    if [ "${instance_id_to_deprovision}" == "null" ]; then
+    if [[ "${instance_id_to_deprovision}" = "null" ]]; then
       log.error "Unexpected error: couldn't find instance for ip: \`${ip_to_deprovision}\`. Nothing to deprovision."
       exit 1
     fi
