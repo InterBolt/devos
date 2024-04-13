@@ -4,6 +4,11 @@
 . shared/solos_base.sh
 
 cmd.checkout() {
+  log.info "started checkout cmd"
+  sleep 2
+  log.info "waited a couple seconds for fun"
+  sleep 2
+  log.info "waited a couple more seconds for fun"
   #
   # Important: do these checks BEFORE saving the provided directory in the
   # lib.cache. Let's be sure any directories we put there are valid and safe.
