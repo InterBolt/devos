@@ -3,7 +3,7 @@
 set -o pipefail
 set -o errtrace
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 LIB_ENTRY_DIR="$(pwd)"
 
 cd ..
@@ -56,7 +56,6 @@ codegen.source_relative_files() {
 }
 
 if codegen.allowed; then
-  cd "${LIB_ENTRY_DIR}" || exit 1
   codegen.source_relative_files "pkg"
   codegen.source_relative_files "cmd"
   codegen.source_relative_files "cli"
