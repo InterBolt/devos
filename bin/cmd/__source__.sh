@@ -12,5 +12,5 @@
 . cmd/restore.sh
 # shellcheck source=sync_config.sh
 . cmd/sync_config.sh
-# shellcheck source=tests.sh
+# shellcheck source=test.sh
 . cmd/test.sh
