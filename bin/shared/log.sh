@@ -69,6 +69,12 @@ log._base() {
   local msg="${1}"
   shift
   local args=()
+  #
+  # The thinking is that if the source is NULL, we're almost certainly running
+  # the script via piping a curled script to bash. We can limit debugging info
+  # in the log line because their's likely no file to reference on the local
+  # machine.
+  #
   local date_args=(date "${formatted_date}")
   local source_args=(source "[${source}]")
   if [[ "${source}" == "NULL"* ]]; then
