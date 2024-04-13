@@ -93,7 +93,8 @@ cli.usage.command.checkout.help() {
   cat <<EOF
 Usage: solos checkout [--OPTS...]
 
-Launch a new installation, complete a partial installation, or repair an existing installation.
+Sets the active project directory. Subsequent commands will use the supplied directory unless
+the --dir option is explicitly provided.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
