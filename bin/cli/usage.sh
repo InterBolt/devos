@@ -26,7 +26,7 @@ sync-config              - Sync the \`.solos\` config folder to a remote server.
 backup                   - Archive a SolOS project and upload it to an s3 bucket.
 restore                  - Restore a SolOS project from an s3 bucket.
 code                     - Open the VSCode workspaces associated with the installation.
-tests                    - (for dev) Generates and runs unit tests for each lib.* library.
+test                     - (DEV ONLY) Generates and runs unit tests for each lib.* library.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -73,7 +73,7 @@ EOF
 }
 cli.usage.command.tests.help() {
   cat <<EOF
-Usage: solos tests [--OPTS...]
+Usage: solos test [--OPTS...]
 
 Run tests on either a specific library or all lib.* libraries.
 
