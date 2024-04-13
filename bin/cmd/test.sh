@@ -513,15 +513,10 @@ cmd.test() {
   #
   vENTRY_FOREGROUND=true
   #
-  # Unrelated to lib tests, do some prechecks to ensure no misuse of
-  #
-  subcmd.test.precheck_launchfiles
-  subcmd.test.precheck_variables
-  #
   # Make sure we're in a git repo and that we're either in our docker dev container
   # or on a local machine. We can't run tests in a remote environment.
   #
-  if [[ "${vSTATIC_RUNNING_IN_GIT_REPO}" != "true" ]]; then
+  if [[ "${vSTATIC_RUNNING_IN_GIT_REPO}" != true ]]; then
     log.error "this command can only be run from within a git repo."
     exit 1
   fi
@@ -533,6 +528,11 @@ cmd.test() {
     log.error "lib directory not found. Exiting."
     exit 1
   fi
+  #
+  # Unrelated to lib tests, do some prechecks to ensure no misuse of
+  #
+  subcmd.test.precheck_launchfiles
+  subcmd.test.precheck_variables
   local entry_dir="$PWD"
   cd "lib" || exit 1
   #
