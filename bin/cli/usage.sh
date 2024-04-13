@@ -33,7 +33,7 @@ gen                      - (for dev) Generates source code.
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --help                   - Print this help and exit
---foreground              - Avoids usage of the progress spinner and subshells so that logging happens in 
+--foreground             - Avoids usage of the progress spinner and subshells so that logging happens in 
                            the foreground.
 
 Source: https://github.com/InterBolt/solos
@@ -101,7 +101,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+--foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.
 EOF
 }

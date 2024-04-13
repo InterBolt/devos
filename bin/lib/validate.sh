@@ -107,7 +107,7 @@ lib.validate.checked_out_server_and_dir() {
     fi
   fi
   if [[ -z "$vCLI_OPT_SERVER" ]]; then
-    log.error "Unexpected error: couldn't find a server type from either the --server flag or the checked out directory."
+    log.error "Unexpected error: couldn't infer a server type from the supplied directory: ${vCLI_OPT_DIR}. Exiting."
     exit 1
   fi
 }
