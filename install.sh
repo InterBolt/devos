@@ -1,35 +1,86 @@
 #!/usr/bin/env bash
+
 set -o pipefail
 set -o errtrace
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
 viREPO_BIN_EXECUTABLE_PATH="bin/solos.sh"
 
-do_install() {
-  #
-  # Important: please use "vi" prefix to avoid conflicts with other scripts
-  # we source remotely.
-  # Note: stands for "v" variable and "i" install.
-  #
-  viTMP_DIR="$(mktemp -d 2>/dev/null)"
-  viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
-  i.cleanup() {
-    rm -rf "$viTMP_DIR"
-    rm -rf "$viMY_TMP_CONFIG_BIN_DIR"
-  }
-  trap "i.cleanup" EXIT
-  viTMP_REPO="${viTMP_DIR}/solos"
-  viREPO_URL="https://github.com/InterBolt/solos.git"
+spinner() {
+  # make sure we use non-unicode character type locale
+  # (that way it works for any locale as long as the font supports the characters)
+  local LC_CTYPE=C
 
+  local pid=$1 # Process Id of the previous running command
+  local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
+  local charwidth=3
+  local title="${2:-""}"
+  local length_of_title=${#title}
+
+  local i=0
+  tput civis # cursor invisible
+  while kill -0 "${pid}" 2>/dev/null; do
+    local i=$(((charwidth + i) % ${#spin}))
+    #
+    # This should always match up with the info level color!
+    #
+    printf "%b" "${spin:$i:$charwidth} \e[94m${title}\e[0m"
+    echo -en "\033[$((length_of_title + 2))D"
+    sleep .1
+  done
+  echo -en "\033[K"
+  tput cnorm
+  wait "${pid}"
+  local code=$?
+  if [[ $code -ne 0 ]]; then
+    log.error "installation failed with code: $code"
+    log.info "tip: include the --foreground flag next time to view the output."
+    exit $code
+  fi
+}
+
+do_task() {
+  local description="$1"
+  local task="$2"
+  shift 2
+  if ! declare -f "$task" >/dev/null; then
+    log.error "second argument must be the task function."
+    exit 1
+  fi
+  "$task" "$@" &
+  local task_pid=$!
+  spinner "${task_pid}" "${description}"
+}
+
+#
+# Important: please use "vi" prefix to avoid conflicts with other scripts
+# we source remotely.
+# Note: stands for "v" variable and "i" install.
+#
+viTMP_DIR="$(mktemp -d 2>/dev/null)"
+viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
+viTMP_REPO="${viTMP_DIR}/solos"
+viREPO_URL="https://github.com/InterBolt/solos.git"
+viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
+viBIN_SCRIPT_COMMENT_TAG="# from:solos"
+
+trap.cleanup() {
+  rm -rf "$viTMP_DIR"
+  rm -rf "$viMY_TMP_CONFIG_BIN_DIR"
+}
+
+do.clone() {
   git clone "${viREPO_URL}" "${viTMP_REPO}" &>/dev/null
   if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
     echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
     exit 1
   fi
+}
+
+do.prepare() {
   #
   # Important: the remainder of the script assumes we're in the bin folder.
   #
-  cd "${viTMP_REPO}/bin"
+  cd "${viTMP_REPO}/bin" || exit 1
   #
   # Source anything we need an make sure the user has a
   # config dir in the home folder.
@@ -51,15 +102,6 @@ do_install() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
   # shellcheck source=bin/shared/log.sh
   . "shared/log.sh"
-  log.use_minimal
-  #
-  # Will download the bin script + all lib scripts to the user's local
-  # solos config folder at config/bin/.
-  # Then, the main executable at the user's path can call the main script as a command.
-  #
-  viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
-  viBIN_SCRIPT_COMMENT_TAG="# from:solos"
-
   #
   # Overwrite the bin files stored in the config folder.
   #
@@ -96,34 +138,10 @@ do_install() {
     echo "\"${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH\" \"\$@\""
   } >>"$viUSR_LOCAL_BIN_EXECUTABLE"
   chmod +x "$viUSR_LOCAL_BIN_EXECUTABLE"
-  log.info "success: ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
-  log.info "run 'solos --help' to get started."
 }
 
-spinner() {
-  # make sure we use non-unicode character type locale
-  # (that way it works for any locale as long as the font supports the characters)
-  local LC_CTYPE=C
-
-  local pid=$1   # Process Id of the previous running command
-  local title=$2 # Text to display
-
-  local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
-  local charwidth=3
-
-  local i=0
-  local length_of_title=${#title}
-  tput civis # cursor invisible
-  while kill -0 "${pid}" 2>/dev/null; do
-    local i=$(((charwidth + i) % ${#spin}))
-    printf "\e[96m%b\e[0m" "${spin:$i:$charwidth} ${title}"
-    echo -en "\033[$((length_of_title + 2))D"
-    sleep .1
-  done
-  tput cnorm
-  wait "${pid}" # capture exit code
-  return $?
-}
-
-do_install &
-spinner $! "installing solos..."
+trap "trap.cleanup" EXIT
+do.clone
+do.prepare
+log.info "success - installed at ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
+log.info "run 'solos --help' to get started"

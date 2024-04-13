@@ -58,6 +58,7 @@ log._get_level_color() {
   esac
 }
 log._base() {
+  local foreground="${vENTRY_FOREGROUND:-true}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
@@ -77,7 +78,7 @@ log._base() {
     args=(--time "kitchen" --structured --level "${level}" "${msg}" source "[${source}]" date "${formatted_date}")
     pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}"
   fi
-  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $vENTRY_FOREGROUND = true ]]; then
+  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $foreground = true ]]; then
     pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}"
   fi
 }

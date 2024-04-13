@@ -218,17 +218,6 @@ lib.utils.logdiff() {
   fi
 }
 
-lib.utils.from_hex() {
-  hex=$1
-  if [[ $hex == "#"* ]]; then
-    hex=$(echo "$1" | awk '{print substr($0,2)}')
-  fi
-  r=$(printf '0x%0.2s' "$hex")
-  g=$(printf '0x%0.2s' "${hex#??}")
-  b=$(printf '0x%0.2s' "${hex#????}")
-  echo -e "$(printf "%s" "$(((r < 75 ? 0 : (r - 35) / 40) * 6 * 6 + (g < 75 ? 0 : (g - 35) / 40) * 6 + (b < 75 ? 0 : (b - 35) / 40) + 16))")"
-}
-
 lib.utils.spinner() {
   # make sure we use non-unicode character type locale
   # (that way it works for any locale as long as the font supports the characters)
@@ -313,12 +302,12 @@ lib.utils.spinner() {
     if [[ "$choice" = "${subset_logs_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing ${subset_label} [${vSTATIC_LOG_FILEPATH}$newline:${start_linecount}]" \
-        "TIP: use --foreground next time to see logs in real-time." \
+        "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${subset_logs}"
     elif [[ "$choice" = "${every_log_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing all logs [${vSTATIC_LOG_FILEPATH}:${start_linecount}]$newline" \
-        "TIP: use --foreground next time to see logs in real-time.${newline}" \
+        "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${every_log}"
     elif [[ "$choice" = "NONE" ]]; then
       log.warn "Review manually at ${vSTATIC_LOG_FILEPATH} or supply the --foreground flag next time. Exiting."
