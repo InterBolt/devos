@@ -70,7 +70,7 @@ log._base() {
   shift
   local args=()
   local source_args=(source "[${source}]")
-  if [[ -z "${source}" ]] || [[ "${source}" = "true" ]] || [[ "${source}" = "null" ]]; then
+  if [[ "${source}" == "NULL"* ]]; then
     source_args=()
   fi
   #
