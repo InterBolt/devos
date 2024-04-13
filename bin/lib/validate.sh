@@ -5,15 +5,15 @@
 
 lib.validate.throw_if_dangerous_dir() {
   if [[ "${vCLI_OPT_DIR}" = "$HOME" ]]; then
-    log.error "Danger: you are trying to wipe the home directory. Exiting."
+    log.error "Danger: can't create a project from your home directory. Exiting."
     exit 1
   fi
   if [[ "$HOME" = "${vCLI_OPT_DIR}"* ]]; then
-    log.error "Danger: you are trying to wipe a parent directory of your home directory. Exiting."
+    log.error "Danger: can't create a project in a parent directory of your home directory. Exiting."
     exit 1
   fi
-  if [[ "${vSTATIC_MY_CONFIG_ROOT}" = "${vCLI_OPT_DIR}" ]]; then
-    log.error "Danger: this would wipe the solos config directory. Exiting."
+  if [[ "${vSTATIC_MY_CONFIG_ROOT}" = "${vCLI_OPT_DIR}"* ]]; then
+    log.error "Danger: can't create a project in a parent directory of your config directory. Exiting."
     exit 1
   fi
 }
