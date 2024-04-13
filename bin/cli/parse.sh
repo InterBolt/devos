@@ -26,7 +26,7 @@ cli.parse.cmd() {
         log.error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
-      cli.usage."$vCLI_PARSED_CMD".help
+      cli.usage.command."$vCLI_PARSED_CMD".help
       exit 0
     fi
     case "$1" in
