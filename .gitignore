@@ -25,3 +25,4 @@ reference.txt
 
 .DS_Store
 !__test__.*
+!test.sh

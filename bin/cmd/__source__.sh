@@ -13,4 +13,4 @@
 # shellcheck source=sync_config.sh
 . cmd/sync_config.sh
 # shellcheck source=tests.sh
-. cmd/tests.sh
+. cmd/test.sh
