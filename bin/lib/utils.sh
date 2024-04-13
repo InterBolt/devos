@@ -301,7 +301,7 @@ lib.utils.spinner() {
         "${start_linecount}" \
         "${terminal_line_number}"
     )"
-    pkg.gum.danger_box "Encountered an error. Use --foreground to see all log levels in real-time."
+    pkg.gum.danger_box "Encountered an error. Use --foreground next time to see all log levels in real-time."
     local newline=$'\n'
     local subset_logs_choice="(1) View ${subset_label} (${subset_seconds_elapsed} seconds)"
     local every_log_choice="(2) View all logs (${every_log_seconds_elapsed} seconds)"
@@ -313,12 +313,12 @@ lib.utils.spinner() {
     if [[ "$choice" = "${subset_logs_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing ${subset_label} [${vSTATIC_LOG_FILEPATH}$newline:${start_linecount}]" \
-        "TIP: use --foreground to see logs in real-time." \
+        "TIP: use --foreground next time to see logs in real-time." \
         "${every_log}"
     elif [[ "$choice" = "${every_log_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing all logs [${vSTATIC_LOG_FILEPATH}:${start_linecount}]$newline" \
-        "TIP: use --foreground to see logs in real-time.${newline}" \
+        "TIP: use --foreground next time to see logs in real-time.${newline}" \
         "${every_log}"
     elif [[ "$choice" = "NONE" ]]; then
       log.warn "Review manually at ${vSTATIC_LOG_FILEPATH} or supply the --foreground flag next time. Exiting."
