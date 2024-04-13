@@ -74,7 +74,7 @@ log._base() {
   if [[ $LIB_BARE_LOG = true ]]; then
     args=(--level "${level}" "${msg}")
   else
-    args=(--time "kitchen" --structured --level "${level}" "${msg}" source "(${source})" date "${formatted_date}")
+    args=(--time "kitchen" --structured --level "${level}" "${msg}" source "[${source}]" date "${formatted_date}")
     pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}"
   fi
   if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $vENTRY_FOREGROUND = true ]]; then

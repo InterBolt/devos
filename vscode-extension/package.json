@@ -19,6 +19,11 @@
         "command": "solos.cdNaked",
         "title": "Cd Naked",
         "category": "solos"
+      },
+      {
+        "command": "solos.doTaskSnippet",
+        "title": "Do Task.snippet",
+        "category": "solos"
       }
     ]
   },

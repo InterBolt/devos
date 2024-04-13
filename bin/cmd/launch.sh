@@ -4,7 +4,7 @@
 . shared/solos_base.sh
 
 cmd.launch() {
-  cmd.checkout
+  lib.utils.do_task "checkout project" cmd.checkout
 
   if [[ "$vCLI_OPT_HARD_RESET" = true ]]; then
     #
