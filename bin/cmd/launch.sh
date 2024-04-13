@@ -248,7 +248,7 @@ cmd.launch() {
     log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
     lib.ssh.rsync_down.remote "${vSTATIC_SERVER_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vCLI_OPT_DIR}/"
-    log.debug "downloaded manual file to: ${vCLI_OPT_DIR}"
+    log.info "downloaded manual file to: ${vCLI_OPT_DIR}"
     log.info "review the manual instructions before continuing"
     lib.utils.echo_line
     echo ""
@@ -301,7 +301,7 @@ cmd.launch() {
     lib.vultr.compute.destroy_instance "${instance_id_to_deprovision}"
     log.info "destroyed the previous instance with ip: ${ip_to_deprovision}"
     lib.cache.del "ip_to_deprovision"
-    log.debug "deleted the ip_to_deprovision cache entry."
+    log.info "deleted the ip_to_deprovision cache entry."
   fi
   lib.status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(lib.utils.date)"
   log.success "launch completed successfully."

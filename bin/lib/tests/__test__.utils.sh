@@ -1,4 +1,4 @@
- #!/usr/bin/env bash
+#!/usr/bin/env bash
 
 set -o errexit
 set -o pipefail
@@ -6,7 +6,7 @@ set -o errtrace
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin"
 
- # shellcheck source=../utils.sh
+# shellcheck source=../utils.sh
 . "lib/utils.sh"
 
 __hook__.before_file() {
@@ -48,10 +48,11 @@ __hook__.after_file_fails() {
   log.error "__hook__.after_file_fails"
   return 1
 }
- 
+
 vPREV_CURL_ERR_MESSAGE=""
 vPREV_CURL_ERR_STATUS_CODE=""
 vPREV_CURL_RESPONSE=""
+vSTATIC_LOG_FILEPATH=""
 
 __test__.utils.curl() {
   log.error "utils.curl not implemented yet"
@@ -91,5 +92,13 @@ __test__.utils.template_variables() {
 }
 __test__.utils.warn_with_delay() {
   log.error "utils.warn_with_delay not implemented yet"
+  return 1
+}
+__test__.utils.spinner() {
+  log.error "utils.spinner not implemented yet"
+  return 1
+}
+__test__.utils.logdiff() {
+  log.error "utils.logdiff not implemented yet"
   return 1
 }

@@ -366,13 +366,9 @@ lib.vultr.s3.provision() {
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
   vENV_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_S3_HOST= $vENV_S3_HOST"
   vENV_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_S3_ACCESS_KEY= $vENV_S3_ACCESS_KEY"
   vENV_S3_SECRET="$(jq -r '.object_storage.s3_secret_key' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_S3_SECRET= $vENV_S3_SECRET"
   vENV_S3_OBJECT_STORE="$(jq -r '.object_storage.label' <<<"$vPREV_CURL_RESPONSE")"
-  log.debug "set \$vENV_S3_OBJECT_STORE= $vENV_S3_OBJECT_STORE"
 
   export AWS_ACCESS_KEY_ID=$vENV_S3_ACCESS_KEY
   export AWS_SECRET_ACCESS_KEY=$vENV_S3_SECRET

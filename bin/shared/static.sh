@@ -18,6 +18,19 @@ else
   export vSTATIC_RUNNING_REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 fi
 export vSTATIC_REPO_URL="https://github.com/InterBolt/solos.git"
+export vSTATIC_LOGS_FILENAME="bin.log"
+export vSTATIC_LOG_FILEPATH=""
+if [ -d "${vSTATIC_MY_CONFIG_ROOT}" ]; then
+  vSTATIC_LOG_FILEPATH="${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+elif [ -n "${vSTATIC_RUNNING_REPO_ROOT}" ]; then
+  vSTATIC_LOG_FILEPATH="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+else
+  vSTATIC_LOG_FILEPATH="${PWD}/${vSTATIC_LOGS_DIRNAME}/${vSTATIC_LOGS_FILENAME}"
+fi
+mkdir -p "$(dirname "${vSTATIC_LOG_FILEPATH}")"
+if [ ! -f "${vSTATIC_LOG_FILEPATH}" ]; then
+  touch "${vSTATIC_LOG_FILEPATH}"
+fi
 #
 # TODO: is there an automated way to scan our code and get a list of
 # TODO[c]: all the commands we assume the user has installed.

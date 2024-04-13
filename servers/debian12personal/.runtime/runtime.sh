@@ -44,8 +44,6 @@ cd "$repo_dir"
 # shellcheck source=lobash.bash
 . "$vSERVER_PATH/.runtime/lobash.bash"
 cd "$repo_dir"
-log.ready "host:$ENV_HOST" "${DEBUG_LEVEL:-0}"
-cd "$repo_dir"
 #
 # It's important that we only run this script on Debian 12.
 #

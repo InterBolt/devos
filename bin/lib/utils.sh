@@ -83,7 +83,7 @@ lib.utils.template_variables() {
           continue
         fi
         if [ "$errored" == false ]; then
-          log.debug "found $var_name in $file"
+          log.info "found $var_name in $file"
         fi
         if [ "$errored" == "false" ] && [ "$behavior" == "commit" ]; then
           sed -i '' "s,\_\_$var_name\_\_,${!var_name},g" "$file"
@@ -158,7 +158,7 @@ lib.utils.curl.allows_error_status_codes() {
   local error_message="error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
   local allowed="true"
   if [ -z "$vPREV_CURL_ERR_STATUS_CODE" ]; then
-    log.debug "no error status code found for curl request"
+    log.info "no error status code found for curl request"
     return
   fi
   if [ "$1" == "none" ]; then
@@ -172,15 +172,15 @@ lib.utils.curl.allows_error_status_codes() {
   for allowed_status_code in "${allowed_status_codes[@]}"; do
     if [ "$vPREV_CURL_ERR_STATUS_CODE" == "$allowed_status_code" ]; then
       allowed="true"
-      log.debug "set allowed to true for status code: $allowed_status_code"
+      log.info "set allowed to true for status code: $allowed_status_code"
     fi
   done
   if [ -z "$allowed" ]; then
     log.error "$error_message"
     exit 1
   else
-    log.debug "allowed status code: $vPREV_CURL_ERR_STATUS_CODE"
-    log.debug "with error message: $vPREV_CURL_ERR_MESSAGE"
+    log.info "allowed status code: $vPREV_CURL_ERR_STATUS_CODE"
+    log.info "with error message: $vPREV_CURL_ERR_MESSAGE"
   fi
 }
 lib.utils.warn_with_delay() {
@@ -197,10 +197,30 @@ lib.utils.warn_with_delay() {
   sleep 1
 }
 
+lib.utils.logdiff() {
+  local filepath="$1"
+  local start="$2"
+  local end="$3"
+  start=$(echo "$start" | xargs)
+  end=$(echo "$end" | xargs)
+
+  local logfile_diff=$((end - start))
+  if [ $logfile_diff -gt 0 ]; then
+    local chunk="$(tail -n $logfile_diff "$filepath")"
+    local originalifs=$IFS
+    IFS=$'\n'
+    for line in $chunk; do
+      echo "${line[@]}"
+    done
+    IFS=$originalifs
+  fi
+}
+
 lib.utils.spinner() {
   # make sure we use non-unicode character type locale
   # (that way it works for any locale as long as the font supports the characters)
   local LC_CTYPE=C
+  local logfile_start_linecount=$(wc -l <"${vSTATIC_LOG_FILEPATH}")
 
   local pid=$1   # Process Id of the previous running command
   local title=$2 # Text to display
@@ -213,11 +233,26 @@ lib.utils.spinner() {
   tput civis # cursor invisible
   while kill -0 "${pid}" 2>/dev/null; do
     local i=$(((charwidth + i) % ${#spin}))
-    printf "\e[96m%b\e[0m" "${spin:$i:$charwidth} ${title}"
+    printf "\e[96m%b\e[0m" "${spin:$i:$charwidth} $title"
     echo -en "\033[$((length_of_title + 2))D"
     sleep .1
   done
+  echo -en "\033[K"
   tput cnorm
-  wait "${pid}" # capture exit code
-  return $?
+  wait "${pid}"
+  if [ $? -eq 0 ]; then
+    echo "Success: $title"
+    lib.utils.logdiff \
+      "${vSTATIC_LOG_FILEPATH}" \
+      "$logfile_start_linecount" \
+      "$(wc -l <"${vSTATIC_LOG_FILEPATH}")"
+    return 0
+  else
+    echo "Error: $title failed"
+    lib.utils.logdiff \
+      "${vSTATIC_LOG_FILEPATH}" \
+      "$logfile_start_linecount" \
+      "$(wc -l <"${vSTATIC_LOG_FILEPATH}")"
+    return 1
+  fi
 }

@@ -52,8 +52,7 @@ do_install() {
   mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
   # shellcheck source=bin/shared/log.sh
   . "shared/log.sh"
-  log.ready "install" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
-  log.use_bare
+  log.use_minimal
   #
   # Will download the bin script + all lib scripts to the user's local
   # solos config folder at config/bin/.

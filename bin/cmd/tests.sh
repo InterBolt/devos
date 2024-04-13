@@ -211,7 +211,7 @@ subcmd.tests.unit.tests_add_missing_function_coverage() {
   local lines=()
   local n=$'\n'
   for missing_function in "${missing_functions[@]}"; do
-    lines+=("$(subcmd.tests._blank_failing_test "${missing_function/lib\.//}")")
+    lines+=("$(subcmd.tests._blank_failing_test "${missing_function/lib\./}")")
   done
   for line in "${lines[@]}"; do
     echo "$line" >>"${target_test_file_path}"
@@ -382,6 +382,7 @@ subcmd.tests.verify() {
 # TODO: refactor the log.stripped logic so we don't need to set/unset so many times
 #
 subcmd.tests.unit() {
+  local status=0
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
   if [ ! -f "${lib_file}" ]; then
@@ -421,12 +422,14 @@ subcmd.tests.unit() {
       local test_function="__test__.${function_name_without_prefix}"
       if ! __hook__.before_fn "${supplied_function}"; then
         LIB_FAILED+=("${supplied_function}")
+        status=1
         continue
       fi
       if ! "${test_function}"; then
         something_failed=true
         __hook__.after_fn_fails "${supplied_function}" || true
         LIB_FAILED+=("${supplied_function}")
+        status=1
       else
         __hook__.after_fn_success "${supplied_function}" || true
         LIB_PASSED+=("${supplied_function}")
@@ -436,12 +439,20 @@ subcmd.tests.unit() {
     if [ "${something_failed}" == "true" ]; then
       __hook__.after_file_fails || true
       LIB_FILES_FAILED+=("$lib_unit_name")
+      status=1
     else
       __hook__.after_file_success || true
     fi
     __hook__.after_file || true
   else
     LIB_FILES_FAILED+=("$lib_unit_name")
+    status=1
+  fi
+
+  if [ "${status}" -ne 0 ]; then
+    return 1
+  else
+    return 0
   fi
 }
 
@@ -500,9 +511,12 @@ cmd.tests() {
   # Init tests that don't exist, make sure all functions are covered from the source libs,
   # and verify some basic things like variable usage and function coverage.
   #
-  subcmd.tests.init
-  subcmd.tests.cover
-  subcmd.tests.verify
+  subcmd.tests.init &
+  lib.utils.spinner $! "Initializing tests..."
+  subcmd.tests.cover &
+  lib.utils.spinner $! "Adding any missing test coverage..."
+  subcmd.tests.verify &
+  lib.utils.spinner $! "Verifying tests..."
   #
   # Wait until things are generated before testing for existence.
   #
@@ -517,8 +531,9 @@ cmd.tests() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     lib_unit_name="$(subcmd.tests._extract_clean_lib_name_from_source "$lib_file")"
-    subcmd.tests.unit "${lib_unit_name}" "${fn_to_test}"
-    cd "$lib_dir" || exit 1
+    subcmd.tests.unit "${lib_unit_name}" "${fn_to_test}" &
+    lib.utils.spinner $! "Testing ${lib_unit_name}..."
+    cd "$lib_dir"
   done
   #
   # Collect the status of the ran tests and output the results.
@@ -532,5 +547,5 @@ cmd.tests() {
   if [ ${#LIB_PASSED[@]} -gt 0 ]; then
     pkg.gum.success_box 'PASSED FUNCTIONS:' "${LIB_PASSED[@]}"
   fi
-  cd "$entry_dir" || exit 1
+  cd "$entry_dir"
 }

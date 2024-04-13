@@ -4,18 +4,25 @@
 
 # shellcheck source=../pkg/gum.sh
 source "pkg/gum.sh"
+# shellcheck source=static.sh
+source "shared/static.sh"
 
 LIB_BARE_LOG=false
-LIB_DIR=""
-LIB_READY_LOG=false
-#
-# results in logfile - $LIB_LOG_PREFIX.<rollindex>.json
-#
-LIB_LOG_PREFIX=""
-#
-# roughly 1 megabytes per log file.
-#
-LIB_LOG_ROLLSIZE_KBS=1000
+LIB_FILESIZE=0
+LIB_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
+
+mkdir -p "${LIB_DIR}"
+
+LIB_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
+if [ "${LIB_FILESIZE}" -gt 1000 ]; then
+  LIB_BARE_LOG=true
+  log.warn "LOG FILE IS GROWING LARGE: $((LIB_FILESIZE / 1000))MB"
+  log.info "${vSTATIC_LOG_FILEPATH}"
+  if command -v pbcopy &>/dev/null; then
+    pbcopy <"${vSTATIC_LOG_FILEPATH}"
+    log.info "log file path copied to clipboard"
+  fi
+fi
 # -----------------------------------------------------------------------------
 #
 # HELPER FUNCTIONS
@@ -27,40 +34,7 @@ log._get_filesize() {
     echo 0
   fi
 }
-log._get_active_logfile() {
-  local dir="$LIB_DIR"
-  if [ -z "${dir}" ]; then
-    echo ""
-    return
-  fi
-  local curr_logfile
-  local curr_idx=0
-
-  for logfile in "$dir"/*; do
-    logfile_idx=$(echo "$logfile" | grep -o -E '[0-9]+')
-    if [ $((logfile_idx)) -gt $((curr_idx)) ]; then
-      curr_idx=$logfile_idx
-    fi
-  done
-  curr_logfile="${dir}/${LIB_LOG_PREFIX}${curr_idx}.log"
-  should_rotate=0
-  size="$(log._get_filesize "${curr_logfile}")"
-  if [ $((size)) -gt $((LIB_LOG_ROLLSIZE_KBS)) ]; then
-    should_rotate=1
-  fi
-  if [ $should_rotate -eq 1 ]; then
-    echo "${dir}/${LIB_LOG_PREFIX}$((curr_idx + 1)).log"
-  else
-    echo "${dir}/${LIB_LOG_PREFIX}${curr_idx}.log"
-  fi
-}
 log._base() {
-  local active_logfile=""
-  if [ "${LIB_READY_LOG}" == "false" ]; then
-    active_logfile=""
-  else
-    active_logfile="$(log._get_active_logfile)"
-  fi
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
   local level="${1}"
@@ -74,10 +48,9 @@ log._base() {
     pkg.gum log --level "${level}" "${msg}"
     return
   fi
-  if [ -z "${active_logfile}" ]; then
+  pkg.gum log --file "${vSTATIC_LOG_FILEPATH}" --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}"
+  if [ "${level}" == "fatal" ] || [ "${DEBUG:-false}" == "true" ] || [ "${DEBUG:-false}" == "1" ]; then
     pkg.gum log --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}"
-  else
-    pkg.gum log --time "kitchen" --structured --level "${level}" "${msg}" source "${source}" date "${formatted_date}" "${line}" >>"${active_logfile}"
   fi
 }
 # -----------------------------------------------------------------------------
@@ -109,26 +82,21 @@ log.error() {
   filename="$(basename "$filename")"
   log._base "error" "$filename:$linenumber" "$@"
 }
+log.fatal() {
+  local filename="$(caller | cut -f 2 -d " ")"
+  local linenumber="$(caller | cut -f 1 -d " ")"
+  filename="$(basename "$filename")"
+  log._base "fatal" "$filename:$linenumber" "$@"
+}
 log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
   log._base "warn" "$filename:$linenumber" "$@"
 }
-log.ready() {
-  LIB_LOG_PREFIX="$1."
-  LIB_DIR="$2"
-  if [ -z "${LIB_LOG_PREFIX}" ]; then
-    log.error "log prefix not set at log.ready"
-    exit 1
-  fi
-  if [ -z "${LIB_DIR}" ]; then
-    log.debug "did not specify a log dir. will not save logs to disk."
-  else
-    mkdir -p "${LIB_DIR}"
-  fi
-  LIB_READY_LOG=true
+log.use_minimal() {
+  LIB_BARE_LOG=true
 }
-log.use_bare() {
+log.use_full() {
   LIB_BARE_LOG=true
 }

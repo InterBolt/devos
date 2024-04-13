@@ -105,7 +105,6 @@ lib.validate.checked_out_server_and_dir() {
       log.error "No directory supplied or checked out in the lib.cache. Please supply a --dir."
       exit 1
     fi
-    log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
   fi
   if [ -z "$vCLI_OPT_SERVER" ]; then
     log.error "Unexpected error: couldn't find a server type from either the --server flag or the checked out directory."

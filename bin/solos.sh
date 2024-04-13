@@ -118,10 +118,6 @@ shared/codegen.sh
 # shellcheck source=shared/log.sh
 . "shared/log.sh"
 #
-# The log must be initialized before other dependent libs are sourced.
-#
-log.ready "solos" "${vSTATIC_MY_CONFIG_ROOT}/${vSTATIC_LOGS_DIRNAME}"
-#
 # source the main libs
 #
 # shellcheck source=pkg/__source__.sh
@@ -161,7 +157,6 @@ solos.apply_parsed_cli_args() {
     case "${vCLI_PARSED_OPTIONS[$i]}" in
     "hard-reset")
       vCLI_OPT_HARD_RESET=true
-      log.debug "set \$vCLI_OPT_HARD_RESET= $vCLI_OPT_HARD_RESET"
       ;;
     dir=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
@@ -174,7 +169,6 @@ solos.apply_parsed_cli_args() {
         exit 1
       fi
       vCLI_OPT_DIR="$val"
-      log.debug "set \$vCLI_OPT_DIR= $vCLI_OPT_DIR"
       ;;
     server=*)
       #
@@ -186,14 +180,12 @@ solos.apply_parsed_cli_args() {
         val="${vCLI_PARSED_OPTIONS[$i]#*=}"
         vCLI_OPT_SERVER="$val"
         was_server_set=true
-        log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
       fi
       ;;
     tag=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [ -n "$val" ]; then
         vCLI_OPT_TAG="$val"
-        log.debug "set \$vCLI_OPT_TAG= $vCLI_OPT_TAG"
       fi
       ;;
     lib=*)
@@ -204,14 +196,12 @@ solos.apply_parsed_cli_args() {
           log.error "Unknown lib: $vCLI_OPT_LIB"
           exit 1
         fi
-        log.debug "set \$vCLI_OPT_LIB= $vCLI_OPT_LIB"
       fi
       ;;
     fn=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [ -n "${val}" ]; then
         vCLI_OPT_FN="${val}"
-        log.debug "set \$vCLI_OPT_FN= ${vCLI_OPT_FN}"
       else
         log.error "The --fn flag must be followed by a function name."
         exit 1
@@ -241,7 +231,6 @@ solos.apply_parsed_cli_args() {
     fi
   elif [ -f "${projects_server_type_file}" ]; then
     vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
-    log.debug "set \$vCLI_OPT_SERVER= $vCLI_OPT_SERVER"
   fi
 }
 solos.merge_launch_dirs() {
@@ -287,16 +276,16 @@ solos.merge_launch_dirs() {
   # variables residing in this script.
   #
   cp -a "${server_launch_dir}/." "${tmp_launch_dir}/"
-  log.debug "copied: ${server_launch_dir} to ${tmp_launch_dir}"
+  log.info "copied: ${server_launch_dir} to ${tmp_launch_dir}"
   cp -a "${bin_launch_dir}/." "${tmp_launch_dir}/"
-  log.debug "copied: ${bin_launch_dir} to ${tmp_launch_dir}"
+  log.info "copied: ${bin_launch_dir} to ${tmp_launch_dir}"
   if ! lib.utils.template_variables "${tmp_launch_dir}" "commit" 2>&1; then
     log.error "something unexpected happened while injecting variables into the launch directory."
     exit 1
   fi
-  log.debug "injected variables into the tmp launch directory."
+  log.info "injected variables into the tmp launch directory."
   rm -rf "${project_launch_dir}"
-  log.debug "deleted: ${project_launch_dir}"
+  log.info "deleted: ${project_launch_dir}"
   mv "${tmp_launch_dir}" "${project_launch_dir}"
   log.info "successfully rebuilt ${project_launch_dir}"
 }
@@ -350,13 +339,13 @@ solos.create_ssh_files() {
     log.info "created ${self_authorized_keys_path}"
   fi
   chmod 644 "${self_authorized_keys_path}"
-  log.debug "updated permissions: chmod 644 - ${self_authorized_keys_path}"
+  log.info "updated permissions: chmod 644 - ${self_authorized_keys_path}"
   chmod 644 "${self_publickey_path}"
-  log.debug "updated permissions: chmod 644 - ${self_publickey_path}"
+  log.info "updated permissions: chmod 644 - ${self_publickey_path}"
   chmod 644 "${self_config_path}"
-  log.debug "updated permissions: chmod 644 - ${self_config_path}"
+  log.info "updated permissions: chmod 644 - ${self_config_path}"
   chmod 600 "${self_privkey_path}"
-  log.debug "updated permissions: chmod 600 - ${self_privkey_path}"
+  log.info "updated permissions: chmod 600 - ${self_privkey_path}"
 }
 solos.require_completed_launch_status() {
   if [ -z "$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")" ]; then

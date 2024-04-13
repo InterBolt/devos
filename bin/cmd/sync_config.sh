@@ -31,6 +31,6 @@ cmd.sync_config() {
   lib.ssh.command.remote "rm -rf ${vSTATIC_SERVER_CONFIG_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_SERVER_CONFIG_ROOT}"
   log.info "overwrote remote's config:${vSTATIC_SERVER_CONFIG_ROOT} with ${vSTATIC_HOST}'s config: ${vSTATIC_MY_CONFIG_ROOT}."
   lib.ssh.command.remote "rm -rf ${tmp_remote_config_dir}"
-  log.debug "removed ${tmp_remote_config_dir} on the remote."
+  log.info "removed ${tmp_remote_config_dir} on the remote."
   log.info "success: synced config folder to remote."
 }
