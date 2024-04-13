@@ -71,7 +71,7 @@ $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 --help              - Print this help and exit
 EOF
 }
-cli.usage.command.tests.help() {
+cli.usage.command.test.help() {
   cat <<EOF
 Usage: solos test [--OPTS...]
 
