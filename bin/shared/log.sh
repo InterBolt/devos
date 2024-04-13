@@ -69,17 +69,21 @@ log._base() {
   local msg="${1}"
   shift
   local args=()
+  local source_args=(source "[${source}]")
+  if [[ -z "${source}" ]] || [[ "${source}" = "true" ]] || [[ "${source}" = "null" ]]; then
+    source_args=()
+  fi
   #
   # `bare` logs don't include lots of info and don't log to a file.
   #
   if [[ $LIB_BARE_LOG = true ]]; then
     args=(--level "${level}" "${msg}")
   else
-    args=(--time "kitchen" --structured --level "${level}" "${msg}" source "[${source}]" date "${formatted_date}")
-    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}"
+    args=(--time "kitchen" --structured --level "${level}" "${msg}" date "${formatted_date}")
+    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}" "${source_args[@]}"
   fi
   if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $foreground = true ]]; then
-    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}"
+    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}" "${source_args[@]}"
   fi
 }
 # -----------------------------------------------------------------------------
