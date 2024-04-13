@@ -235,6 +235,8 @@ solos.apply_parsed_cli_args() {
         log.info "\`solos --help\` for more info."
         exit 1
       fi
+    else
+      log.warn "No server type file found at: ${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
     fi
   elif [[ -f "${projects_server_type_file}" ]]; then
     vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
