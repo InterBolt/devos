@@ -396,4 +396,9 @@ fi
 #
 # Run the command specified in the cli args.
 #
-lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"
+# if cmd is test, run without the do_task wrapper.
+if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
+  "cmd.$vCLI_PARSED_CMD"
+else
+  lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"
+fi
