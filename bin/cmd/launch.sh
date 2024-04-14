@@ -57,7 +57,7 @@ cmd.launch() {
   # We want aggressive validates BEFORE the ssh keygen and vultr provisioning
   # sections since those create things that are harder to undo and debug.
   #
-  lib.validate.validate_project_repo "$vCLI_OPT_DIR/repo"
+  lib.validate.repo "$vCLI_OPT_DIR/repo"
   #
   # Generate and collect things like the caprover password, postgres passwords.
   # api keys, etc.
@@ -233,7 +233,7 @@ cmd.launch() {
   #
   # We might want this status in the future
   #
-  lib.status.set "${vSTATUS_BOOTSTRAPPED_REMOTE}" "$(lib.utils.date)"
+  lib.status.set "${vSTATUS_BOOTSTRAPPED_REMOTE}" "$(lib.utils.full_date)"
   log.info "bootstrapped the remote server."
   #
   # Any type of manual action we need can be specified by a server by simply
@@ -260,7 +260,7 @@ cmd.launch() {
     read -r
     echo -n "Hit enter (1/2) to continue."
     read -r
-    lib.status.set "${vSTATUS_BOOTSTRAPPED_MANUALLY}" "$(lib.utils.date)"
+    lib.status.set "${vSTATUS_BOOTSTRAPPED_MANUALLY}" "$(lib.utils.full_date)"
     log.info "completed manual bootstrap step. see \`solos --help\` for how to re-display manual instructions."
   fi
   #
@@ -268,7 +268,7 @@ cmd.launch() {
   # will never deal with things like databases or service orchestration.
   #
   lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER} ${vENV_GITHUB_USERNAME} ${vENV_GITHUB_EMAIL} ${vENV_GITHUB_TOKEN}"
-  lib.status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(lib.utils.date)"
+  lib.status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(lib.utils.full_date)"
   log.info "bootstrapped the local docker container."
   #
   # This is redundant, but it's a good safety check because
@@ -304,6 +304,6 @@ cmd.launch() {
     lib.cache.del "ip_to_deprovision"
     log.info "deleted the ip_to_deprovision cache entry."
   fi
-  lib.status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(lib.utils.date)"
+  lib.status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(lib.utils.full_date)"
   log.success "launch completed successfully."
 }

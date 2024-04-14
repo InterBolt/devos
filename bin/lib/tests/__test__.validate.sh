@@ -59,8 +59,8 @@ vSTATIC_MY_CONFIG_ROOT=""
 vSTATIC_REPO_SERVERS_DIR=""
 vSTATIC_SERVER_TYPE_FILENAME=""
 
-__test__.validate.checked_out_server_and_dir() {
-  log.error "validate.checked_out_server_and_dir not implemented yet"
+__test__.validate.checked_out() {
+  log.error "validate.checked_out not implemented yet"
   return 0
 }
 __test__.validate.docker_host_running() {
@@ -83,7 +83,7 @@ __test__.validate.throw_on_nonsolos_dir() {
   log.error "validate.throw_on_nonsolos_dir not implemented yet"
   return 0
 }
-__test__.validate.validate_project_repo() {
-  log.error "validate.validate_project_repo not implemented yet"
+__test__.validate.repo() {
+  log.error "validate.repo not implemented yet"
   return 0
 }

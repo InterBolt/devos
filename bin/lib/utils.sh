@@ -2,12 +2,15 @@
 
 # shellcheck source=../shared/solos_base.sh
 . shared/solos_base.sh
+# shellcheck source=../pkg/gum.sh
+. pkg/gum.sh
 
 lib.utils.echo_line() {
   terminal_width=$(tput cols)
   line=$(printf "%${terminal_width}s" | tr " " "-")
   echo "$line"
 }
+
 lib.utils.exit_trap() {
   tput cnorm
   local code=$?
@@ -16,6 +19,7 @@ lib.utils.exit_trap() {
   fi
   exit $code
 }
+
 lib.utils.generate_secret() {
   openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
 }
@@ -32,11 +36,11 @@ lib.utils.template_variables() {
   local empty_behavior="{$3:-fail_on_empty}"
   local eligible_files=()
   if [[ -z "$behavior" ]]; then
-    log.error "lib.utils.template_variables: behavior cannot be empty"
+    log.error "Failed to specify behavior for template variable substitution. Exiting."
     exit 1
   fi
   if [[ "$behavior" != "dry" ]] && [[ "$behavior" != "commit" ]]; then
-    log.error "lib.utils.template_variables: \$2 must equal either \"dry\" or \"commit\""
+    log.error "Template variable substitution behavior must be either 'dry' or 'commit'. Exiting."
     exit 1
   fi
   #
@@ -63,74 +67,34 @@ lib.utils.template_variables() {
   fi
   local errored=false
   for file in "${eligible_files[@]}"; do
-    grepped=$(grep -o "__v[_A-Z]*__" "$file" || echo "")
-    for line in $grepped; do
-      local var_names="${line//____/__  __}"
-      for var_name in ${var_names}; do
-        var_name=${var_name//__/}
-        if [[ -z "${var_name// /}" ]]; then
-          continue
-        fi
-        if [[ -z ${!var_name+x} ]]; then
-          echo "var_name: $var_name"
-          log.error "$file is using an undefined variable: $var_name"
-          errored=true
-          continue
-        fi
-        if [[ "$empty_behavior" = "fail_on_empty" ]] && [[ -z "${!var_name}" ]]; then
-          log.error "$file is using an empty variable: $var_name"
-          errored=true
-          continue
-        fi
-        if [[ "$errored" = false ]]; then
-          log.info "found $var_name in $file"
-        fi
-        if [[ "$errored" = "false" ]] && [[ "$behavior" = "commit" ]]; then
-          sed -i '' "s,\_\_$var_name\_\_,${!var_name},g" "$file"
-        fi
-      done
-    done
-  done
-  if [[ "$errored" = "true" ]]; then
-    exit 1
-  fi
-}
-lib.utils.date() {
-  date +"%Y-%m-%d %H:%M:%S"
-}
-lib.utils.grep_global_vars() {
-  grep -Eo 'v[A-Z0-9_]{2,}' "$1" | grep -v "#" || echo ""
-}
-lib.utils.files_match_dir() {
-  local dir_to_match="$1"
-  if [[ ! -d "$dir_to_match" ]]; then
-    log.error "directory does not exist: $dir_to_match"
-    exit 1
-  fi
-  local files_to_match=("${@:2}")
-  for file_to_match in "${files_to_match[@]}"; do
-    if [[ ! -f "$dir_to_match/$file_to_match" ]]; then
-      log.error "bootfile does not exist: $dir_to_match/$file_to_match"
-      exit 1
-    fi
-  done
-  for dir_file in "$dir_to_match"/*; do
-    if [[ ! -f "$dir_file" ]]; then
-      continue
-    fi
-    dir_filename="$(basename "$dir_file")"
-    found=false
-    for file_to_match in "${files_to_match[@]}"; do
-      if [[ "$file_to_match" = "$dir_filename" ]]; then
-        found=true
+    bin_vars=$(grep -oE "__v[A-Z0-9_]*__" "${file}" || echo "" | sed 's/__//g')
+    for bin_var in $bin_vars; do
+      if [[ -z ${!bin_var+x} ]]; then
+        log.error "${file} is using an unset variable: ${bin_var}"
+        errored=true
+        continue
+      fi
+      if [[ "${empty_behavior}" = "fail_on_empty" ]] && [[ -z "${!bin_var}" ]]; then
+        log.error "${file} is using an empty variable: ${bin_var}"
+        errored=true
+        continue
+      fi
+      if [[ "${errored}" = "false" ]] && [[ "${behavior}" = "commit" ]]; then
+        log.info "replacing ${bin_var} with ${!bin_var} in ${file}"
+        sed -i '' "s,\_\_${bin_var}\_\_,${!bin_var},g" "${file}"
+        log.info "success: replaced ${bin_var} with ${!bin_var} in ${file}"
       fi
     done
-    if [[ "$found" = false ]]; then
-      log.error "(${files_to_match[*]}) does not contain: $dir_filename"
-      exit 1
-    fi
   done
+  if [[ "${errored}" = "true" ]]; then
+    exit 1
+  fi
 }
+
+lib.utils.full_date() {
+  date +"%Y-%m-%d %H:%M:%S"
+}
+
 lib.utils.curl() {
   vPREV_CURL_ERR_STATUS_CODE=""
   vPREV_CURL_ERR_MESSAGE=""
@@ -145,19 +109,21 @@ lib.utils.curl() {
   vPREV_CURL_ERR_MESSAGE="$error_message"
   vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"$vPREV_CURL_RESPONSE")"
 }
+
 # shellcheck disable=SC2120
 lib.utils.curl.allows_error_status_codes() {
   #
+  # A note on the "none" argument:
   # The benefit of forcing the caller to "say" their intention rather
   # than just leaving the arg list empty is purely for readability.
   #
   if [[ -z "$1" ]]; then
-    log.error "must declare \`none\` or a list of allowed status codes."
+    log.error "Missing \`none\` or a list of allowed status codes."
     exit 1
   fi
-  local error_message="error: $vPREV_CURL_ERR_MESSAGE with status code: $vPREV_CURL_ERR_STATUS_CODE"
+  local error_message="error: ${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
   local allowed="true"
-  if [[ -z "$vPREV_CURL_ERR_STATUS_CODE" ]]; then
+  if [[ -z "${vPREV_CURL_ERR_STATUS_CODE}" ]]; then
     log.info "no error status code found for curl request"
     return
   fi
@@ -170,31 +136,37 @@ lib.utils.curl.allows_error_status_codes() {
     allowed_status_codes=("$@")
   fi
   for allowed_status_code in "${allowed_status_codes[@]}"; do
-    if [[ "$vPREV_CURL_ERR_STATUS_CODE" = "$allowed_status_code" ]]; then
+    if [[ "${vPREV_CURL_ERR_STATUS_CODE}" = "${allowed_status_code}" ]]; then
       allowed="true"
-      log.info "set allowed to true for status code: $allowed_status_code"
+      log.info "set allowed to true for status code: ${allowed_status_code}"
     fi
   done
-  if [[ -z "$allowed" ]]; then
-    log.error "$error_message"
+  if [[ -z "${allowed}" ]]; then
+    log.error "${error_message}"
     exit 1
   else
-    log.info "allowed status code: $vPREV_CURL_ERR_STATUS_CODE"
-    log.info "with error message: $vPREV_CURL_ERR_MESSAGE"
+    log.warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
   fi
 }
+
 lib.utils.warn_with_delay() {
   local message="$1"
-  if [[ -z "$message" ]]; then
-    log.error "message must not be empty. Exiting."
+  if [[ -z "${message}" ]]; then
+    log.error "Please provide a message to warn the user of. Exiting."
     exit 1
   fi
-  log.warn "$message in 5 seconds."
-  sleep 3
-  log.warn "$message in 2 seconds."
-  sleep 2
-  log.warn "$message here we go..."
+  log.warn "(5) ${message}"
   sleep 1
+  log.warn "(4) ${message}"
+  sleep 1
+  log.warn "(3) ${message}"
+  sleep 1
+  log.warn "(2) ${message}"
+  sleep 1
+  log.warn "(1) ${message}"
+  sleep 1
+
+  log.info "Continuing..."
 }
 
 lib.utils.logdiff() {
@@ -241,7 +213,7 @@ lib.utils.spinner() {
     local last_line=$(tail -n 1 "${vSTATIC_LOG_FILEPATH}")
     local length_of_last_line=${#last_line}
     local length_of_line=$((length_of_last_line + length_of_prefix))
-
+    # WORK: why this work?
     last_line=${last_line#*INFO }
     last_line=${last_line% source=*}
     #
@@ -267,14 +239,7 @@ lib.utils.spinner() {
     # point in the function, we know we're going to exit with an error code.
     #
     set -o errexit
-    #
-    # Display choices where the user can either choose to view all of the logs
-    # since the start of the latest SolOS run or a subset of things which can be described
-    # via argument params.
-    #
-    # Note: when a start line number is not provided, we automatically log everything, skipping
-    # the choice prompt.
-    #
+
     local terminal_line_number="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
     local subset_label="logs created by previously failed command"
     local subset_header="Choose which set of logs to view:"
@@ -310,7 +275,7 @@ lib.utils.spinner() {
         "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${every_log}"
     elif [[ "$choice" = "NONE" ]]; then
-      log.warn "Review manually at ${vSTATIC_LOG_FILEPATH} or supply the --foreground flag next time. Exiting."
+      log.warn "Review manually at [${vSTATIC_LOG_FILEPATH}:${start_linecount}] or supply the --foreground flag next time. Exiting."
     fi
     exit $code
   fi

@@ -20,7 +20,7 @@ subcmd.test.precheck_variables() {
   #
   files=$(find . -type f -name "solos*")
   for file in $files; do
-    local global_vars=$(lib.utils.grep_global_vars "$file")
+    local global_vars=$(grep -Eo 'v[A-Z0-9_]{2,}' "${file}" | grep -v "#" || echo "")
     for global_var in $global_vars; do
       local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
       if [[ "$result" = "unset" ]]; then

@@ -4,7 +4,17 @@ set -o pipefail
 set -o errtrace
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null)/bin" || exit 1
-
+#
+# Source file dependencies. Use the test versions of the files
+# because they're less likely to do dangerous things.
+#
+# shellcheck source=__test__.utils.sh
+. "__test__.utils.sh"
+# shellcheck source=__test__.ssh.sh
+. "__test__.ssh.sh"
+#
+# Source file to test.
+#
 # shellcheck source=../vultr.sh
 . "lib/vultr.sh"
 

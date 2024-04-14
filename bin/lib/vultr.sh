@@ -16,11 +16,11 @@ lib.vultr.compute.instance_contains_tag() {
   local instance_id="$2"
   local tags
   local found=false
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/instances/${instance_id}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  tags=$(jq -r '.instance.tags' <<<"$vPREV_CURL_RESPONSE")
+  tags=$(jq -r '.instance.tags' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!tags[@]}"; do
     if [[ "${tags[$i]}" = "${tag}" ]]; then
       found=true
@@ -29,6 +29,7 @@ lib.vultr.compute.instance_contains_tag() {
   vPREV_RETURN=("$found")
   echo "$found"
 }
+
 lib.vultr.compute.destroy_instance() {
   vPREV_RETURN=()
 
@@ -37,11 +38,12 @@ lib.vultr.compute.destroy_instance() {
     log.error "you supplied an empty instance id as the first argument to lib.vultr.compute.destroy_instance"
     exit 1
   fi
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/$instance_id" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/instances/$instance_id" \
     -X DELETE \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
 }
+
 lib.vultr.compute.create_instance() {
   vPREV_RETURN=()
 
@@ -54,7 +56,7 @@ lib.vultr.compute.create_instance() {
   # and return the ip and instance id seperated by a space.
   # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
   #
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/instances" \
     -X POST \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -73,22 +75,24 @@ lib.vultr.compute.create_instance() {
       ]
     }'
   lib.utils.curl.allows_error_status_codes "none"
-  local ip="$(jq -r '.instance.main_ip' <<<"$vPREV_CURL_RESPONSE")"
-  local instance_id="$(jq -r '.instance.id' <<<"$vPREV_CURL_RESPONSE")"
+  local ip="$(jq -r '.instance.main_ip' <<<"${vPREV_CURL_RESPONSE}")"
+  local instance_id="$(jq -r '.instance.id' <<<"${vPREV_CURL_RESPONSE}")"
   vPREV_RETURN=("$ip" "$instance_id")
   echo "$ip $instance_id"
 }
+
 lib.vultr.compute.get_instance_id_from_ip() {
   vPREV_RETURN=()
 
   local ip="$1"
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances?main_ip=${ip}" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/instances?main_ip=${ip}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  local instance_id="$(jq -r '.instances[0].id' <<<"$vPREV_CURL_RESPONSE")"
+  local instance_id="$(jq -r '.instances[0].id' <<<"${vPREV_CURL_RESPONSE}")"
   vPREV_RETURN=("$instance_id")
 }
+
 lib.vultr.compute.find_existing_sshkey_id() {
   vPREV_RETURN=()
 
@@ -104,13 +108,13 @@ lib.vultr.compute.find_existing_sshkey_id() {
   # If so, we echo the ssh key id and exit. We'll echo an empty
   # string if the key doesn't exist.
   #
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/ssh-keys" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"$vPREV_CURL_RESPONSE")
-  found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"$vPREV_CURL_RESPONSE")
-  found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"$vPREV_CURL_RESPONSE")
+  found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"${vPREV_CURL_RESPONSE}")
+  found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"${vPREV_CURL_RESPONSE}")
+  found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!found_ssh_keys[@]}"; do
     if [[ "solos" = "${found_ssh_key_names[$i]}" ]]; then
       matching_ssh_key_name_found=true
@@ -118,7 +122,7 @@ lib.vultr.compute.find_existing_sshkey_id() {
     if [[ "$(lib.ssh.cat_pubkey.self)" = "${found_ssh_keys[$i]}" ]]; then
       matching_ssh_key_found=true
     fi
-    if [[ "$matching_ssh_key_found" = true ]] && [[ "$matching_ssh_key_name_found" = true ]]; then
+    if [[ "${matching_ssh_key_found}" = true ]] && [[ "${matching_ssh_key_name_found}" = true ]]; then
       match_exists=true
       matching_sshkey_id="${found_sshkey_ids[$i]}"
       break
@@ -130,14 +134,14 @@ lib.vultr.compute.find_existing_sshkey_id() {
   # Note: technically we could just say "if match_exists=false" error and exit.
   # But the extra info is nice for debugging.
   #
-  if [[ "$match_exists" = false ]] && [[ "$matching_ssh_key_found" = true ]]; then
+  if [[ "${match_exists}" = false ]] && [[ "${matching_ssh_key_found}" = true ]]; then
     log.error "a conflict was found where a matching ssh key exists, but it's name is different."
     for i in "${!found_ssh_keys[@]}"; do
       log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
     done
     exit 1
   fi
-  if [[ "$match_exists" = false ]] && [[ "$matching_ssh_key_name_found" = true ]]; then
+  if [[ "${match_exists}" = false ]] && [[ "${matching_ssh_key_name_found}" = true ]]; then
     log.error "a conflict was found where a matching ssh key name exists, but it's public key contents are different."
     for i in "${!found_ssh_keys[@]}"; do
       log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
@@ -152,6 +156,7 @@ lib.vultr.compute.find_existing_sshkey_id() {
     echo ""
   fi
 }
+
 lib.vultr.compute.wait_for_ready_instance() {
   vPREV_RETURN=()
 
@@ -165,13 +170,13 @@ lib.vultr.compute.wait_for_ready_instance() {
       exit 1
     fi
     log.warn "pinging the instance: ${instance_id} to check if it has reached the expected server status: ${expected_status}"
-    lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/instances/${instance_id}" \
+    lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/instances/${instance_id}" \
       -X GET \
       -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
     lib.utils.curl.allows_error_status_codes "none"
-    local queried_server_status="$(jq -r '.instance.server_status' <<<"$vPREV_CURL_RESPONSE")"
-    local queried_status="$(jq -r '.instance.status' <<<"$vPREV_CURL_RESPONSE")"
-    if [[ "$queried_server_status" = "${expected_server_status}" ]] && [[ "$queried_status" = "${expected_status}" ]]; then
+    local queried_server_status="$(jq -r '.instance.server_status' <<<"${vPREV_CURL_RESPONSE}")"
+    local queried_status="$(jq -r '.instance.status' <<<"${vPREV_CURL_RESPONSE}")"
+    if [[ "${queried_server_status}" = "${expected_server_status}" ]] && [[ "${queried_status}" = "${expected_status}" ]]; then
       break
     fi
     max_retries=$((max_retries - 1))
@@ -180,6 +185,7 @@ lib.vultr.compute.wait_for_ready_instance() {
   done
   log.info "instance: ${instance_id} has reached the expected server status: ${expected_server_status} and status: ${expected_status}"
 }
+
 lib.vultr.compute.provision() {
   vPREV_RETURN=()
 
@@ -194,7 +200,7 @@ lib.vultr.compute.provision() {
   #
   local found_valid_sshkey_id="$(lib.vultr.compute.find_existing_sshkey_id)"
   if [[ -z "${found_valid_sshkey_id}" ]]; then
-    lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/ssh-keys" \
+    lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/ssh-keys" \
       -X POST \
       -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
       -H "Content-Type: application/json" \
@@ -203,7 +209,7 @@ lib.vultr.compute.provision() {
           "ssh_key" : "'"$(lib.ssh.cat_pubkey.self)"'"
         }'
     lib.utils.curl.allows_error_status_codes "none"
-    created_sshkey_id="$(jq -r '.ssh_key.id' <<<"$vPREV_CURL_RESPONSE")"
+    created_sshkey_id="$(jq -r '.ssh_key.id' <<<"${vPREV_CURL_RESPONSE}")"
   else
     created_sshkey_id="${found_valid_sshkey_id}"
   fi
@@ -222,7 +228,7 @@ lib.vultr.compute.provision() {
     next_ip="${vPREV_RETURN[0]}"
     instance_id="${vPREV_RETURN[1]}"
     log.info "waiting for the instance with id:${instance_id} and ip:${vENV_IP} to be ready."
-    lib.vultr.compute.wait_for_ready_instance "$instance_id"
+    lib.vultr.compute.wait_for_ready_instance "${instance_id}"
   else
     lib.vultr.compute.get_instance_id_from_ip "${prev_ip}"
     instance_id="${vPREV_RETURN[0]}"
@@ -255,6 +261,7 @@ lib.vultr.compute.provision() {
   fi
   vPREV_RETURN=("$next_ip")
 }
+
 lib.vultr.s3.bucket_exists() {
   vPREV_RETURN=()
 
@@ -283,23 +290,25 @@ lib.vultr.s3.bucket_exists() {
   vPREV_RETURN=("$exists")
   echo "$exists"
 }
+
 lib.vultr.s3.create_bucket() {
   vPREV_RETURN=()
 
   local bucket="$1"
   aws --region "us-east-1" s3 mb s3://"$bucket" >/dev/null
 }
+
 lib.vultr.s3.get_object_storage_id() {
   vPREV_RETURN=()
 
   local label="$1"
   local object_storage_id=""
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/object-storage" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  local object_storage_labels=$(jq -r '.object_storages[].label' <<<"$vPREV_CURL_RESPONSE")
-  local object_storage_ids=$(jq -r '.object_storages[].id' <<<"$vPREV_CURL_RESPONSE")
+  local object_storage_labels=$(jq -r '.object_storages[].label' <<<"${vPREV_CURL_RESPONSE}")
+  local object_storage_ids=$(jq -r '.object_storages[].id' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!object_storage_labels[@]}"; do
     if [[ "${object_storage_labels[$i]}" = "${label}" ]]; then
       object_storage_id="${object_storage_ids[$i]}"
@@ -309,31 +318,33 @@ lib.vultr.s3.get_object_storage_id() {
   vPREV_RETURN=("$object_storage_id")
   echo "$object_storage_id"
 }
+
 lib.vultr.s3.get_ewr_cluster_id() {
   vPREV_RETURN=()
 
   local cluster_id=""
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/clusters" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/object-storage/clusters" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  local cluster_ids=$(jq -r '.clusters[].id' <<<"$vPREV_CURL_RESPONSE")
-  local cluster_regions=$(jq -r '.clusters[].region' <<<"$vPREV_CURL_RESPONSE")
+  local cluster_ids=$(jq -r '.clusters[].id' <<<"${vPREV_CURL_RESPONSE}")
+  local cluster_regions=$(jq -r '.clusters[].region' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!cluster_regions[@]}"; do
     if [[ "${cluster_regions[$i]}" = "ewr" ]]; then
       cluster_id="${cluster_ids[$i]}"
       break
     fi
   done
-  vPREV_RETURN=("$cluster_id")
+  vPREV_RETURN=("${cluster_id}")
   echo "$cluster_id"
 }
+
 lib.vultr.s3.create_storage() {
   vPREV_RETURN=()
 
   local cluster_id="$1"
   local label="$2"
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/object-storage" \
     -X POST \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
@@ -342,10 +353,11 @@ lib.vultr.s3.create_storage() {
         "cluster_id" : '"${cluster_id}"'
       }'
   lib.utils.curl.allows_error_status_codes "none"
-  local object_storage_id=$(jq -r '.object_storage.id' <<<"$vPREV_CURL_RESPONSE")
-  vPREV_RETURN=("$object_storage_id")
-  echo "$object_storage_id"
+  local object_storage_id=$(jq -r '.object_storage.id' <<<"${vPREV_CURL_RESPONSE}")
+  vPREV_RETURN=("${object_storage_id}")
+  echo "${object_storage_id}"
 }
+
 lib.vultr.s3.provision() {
   vPREV_RETURN=()
 
@@ -361,21 +373,21 @@ lib.vultr.s3.provision() {
   else
     log.info "found object storage with the label: ${label} and id: ${object_storage_id}"
   fi
-  lib.utils.curl "$vENV_PROVIDER_API_ENDPOINT/object-storage/$object_storage_id" \
+  lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/object-storage/${object_storage_id}" \
     -X GET \
     -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  vENV_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"$vPREV_CURL_RESPONSE")"
-  vENV_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"$vPREV_CURL_RESPONSE")"
-  vENV_S3_SECRET="$(jq -r '.object_storage.s3_secret_key' <<<"$vPREV_CURL_RESPONSE")"
-  vENV_S3_OBJECT_STORE="$(jq -r '.object_storage.label' <<<"$vPREV_CURL_RESPONSE")"
+  vENV_S3_HOST="$(jq -r '.object_storage.s3_hostname' <<<"${vPREV_CURL_RESPONSE}")"
+  vENV_S3_ACCESS_KEY="$(jq -r '.object_storage.s3_access_key' <<<"${vPREV_CURL_RESPONSE}")"
+  vENV_S3_SECRET="$(jq -r '.object_storage.s3_secret_key' <<<"${vPREV_CURL_RESPONSE}")"
+  vENV_S3_OBJECT_STORE="$(jq -r '.object_storage.label' <<<"${vPREV_CURL_RESPONSE}")"
 
   export AWS_ACCESS_KEY_ID=$vENV_S3_ACCESS_KEY
   export AWS_SECRET_ACCESS_KEY=$vENV_S3_SECRET
-  export AWS_ENDPOINT_URL="https://$vENV_S3_HOST"
+  export AWS_ENDPOINT_URL="https://${vENV_S3_HOST}"
 
-  local bucket_exists="$(lib.vultr.s3.bucket_exists "postgres")"
-  if [[ "$bucket_exists" = false ]]; then
+  local bucket_exists="$(lib.vultr.s3.bucket_exists "${vENV_S3_OBJECT_STORE}")"
+  if [[ $bucket_exists = false ]]; then
     lib.vultr.s3.create_bucket "postgres"
     log.info "created bucket postgres for object storage ${label}"
   else

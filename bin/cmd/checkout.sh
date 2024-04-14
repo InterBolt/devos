@@ -16,7 +16,7 @@ cmd.checkout() {
   # Important: do these checks BEFORE saving the provided directory in the
   # lib.cache. Let's be sure any directories we put there are valid and safe.
   #
-  lib.validate.checked_out_server_and_dir
+  lib.validate.checked_out
   lib.validate.throw_if_dangerous_dir
   lib.validate.throw_if_missing_installed_commands
   #

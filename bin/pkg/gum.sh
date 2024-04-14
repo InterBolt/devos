@@ -3,7 +3,7 @@
 
 LIB_ENTRY_DIR="$PWD"
 LIB_PKG_DIR="${LIB_ENTRY_DIR}/pkg"
-LIB_RELEASES_DIRNAME=".releases"
+LIB_RELEASES_DIRNAME=".installs"
 LIB_GUM_VERSION="0.13.0"
 LIB_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
@@ -98,8 +98,3 @@ pkg.gum.warning_box() {
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
 }
-
-if [[ ! -f "$(pkg.gum.install)" ]]; then
-  echo "failed to install gum" >&2
-  exit 1
-fi

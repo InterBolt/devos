@@ -64,7 +64,7 @@ __test__.utils.curl.allows_error_status_codes() {
   log.error "utils.curl.allows_error_status_codes not implemented yet"
   return 0
 }
-__test__.utils.date() {
+__test__.utils.full_date() {
   log.error "utils.date not implemented yet"
   return 0
 }
@@ -76,16 +76,8 @@ __test__.utils.exit_trap() {
   log.error "utils.exit_trap not implemented yet"
   return 0
 }
-__test__.utils.files_match_dir() {
-  log.error "utils.files_match_dir not implemented yet"
-  return 0
-}
 __test__.utils.generate_secret() {
   log.error "utils.generate_secret not implemented yet"
-  return 0
-}
-__test__.utils.grep_global_vars() {
-  log.error "utils.grep_global_vars not implemented yet"
   return 0
 }
 __test__.utils.template_variables() {
@@ -106,9 +98,5 @@ __test__.utils.logdiff() {
 }
 __test__.utils.do_task() {
   log.error "utils.do_task not implemented yet"
-  return 0
-}
-__test__.utils.from_hex() {
-  log.error "utils.from_hex not implemented yet"
   return 0
 }

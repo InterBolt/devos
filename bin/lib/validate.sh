@@ -35,6 +35,7 @@ lib.validate.throw_on_nonsolos() {
     exit 1
   fi
 }
+
 lib.validate.throw_on_nonsolos_dir() {
   lib.validate.throw_if_dangerous_dir
 
@@ -42,6 +43,7 @@ lib.validate.throw_on_nonsolos_dir() {
     log.error "The supplied directory already exists and does not contain a ${vSTATIC_SERVER_TYPE_FILENAME} file. Exiting."
   fi
 }
+
 lib.validate.throw_if_missing_installed_commands() {
   for cmd in "${vSTATIC_DEPENDENCY_COMMANDS[@]}"; do
     if ! command -v "$cmd" &>/dev/null; then
@@ -50,6 +52,7 @@ lib.validate.throw_if_missing_installed_commands() {
     fi
   done
 }
+
 lib.validate.docker_host_running() {
   if [[ "$vSTATIC_HOST" != "local" ]]; then
     log.error "this command must be run from the local host. Exiting."
@@ -68,7 +71,8 @@ lib.validate.docker_host_running() {
     exit 1
   fi
 }
-lib.validate.validate_project_repo() {
+
+lib.validate.repo() {
   local repo_dir="$1"
   local server_dir="$repo_dir/$vSTATIC_REPO_SERVERS_DIR/$vCLI_OPT_SERVER"
   local server_launch_dir="$server_dir/$vSTATIC_LAUNCH_DIRNAME"
@@ -93,12 +97,9 @@ lib.validate.validate_project_repo() {
     log.error "Unexpected error: the bin launch directory does not exist: $bin_launch_dir. Exiting."
     exit 1
   fi
-  if ! lib.utils.template_variables "$bin_launch_dir" "dry" "allow_empty" 2>&1; then
-    log.error "bad variables used in: $bin_launch_dir"
-    exit 1
-  fi
 }
-lib.validate.checked_out_server_and_dir() {
+
+lib.validate.checked_out() {
   if [[ -z "$vCLI_OPT_DIR" ]]; then
     vCLI_OPT_DIR="$(lib.cache.get "checked_out")"
     if [[ -z "$vCLI_OPT_DIR" ]]; then

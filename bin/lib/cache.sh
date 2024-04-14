@@ -10,11 +10,13 @@ lib.cache.del() {
   local tmp_filepath="${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}/$1"
   rm -f "${tmp_filepath}"
 }
+
 lib.cache.clear() {
   mkdir -p "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
   # shellcheck disable=SC2115
   rm -rf "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
 }
+
 lib.cache.get() {
   mkdir -p "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
   local tmp_filepath="${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}/$1"
@@ -24,6 +26,7 @@ lib.cache.get() {
     echo ""
   fi
 }
+
 lib.cache.set() {
   mkdir -p "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
   local tmp_filepath="${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}/$1"
@@ -32,6 +35,7 @@ lib.cache.set() {
   fi
   echo "$2" >"${tmp_filepath}"
 }
+
 lib.cache.prompt() {
   mkdir -p "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
   local input
@@ -47,6 +51,7 @@ lib.cache.prompt() {
   fi
   lib.cache.get "$1"
 }
+
 lib.cache.overwrite_on_empty() {
   mkdir -p "${vSTATIC_MY_CONFIG_ROOT}/${LIB_CACHE_DIR}"
   local cached_val

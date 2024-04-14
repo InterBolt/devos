@@ -1,4 +1,4 @@
 disable=SC2155
 disable=SC2001
 disable=SC1090
-shell=bash
+shell=sh

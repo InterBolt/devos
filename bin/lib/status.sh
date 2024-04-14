@@ -23,9 +23,10 @@ lib.status.get() {
     echo ""
   fi
 }
+
 lib.status.set() {
   local status="$1"
-  if [[ -z "$status" ]]; then
+  if [[ -z "${status}" ]]; then
     log.error "must supply a non-empty status type. Exiting."
     exit 1
   fi
@@ -39,6 +40,7 @@ lib.status.set() {
   local contents="${2:-"0"}"
   echo "$contents" >"${status_file}"
 }
+
 lib.status.clear() {
   local status="$1"
   if [[ -z "${status}" ]]; then

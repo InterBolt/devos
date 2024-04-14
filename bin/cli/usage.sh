@@ -14,7 +14,7 @@ cli.usage.help() {
   cat <<EOF
 Usage: solos command [--OPTS...]
 
-The SolOS installer CLI to manage SolOS installations on your local computer or dev container.
+A CLI to manage SolOS projects on your local machine or container.
 
 $LIB_FLAGS_HEADER_AVAILABLE_COMMANDS
 
@@ -22,10 +22,12 @@ help                     - Print this help and exit
 launch                   - Launch a SolOS project.
 checkout                 - Checkout a project directory to avoid having to provide the directory
                            on every command.
-sync-config              - Sync the \`.solos\` config folder to a remote server.
+sync-config              - Sync the \`.solos\` config folder to a remote server. 
+                           Use with caution!
 backup                   - Archive a SolOS project and upload it to an s3 bucket.
-restore                  - Restore a SolOS project from an s3 bucket.
-code                     - Open the VSCode workspaces associated with the installation.
+restore                  - Restore a SolOS project from an s3 bucket. It is optional to 
+                           override the config on your working machine.
+code                     - Open the VSCode workspaces associated with the project.
 test                     - (DEV ONLY) Generates and runs unit tests for each lib.* library.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
@@ -44,7 +46,7 @@ cli.usage.command.launch.help() {
   cat <<EOF
 Usage: solos launch [--OPTS...]
 
-Launch a new installation, complete a partial installation, or repair an existing installation.
+Launches a new project, completes a partial project, or repairs an existing project.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -63,7 +65,7 @@ cli.usage.command.sync_config.help() {
   cat <<EOF
 Usage: solos sync-config [--OPTS...]
 
-Sync the .solos config folder to the remote server.
+Sync your machine's \`~/.solos\` (aka your global SolOS config) to the remote server.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -75,7 +77,7 @@ cli.usage.command.test.help() {
   cat <<EOF
 Usage: solos test [--OPTS...]
 
-Run tests on either a specific library or all lib.* libraries.
+DEV ONLY! Runs tests from within the SolOS source repository.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -111,7 +113,7 @@ cli.usage.command.code.help() {
   cat <<EOF
 Usage: solos code [--OPTS...]
 
-Open the vscode workspaces associated with the installation.
+Open the VSCode workspaces associated with the project.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -125,7 +127,7 @@ cli.usage.command.backup.help() {
   cat <<EOF
 Usage: solos backup [--OPTS...]
 
-Backup the installation, caprover, and postgres to the s3 bucket.
+Backup the project to an S3 compatible bucket.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
@@ -140,10 +142,11 @@ cli.usage.command.restore.help() {
   cat <<EOF
 Usage: solos restore [--OPTS...]
 
-Restore the installation, caprover, and postgres from the s3 bucket.
+Restore the project from an S3 compatible bucket.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
+--force-config      - Will overwrite your machine's config with the backup's config.
 --dir               - The directory of your SolOS project. (required on the first run)
 --help              - Print this help and exit
 --foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 

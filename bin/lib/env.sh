@@ -5,23 +5,22 @@
 
 lib.env.generate_files() {
   local tmp_dir="$(mktemp -d 2>/dev/null)"
-  local env_vars=$(grep -Eo 'vENV_[A-Z0-9_]{2,}' "$vENTRY_BIN_FILEPATH")
-  for env_var in $env_vars; do
-    local result="$(declare -p "$env_var" &>/dev/null && echo "set" || echo "unset")"
-    if [[ "$result" = "unset" ]]; then
-      log.error "Undefined env var: $env_var used in solos main script."
+  local bin_vars=$(grep -Eo 'v[A-Z0-9_]*' "${vENTRY_BIN_FILEPATH}" | sort | uniq)
+  for bin_var in $bin_vars; do
+    local result="$(declare -p "${bin_var}" &>/dev/null && echo "set" || echo "unset")"
+    if [[ "${result}" = "unset" ]]; then
+      log.error "Unset bin var: ${bin_var} detected. Refusing to build .env file. Exiting"
       exit 1
     else
-      local env_val=${!env_var}
-      if [[ -z "$env_val" ]]; then
-        log.error "$env_var cannot be empty when building the .env file."
+      local bin_val=${!bin_var}
+      if [[ -z "${bin_val}" ]]; then
+        log.error "${bin_var} is empty but we expect a non-empty value in order to build the .env file. Exiting."
         exit 1
       fi
-      local env_name=$(echo "$env_var" | sed 's/vENV_/ENV_/g' | tr '[:lower:]' '[:upper:]')
-      local found="$(grep -q "^$env_name=" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME" &>/dev/null && echo "found" || echo "")"
+      local found="$(grep -q "^${bin_var}=" "${vCLI_OPT_DIR}/${vSTATIC_ENV_FILENAME}" &>/dev/null && echo "found" || echo "")"
       if [[ -z "$found" ]]; then
-        echo "$env_name=$env_val" >>"$tmp_dir/$vSTATIC_ENV_FILENAME"
-        echo "export $env_name=\"$env_val\"" >>"$tmp_dir/$vSTATIC_ENV_SH_FILENAME"
+        echo "${bin_var}=${bin_val}" >>"${tmp_dir}/${vSTATIC_ENV_FILENAME}"
+        echo "export ${bin_var}=\"${bin_val}\"" >>"${tmp_dir}/${vSTATIC_ENV_SH_FILENAME}"
       fi
     fi
   done
