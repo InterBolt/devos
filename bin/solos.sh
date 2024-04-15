@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2115
-
-set -o pipefail
-set -o errtrace
+# --------------------------------------------------------------------------------------------
+# Shellcheck directives
+#
+# What's disabled: allow unused variables ONLY in this script.
+# dependent script must disable unassigned variables.
+# shellcheck disable=SC2034
 #
 # In the solos_base.sh script, we use the existence of this variable
 # to determine if we should continue. We do this because we're using
@@ -11,11 +13,14 @@ set -o errtrace
 #
 vFROM_BIN_SCRIPT=true
 
+if cd "$(dirname "${BASH_SOURCE[0]}")"; then
+  echo "Unexpected error when setting up the SolOS bin script's working directory" >&2
+  exit 1
+fi
 #
 # The parent must always be a bin folder. This covers dev case and
 # `/usr/local/bin/solos` case.
 #
-cd "$(dirname "${BASH_SOURCE[0]}")"
 if [[ "$(basename "$(pwd)")" != "bin" ]]; then
   echo "error: must be run from the bin folder"
   exit 1
@@ -30,11 +35,11 @@ fi
 #
 vENTRY_FOREGROUND=false
 for entry_arg in "$@"; do
-  if [[ "$entry_arg" = "--foreground" ]]; then
+  if [[ $entry_arg = "--foreground" ]]; then
     vENTRY_FOREGROUND=true
   fi
 done
-vENTRY_START_SECONDS="$SECONDS"
+vENTRY_START_SECONDS="${SECONDS}"
 vENTRY_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
 vENTRY_BIN_DIR="$(pwd)"
 vENTRY_BIN_FILEPATH="$vENTRY_BIN_DIR/$0"
@@ -156,7 +161,7 @@ trap "lib.utils.exit_trap" EXIT
 #
 solos.apply_parsed_cli_args() {
   local was_server_set=false
-  if [[ -z "$vCLI_PARSED_CMD" ]]; then
+  if [[ -z ${vCLI_PARSED_CMD} ]]; then
     log.error "No command supplied. Please supply a command."
     exit 1
   fi
@@ -167,15 +172,15 @@ solos.apply_parsed_cli_args() {
       ;;
     dir=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ "$val" = "$HOME" ]]; then
+      if [[ "$val" = "${HOME}" ]]; then
         log.error "Danger: --dir flag cannot be set to the home directory. Exiting."
         exit 1
       fi
-      if [[ "$HOME" = "$val"* ]]; then
+      if [[ ${HOME} = "${val}"* ]]; then
         log.error "Danger: --dir flag cannot be set to a parent directory of the home directory. Exiting."
         exit 1
       fi
-      vCLI_OPT_DIR="$val"
+      vCLI_OPT_DIR="${val}"
       ;;
     server=*)
       #
@@ -207,7 +212,7 @@ solos.apply_parsed_cli_args() {
       ;;
     fn=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ -n "${val}" ]]; then
+      if [[ -n ${val} ]]; then
         vCLI_OPT_FN="${val}"
       else
         log.error "The --fn flag must be followed by a function name."
@@ -217,18 +222,18 @@ solos.apply_parsed_cli_args() {
     esac
   done
   local projects_server_type_file="${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
-  if [[ "${was_server_set}" = "true" ]]; then
-    if [[ -f "${projects_server_type_file}" ]]; then
+  if [[ ${was_server_set} = "true" ]]; then
+    if [[ -f ${projects_server_type_file} ]]; then
       local projects_server_type="$(cat "${projects_server_type_file}")"
-      if [[ -z "${projects_server_type}" ]]; then
+      if [[ -z ${projects_server_type} ]]; then
         log.error "Unexpected error: ${projects_server_type_file} is empty"
         exit 1
       fi
-      if [[ -z "${vCLI_OPT_SERVER}" ]]; then
+      if [[ -z ${vCLI_OPT_SERVER} ]]; then
         log.error "Unexpected error: --server flag was provided with an empty value."
         exit 1
       fi
-      if [[ "${projects_server_type}" != "${vCLI_OPT_SERVER}" ]]; then
+      if [[ ${projects_server_type} != "${vCLI_OPT_SERVER}" ]]; then
         log.error "cannot change the server type after the initial launch command is run"
         log.error "found: \`${projects_server_type}\`, you provided: \`${vCLI_OPT_SERVER}\`"
         log.error "only a hard reset (use with caution) can change the server type."
@@ -238,7 +243,7 @@ solos.apply_parsed_cli_args() {
     else
       log.warn "No server type file found at: ${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
     fi
-  elif [[ -f "${projects_server_type_file}" ]]; then
+  elif [[ -f ${projects_server_type_file} ]]; then
     vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
   fi
 }
@@ -311,7 +316,7 @@ solos.import_project_repo() {
   #
   local clone_target_dir="${vCLI_OPT_DIR}/repo"
   local repo_server_dir="${clone_target_dir}/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}"
-  if [[ -d "${clone_target_dir}" ]]; then
+  if [[ -d ${clone_target_dir} ]]; then
     log.warn "the SolOS repo was already cloned to ${clone_target_dir}."
     log.info "pulling latest changes on checked out branch."
     git -C "${clone_target_dir}" pull >/dev/null
@@ -320,7 +325,7 @@ solos.import_project_repo() {
     git clone ${vSTATIC_REPO_URL} "${clone_target_dir}" >/dev/null
     log.info "cloned the SolOS repo to ${clone_target_dir}."
   fi
-  if [[ ! -d "${repo_server_dir}" ]]; then
+  if [[ ! -d ${repo_server_dir} ]]; then
     log.error "The server ${vCLI_OPT_SERVER} does not exist in the SolOS repo. Exiting."
     exit 1
   fi
@@ -339,7 +344,7 @@ solos.create_ssh_files() {
   # Important: if a dev manually deletes this dir before re-running a launch,
   # infra will get recreated and the keys will get regenerated.
   #
-  if [[ ! -d "${self_ssh_dir_path}" ]]; then
+  if [[ ! -d ${self_ssh_dir_path} ]]; then
     mkdir -p "${self_ssh_dir_path}"
     log.info "created: ${self_ssh_dir_path}"
     ssh-keygen -t rsa -q -f "${self_privkey_path}" -N ""

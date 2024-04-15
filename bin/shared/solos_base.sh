@@ -26,7 +26,7 @@ fi
 # Checking for the vFROM_BIN_SCRIPT variable protects us against accidentally running
 # a script that should almost always only be source directly.
 #
-if [[ "${vFROM_BIN_SCRIPT}" != "true" ]]; then
+if [[ ${vFROM_BIN_SCRIPT} != "true" ]]; then
   log.error "this script must be sourced from the main bin script"
   exit 1
 fi

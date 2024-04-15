@@ -4,7 +4,7 @@
 . shared/solos_base.sh
 
 cli.parse._is_valid_help_command() {
-  if [[ "$1" = "--help" ]] || [[ "$1" = "-h" ]] || [[ "$1" = "help" ]]; then
+  if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     echo "true"
   else
     echo "false"
@@ -59,10 +59,10 @@ cli.parse.cmd() {
 cli.parse.requirements() {
   for cmd_name in $(
     cli.usage.help |
-      grep -A 1000 "$LIB_FLAGS_HEADER_AVAILABLE_COMMANDS" |
-      grep -B 1000 "$LIB_FLAGS_HEADER_AVAILABLE_OPTIONS" |
-      grep -v "$LIB_FLAGS_HEADER_AVAILABLE_COMMANDS" |
-      grep -v "$LIB_FLAGS_HEADER_AVAILABLE_OPTIONS" |
+      grep -A 1000 "${LIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
+      grep -B 1000 "${LIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
+      grep -v "${LIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
+      grep -v "${LIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
       grep -E "^[a-z]" |
       awk '{print $1}'
   ); do
@@ -87,7 +87,7 @@ cli.parse.requirements() {
   done
 }
 cli.parse.validate_opts() {
-  if [[ -n "${vCLI_PARSED_OPTIONS[0]}" ]]; then
+  if [[ -n ${vCLI_PARSED_OPTIONS[0]} ]]; then
     for parsed_cmd_option in "${vCLI_PARSED_OPTIONS[@]}"; do
       for allowed_cmd_option in "${vCLI_USAGE_ALLOWS_OPTIONS[@]}"; do
         cmd_name=$(echo "$allowed_cmd_option" | awk -F '(' '{print $1}')

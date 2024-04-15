@@ -34,27 +34,27 @@ vARG_GITHUB_TOKEN="$5"
 # script. vCONFIG_DIR should be the .solos folder that we uploaded or mounted
 # to the server from our local machine.
 #
-if [[ ! -d "${vCONFIG_DIR}" ]]; then
+if [[ ! -d ${vCONFIG_DIR} ]]; then
   echo "${vCONFIG_DIR} does not exist. this must exist in all non-local environments." >&2
   exit 1
 fi
-if [[ -z "${vARG_HOST}" ]]; then
+if [[ -z ${vARG_HOST} ]]; then
   echo "No argument provided. Expected <host> <server>" >&2
   exit 1
 fi
-if [[ "${vARG_HOST}" != "docker" ]] && [[ "${vARG_HOST}" != "remote" ]]; then
+if [[ ${vARG_HOST}" != "docker" ]] && [[ ${vARG_HOST}" != "remote" ]]; then
   echo "<host> argument must be either 'docker' or 'remote'." >&2
   exit 1
 fi
-if [[ -z "${vARG_GITHUB_USERNAME}" ]]; then
+if [[ -z ${vARG_GITHUB_USERNAME} ]]; then
   echo "Expected the third argument to be the github username." >&2
   exit 1
 fi
-if [[ -z "${vARG_GITHUB_EMAIL}" ]]; then
+if [[ -z ${vARG_GITHUB_EMAIL} ]]; then
   echo "Expected the fourth argument to be the github email." >&2
   exit 1
 fi
-if [[ -z "${vARG_GITHUB_TOKEN}" ]]; then
+if [[ -z ${vARG_GITHUB_TOKEN} ]]; then
   echo "Expected the fifth argument to be the github token." >&2
   exit 1
 fi
@@ -99,14 +99,14 @@ fi
 # and mounted to the container. When running on a remote server,
 # clone the repo from github.
 #
-if [[ "${vARG_HOST}" = "docker" ]]; then
-  if [[ ! -d "${vDOCKER_MOUNTED_REPO}" ]]; then
+if [[ ${vARG_HOST} = "docker" ]]; then
+  if [[ ! -d ${vDOCKER_MOUNTED_REPO} ]]; then
     echo "The mounted repo does not exist." >&2
     exit 1
   fi
   cd "${vDOCKER_MOUNTED_REPO}"
 else
-  if [[ ! -d "${vREMOTE_CLONE_DIR}" ]]; then
+  if [[ ! -d ${vREMOTE_CLONE_DIR} ]]; then
     gh repo clone "${vGITHUB_REPO}" "${vREMOTE_CLONE_DIR}"
   fi
   cd "${vREMOTE_CLONE_DIR}"
@@ -120,7 +120,7 @@ fi
 # install doesn't exist in the repo on the server.
 #
 vSERVER_DIR="servers/${vARG_SERVER}"
-if [[ ! -d "${vSERVER_DIR}" ]]; then
+if [[ ! -d ${vSERVER_DIR} ]]; then
   echo "${vSERVER_DIR} does not exist!" >&2
   echo "The repo on this server must be out of sync with the local repo. Exiting." >&2
   exit 1
@@ -149,10 +149,10 @@ cd "${vSERVER_DIR}"/.launch
 # and up to date. If we want to invoke the bin script in the repo
 # we should, just like, do that manually.
 #
-if [[ -f "${vUSR_BIN_FILEPATH}" ]]; then
+if [[ -f ${vUSR_BIN_FILEPATH} ]]; then
   rm -f "${vUSR_BIN_FILEPATH}"
 fi
-if [[ "${vARG_HOST}" = "docker" ]]; then
+if [[ ${vARG_HOST} = "docker" ]]; then
   {
     echo "#!/usr/bin/env bash"
     echo ""

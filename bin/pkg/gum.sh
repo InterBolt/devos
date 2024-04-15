@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
-LIB_ENTRY_DIR="$PWD"
+LIB_ENTRY_DIR="${PWD}"
 LIB_PKG_DIR="${LIB_ENTRY_DIR}/pkg"
 LIB_RELEASES_DIRNAME=".installs"
 LIB_GUM_VERSION="0.13.0"
 LIB_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
-if [[ ! -d "${LIB_PKG_DIR}" ]]; then
+if [[ ! -d ${LIB_PKG_DIR} ]]; then
   echo "failed to find bin/pkg directory. cannot install gum" >&2
   exit 1
 fi
@@ -35,7 +35,7 @@ pkg.gum.install() {
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
   local location_dir="${LIB_PKG_DIR}/${LIB_RELEASES_DIRNAME}/${release_download_dirname}"
   mkdir -p "${location_dir}"
-  if [[ ! -f "${location_dir}/gum" ]]; then
+  if [[ ! -f ${location_dir}/gum ]]; then
     curl -L --silent --show-error "${release}" | tar -xz -C "${location_dir}"
   fi
   echo "${location_dir}/gum"
@@ -43,7 +43,7 @@ pkg.gum.install() {
 
 pkg.gum() {
   local executable_path="$(pkg.gum.install)"
-  if [[ -f "${executable_path}" ]]; then
+  if [[ -f ${executable_path} ]]; then
     "$executable_path" "$@"
   else
     echo "failed to install gum" >&2

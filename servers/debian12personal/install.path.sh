@@ -24,8 +24,8 @@ fn_arg_parse "$@"
 SOFTWARE_NAME="solos"
 SOURCE_BIN_PATH="/root/.$SOFTWARE_NAME/bin/$SOFTWARE_NAME"
 BIN_PATH="/usr/local/bin/$SOFTWARE_NAME"
-if [ -f "$BIN_PATH" ]; then
-  rm -f "$BIN_PATH"
+if [ -f "${BIN_PATH}" ]; then
+  rm -f "${BIN_PATH}"
 fi
 {
   echo "#!/usr/bin/env bash"
@@ -34,5 +34,5 @@ fi
   echo ""
   echo ". \"$SOURCE_BIN_PATH\""
 } >>"$BIN_PATH"
-chmod +x "$SOURCE_BIN_PATH"
-chmod +x "$BIN_PATH"
+chmod +x "${SOURCE_BIN_PATH}"
+chmod +x "${BIN_PATH}"

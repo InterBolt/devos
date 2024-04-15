@@ -10,7 +10,7 @@ LIB_FAILED=()
 LIB_PASSED=()
 
 subcmd.test.precheck_variables() {
-  local entry_pwd="$PWD"
+  local entry_pwd="${PWD}"
   cd "$vENTRY_BIN_DIR"
   local errored=false
   local files
@@ -48,7 +48,7 @@ subcmd.test.precheck_launchfiles() {
   # Check that the defualt server type exists
   #
   local servers_dir="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_REPO_SERVERS_DIR}"
-  if [[ ! -d "${servers_dir}/${vSTATIC_DEFAULT_SERVER}" ]]; then
+  if [[ ! -d ${servers_dir}/${vSTATIC_DEFAULT_SERVER} ]]; then
     log.error "The default server type does not exist at: ${servers_dir}/${vSTATIC_DEFAULT_SERVER}"
     exit 1
   fi
@@ -61,7 +61,7 @@ subcmd.test.precheck_launchfiles() {
     fi
     local server_name
     server_name=$(basename "$server")
-    if [[ ! -d "${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}" ]]; then
+    if [[ ! -d ${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME} ]]; then
       log.error "The server type: ${server_name} does not have a launch dir at: ${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}"
       exit 1
     fi
@@ -70,18 +70,18 @@ subcmd.test.precheck_launchfiles() {
 
 subcmd.test._normalize_function_name() {
   local name="$1"
-  if [[ -z "${name}" ]]; then
+  if [[ -z ${name} ]]; then
     log.error "function name is empty"
     exit 1
   fi
-  if [[ "${name}" = *".sh" ]]; then
+  if [[ ${name} = *".sh" ]]; then
     log.error "function name cannot end in .sh"
     exit 1
   fi
-  if [[ "${name}" = "__test__."* ]]; then
+  if [[ ${name} = "__test__."* ]]; then
     name="${name/__test__./}"
   fi
-  if [[ "${name}" != "lib."* ]]; then
+  if [[ ${name}" != "lib."* ]]; then
     name="lib.${name}"
   fi
   echo "${name}"
@@ -191,7 +191,7 @@ subcmd.test._grep_lib_defined_variables() {
 
 subcmd.test._grep_lib_defined_functions() {
   local lib_unit_name="$1"
-  if [[ ! -f "${lib_unit_name}.sh" ]]; then
+  if [[ ! -f ${lib_unit_name}.sh" ]]; then
     log.error "file not found: $lib_file"
     exit 1
   fi
@@ -200,7 +200,7 @@ subcmd.test._grep_lib_defined_functions() {
 
 subcmd.test._grep_test_defined_functions() {
   local lib_unit_name="$1"
-  if [[ ! -f "${lib_unit_name}.sh" ]]; then
+  if [[ ! -f ${lib_unit_name}.sh" ]]; then
     log.error "file not found: ${lib_unit_name}.sh"
     exit 1
   fi
@@ -211,17 +211,17 @@ subcmd.test.unit.create_lib_test() {
   local lib_unit_name="$1"
   local force="${2:-false}"
   local lib_file="${lib_unit_name}.sh"
-  if [[ ! -f "${lib_file}" ]]; then
+  if [[ ! -f ${lib_file} ]]; then
     log.error "file not found: ${lib_file} $PWD"
     exit 1
   fi
   local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
-  if [[ -f "${target_test_file_path}" ]] && [[ "${force}" = "false" ]]; then
+  if [[ -f ${target_test_file_path} ]] && [[ ${force} = "false" ]]; then
     return
   fi
-  if [[ "$force" = "true" ]] && [[ -f "${target_test_file_path}" ]]; then
+  if [[ "$force" = "true" ]] && [[ -f ${target_test_file_path} ]]; then
     mv "${target_test_file_path}" "${test_dir}/.archive.$(date +%s).${target_test_file}"
     log.warn "archived previous test file at: .archive.${target_test_file_path}"
   fi
@@ -245,14 +245,14 @@ subcmd.test.unit.create_lib_test() {
 subcmd.test.unit.tests_add_missing_function_coverage() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
-  if [[ ! -f "${lib_file}" ]]; then
+  if [[ ! -f ${lib_file} ]]; then
     log.error "file not found: $1"
     exit 1
   fi
   local test_dir="tests"
   local target_test_file="__test__.${lib_file}"
   local target_test_file_path="${test_dir}/${target_test_file}"
-  if [[ ! -f "${target_test_file_path}" ]]; then
+  if [[ ! -f ${target_test_file_path} ]]; then
     subcmd.test.unit.create_lib_test "${lib_unit_name}"
     return
   fi
@@ -281,11 +281,11 @@ subcmd.test.unit.get_undefined_test_variables() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
   local test_lib_file="tests/__test__.${lib_file}"
-  if [[ ! -f "${lib_file}" ]]; then
+  if [[ ! -f ${lib_file} ]]; then
     log.error "file not found: $1"
     exit 1
   fi
-  if [[ ! -f "${test_lib_file}" ]]; then
+  if [[ ! -f ${test_lib_file} ]]; then
     return
   fi
   local defined_test_variables="$(subcmd.test._grep_lib_defined_variables "${test_lib_file}")"
@@ -311,7 +311,7 @@ subcmd.test.step.verify_source_existence() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_test "${lib_file}")"
-    if [[ ! -f "${lib_unit_name}.sh" ]]; then
+    if [[ ! -f ${lib_unit_name}.sh" ]]; then
       missing_source_files+=("${lib_unit_name}.sh")
     fi
   done
@@ -443,19 +443,19 @@ subcmd.test.verify() {
 subcmd.test.unit() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
-  if [[ ! -f "${lib_file}" ]]; then
+  if [[ ! -f ${lib_file} ]]; then
     log.error "file not found: ${lib_file}"
     exit 1
   fi
   local lib_test_file="tests/__test__.${lib_unit_name}.sh"
-  if [[ ! -f "${lib_test_file}" ]]; then
+  if [[ ! -f ${lib_test_file} ]]; then
     log.error "test file not found: $1"
     exit 1
   fi
   local supplied_functions=()
   local functions_found_in_test="$(subcmd.test._grep_test_defined_functions "${lib_unit_name}")"
   for arg in "${@:2}"; do
-    if [[ -z "${arg}" ]]; then
+    if [[ -z ${arg} ]]; then
       continue
     fi
     if ! echo "$functions_found_in_test" | grep -q "^${arg}$"; then
@@ -492,7 +492,7 @@ subcmd.test.unit() {
       fi
       __hook__.after_fn "${supplied_function}" || true
     done
-    if [[ "${something_failed}" = "true" ]]; then
+    if [[ ${something_failed} = "true" ]]; then
       __hook__.after_file_fails || true
       LIB_FILES_FAILED+=("$lib_unit_name")
     else
@@ -516,11 +516,11 @@ cmd.test() {
   # Make sure we're in a git repo and that we're either in our docker dev container
   # or on a local machine. We can't run tests in a remote environment.
   #
-  if [[ "${vSTATIC_RUNNING_IN_GIT_REPO}" != true ]]; then
+  if [[ ${vSTATIC_RUNNING_IN_GIT_REPO}" != true ]]; then
     log.error "this command can only be run from within a git repo."
     exit 1
   fi
-  if [[ "${vSTATIC_HOST}" = "remote" ]]; then
+  if [[ ${vSTATIC_HOST} = "remote" ]]; then
     log.error "this command cannot be run in a remote environment."
     exit 1
   fi
@@ -533,7 +533,7 @@ cmd.test() {
   #
   subcmd.test.precheck_launchfiles
   subcmd.test.precheck_variables
-  local entry_dir="$PWD"
+  local entry_dir="${PWD}"
   cd "lib" || exit 1
   #
   # Normalize the function name to the format: lib.<lib_name>.<function_name>.
@@ -542,20 +542,20 @@ cmd.test() {
   #
   local lib_to_test="${vCLI_OPT_LIB}"
   local fn_to_test="${vCLI_OPT_FN}"
-  local lib_dir="$PWD"
+  local lib_dir="${PWD}"
   local lib_files=()
   local lib_test_file=""
   local lib_unit_name=""
-  if [[ -z "${lib_to_test}" ]] && [[ -z "${fn_to_test}" ]]; then
+  if [[ -z ${lib_to_test} ]] && [[ -z ${fn_to_test} ]]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
     done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
   else
-    if [[ -n "${fn_to_test}" ]]; then
+    if [[ -n ${fn_to_test} ]]; then
       fn_to_test="$(subcmd.test._normalize_function_name "${fn_to_test}")"
       local inferred_lib_to_test="$(echo "${fn_to_test}" | cut -d. -f2)"
-      if [[ -n "${lib_to_test}" ]]; then
-        if [[ "${lib_to_test}" != "${inferred_lib_to_test}" ]]; then
+      if [[ -n ${lib_to_test} ]]; then
+        if [[ ${lib_to_test}" != "${inferred_lib_to_test} ]]; then
           log.error "the --lib and --fn flags specify different libraries. Exiting."
           exit 1
         fi
@@ -576,7 +576,7 @@ cmd.test() {
   #
   # Wait until things are generated before testing for existence.
   #
-  if [[ -n "${lib_test_file}" ]] && [[ ! -f "${lib_test_file}" ]]; then
+  if [[ -n ${lib_test_file} ]] && [[ ! -f ${lib_test_file} ]]; then
     log.error "test file not found: ${lib_test_file}"
     exit 1
   fi

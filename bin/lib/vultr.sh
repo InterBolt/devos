@@ -22,7 +22,7 @@ lib.vultr.compute.instance_contains_tag() {
   lib.utils.curl.allows_error_status_codes "none"
   tags=$(jq -r '.instance.tags' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!tags[@]}"; do
-    if [[ "${tags[$i]}" = "${tag}" ]]; then
+    if [[ ${tags[$i]} = "${tag}" ]]; then
       found=true
     fi
   done
@@ -34,7 +34,7 @@ lib.vultr.compute.destroy_instance() {
   vPREV_RETURN=()
 
   local instance_id="$1"
-  if [[ -z "${instance_id}" ]]; then
+  if [[ -z ${instance_id} ]]; then
     log.error "you supplied an empty instance id as the first argument to lib.vultr.compute.destroy_instance"
     exit 1
   fi
@@ -119,10 +119,10 @@ lib.vultr.compute.find_existing_sshkey_id() {
     if [[ "solos" = "${found_ssh_key_names[$i]}" ]]; then
       matching_ssh_key_name_found=true
     fi
-    if [[ "$(lib.ssh.cat_pubkey.self)" = "${found_ssh_keys[$i]}" ]]; then
+    if [[ $(lib.ssh.cat_pubkey.self) = "${found_ssh_keys[$i]}" ]]; then
       matching_ssh_key_found=true
     fi
-    if [[ "${matching_ssh_key_found}" = true ]] && [[ "${matching_ssh_key_name_found}" = true ]]; then
+    if [[ ${matching_ssh_key_found} = true ]] && [[ ${matching_ssh_key_name_found} = true ]]; then
       match_exists=true
       matching_sshkey_id="${found_sshkey_ids[$i]}"
       break
@@ -134,21 +134,21 @@ lib.vultr.compute.find_existing_sshkey_id() {
   # Note: technically we could just say "if match_exists=false" error and exit.
   # But the extra info is nice for debugging.
   #
-  if [[ "${match_exists}" = false ]] && [[ "${matching_ssh_key_found}" = true ]]; then
+  if [[ ${match_exists} = false ]] && [[ ${matching_ssh_key_found} = true ]]; then
     log.error "a conflict was found where a matching ssh key exists, but it's name is different."
     for i in "${!found_ssh_keys[@]}"; do
       log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
     done
     exit 1
   fi
-  if [[ "${match_exists}" = false ]] && [[ "${matching_ssh_key_name_found}" = true ]]; then
+  if [[ ${match_exists} = false ]] && [[ ${matching_ssh_key_name_found} = true ]]; then
     log.error "a conflict was found where a matching ssh key name exists, but it's public key contents are different."
     for i in "${!found_ssh_keys[@]}"; do
       log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
     done
     exit 1
   fi
-  if [[ -n "${matching_sshkey_id}" ]]; then
+  if [[ -n ${matching_sshkey_id} ]]; then
     vPREV_RETURN=("$matching_sshkey_id")
     echo "${matching_sshkey_id}"
   else
@@ -165,7 +165,7 @@ lib.vultr.compute.wait_for_ready_instance() {
   local expected_server_status="ok"
   local max_retries=30
   while true; do
-    if [[ "${max_retries}" -eq 0 ]]; then
+    if [[ ${max_retries} -eq 0 ]]; then
       log.error "instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
       exit 1
     fi
@@ -176,7 +176,7 @@ lib.vultr.compute.wait_for_ready_instance() {
     lib.utils.curl.allows_error_status_codes "none"
     local queried_server_status="$(jq -r '.instance.server_status' <<<"${vPREV_CURL_RESPONSE}")"
     local queried_status="$(jq -r '.instance.status' <<<"${vPREV_CURL_RESPONSE}")"
-    if [[ "${queried_server_status}" = "${expected_server_status}" ]] && [[ "${queried_status}" = "${expected_status}" ]]; then
+    if [[ ${queried_server_status} = "${expected_server_status}" ]] && [[ ${queried_status} = "${expected_status}" ]]; then
       break
     fi
     max_retries=$((max_retries - 1))
@@ -199,7 +199,7 @@ lib.vultr.compute.provision() {
   # If it's not, we must create it.
   #
   local found_valid_sshkey_id="$(lib.vultr.compute.find_existing_sshkey_id)"
-  if [[ -z "${found_valid_sshkey_id}" ]]; then
+  if [[ -z ${found_valid_sshkey_id} ]]; then
     lib.utils.curl "${vENV_PROVIDER_API_ENDPOINT}/ssh-keys" \
       -X POST \
       -H "Authorization: Bearer ${vENV_PROVIDER_API_KEY}" \
@@ -223,7 +223,7 @@ lib.vultr.compute.provision() {
   # to see if it has the correct ssh key. If it doesn't, we delete the instance and create a new one.
   # Otherwise, we can skip the provisioning process and move on to the next cmd.
   #
-  if [[ -z "${prev_ip}" ]]; then
+  if [[ -z ${prev_ip} ]]; then
     lib.vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
     next_ip="${vPREV_RETURN[0]}"
     instance_id="${vPREV_RETURN[1]}"
@@ -232,13 +232,13 @@ lib.vultr.compute.provision() {
   else
     lib.vultr.compute.get_instance_id_from_ip "${prev_ip}"
     instance_id="${vPREV_RETURN[0]}"
-    if [[ -z "${instance_id}" ]]; then
+    if [[ -z ${instance_id} ]]; then
       log.error "no instance found with the ip: ${prev_ip}. you might need to do a hard reset."
       exit 1
     fi
     log.info "looking for a tag that tells us if the instance has a matching ssh key."
     ssh_tag_exists="$(lib.vultr.compute.instance_contains_tag "ssh_${created_sshkey_id}" "$instance_id")"
-    if [[ "${ssh_tag_exists}" = "true" ]]; then
+    if [[ ${ssh_tag_exists} = "true" ]]; then
       log.info "found matching instance tag: ssh_${created_sshkey_id}"
       log.info "nothing to do. the instance is already provisioned."
       next_ip="$prev_ip"
@@ -255,7 +255,7 @@ lib.vultr.compute.provision() {
       lib.vultr.compute.wait_for_ready_instance "$instance_id"
     fi
   fi
-  if [[ -z "${next_ip}" ]]; then
+  if [[ -z ${next_ip} ]]; then
     log.error "something unexpected happened. no ip address was produced after the re-installation."
     exit 1
   fi
@@ -310,7 +310,7 @@ lib.vultr.s3.get_object_storage_id() {
   local object_storage_labels=$(jq -r '.object_storages[].label' <<<"${vPREV_CURL_RESPONSE}")
   local object_storage_ids=$(jq -r '.object_storages[].id' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!object_storage_labels[@]}"; do
-    if [[ "${object_storage_labels[$i]}" = "${label}" ]]; then
+    if [[ ${object_storage_labels[$i]} = "${label}" ]]; then
       object_storage_id="${object_storage_ids[$i]}"
       break
     fi
@@ -330,7 +330,7 @@ lib.vultr.s3.get_ewr_cluster_id() {
   local cluster_ids=$(jq -r '.clusters[].id' <<<"${vPREV_CURL_RESPONSE}")
   local cluster_regions=$(jq -r '.clusters[].region' <<<"${vPREV_CURL_RESPONSE}")
   for i in "${!cluster_regions[@]}"; do
-    if [[ "${cluster_regions[$i]}" = "ewr" ]]; then
+    if [[ ${cluster_regions[$i]} = "ewr" ]]; then
       cluster_id="${cluster_ids[$i]}"
       break
     fi
@@ -364,7 +364,7 @@ lib.vultr.s3.provision() {
   local object_storage_id=""
   local label="solos"
   object_storage_id="$(lib.vultr.s3.get_object_storage_id "${label}")"
-  if [[ -z "${object_storage_id}" ]]; then
+  if [[ -z ${object_storage_id} ]]; then
     log.info "no object storage found with the label: ${label}. creating a new one."
     local cluster_id="$(lib.vultr.s3.get_ewr_cluster_id)"
     log.info "using the ewr cluster id: ${cluster_id}"

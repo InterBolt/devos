@@ -14,7 +14,7 @@ LIB_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
 mkdir -p "${LIB_DIR}"
 
 LIB_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
-if [[ "${LIB_FILESIZE}" -gt 1000 ]]; then
+if [[ ${LIB_FILESIZE} -gt 1000 ]]; then
   LIB_BARE_LOG=true
   log.warn "LOG FILE IS GROWING LARGE: $((LIB_FILESIZE / 1000))MB"
   log.info "${vSTATIC_LOG_FILEPATH}"
@@ -28,7 +28,7 @@ fi
 # HELPER FUNCTIONS
 #
 log._get_filesize() {
-  if [[ -f "${1}" ]]; then
+  if [[ -f ${1} ]]; then
     du -k "${1}" | cut -f 1
   else
     echo 0
@@ -77,7 +77,7 @@ log._base() {
   #
   local date_args=(date "${formatted_date}")
   local source_args=(source "[${source}]")
-  if [[ "${source}" == "NULL"* ]]; then
+  if [[ ${source} == "NULL"* ]]; then
     source_args=()
     date_args=()
   fi

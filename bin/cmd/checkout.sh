@@ -28,7 +28,7 @@ cmd.checkout() {
   #
   lib.cache.set "checked_out" "${vCLI_OPT_DIR}"
   log.info "checked out dir: ${vCLI_OPT_DIR}"
-  if [[ -f "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}" ]]; then
+  if [[ -f ${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME} ]]; then
     vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
     log.info "set \$vENV_SOLOS_ID= ${vENV_SOLOS_ID}"
   fi

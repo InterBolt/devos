@@ -47,22 +47,22 @@ lib.utils.template_variables() {
   # Note: don't fail on an empty directory, because we expect that to happen.
   # due the recursive nature of this function.
   #
-  if [[ -d "$dir_or_file" ]]; then
-    for file in "$dir_or_file"/*; do
-      if [[ -d "$file" ]]; then
+  if [[ -d $dir_or_file ]]; then
+    for file in "${dir_or_file}"/*; do
+      if [[ -d $file ]]; then
         lib.utils.template_variables "$file" "$2"
       fi
-      if [[ -f "$file" ]]; then
+      if [[ -f $file ]]; then
         eligible_files+=("$file")
       fi
     done
-  elif [[ -f "$dir_or_file" ]]; then
+  elif [[ -f $dir_or_file ]]; then
     eligible_files+=("$dir_or_file")
   fi
   #
   # Terminating condition for the recursive function.
   #
-  if [[ "${#eligible_files[@]}" -eq 0 ]]; then
+  if [[ ${#eligible_files[@]} -eq 0 ]]; then
     return
   fi
   local errored=false
@@ -74,19 +74,19 @@ lib.utils.template_variables() {
         errored=true
         continue
       fi
-      if [[ "${empty_behavior}" = "fail_on_empty" ]] && [[ -z "${!bin_var}" ]]; then
+      if [[ ${empty_behavior} = "fail_on_empty" ]] && [[ -z ${!bin_var} ]]; then
         log.error "${file} is using an empty variable: ${bin_var}"
         errored=true
         continue
       fi
-      if [[ "${errored}" = "false" ]] && [[ "${behavior}" = "commit" ]]; then
+      if [[ ${errored} = "false" ]] && [[ ${behavior} = "commit" ]]; then
         log.info "replacing ${bin_var} with ${!bin_var} in ${file}"
         sed -i '' "s,\_\_${bin_var}\_\_,${!bin_var},g" "${file}"
         log.info "success: replaced ${bin_var} with ${!bin_var} in ${file}"
       fi
     done
   done
-  if [[ "${errored}" = "true" ]]; then
+  if [[ ${errored} = "true" ]]; then
     exit 1
   fi
 }
@@ -102,7 +102,7 @@ lib.utils.curl() {
     curl --silent --show-error "$@"
   )
   local error_message="$(jq -r '.error' <<<"$vPREV_CURL_RESPONSE")"
-  if [[ "$error_message" = "null" ]]; then
+  if [[ $error_message = "null" ]]; then
     echo ""
     return
   fi
@@ -117,31 +117,31 @@ lib.utils.curl.allows_error_status_codes() {
   # The benefit of forcing the caller to "say" their intention rather
   # than just leaving the arg list empty is purely for readability.
   #
-  if [[ -z "$1" ]]; then
+  if [[ -z $1 ]]; then
     log.error "Missing \`none\` or a list of allowed status codes."
     exit 1
   fi
   local error_message="error: ${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
   local allowed="true"
-  if [[ -z "${vPREV_CURL_ERR_STATUS_CODE}" ]]; then
+  if [[ -z ${vPREV_CURL_ERR_STATUS_CODE} ]]; then
     log.info "no error status code found for curl request"
     return
   fi
-  if [[ "$1" = "none" ]]; then
+  if [[ $1 = "none" ]]; then
     allowed=""
     shift
   fi
   local allowed_status_codes=()
-  if [[ "$#" -gt 0 ]]; then
+  if [[ $# -gt 0 ]]; then
     allowed_status_codes=("$@")
   fi
   for allowed_status_code in "${allowed_status_codes[@]}"; do
-    if [[ "${vPREV_CURL_ERR_STATUS_CODE}" = "${allowed_status_code}" ]]; then
+    if [[ ${vPREV_CURL_ERR_STATUS_CODE} = "${allowed_status_code}" ]]; then
       allowed="true"
       log.info "set allowed to true for status code: ${allowed_status_code}"
     fi
   done
-  if [[ -z "${allowed}" ]]; then
+  if [[ -z ${allowed} ]]; then
     log.error "${error_message}"
     exit 1
   else
@@ -151,7 +151,7 @@ lib.utils.curl.allows_error_status_codes() {
 
 lib.utils.warn_with_delay() {
   local message="$1"
-  if [[ -z "${message}" ]]; then
+  if [[ -z ${message} ]]; then
     log.error "Please provide a message to warn the user of. Exiting."
     exit 1
   fi
@@ -195,13 +195,13 @@ lib.utils.spinner() {
   # (that way it works for any locale as long as the font supports the characters)
   local LC_CTYPE=C
   local start_linecount=$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)
-  local start_seconds="$SECONDS"
+  local start_seconds="${SECONDS}"
 
   local pid=$1 # Process Id of the previous running command
   local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
   local charwidth=3
   local prefix="${2:-""}"
-  if [[ -n "${prefix}" ]]; then
+  if [[ -n ${prefix} ]]; then
     prefix="${prefix}: "
   fi
   local length_of_prefix=${#prefix}
@@ -220,10 +220,10 @@ lib.utils.spinner() {
     # This should always match up with the info level color!
     #
     printf "%b" "${spin:$i:$charwidth} \e[94m${prefix}\e[0m ${last_line}"
-    echo -en "\033[$((length_of_line + 2))D"
+    echo -n "\033[$((length_of_line + 2))D"
     sleep .1
   done
-  echo -en "\033[K"
+  echo -n "\033[K"
   tput cnorm
   wait "${pid}"
   local code=$?
@@ -264,17 +264,17 @@ lib.utils.spinner() {
         --cursor.foreground "#A0A" --header.foreground "#FFF" --selected.foreground "#3B78FF" \
         --header "${subset_header}" ''"${subset_logs_choice}"'' ''"${every_log_choice}"'' '(3) None'
     )"
-    if [[ "$choice" = "${subset_logs_choice}" ]]; then
+    if [[ ${choice} = "${subset_logs_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing ${subset_label} [${vSTATIC_LOG_FILEPATH}$newline:${start_linecount}]" \
         "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${subset_logs}"
-    elif [[ "$choice" = "${every_log_choice}" ]]; then
+    elif [[ ${choice} = "${every_log_choice}" ]]; then
       pkg.gum.logs_box \
         "Viewing all logs [${vSTATIC_LOG_FILEPATH}:${start_linecount}]$newline" \
         "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${every_log}"
-    elif [[ "$choice" = "NONE" ]]; then
+    elif [[ ${choice} = "NONE" ]]; then
       log.warn "Review manually at [${vSTATIC_LOG_FILEPATH}:${start_linecount}] or supply the --foreground flag next time. Exiting."
     fi
     exit $code

@@ -1,147 +1,97 @@
 #!/usr/bin/env bash
 
-set -o pipefail
-set -o errtrace
-
-viREPO_BIN_EXECUTABLE_PATH="bin/solos.sh"
-
-spinner() {
-  # make sure we use non-unicode character type locale
-  # (that way it works for any locale as long as the font supports the characters)
-  local LC_CTYPE=C
-
-  local pid=$1 # Process Id of the previous running command
-  local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
-  local charwidth=3
-  local title="${2:-""}"
-  local length_of_title=${#title}
-
-  local i=0
-  tput civis # cursor invisible
-  while kill -0 "${pid}" 2>/dev/null; do
-    local i=$(((charwidth + i) % ${#spin}))
-    #
-    # This should always match up with the info level color!
-    #
-    printf "%b" "${spin:$i:$charwidth} \e[94m${title}\e[0m"
-    echo -en "\033[$((length_of_title + 2))D"
-    sleep .1
-  done
-  echo -en "\033[K"
-  tput cnorm
-  wait "${pid}"
-  local code=$?
-  if [[ $code -ne 0 ]]; then
-    log.error "installation failed with code: $code"
-    log.info "tip: include the --foreground flag next time to view the output."
-    exit $code
-  fi
-}
-
-do_task() {
-  local description="$1"
-  local task="$2"
-  shift 2
-  if ! declare -f "$task" >/dev/null; then
-    log.error "second argument must be the task function."
-    exit 1
-  fi
-  "$task" "$@" &
-  local task_pid=$!
-  spinner "${task_pid}" "${description}"
-}
-
 #
-# Important: please use "vi" prefix to avoid conflicts with other scripts
-# we source remotely.
-# Note: stands for "v" variable and "i" install.
+# Note: in the prefix, "v" stands for variable and "i" for install.
+# I chose to use this prefix because global variables in the main bin scripts
+# use only the "v" prefix, which makes grepping one set of variables vs the other easy.
+# I hate thinking!
 #
 viTMP_DIR="$(mktemp -d 2>/dev/null)"
-viMY_TMP_CONFIG_BIN_DIR="$(mktemp -d 2>/dev/null)"
 viTMP_REPO="${viTMP_DIR}/solos"
 viREPO_URL="https://github.com/InterBolt/solos.git"
 viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
-viBIN_SCRIPT_COMMENT_TAG="# from:solos"
+viREPO_BIN_EXECUTABLE_PATH="bin/proxy.sh"
+viSTATIC_MY_CONFIG_ROOT=""
 
-trap.cleanup() {
-  rm -rf "$viTMP_DIR"
-  rm -rf "$viMY_TMP_CONFIG_BIN_DIR"
+do_check() {
+  #
+  # Only debian users are allowed to run the script without docker.
+  # I made the decision to only support debian a long time ago and
+  # don't intend to change that.
+  #
+  # If docker doesn't exist on an unsupported system, we don't even bother
+  # trying to install SolOS. Better off catching it early and asking the user to re-install
+  # once ready.
+  #
+  local requires_docker=false
+  if [[ -z $BASH_VERSION ]]; then
+    echo "unsupported shell. try again with Bash." >&2
+    exit 1
+  fi
+  if ! command -v lsb_release -i >/dev/null 2>&1; then
+    requires_docker=true
+  elif [[ $(lsb_release -i -s 2>/dev/null) != "Debian" ]]; then
+    requires_docker=true
+  fi
+  if [[ $requires_docker = true ]]; then
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "docker is required to install SolOS on this system." >&2
+      exit 1
+    fi
+  fi
 }
 
-do.clone() {
-  git clone "${viREPO_URL}" "${viTMP_REPO}" &>/dev/null
-  if [ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]; then
-    echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found. Exiting." >&2
+do_clone() {
+  git clone "${viREPO_URL}" "${viTMP_REPO}" >/dev/null 2>&1
+  if [[ ! -f "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH}" ]]; then
+    echo "${viTMP_REPO}/${viREPO_BIN_EXECUTABLE_PATH} not found." >&2
     exit 1
   fi
 }
 
-do.prepare() {
+do_bin_link() {
   #
   # Important: the remainder of the script assumes we're in the bin folder.
   #
   cd "${viTMP_REPO}/bin" || exit 1
   #
-  # Source anything we need an make sure the user has a
-  # config dir in the home folder.
-  #
-  # shellcheck source=bin/shared/static.sh
-  . "shared/static.sh"
-  # shellcheck source=bin/pkg/gum.sh
-  . "pkg/gum.sh"
-
-  #
   # Fundamentally, we must clone the repo before we can source the static.sh file.
   #
-  #
-  if [ "${viREPO_URL}" != "${vSTATIC_REPO_URL}" ]; then
-    echo "repo url mismatch: ${viREPO_URL} != ${vSTATIC_REPO_URL}" >&2
-    exit 1
-  fi
-
-  mkdir -p "$vSTATIC_MY_CONFIG_ROOT"
-  # shellcheck source=bin/shared/log.sh
-  . "shared/log.sh"
+  mkdir -p "$viSTATIC_MY_CONFIG_ROOT"
   #
   # Overwrite the bin files stored in the config folder.
   #
-  rm -rf "${vSTATIC_MY_CONFIG_ROOT:?}/bin"
-  mkdir -p "${vSTATIC_MY_CONFIG_ROOT:?}/bin"
-  cp -r "${viTMP_REPO}/bin/." "${vSTATIC_MY_CONFIG_ROOT:?}/bin"
-
+  rm -rf "${viSTATIC_MY_CONFIG_ROOT:?}/bin"
+  mkdir -p "${viSTATIC_MY_CONFIG_ROOT:?}/bin"
+  cp -r "${viTMP_REPO}/bin/." "${viSTATIC_MY_CONFIG_ROOT:?}/bin"
   #
-  # For extra safety, we'll see if the script looks like something we've installed before
-  # based on the second line of the script, which is a distinct comment.
-  # If it does, we're safe to overwrite it.
+  # Use linking rather than copying for the simplest possible update process.
   #
-  if [ -f "$viUSR_LOCAL_BIN_EXECUTABLE" ]; then
-    if [ "$(sed -n '2p' "$viUSR_LOCAL_BIN_EXECUTABLE")" == "$viBIN_SCRIPT_COMMENT_TAG" ]; then
-      log.warn "overwriting $viUSR_LOCAL_BIN_EXECUTABLE"
-      rm -f "$viUSR_LOCAL_BIN_EXECUTABLE"
-    else
-      log.error "line: \`$viBIN_SCRIPT_COMMENT_TAG\` was not found in $viUSR_LOCAL_BIN_EXECUTABLE."
-      log.error "can't verify that it was installed by solos."
-      exit 1
-    fi
+  if ! ln -sfv "${viSTATIC_MY_CONFIG_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}" "${viUSR_LOCAL_BIN_EXECUTABLE}"; then
+    echo "failed to link ${viSTATIC_MY_CONFIG_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
+    exit 1
   fi
-
   #
-  # The actual bin script will live in the .solos folder for max portability.
-  # This way when restoring on old system, the script will still work without needing
-  # to be reinstalled or finding the original script version.
+  # Ensure they're executable for extra safety.
   #
-  {
-    echo "#!/usr/bin/env bash"
-    echo "$viBIN_SCRIPT_COMMENT_TAG"
-    echo "# This script was generated by the SolOS install at $(date)."
-    echo ""
-    echo "\"${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH\" \"\$@\""
-  } >>"$viUSR_LOCAL_BIN_EXECUTABLE"
-  chmod +x "$viUSR_LOCAL_BIN_EXECUTABLE"
+  chmod +x "${viSTATIC_MY_CONFIG_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}"
+  chmod +x "${viUSR_LOCAL_BIN_EXECUTABLE}"
 }
 
-trap "trap.cleanup" EXIT
-do.clone
-do.prepare
-log.info "success - installed at ${vSTATIC_MY_CONFIG_ROOT:?}/$viREPO_BIN_EXECUTABLE_PATH"
-log.info "run 'solos --help' to get started"
+if ! do_check; then
+  echo "solos installation failed." >&2
+  exit 1
+fi
+
+if ! do_clone; then
+  echo "solos installation failed." >&2
+  exit 1
+fi
+
+if ! do_bin_link; then
+  echo "solos installation failed." >&2
+  exit 1
+fi
+
+echo "successfully installed SolOS."
+echo "run 'solos --help' to get started"

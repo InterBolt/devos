@@ -8,12 +8,12 @@ lib.env.generate_files() {
   local bin_vars=$(grep -Eo 'v[A-Z0-9_]*' "${vENTRY_BIN_FILEPATH}" | sort | uniq)
   for bin_var in $bin_vars; do
     local result="$(declare -p "${bin_var}" &>/dev/null && echo "set" || echo "unset")"
-    if [[ "${result}" = "unset" ]]; then
+    if [[ ${result} = "unset" ]]; then
       log.error "Unset bin var: ${bin_var} detected. Refusing to build .env file. Exiting"
       exit 1
     else
       local bin_val=${!bin_var}
-      if [[ -z "${bin_val}" ]]; then
+      if [[ -z ${bin_val} ]]; then
         log.error "${bin_var} is empty but we expect a non-empty value in order to build the .env file. Exiting."
         exit 1
       fi
