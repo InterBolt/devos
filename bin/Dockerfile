@@ -38,11 +38,14 @@ RUN sudo apt-get remove docker.io \
   && apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
 # SSH
-RUN mkdir /var/run/sshd
-RUN echo 'root:password' | chpasswd
-RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+RUN mkdir /var/run/sshd \
+  && echo 'root:password' | chpasswd \
+  && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 EXPOSE 22
 RUN /usr/sbin/sshd -D &
+
+# Make them all executable
+RUN chmod -R +x /root/.solos/source
 
 # Solos mounted script
 ENTRYPOINT "/root/.solos/source/bin/solos.sh" "$@"

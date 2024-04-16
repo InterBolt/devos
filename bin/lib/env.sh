@@ -28,12 +28,12 @@ lib.env.generate_files() {
   # Wait until the files are built before moving them to their final location
   # in case we had to abort mid-loop.
   #
-  rm -f "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
-  rm -f "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
-  mv "$tmp_dir/$vSTATIC_ENV_SH_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_SH_FILENAME"
-  mv "$tmp_dir/$vSTATIC_ENV_FILENAME" "$vCLI_OPT_DIR/$vSTATIC_ENV_FILENAME"
+  rm -f "${vCLI_OPT_DIR}/${vSTATIC_ENV_SH_FILENAME}"
+  rm -f "${vCLI_OPT_DIR}/${vSTATIC_ENV_FILENAME}"
+  mv "${tmp_dir}/${vSTATIC_ENV_SH_FILENAME}" "${vCLI_OPT_DIR}/${vSTATIC_ENV_SH_FILENAME}"
+  mv "${tmp_dir}/${vSTATIC_ENV_FILENAME}" "${vCLI_OPT_DIR}/${vSTATIC_ENV_FILENAME}"
   #
   # Cleanup tmp dir
   #
-  rm -rf "$tmp_dir"
+  rm -rf "${tmp_dir}"
 }

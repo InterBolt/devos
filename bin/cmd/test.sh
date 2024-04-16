@@ -325,7 +325,7 @@ subcmd.test.step.verify_function_coverage() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
@@ -351,13 +351,12 @@ subcmd.test.step.verify_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
     local used_variables_in_lib="$(subcmd.test._grep_lib_used_variables "${lib_file}")"
-    local defined_variables_in_test="$(subcmd.test._grep_lib_defined_variables "${target_test_file_path}")"
     for used_variable_in_lib in $used_variables_in_lib; do
       if ! echo "$defined_variables_in_test" | grep -q "^${used_variable_in_lib}$"; then
         log.error "used variable in lib: ${used_variable_in_lib} was not defined in ${lib_unit_name} test file"
@@ -366,7 +365,7 @@ subcmd.test.step.verify_variables() {
     done
     for defined_variable_in_test in $defined_variables_in_test; do
       if ! echo "$used_variables_in_lib" | grep -q "^${defined_variable_in_test}$"; then
-        log.error "defined variable in test: ${used_variable_in_lib} is not used in ${lib_unit_name} file"
+        log.error "defined variable in test: ${defined_variable_in_test} is not used in ${lib_unit_name} file"
         exit 1
       fi
     done
@@ -377,7 +376,7 @@ subcmd.test.step.cover_functions() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
@@ -389,7 +388,7 @@ subcmd.test.step.cover_variables() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
@@ -406,7 +405,7 @@ subcmd.test.dangerously_recreate() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
@@ -418,7 +417,7 @@ subcmd.test.init() {
   local lib_files=()
   while IFS= read -r -d $'\0' file; do
     lib_files+=("$file")
-  done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+  done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
@@ -543,7 +542,7 @@ cmd.test() {
   if [[ -z ${lib_to_test} ]] && [[ -z ${fn_to_test} ]]; then
     while IFS= read -r -d $'\0' file; do
       lib_files+=("$file")
-    done < <(find . -not \( -path "*/__*__.sh" -prune \) -maxdepth 1 -type f -name '*.sh' -print0)
+    done < <(find . -maxdepth 1 -not \( -path "*/__*__.sh" -prune \) -type f -name '*.sh' -print0)
   else
     if [[ -n ${fn_to_test} ]]; then
       fn_to_test="$(subcmd.test._normalize_function_name "${fn_to_test}")"

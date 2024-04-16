@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # --------------------------------------------------------------------------------------------
 # Shellcheck directives
 #
@@ -35,6 +36,14 @@ fi
 if [[ "$(basename "$(pwd)")" != "bin" ]]; then
   echo "error: must be run from the bin folder"
   exit 1
+fi
+#
+# A secret command that we can use to run any script we want in the installed repo.
+#
+if [[ "${1}" = "d" ]]; then
+  cd .. || exit 1
+  "$2"
+  exit 0
 fi
 #
 # Anything sourced in this script will expect these variables to exist.

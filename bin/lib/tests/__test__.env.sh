@@ -50,7 +50,6 @@ __hook__.after_file_fails() {
 
 vCLI_OPT_DIR=""
 vENTRY_BIN_FILEPATH=""
-vENV_=""
 vSTATIC_ENV_FILENAME=""
 vSTATIC_ENV_SH_FILENAME=""
 
