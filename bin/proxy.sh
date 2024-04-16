@@ -25,6 +25,19 @@ VOLUME_SOURCE="${HOME}/.solos"
 DOCKER_IMAGE_NAME="solos-bin"
 DOCKER_IMAGE_TAG="$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
 
+get_repo_path() {
+  local repo_path="$(git rev-parse --show-toplevel 2>/dev/null)"
+  if [[ -z ${repo_path} ]]; then
+    echo "Error: this script must be run from within the solos repository." >&2
+    exit 1
+  fi
+  if ! cd "${repo_path}"; then
+    echo "Error: could not cd into the solos repository." >&2
+    exit 1
+  fi
+  echo "${repo_path}"
+}
+
 validate_env() {
   if [[ -z ${BASH_VERSION} ]]; then
     echo "unsupported shell detected. try again with Bash." >&2
@@ -62,7 +75,7 @@ docker_run_cli() {
 }
 
 main() {
-  check_repo
+  cd "$(get_repo_path)" || exit 1
   if [[ -f ${VOLUME_SOURCE} ]]; then
     echo "Error: a filed called .solos was detected in your home directory." >&2
     echo "SolOS cannot create a dir named .solos in your home directory." >&2

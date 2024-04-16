@@ -33,4 +33,4 @@ EXPOSE 22
 RUN /usr/sbin/sshd -D &
 
 # Solos mounted script
-ENTRYPOINT "/root/.solos/bin/solos.sh" "$@"
+ENTRYPOINT "/root/.solos/source/bin/solos.sh" "$@"
