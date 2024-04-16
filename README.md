@@ -25,15 +25,15 @@ TODO
 
 ## Background
 
-Solos is the attempt to bottle my (ideal) development workflow into a single CLI. The `solos` command that gets installed to your path will let you launch new "server pairs", where one of the paired servers is a prod environment, and the other is a local docker container, built to mimic the prod environment.
+Solos is the attempt to bottle my (ideal) development workflow into a single CLI. The `solos` command that gets installed to your path will let you launch new "server pairs", where one of the paired servers is a prod environment, and the other is a local docker container built to mimic the prod environment.
 
 The CLI automates annoying tasks such as:
 
-* setting up SSH keys, vscode configs, provisioning, backing up, and restoring infrastructure.
+* setting up SSH keys, vscode configs, provisioning, backing up and restoring infrastructure.
 * persisting and managing environment secrets and variables across a range of individual applications.
 * exposing hooks to deploy containerized applications via Caprover and managing per-application or multi-application postgres databases.
 
-## AI
+## And AI cherry on top
 
 Solos includes a small but powerful AI feature. Once Solos is installed a developer can write something like the following:
 
@@ -48,7 +48,7 @@ When this command is executed, either in a script or on the CLI, Solos will inte
 
 As a developer is going through their daily paces, they can use Solos' `ai ...` prefix command to build a rich log of key commands they ran throughout the day. These logs are useful without AI but can serve as the basis for generating personalized feedback down the road. Additionally, the logs for various commands make it possible to enhance the data furthur using something like the Github Copilot CLI to explain what the command does and to suggest improvements.
 
-The `work => review => AI feedback loop` should have compounding benefits over time.
+The `work => review => AI feedback loop` should have compounding benefits over time as the log data grows, the developer gets better at knowing when to log, and LLM context windows grow. Imagine using this tool for an entire year, gathering megabytes worth of logs and then running those through a sophisticated RAG system to understand where you've grown, how you can improve, products you might want to use to replace manual things you're doing, etc.
 
 ## The problem
 
