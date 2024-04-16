@@ -44,8 +44,5 @@ RUN mkdir /var/run/sshd \
 EXPOSE 22
 RUN /usr/sbin/sshd -D &
 
-# Make them all executable
-RUN chmod -R +x /root/.solos/source
-
 # Solos mounted script
 ENTRYPOINT "/root/.solos/source/bin/solos.sh" "$@"
