@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+echo "$PWD"
+
 #
 # Note: in the prefix, "v" stands for variable and "i" for install.
 # I chose to use this prefix because global variables in the main bin scripts
@@ -11,7 +13,7 @@ viTMP_REPO="${viTMP_DIR}/solos"
 viREPO_URL="https://github.com/InterBolt/solos.git"
 viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
 viREPO_BIN_EXECUTABLE_PATH="bin/proxy.sh"
-viSTATIC_MY_CONFIG_ROOT=""
+viSTATIC_MY_CONFIG_ROOT="$HOME/.solos"
 
 do_clone() {
   if ! git clone "${viREPO_URL}" "${viTMP_REPO}" >/dev/null 2>&1; then
@@ -52,6 +54,13 @@ do_bin_link() {
   chmod +x "${viSTATIC_MY_CONFIG_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}"
   chmod +x "${viUSR_LOCAL_BIN_EXECUTABLE}"
 }
+
+# Normally can't compare decimals, but bash comparisons like this work for semvar.
+# shellcheck disable=SC2072
+if [[ "${BASH_VERSION}" < 3.1 ]]; then
+  echo "Error: SolOS requires Bash version 3.1 or greater to use. Detected ${BASH_VERSION}." >&2
+  exit 1
+fi
 
 if ! command -v docker >/dev/null 2>&1; then
   echo "Error: Docker is required to install SolOS on this system." >&2
