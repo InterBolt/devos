@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-echo "$PWD"
+viENTRY_DIR="${PWD}"
+trap 'cd '"${viENTRY_DIR}"'' EXIT
 
 #
 # Note: in the prefix, "v" stands for variable and "i" for install.
@@ -82,5 +83,9 @@ if ! do_bin_link; then
   exit 1
 fi
 
-solos --noop
+if ! solos --noop; then
+  echo "Error: solos installation failed." >&2
+  exit 1
+fi
+
 echo "Run \`solos --help\` to get started with SolOS"
