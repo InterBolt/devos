@@ -42,7 +42,7 @@ if [[ -z ${vARG_HOST} ]]; then
   echo "No argument provided. Expected <host> <server>" >&2
   exit 1
 fi
-if [[ ${vARG_HOST}" != "docker" ]] && [[ ${vARG_HOST}" != "remote" ]]; then
+if [[ ${vARG_HOST} != "docker" ]] && [[ ${vARG_HOST} != "remote" ]]; then
   echo "<host> argument must be either 'docker' or 'remote'." >&2
   exit 1
 fi

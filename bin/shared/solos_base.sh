@@ -17,7 +17,6 @@ fi
 #
 # shellcheck source=../solos.sh
 . shared/empty.sh
-# check if log.ready command exists
 if ! command -v log.info &>/dev/null; then
   # shellcheck source=log.sh
   . shared/log.sh

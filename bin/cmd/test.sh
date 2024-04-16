@@ -81,7 +81,7 @@ subcmd.test._normalize_function_name() {
   if [[ ${name} = "__test__."* ]]; then
     name="${name/__test__./}"
   fi
-  if [[ ${name}" != "lib."* ]]; then
+  if [[ ${name} != "lib."* ]]; then
     name="lib.${name}"
   fi
   echo "${name}"
@@ -191,7 +191,7 @@ subcmd.test._grep_lib_defined_variables() {
 
 subcmd.test._grep_lib_defined_functions() {
   local lib_unit_name="$1"
-  if [[ ! -f ${lib_unit_name}.sh" ]]; then
+  if [[ ! -f ${lib_unit_name}.sh ]]; then
     log.error "file not found: $lib_file"
     exit 1
   fi
@@ -200,7 +200,7 @@ subcmd.test._grep_lib_defined_functions() {
 
 subcmd.test._grep_test_defined_functions() {
   local lib_unit_name="$1"
-  if [[ ! -f ${lib_unit_name}.sh" ]]; then
+  if [[ ! -f ${lib_unit_name}.sh ]]; then
     log.error "file not found: ${lib_unit_name}.sh"
     exit 1
   fi
@@ -311,7 +311,7 @@ subcmd.test.step.verify_source_existence() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_test "${lib_file}")"
-    if [[ ! -f ${lib_unit_name}.sh" ]]; then
+    if [[ ! -f ${lib_unit_name}.sh ]]; then
       missing_source_files+=("${lib_unit_name}.sh")
     fi
   done
@@ -507,16 +507,10 @@ subcmd.test.unit() {
 
 cmd.test() {
   #
-  # This is the only command where we always do things and logs in the foreground.
-  # Public facing commands should simply show a single line output of the command's
-  # progress and then show the final result.
-  #
-  vENTRY_FOREGROUND=true
-  #
   # Make sure we're in a git repo and that we're either in our docker dev container
   # or on a local machine. We can't run tests in a remote environment.
   #
-  if [[ ${vSTATIC_RUNNING_IN_GIT_REPO}" != true ]]; then
+  if [[ ${vSTATIC_RUNNING_IN_GIT_REPO} != true ]]; then
     log.error "this command can only be run from within a git repo."
     exit 1
   fi
@@ -555,7 +549,7 @@ cmd.test() {
       fn_to_test="$(subcmd.test._normalize_function_name "${fn_to_test}")"
       local inferred_lib_to_test="$(echo "${fn_to_test}" | cut -d. -f2)"
       if [[ -n ${lib_to_test} ]]; then
-        if [[ ${lib_to_test}" != "${inferred_lib_to_test} ]]; then
+        if [[ ${lib_to_test} != "${inferred_lib_to_test}" ]]; then
           log.error "the --lib and --fn flags specify different libraries. Exiting."
           exit 1
         fi

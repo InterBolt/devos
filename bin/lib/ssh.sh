@@ -19,30 +19,30 @@ lib.ssh._require_ip() {
 
 lib.ssh.command.docker() {
   lib.ssh._validate
-  if [[ "$vSTATIC_HOST" != "local" ]]; then
+  if [[ "${vSTATIC_HOST}" != "local" ]]; then
     log.error "$0 must be run locally to interact with docker over SSH. Exiting."
     exit 1
   fi
   local cmd="$1"
   shift
-  ssh -p 2222 -i "$(lib.ssh.path_privkey.self)" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@127.0.0.1 "$cmd"
+  ssh -p 2222 -i "$(lib.ssh.path_privkey.self)" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@127.0.0.1 "${cmd}"
 }
 
 lib.ssh.command.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [[ "$vSTATIC_HOST" = "remote" ]]; then
+  if [[ "${vSTATIC_HOST}" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
   local cmd="$1"
   shift
-  ssh -i "$(lib.ssh.path_privkey.self)" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"$vENV_IP" "$cmd"
+  ssh -i "$(lib.ssh.path_privkey.self)" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"${vENV_IP}" "${cmd}"
 }
 
 lib.ssh.rsync_up.docker() {
   lib.ssh._validate
-  if [[ "$vSTATIC_HOST" != "local" ]]; then
+  if [[ "${vSTATIC_HOST}" != "local" ]]; then
     log.error "$0 must be run locally to interact with docker over SSH. Exiting."
     exit 1
   fi
@@ -50,12 +50,12 @@ lib.ssh.rsync_up.docker() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -p 2222 -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "$source" root@127.0.0.1:"$target"
+  rsync --checksum -a -e "ssh -p 2222 -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "${source}" root@127.0.0.1:"${target}"
 }
 
 lib.ssh.rsync_down.docker() {
   lib.ssh._validate
-  if [[ "$vSTATIC_HOST" != "local" ]]; then
+  if [[ "${vSTATIC_HOST}" != "local" ]]; then
     log.error "$0 must be run locally. Exiting."
     exit 1
   fi
@@ -63,13 +63,13 @@ lib.ssh.rsync_down.docker() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -p 2222 -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@127.0.0.1:"$target" "$source"
+  rsync --checksum -a -e "ssh -p 2222 -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@127.0.0.1:"${target}" "${source}"
 }
 
 lib.ssh.rsync_up.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [[ "$vSTATIC_HOST" = "remote" ]]; then
+  if [[ "${vSTATIC_HOST}" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
@@ -77,13 +77,13 @@ lib.ssh.rsync_up.remote() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "$source" root@"$vENV_IP":"$target"
+  rsync --checksum -a -e "ssh -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "${source}" root@"${vENV_IP}":"${target}"
 }
 
 lib.ssh.rsync_down.remote() {
   lib.ssh._validate
   lib.ssh._require_ip
-  if [[ "$vSTATIC_HOST" = "remote" ]]; then
+  if [[ "${vSTATIC_HOST}" = "remote" ]]; then
     log.error "$0 must be run locally or in the dev docker container. Exiting."
     exit 1
   fi
@@ -91,7 +91,7 @@ lib.ssh.rsync_down.remote() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"$vENV_IP":"$target" "$source"
+  rsync --checksum -a -e "ssh -i $(lib.ssh.path_privkey.self) -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"${vENV_IP}":"${target}" "${source}"
 }
 
 lib.ssh.path.self() {
@@ -103,20 +103,20 @@ lib.ssh.path.debian() {
 }
 
 lib.ssh.path_pubkey.self() {
-  echo "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME"
+  echo "$(lib.ssh.path.self)/${vSTATIC_SSH_PUB_KEYNAME}"
 }
 
 lib.ssh.cat_pubkey.self() {
-  if [[ -f "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME" ]]; then
-    cat "$(lib.ssh.path.self)/$vSTATIC_SSH_PUB_KEYNAME"
+  if [[ -f "$(lib.ssh.path.self)/${vSTATIC_SSH_PUB_KEYNAME}" ]]; then
+    cat "$(lib.ssh.path.self)/${vSTATIC_SSH_PUB_KEYNAME}"
   else
     echo ""
   fi
 }
 
 lib.ssh.cat_pubkey.debian() {
-  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_PUB_KEYNAME" ]]; then
-    cat "$(lib.ssh.path.debian)$vSTATIC_SSH_PUB_KEYNAME"
+  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_PUB_KEYNAME}" ]]; then
+    cat "$(lib.ssh.path.debian)${vSTATIC_SSH_PUB_KEYNAME}"
   else
     echo ""
   fi
@@ -131,8 +131,8 @@ lib.ssh.path_privkey.self() {
 }
 
 lib.ssh.path_privkey.debian() {
-  if [[ -f "$(lib.ssh.path.debian)$vSTATIC_SSH_RSA_KEYNAME" ]]; then
-    echo "$(lib.ssh.path.debian)$vSTATIC_SSH_RSA_KEYNAME"
+  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_RSA_KEYNAME}" ]]; then
+    echo "$(lib.ssh.path.debian)${vSTATIC_SSH_RSA_KEYNAME}"
   else
     echo ""
   fi
@@ -172,8 +172,8 @@ lib.ssh.path_config.debian() {
 
 lib.ssh.build.config_file() {
   local ip="$1"
-  if ! [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    log.error "can't build the ssh config file with the invalid IP: $ip"
+  if ! [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log.error "can't build the ssh config file with the invalid IP: ${ip}"
     exit 1
   fi
   local privatekey_file="$(lib.ssh.path_privkey.self)"
@@ -186,7 +186,7 @@ lib.ssh.build.config_file() {
     echo "  Port 2222"
     echo ""
     echo ""
-    echo "Host $ip"
+    echo "Host ${ip}"
     echo "  HostName ${vSTATIC_SSH_CONF_REMOTE_HOSTNAME}"
     echo "  User root"
     echo "  IdentityFile ${privatekey_file}"
@@ -200,8 +200,8 @@ lib.ssh.extract_ip.remote() {
   #
   local match_string="HostName ${vSTATIC_SSH_CONF_REMOTE_HOSTNAME}"
   local ip=$(grep -B 1 "${match_string}" "$(lib.ssh.path_config.self)" | grep -v "${match_string}" | tail -n 1 | cut -d' ' -f 2)
-  if [[ "$ip" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "$ip"
+  if [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "${ip}"
   else
     echo ""
   fi

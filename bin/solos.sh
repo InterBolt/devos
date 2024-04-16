@@ -13,8 +13,19 @@
 #
 vFROM_BIN_SCRIPT=true
 
-if cd "$(dirname "${BASH_SOURCE[0]}")"; then
-  echo "Unexpected error when setting up the SolOS bin script's working directory" >&2
+#
+# On the initial install, we want to simply run the script without any
+# output or efffects. We do this to force the initial full build of the docker image
+# on install rather than on the first run.
+#
+for entry_arg in "$@"; do
+  if [[ $entry_arg = "--noop" ]]; then
+    exit 0
+  fi
+done
+
+if ! cd "$(dirname "${BASH_SOURCE[0]}")"; then
+  echo "Unexpected error: could not cd into 'dirname \"\${BASH_SOURCE[0]}\"'" >&2
   exit 1
 fi
 #
@@ -36,6 +47,7 @@ fi
 vENTRY_FOREGROUND=false
 for entry_arg in "$@"; do
   if [[ $entry_arg = "--foreground" ]]; then
+    set -- "${@/--foreground/}"
     vENTRY_FOREGROUND=true
   fi
 done
@@ -140,6 +152,7 @@ shared/codegen.sh
 . "cli/__source__.sh"
 # shellcheck source=cmd/__source__.sh
 . "cmd/__source__.sh"
+
 #
 # --------------------------------------------------------------------------------------------
 #

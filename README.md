@@ -25,7 +25,7 @@ TODO
 
 ## Background
 
-Solos is the attempt to bottle my (ideal) development workflow into a single CLI. The `solos` command that gets installed to your path will let you launch new "server pairs", where one of the paired servers is a prod environment, and the other is a local docker container built to mimic the prod environment.
+Solos is an attempt to bottle my (ideal) development workflow into a single CLI. The `solos` command that gets installed to your path will let you launch new "server pairs", where one of the paired servers is a prod environment, and the other is a local docker container built to mimic the prod environment.
 
 The CLI automates annoying tasks such as:
 
@@ -33,7 +33,7 @@ The CLI automates annoying tasks such as:
 * persisting and managing environment secrets and variables across a range of individual applications.
 * exposing hooks to deploy containerized applications via Caprover and managing per-application or multi-application postgres databases.
 
-## And AI cherry on top
+## The AI cherry on top
 
 Solos includes a small but powerful AI feature. Once Solos is installed a developer can write something like the following:
 
@@ -41,16 +41,16 @@ Solos includes a small but powerful AI feature. Once Solos is installed a develo
 ai --note link -sfv some-file some-other-file
 ```
 
-When this command is executed, either in a script or on the CLI, Solos will intercept the command, strip away the ai portion of the command (eg `link -sfv some-file some-other-file`), and do a few things before running it:
+When this command is executed, either in a script or on the CLI, Solos will intercept the command, strip away the ai portion of the command (leaving just `link -sfv some-file some-other-file`), and do a few things before running it:
 
 * First, the `ai` command alerts the shell's builtin preexec hook to log as much information about the command as possible, some info about our dev container at the time, specific portions of the comamnd's stdout/err, among potentially other things.
 * The `--note` flag tells the builtin preexec hook to first prompt the user for extra info before running the command. 
 
-As a developer is going through their daily paces, they can use Solos' `ai ...` prefix command to build a rich log of key commands they ran throughout the day. These logs are useful without AI but can serve as the basis for generating personalized feedback down the road. Additionally, the logs for various commands make it possible to enhance the data furthur using something like the Github Copilot CLI to explain what the command does and to suggest improvements.
+As a developer is going through their daily paces, they can use Solos' `ai ...` prefix command to build a rich log of key commands they ran throughout the day. These logs are useful without AI, even if only for auditing purposes, but could also serve as the basis for generative feedback tools tailored to a single developer.
 
 The `work => review => AI feedback loop` should have compounding benefits over time as the log data grows, the developer gets better at knowing when to log, and LLM context windows grow. Imagine using this tool for an entire year, gathering megabytes worth of logs and then running those through a sophisticated RAG system to understand where you've grown, how you can improve, products you might want to use to replace manual things you're doing, etc.
 
-## The problem
+## Why I built Solos
 
 Many SAAS developer tools market themselves as a more robust alternative to some DIY process. And in the context of a company or startup, they're usually right. But as a solo developer who enjoys launching lots of little websites and tools, and who rarely has the patience to focus on a single thing, I found myself drowning in services and subscriptions.
 

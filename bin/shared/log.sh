@@ -98,13 +98,6 @@ log._base() {
 #
 # PUBLIC FUNCTIONS
 #
-# log.ready and log.<level> are the public functions.
-# log.ready must be called before any other log functions to ensure
-# the variables are set correctly. log.<level> will output in format:
-# "[${source}]: ${date} ${color}[${upper}]${DEFAULT_COLOR} ${line}${norm}"
-#
-# note: log.ready is similar to a constructor for the log library.
-#
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
