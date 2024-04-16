@@ -68,7 +68,7 @@ docker_run_cli() {
     -v "${VOLUME_SOURCE}:${VOLUME_MOUNTED}" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
-    /bin/bash "$@"; then
+    /bin/bash "$@" </dev/null; then
     echo "Unexpected error: failed to run the docker image." >&2
     exit 1
   fi
