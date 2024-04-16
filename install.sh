@@ -84,11 +84,11 @@ if ! do_bin_link; then
   exit 1
 fi
 
-cd "${viENTRY_DIR}" || exit 1
-
 if ! solos --noop; then
   echo "Error: solos installation failed." >&2
   exit 1
 fi
+
+cd "${viENTRY_DIR}" || exit 1
 
 echo "Run \`solos --help\` to get started with SolOS"

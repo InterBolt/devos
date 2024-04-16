@@ -64,7 +64,7 @@ docker_build_fresh() {
 }
 
 docker_run_cli() {
-  if ! docker run --rm -it \
+  if ! docker run --rm -i \
     -v "${VOLUME_SOURCE}:${VOLUME_MOUNTED}" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
