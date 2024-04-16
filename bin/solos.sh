@@ -416,6 +416,7 @@ fi
 #
 # if cmd is test, run without the do_task wrapper.
 if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
+  vENTRY_FOREGROUND=true
   "cmd.$vCLI_PARSED_CMD"
 else
   lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"

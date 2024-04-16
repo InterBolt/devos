@@ -3,7 +3,19 @@ FROM debian:latest
 # Base packages
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes --no-install-recommends \
-  coreutils awscli ufw moreutils rsync postgresql-client lsb-release ca-certificates curl jq wget openssh-server sudo
+  coreutils \
+  awscli \
+  ufw \
+  moreutils \
+  rsync \
+  postgresql-client \
+  lsb-release \
+  ca-certificates \
+  curl \
+  jq \
+  wget \
+  openssh-server \
+  sudo
 
 # Make logs pretty
 ENV TERM=xterm-256color
