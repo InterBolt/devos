@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+FROM_INSTALL_CHECK=false
+for entry_arg in "$@"; do
+  if [[ $entry_arg = "--install-check" ]]; then
+    set -- "${@/--install-check/}"
+    FROM_INSTALL_CHECK=true
+  fi
+done
+
 # check if the readlink command exists
 if ! command -v readlink >/dev/null 2>&1; then
   echo "Error: readlink must exist on your system." >&2
@@ -64,7 +72,13 @@ docker_build_fresh() {
 }
 
 docker_run_cli() {
-  if ! docker run --rm -i \
+  local args=()
+  if [[ ${FROM_INSTALL_CHECK} = true ]]; then
+    args+=("-i")
+  else
+    args+=("-it")
+  fi
+  if ! docker run --rm "${args[@]}" \
     -v "${VOLUME_SOURCE}:${VOLUME_MOUNTED}" \
     -v /var/run/docker.sock:/var/run/docker.sock \
     "${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}" \
