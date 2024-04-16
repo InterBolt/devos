@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 
-if ! cd "$(dirname "${BASH_SOURCE[0]}")"; then
-  echo "Unexpected error: could not cd into 'dirname \"\${BASH_SOURCE[0]}\"'" >&2
+# check if the readlink command exists
+if ! command -v readlink >/dev/null 2>&1; then
+  echo "Error: readlink must exist on your system." >&2
+  exit 1
+fi
+
+SYMLINKED_PATH="$(readlink -f "$0" || echo "")"
+
+if [[ -z ${SYMLINKED_PATH} ]]; then
+  echo "Error: could not resolve the symlink for $0." >&2
+  exit 1
+fi
+
+BIN_DIR="$(dirname "${SYMLINKED_PATH}")"
+
+if ! cd "${BIN_DIR}"; then
+  echo "Unexpected error: could not cd into ${BIN_DIR}" >&2
   exit 1
 fi
 
