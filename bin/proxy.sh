@@ -25,18 +25,6 @@ VOLUME_SOURCE="${HOME}/.solos"
 DOCKER_IMAGE_NAME="solos-bin"
 DOCKER_IMAGE_TAG="$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
 
-check_repo() {
-  local repo_path="$(git rev-parse --show-toplevel 2>/dev/null)"
-  if [[ -z ${repo_path} ]]; then
-    echo "Error: this script must be run from within the solos repository." >&2
-    exit 1
-  fi
-  if ! cd "${repo_path}"; then
-    echo "Error: could not cd into the solos repository." >&2
-    exit 1
-  fi
-}
-
 validate_env() {
   if [[ -z ${BASH_VERSION} ]]; then
     echo "unsupported shell detected. try again with Bash." >&2
