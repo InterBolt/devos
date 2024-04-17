@@ -12,15 +12,13 @@ for _all_args in "$@"; do
   if [[ $_all_args = "--restricted-"* ]]; then
     _flag_name="$("${_all_args#--restricted-}")"
     _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]')"
-    if [[ -z ${!_var_name} ]]; then
-      echo "Error: unknown restricted flag: ${_all_args}" >&2
-      exit 1
-    else
-      eval "${!_var_name}=true"
-      set -- "${@/--restricted-"${_flag_name}"*/}"
-    fi
+    eval "${!_var_name}=true"
+    set -- "${@/--restricted-"${_flag_name}"*/}"
   fi
 done
+if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
+  echo "Running in dev mode"
+fi
 
 # We might need more here later, but for now the main thing
 # is resetting the cursor via tput.
