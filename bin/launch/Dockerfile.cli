@@ -1,0 +1,4 @@
+FROM solos:base
+
+# Solos mounted script
+ENTRYPOINT "/root/.solos/src/bin/solos.sh" "$@"

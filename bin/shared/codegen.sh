@@ -4,37 +4,39 @@ set -o pipefail
 set -o errtrace
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
-LIB_ENTRY_DIR="$(pwd)"
+cd "$(git rev-parse --show-toplevel 2>/dev/null)" || exit 1
 
-cd ..
+# shellcheck source=cant-source.sh
+. shared/cant-source.sh
+
 # shellcheck source=log.sh
 . shared/log.sh
 
-LIB_GIT_DIR="$(git rev-parse --show-toplevel &>/dev/null)"
-LIB_BIN_DIR=""
-LIB_SOURCE_DIRNAME=""
+vLIB_CODEGEN_GIT_DIR="$(git rev-parse --show-toplevel &>/dev/null)"
+vLIB_CODEGEN_BIN_DIR=""
+vLIB_CODEGEN_SOURCE_FILENAME=""
 
 codegen.allowed() {
-  if [[ -z ${LIB_GIT_DIR} ]]; then
+  if [[ -z ${vLIB_CODEGEN_GIT_DIR} ]]; then
     return 1
   fi
-  LIB_BIN_DIR="${LIB_GIT_DIR}/bin"
-  if [[ ! -d ${LIB_BIN_DIR} ]]; then
+  vLIB_CODEGEN_BIN_DIR="${vLIB_CODEGEN_GIT_DIR}/bin"
+  if [[ ! -d ${vLIB_CODEGEN_BIN_DIR} ]]; then
     return 1
   fi
-  LIB_SOURCE_DIRNAME="__source__.sh"
+  vLIB_CODEGEN_SOURCE_FILENAME="__source__.sh"
   return 0
 }
 
 codegen.source_relative_files() {
   local dirname="${1}"
-  local dir="${LIB_BIN_DIR}/${dirname}"
+  local dir="${vLIB_CODEGEN_BIN_DIR}/${dirname}"
   if [[ ! -d ${dir} ]]; then
     log.error "A valid directory was not provided."
     exit 1
   fi
   local tmp_sourced_file="$(mktemp 2>/dev/null)"
-  local exports_file="${dir}/${LIB_SOURCE_DIRNAME}"
+  local exports_file="${dir}/${vLIB_CODEGEN_SOURCE_FILENAME}"
   echo "#!/usr/bin/env bash" >"${tmp_sourced_file}"
   echo "" >>"${tmp_sourced_file}"
   for file in "${dir}"/*.sh; do
@@ -42,7 +44,7 @@ codegen.source_relative_files() {
       continue
     fi
     local filename=$(basename "${file}")
-    if [[ ${filename} = "${LIB_SOURCE_DIRNAME}" ]]; then
+    if [[ ${filename} = "${vLIB_CODEGEN_SOURCE_FILENAME}" ]]; then
       continue
     fi
     {
@@ -60,5 +62,5 @@ if codegen.allowed; then
   codegen.source_relative_files "cmd"
   codegen.source_relative_files "cli"
   codegen.source_relative_files "lib"
-  log.info "generated ${LIB_SOURCE_DIRNAME} files"
+  log.info "Generated ${vLIB_CODEGEN_SOURCE_FILENAME} files for all directories."
 fi

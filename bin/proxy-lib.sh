@@ -5,6 +5,9 @@
 # use only the "v" prefix, which makes grepping one set of variables vs the other easy.
 # I hate thinking!
 
+vpENTRY_DIR="${PWD}"
+trap 'cd '"${vpENTRY_DIR}"'' EXIT
+
 # check if the readlink command exists
 if ! command -v readlink >/dev/null 2>&1; then
   echo "Error: \`readlink\` must exist on your system." >&2
@@ -22,9 +25,25 @@ if ! cd "${vpREPO_DIR}"; then
   echo "Unexpected error: could not cd into ${vpREPO_DIR}" >&2
   exit 1
 fi
+vpVOLUME_HOST_PATH="${vpVOLUME_SOURCE}/.host_path"
 vpVOLUME_MOUNTED="/root/.solos"
+if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_HOST_PATH} ]]; then
+  echo "Error: the .host_path file was not found in the .solos directory." >&2
+  echo "This file is required to run SolOS within a Docker container." >&2
+  exit 1
+fi
+
+# When running the solos CLI in a docker container, we must mount the home/.solos
+# directory from the original host machine to the nested docker container for it to work.
+# But the home directory on a host machine is going to be unique the user, so the only
+# way our containerized CLI can know the true path to the original home/.solos directory
+# is if we save their home dirpath to a file in the home/.solos directory itself.
 vpVOLUME_SOURCE="${HOME}/.solos"
-vpDOCKER_IMAGE="solos:$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
+if [[ -f /.dockerenv ]]; then
+  vpVOLUME_SOURCE="$(cat "${vpVOLUME_HOST_PATH}")"
+fi
+vpDOCKER_BASE_IMAGE="solos:base"
+vpDOCKER_CLI_IMAGE="soloscli:$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
 vpFROM_INSTALL_CHECK=false
 for entry_arg in "$@"; do
   if [[ $entry_arg = "--postinstall" ]]; then
@@ -33,17 +52,16 @@ for entry_arg in "$@"; do
   fi
 done
 
-echo "${vpVOLUME_SOURCE}" >"${vpVOLUME_SOURCE}/.host_path"
-
-docker_build_cached() {
-  if ! docker build -q -t "${vpDOCKER_IMAGE}" bin >/dev/null; then
+docker_build_base() {
+  if ! docker build -q -t "${vpDOCKER_BASE_IMAGE}" -f Dockerfile.base .; then
     echo "Error: failed to build the docker image." >&2
     exit 1
   fi
+
 }
 
-docker_build_fresh() {
-  if ! docker build --no-cache -t "${vpDOCKER_IMAGE}" bin; then
+docker_build_cli() {
+  if ! docker build -q -t "${vpDOCKER_CLI_IMAGE}" -f Dockerfile.cli . >/dev/null; then
     echo "Error: failed to build the docker image." >&2
     exit 1
   fi
@@ -51,11 +69,12 @@ docker_build_fresh() {
 
 docker_run_cli() {
   local args=(
+    --rm
     -v
     "${vpVOLUME_SOURCE}:${vpVOLUME_MOUNTED}"
     -v
     /var/run/docker.sock:/var/run/docker.sock
-    "${vpDOCKER_IMAGE}"
+    "${vpDOCKER_CLI_IMAGE}"
     /bin/bash
   )
 
@@ -63,12 +82,12 @@ docker_run_cli() {
   # It causes a TTY error, likely because it's run from a curled bash script
   # without the same stdin/out assumptions.
   if [[ ${vpFROM_INSTALL_CHECK} = true ]]; then
-    if ! docker run --rm -i "${args[@]}" "$@"; then
+    if ! docker run -i "${args[@]}" "$@"; then
       echo "Unexpected error: failed to run the docker image." >&2
       exit 1
     fi
   else
-    if ! docker run --rm -it "${args[@]}" "$@"; then
+    if ! docker run -it "${args[@]}" "$@"; then
       echo "Unexpected error: failed to run the docker image." >&2
       exit 1
     fi
@@ -82,11 +101,13 @@ main() {
     exit 1
   fi
   mkdir -p "${vpVOLUME_SOURCE}"
-  local found_tag="$(docker images "${vpDOCKER_IMAGE}" --format "{{.Tag}}")"
-  if [[ -z ${found_tag} ]]; then
-    docker_build_fresh
-  else
-    docker_build_cached
+  echo "${vpVOLUME_SOURCE}" >"${vpVOLUME_HOST_PATH}"
+  # The docker commands are just simpler if we cd in the launch directory
+  if ! cd bin/launch; then
+    echo "Unexpected error: could not cd into bin/launch" >&2
+    exit 1
   fi
+  docker_build_base
+  docker_build_cli
   docker_run_cli "$@"
 }

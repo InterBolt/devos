@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+vLIB_VULTR_DEFAULTS=(
+  "voc-c-2c-4gb-50s-amd"
+  "ewr"
+  2136
+)
+
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 # --------------------------------------------------------------------------------------------
 #
 # VULTR FUNCTIONS
@@ -119,7 +125,7 @@ lib.vultr.compute.find_existing_sshkey_id() {
     if [[ "solos" = "${found_ssh_key_names[$i]}" ]]; then
       matching_ssh_key_name_found=true
     fi
-    if [[ $(lib.ssh.cat_pubkey.self) = "${found_ssh_keys[$i]}" ]]; then
+    if [[ $(lib.ssh.cat_pubkey) = "${found_ssh_keys[$i]}" ]]; then
       matching_ssh_key_found=true
     fi
     if [[ ${matching_ssh_key_found} = true ]] && [[ ${matching_ssh_key_name_found} = true ]]; then
@@ -206,7 +212,7 @@ lib.vultr.compute.provision() {
       -H "Content-Type: application/json" \
       --data '{
           "name" : "solos",
-          "ssh_key" : "'"$(lib.ssh.cat_pubkey.self)"'"
+          "ssh_key" : "'"$(lib.ssh.cat_pubkey)"'"
         }'
     lib.utils.curl.allows_error_status_codes "none"
     created_sshkey_id="$(jq -r '.ssh_key.id' <<<"${vPREV_CURL_RESPONSE}")"
@@ -224,10 +230,10 @@ lib.vultr.compute.provision() {
   # Otherwise, we can skip the provisioning process and move on to the next cmd.
   #
   if [[ -z ${prev_ip} ]]; then
-    lib.vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
+    lib.vultr.compute.create_instance "${vLIB_VULTR_DEFAULTS[0]}" "${vLIB_VULTR_DEFAULTS[1]}" "${vLIB_VULTR_DEFAULTS[2]}" "${created_sshkey_id}"
     next_ip="${vPREV_RETURN[0]}"
     instance_id="${vPREV_RETURN[1]}"
-    log.info "waiting for the instance with id:${instance_id} and ip:${vENV_REMOTE_IP} to be ready."
+    log.info "waiting for the instance with id:${instance_id} and ip:${vDETECTED_REMOTE_IP} to be ready."
     lib.vultr.compute.wait_for_ready_instance "${instance_id}"
   else
     lib.vultr.compute.get_instance_id_from_ip "${prev_ip}"
@@ -247,11 +253,11 @@ lib.vultr.compute.provision() {
       sleep 5
       log.info "deleting instance: ${instance_id}"
       lib.vultr.compute.destroy_instance "$instance_id"
-      log.info "creating instance with settings: ${vSTATIC_VULTR_INSTANCE_DEFAULTS[*]}"
-      lib.vultr.compute.create_instance "${vSTATIC_VULTR_INSTANCE_DEFAULTS[0]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[1]}" "${vSTATIC_VULTR_INSTANCE_DEFAULTS[2]}" "${created_sshkey_id}"
+      log.info "creating instance with settings: ${vLIB_VULTR_DEFAULTS[*]}"
+      lib.vultr.compute.create_instance "${vLIB_VULTR_DEFAULTS[0]}" "${vLIB_VULTR_DEFAULTS[1]}" "${vLIB_VULTR_DEFAULTS[2]}" "${created_sshkey_id}"
       next_ip="${vPREV_RETURN[0]}"
       instance_id="${vPREV_RETURN[1]}"
-      log.info "waiting for the instance with id:${instance_id} and ip:${vENV_REMOTE_IP} to be ready."
+      log.info "waiting for the instance with id:${instance_id} and ip:${vDETECTED_REMOTE_IP} to be ready."
       lib.vultr.compute.wait_for_ready_instance "$instance_id"
     fi
   fi

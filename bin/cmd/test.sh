@@ -1,23 +1,22 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2103,SC2164
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 
-LIB_TEST_FILE_OPENING_LINES=()
-LIB_FILES_FAILED=()
-LIB_FAILED=()
-LIB_PASSED=()
+vCMD_TEST_FILE_OPENING_LINES=()
+vCMD_TEST_FILES_FAILED=()
+vCMD_TEST_FAILED=()
+vCMD_TEST_PASSED=()
 
 subcmd.test.precheck_variables() {
   local entry_pwd="${PWD}"
-  cd "$vMETA_BIN_DIR"
+  cd "$vSOLOS_BIN_DIR"
   local errored=false
   local files
-  #
+
   # Lop through every solos lib file and check that
   # every referenced variable is defined in solos' global variables.
-  #
   files=$(find . -type f -name "solos*")
   for file in $files; do
     local global_vars=$(grep -Eo 'v[A-Z0-9_]{2,}' "${file}" | grep -v "#" || echo "")
@@ -34,38 +33,6 @@ subcmd.test.precheck_variables() {
   fi
   cd "$entry_pwd"
   log.info "test passed: all referenced global variables are defined."
-}
-
-subcmd.test.precheck_launchfiles() {
-  #
-  # Check that all the variables we use in the bin's .launch dir are defined
-  # in solos' global variables.
-  #
-  lib.utils.template_variables "${vSTATIC_BIN_LAUNCH_DIR}" "dry" "allow_empty"
-  cd "$entry_pwd"
-  log.info "test passed: launchfiles are valid and match global variables."
-  #
-  # Check that the defualt server type exists
-  #
-  local servers_dir="${vSTATIC_RUNNING_REPO_ROOT}/${vSTATIC_REPO_SERVERS_DIR}"
-  if [[ ! -d ${servers_dir}/${vSTATIC_DEFAULT_SERVER} ]]; then
-    log.error "The default server type does not exist at: ${servers_dir}/${vSTATIC_DEFAULT_SERVER}"
-    exit 1
-  fi
-  #
-  # Check that each server type has a .launch dir
-  #
-  for server in "${servers_dir}"/*; do
-    if [[ ! -d "$server" ]]; then
-      continue
-    fi
-    local server_name
-    server_name=$(basename "$server")
-    if [[ ! -d ${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME} ]]; then
-      log.error "The server type: ${server_name} does not have a launch dir at: ${servers_dir}/${server_name}/${vSTATIC_LAUNCH_DIRNAME}"
-      exit 1
-    fi
-  done
 }
 
 subcmd.test._normalize_function_name() {
@@ -89,7 +56,7 @@ subcmd.test._normalize_function_name() {
 
 subcmd.test._update_beginning_file_lines() {
   local lib_file="$1"
-  LIB_TEST_FILE_OPENING_LINES=(
+  vCMD_TEST_FILE_OPENING_LINES=(
     "#!/usr/bin/env bash"
     ""
     "set -o errexit"
@@ -228,7 +195,7 @@ subcmd.test.unit.create_lib_test() {
   local defined_functions="$(subcmd.test._grep_lib_defined_functions "${lib_unit_name}")"
   local variables="$(subcmd.test._grep_lib_used_variables "${lib_file}")"
   subcmd.test._update_beginning_file_lines "${lib_file}"
-  local lines=(" ${LIB_TEST_FILE_OPENING_LINES[@]} ")
+  local lines=(" ${vCMD_TEST_FILE_OPENING_LINES[@]} ")
   local n=$'\n'
   for variable in $variables; do
     lines+=("$variable=\"\"")
@@ -436,9 +403,6 @@ subcmd.test.verify() {
   subcmd.test.step.verify_source_existence
 }
 
-#
-# TODO: refactor the log.stripped logic so we don't need to set/unset so many times
-#
 subcmd.test.unit() {
   local lib_unit_name="$1"
   local lib_file="${lib_unit_name}.sh"
@@ -478,53 +442,54 @@ subcmd.test.unit() {
       local function_name_without_prefix="${supplied_function/lib./}"
       local test_function="__test__.${function_name_without_prefix}"
       if ! __hook__.before_fn "${supplied_function}"; then
-        LIB_FAILED+=("${supplied_function}")
+        vCMD_TEST_FAILED+=("${supplied_function}")
         continue
       fi
       if ! "${test_function}"; then
         something_failed=true
         __hook__.after_fn_fails "${supplied_function}" || true
-        LIB_FAILED+=("${supplied_function}")
+        vCMD_TEST_FAILED+=("${supplied_function}")
       else
         __hook__.after_fn_success "${supplied_function}" || true
-        LIB_PASSED+=("${supplied_function}")
+        vCMD_TEST_PASSED+=("${supplied_function}")
       fi
       __hook__.after_fn "${supplied_function}" || true
     done
     if [[ ${something_failed} = "true" ]]; then
       __hook__.after_file_fails || true
-      LIB_FILES_FAILED+=("$lib_unit_name")
+      vCMD_TEST_FILES_FAILED+=("$lib_unit_name")
     else
       __hook__.after_file_success || true
     fi
     __hook__.after_file || true
   else
-    LIB_FILES_FAILED+=("$lib_unit_name")
+    vCMD_TEST_FILES_FAILED+=("$lib_unit_name")
   fi
   return 0
 }
 
 cmd.test() {
-  #
-  # Make sure we're in a git repo and that we're either in our docker dev container
-  # or on a local machine. We can't run tests in a remote environment.
-  #
+  # The rest of the test logic assumes that a lib directory exists.
+  # It's the only directory we're testing right now but provides a basis
+  # for an abstraction that could work in any directory.
   if [[ ! -d "lib" ]]; then
     log.error "lib directory not found. Exiting."
     exit 1
   fi
-  #
+
   # Unrelated to lib tests, do some prechecks to ensure no misuse of
-  #
-  subcmd.test.precheck_launchfiles
-  subcmd.test.precheck_variables
+  if ! subcmd.test.precheck_launchfiles; then
+    exit 1
+  fi
+  if ! subcmd.test.precheck_variables; then
+    exit 1
+  fi
   local entry_dir="${PWD}"
   cd "lib" || exit 1
-  #
+
   # Normalize the function name to the format: lib.<lib_name>.<function_name>.
   # Then, make sure the user is allowed to pass only a function if they want and
   # we'll infer the library name from the function name.
-  #
   local lib_to_test="${vOPT_LIB}"
   local fn_to_test="${vOPT_FN}"
   local lib_dir="${PWD}"
@@ -558,31 +523,29 @@ cmd.test() {
   log.info "covered any missing functions and variables"
   subcmd.test.verify
   log.info "verified function and variable coverage"
-  #
+
   # Wait until things are generated before testing for existence.
-  #
   if [[ -n ${lib_test_file} ]] && [[ ! -f ${lib_test_file} ]]; then
     log.error "test file not found: ${lib_test_file}"
     exit 1
   fi
-  #
+
   # Run each test associated with a lib.
   # If we provided a --fn flag, only run that function.
-  #
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
     subcmd.test.unit "${lib_unit_name}" "${fn_to_test}"
     cd "$lib_dir"
   done
-  if [[ ${#LIB_FILES_FAILED[@]} -gt 0 ]]; then
-    pkg.gum.danger_box 'TESTS FAILED:' "${LIB_FILES_FAILED[@]/#/lib.}"
+  if [[ ${#vCMD_TEST_FILES_FAILED[@]} -gt 0 ]]; then
+    pkg.gum.danger_box 'TESTS FAILED:' "${vCMD_TEST_FILES_FAILED[@]/#/lib.}"
   fi
-  if [[ ${#LIB_FAILED[@]} -gt 0 ]]; then
-    pkg.gum.danger_box 'WHICH FUNCTIONS FAILED:' "${LIB_FAILED[@]/#/lib.}"
+  if [[ ${#vCMD_TEST_FAILED[@]} -gt 0 ]]; then
+    pkg.gum.danger_box 'WHICH FUNCTIONS FAILED:' "${vCMD_TEST_FAILED[@]/#/lib.}"
   fi
-  if [[ ${#LIB_PASSED[@]} -gt 0 ]]; then
-    pkg.gum.success_box 'TESTS PASSING FOR:' "${LIB_PASSED[@]/#/lib.}"
+  if [[ ${#vCMD_TEST_PASSED[@]} -gt 0 ]]; then
+    pkg.gum.success_box 'TESTS PASSING FOR:' "${vCMD_TEST_PASSED[@]/#/lib.}"
   fi
   cd "$entry_dir"
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 # shellcheck source=../pkg/gum.sh
 . pkg/gum.sh
 
@@ -219,12 +219,12 @@ lib.utils.spinner() {
   wait "${pid}"
   local code=$?
   if [[ $code -ne 0 ]]; then
-    vMETA_USE_FOREGROUND_LOGS=true
+    vSOLOS_USE_FOREGROUND_LOGS=true
     #
     # Grab the times first for max accuracy.
     #
-    local every_log_seconds_elapsed=$((SECONDS - vMETA_START_SECONDS))
-    local subset_seconds_elapsed=$((start_seconds - vMETA_START_SECONDS))
+    local every_log_seconds_elapsed=$((SECONDS - vSOLOS_STARTED_AT))
+    local subset_seconds_elapsed=$((start_seconds - vSOLOS_STARTED_AT))
     #
     # We don't need to worry about this affecting unrelated code because by this
     # point in the function, we know we're going to exit with an error code.
@@ -237,7 +237,7 @@ lib.utils.spinner() {
     local every_log="$(
       lib.utils.logdiff \
         "${vSTATIC_LOG_FILEPATH}" \
-        "${vMETA_LOG_LINE_COUNT}" \
+        "${vSOLOS_LOG_LINE_COUNT}" \
         "${terminal_line_number}"
     )"
     local subset_logs="$(
@@ -280,7 +280,7 @@ lib.utils.do_task() {
     log.error "second argument must be the task function."
     exit 1
   fi
-  if [[ $vMETA_USE_FOREGROUND_LOGS = false ]]; then
+  if [[ $vSOLOS_USE_FOREGROUND_LOGS = false ]]; then
     "$task" "$@" &
     local task_pid=$!
     lib.utils.spinner "${task_pid}" "${description}"

@@ -1,9 +1,0 @@
-services:
-  local:
-    volumes:
-      - __vOPT_PROJECT_DIR__:/root/project
-      - __vSTATIC_SOLOS_ROOT__:__vSTATIC_SOLOS_ROOT__
-    build:
-      dockerfile: ./Dockerfile
-    ports:
-      - "2222:22"

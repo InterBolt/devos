@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 
 cli.parse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
@@ -59,10 +59,10 @@ cli.parse.cmd() {
 cli.parse.requirements() {
   for cmd_name in $(
     cli.usage.help |
-      grep -A 1000 "${LIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
-      grep -B 1000 "${LIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
-      grep -v "${LIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
-      grep -v "${LIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
+      grep -A 1000 "${vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
+      grep -B 1000 "${vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
+      grep -v "${vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
+      grep -v "${vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
       grep -E "^[a-z]" |
       awk '{print $1}'
   ); do

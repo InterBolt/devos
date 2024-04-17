@@ -4,29 +4,26 @@
 
 # shellcheck source=../pkg/gum.sh
 source "pkg/gum.sh"
+
 # shellcheck source=static.sh
 source "shared/static.sh"
 
-LIB_BARE_LOG=false
-LIB_FILESIZE=0
-LIB_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
+vLIB_LOG_BARE_LOG=false
+vLIB_LOG_FILESIZE=0
+vLIB_LOG_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
 
-mkdir -p "${LIB_DIR}"
+mkdir -p "${vLIB_LOG_DIR}"
 
-LIB_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
-if [[ ${LIB_FILESIZE} -gt 1000 ]]; then
-  LIB_BARE_LOG=true
-  log.warn "LOG FILE IS GROWING LARGE: $((LIB_FILESIZE / 1000))MB"
+vLIB_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
+if [[ ${vLIB_LOG_FILESIZE} -gt 1000 ]]; then
+  vLIB_LOG_BARE_LOG=true
+  log.warn "LOG FILE IS GROWING LARGE: $((vLIB_LOG_FILESIZE / 1000))MB"
   log.info "${vSTATIC_LOG_FILEPATH}"
   if command -v pbcopy &>/dev/null; then
     pbcopy <"${vSTATIC_LOG_FILEPATH}"
     log.info "log file path copied to clipboard"
   fi
 fi
-# -----------------------------------------------------------------------------
-#
-# HELPER FUNCTIONS
-#
 log._get_filesize() {
   if [[ -f ${1} ]]; then
     du -k "${1}" | cut -f 1
@@ -63,7 +60,7 @@ log._base() {
     touch "${vSTATIC_LOG_FILEPATH}"
   fi
 
-  local foreground="${vMETA_USE_FOREGROUND_LOGS:-true}"
+  local foreground="${vSOLOS_USE_FOREGROUND_LOGS:-true}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
@@ -74,22 +71,20 @@ log._base() {
   local msg="${1}"
   shift
   local args=()
-  #
+
   # The thinking is that if the source is NULL, we're almost certainly running
   # the script via piping a curled script to bash. We can limit debugging info
   # in the log line because their's likely no file to reference on the local
   # machine.
-  #
   local date_args=(date "${formatted_date}")
   local source_args=(source "[${source}]")
   if [[ ${source} == "NULL"* ]]; then
     source_args=()
     date_args=()
   fi
-  #
+
   # `bare` logs don't include lots of info and don't log to a file.
-  #
-  if [[ $LIB_BARE_LOG = true ]]; then
+  if [[ $vLIB_LOG_BARE_LOG = true ]]; then
     args=(--level "${level}" "${msg}")
   else
     args=(--time "kitchen" --structured --level "${level}" "${msg}")
@@ -99,10 +94,6 @@ log._base() {
     pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
   fi
 }
-# -----------------------------------------------------------------------------
-#
-# PUBLIC FUNCTIONS
-#
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
@@ -134,8 +125,8 @@ log.warn() {
   log._base "warn" "$filename:$linenumber" "$@"
 }
 log.use_minimal() {
-  LIB_BARE_LOG=true
+  vLIB_LOG_BARE_LOG=true
 }
 log.use_full() {
-  LIB_BARE_LOG=true
+  vLIB_LOG_BARE_LOG=true
 }

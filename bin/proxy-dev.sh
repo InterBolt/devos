@@ -5,4 +5,4 @@
 # shellcheck source=proxy-lib.sh
 . bin/proxy-lib.sh
 
-main --dev "$@"
+main --restricted-dev "$@"

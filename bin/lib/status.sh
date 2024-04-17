@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 
-LIB_STATUS_DIR=".status"
+vLIB_STATUS_DIR=".status"
 
 lib.status.get() {
   local status="$1"
@@ -15,7 +15,7 @@ lib.status.get() {
     log.error "dir: ${vOPT_PROJECT_DIR} not found. Exiting."
     exit 1
   fi
-  local status_dir="${vOPT_PROJECT_DIR}/${LIB_STATUS_DIR}"
+  local status_dir="${vOPT_PROJECT_DIR}/${vLIB_STATUS_DIR}"
   local status_file="${status_dir}/${status}"
   if [[ -f "$status_file" ]]; then
     cat "${status_file}"
@@ -34,7 +34,7 @@ lib.status.set() {
     log.error "dir: ${vOPT_PROJECT_DIR} not found. Exiting."
     exit 1
   fi
-  local status_dir="${vOPT_PROJECT_DIR}/${LIB_STATUS_DIR}"
+  local status_dir="${vOPT_PROJECT_DIR}/${vLIB_STATUS_DIR}"
   mkdir -p "${status_dir}"
   local status_file="${status_dir}/${status}"
   local contents="${2:-"0"}"
@@ -51,6 +51,6 @@ lib.status.clear() {
     log.error "dir: ${vOPT_PROJECT_DIR} not found. Exiting."
     exit 1
   fi
-  local status_dir="${vOPT_PROJECT_DIR}/${LIB_STATUS_DIR}"
+  local status_dir="${vOPT_PROJECT_DIR}/${vLIB_STATUS_DIR}"
   rm -rf "${status_dir}"
 }

@@ -1,28 +1,18 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/solos_base.sh
-. shared/solos_base.sh
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
 
 cmd.launch() {
   solos.checkout_project_dir
-  solos.store_ssh_derived_ip
+  solos.detect_remote_ip
   exit 0
-
-  # We can only set the "server" once. Maybe in the future, we'll work in
-  # a way to change the server type after the fact, but for now, I'm considering
-  # it a one-time thing since there's so much logic tied to a particular server type
-  # and I don't want to have to write hard to reason about, defensive code.
-  if [[ ! -f ${vOPT_PROJECT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME} ]]; then
-    echo "${vOPT_SERVER}" >"${vSTATIC_SERVER_TYPE_FILENAME}"
-    log.info "set server type: ${vOPT_SERVER}"
-  fi
 
   # This script is idempotent. But a warning doesn't hurt.
   last_successful_run="$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")"
   if [[ -n "$last_successful_run" ]]; then
     log.warn "the last successful run was at: $last_successful_run"
   fi
-  solos.import_project_repo
 
   # Generate and collect things like the caprover password, postgres passwords.
   # api keys, etc.
@@ -60,7 +50,7 @@ cmd.launch() {
       exit 1
     fi
   done
-  solos.create_ssh_files
+  lib.ssh.build_keypairs
 
   # On re-runs, the vultr provisioning functions will check for the existence
   # of the old ip and if it's the same as the current ip, it will skip the
@@ -70,7 +60,7 @@ cmd.launch() {
 
   # prev_id is NOT the same as ip_to_deprovision.
   # when prev_id is set and is associated with a matching
-  # ssh key, we "promote" it to vENV_REMOTE_IP and skip
+  # ssh key, we "promote" it to vDETECTED_REMOTE_IP and skip
   # much (or all) of the vultr provisioning process.
   local most_recent_ip="$(lib.store.project.get "most_recent_ip")"
   local ip_to_deprovision="$(lib.store.project.get "ip_to_deprovision")"
@@ -79,18 +69,18 @@ cmd.launch() {
     log.info "if ssh keyfiles are the same, we will skip provisioning."
   fi
   lib.vultr.compute.provision "${most_recent_ip}"
-  vENV_REMOTE_IP="${vPREV_RETURN[0]}"
+  vDETECTED_REMOTE_IP="${vPREV_RETURN[0]}"
   log.success "vultr compute is ready"
 
   # I'm treating the lib.vultr. functions as a black box and then doing
   # critical checks on the produced ip. Should throw when:
-  # 1) vENV_REMOTE_IP is empty after provisioning
-  # 2) the ip to deprovision in our store is the same as vENV_REMOTE_IP
-  if [[ -z "$vENV_REMOTE_IP" ]]; then
+  # 1) vDETECTED_REMOTE_IP is empty after provisioning
+  # 2) the ip to deprovision in our store is the same as vDETECTED_REMOTE_IP
+  if [[ -z "$vDETECTED_REMOTE_IP" ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
-  if [[ "$ip_to_deprovision" = "$vENV_REMOTE_IP" ]]; then
+  if [[ "$ip_to_deprovision" = "$vDETECTED_REMOTE_IP" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
@@ -102,27 +92,22 @@ cmd.launch() {
   # By putting the ip to deprovision in the store, we ensure that
   # a hard reset won't stop our script from deprovisioning the old instance.
   # on future runs.
-  if [[ "$vENV_REMOTE_IP" != "$most_recent_ip" ]]; then
+  if [[ "$vDETECTED_REMOTE_IP" != "$most_recent_ip" ]]; then
     lib.store.project.set "ip_to_deprovision" "$most_recent_ip"
-    lib.store.project.set "most_recent_ip" "$vENV_REMOTE_IP"
+    lib.store.project.set "most_recent_ip" "$vDETECTED_REMOTE_IP"
   fi
-
-  # Generates the .env/.env.sh files by mapping all
-  # global variables starting with vSUPPLIED_* to both files.
-  lib.env.generate_files
 
   # Builds the ssh config file for the remote server and
   # local docker dev container.
   # Important: the ssh config file is the source of truth for
   # our remote ip.
   lib.ssh.build.config_file "$ip"
-  log.info "created: $(lib.ssh.path_config.self)."
 
   # Next, we want to form the launch directory inside of our project directory
   # using the `.launch` dirs from within the bin and server specific dirs.
   # Note: launch files are used later to bootstrap our environments.
-  solos.merge_launch_dirs
-  local project_launch_dir="${vOPT_PROJECT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
+  solos.generate_launch_build
+  local project_launch_dir="${vOPT_PROJECT_DIR}/launch"
 
   # Build and start the local docker container.
   # We set the COMPOSE_PROJECT_NAME environment variable to
@@ -147,31 +132,31 @@ cmd.launch() {
     log.error "Unexpected error: $linux_sh_project_file not found. Exiting."
     exit 1
   fi
-  lib.ssh.rsync_up.remote "$linux_sh_project_file" "/root/"
-  lib.ssh.command.remote "chmod +x /root/${vSTATIC_LINUX_SH_FILENAME}"
+  lib.ssh.rsync_up "$linux_sh_project_file" "/root/"
+  lib.ssh.command "chmod +x /root/${vSTATIC_LINUX_SH_FILENAME}"
   log.info "uploaded and set permissions for remote bootstrap script."
 
   # Create the folder where we'll store out caprover
   # deployment tar files.
-  lib.ssh.command.remote "mkdir -p /root/deployments"
+  lib.ssh.command "mkdir -p /root/deployments"
   log.info "created remote deployment dir: /root/deployments"
 
   # Before bootstrapping can occur, make sure we upload the .solos config folder
   # from our local machine to the remote machine.
   # Important: we don't need to do this with the docker container because we mount it
-  if lib.ssh.command.remote '[ -d '"${vSTATIC_SOLOS_ROOT}"' ]'; then
+  if lib.ssh.command '[ -d '"${vSTATIC_SOLOS_ROOT}"' ]'; then
     log.warn "remote already has the global solos config folder. skipping."
     log.info "see \`solos --help\` for how to re-sync your local or docker dev config folder to the remote."
   else
-    lib.ssh.command.remote "mkdir -p ${vSTATIC_SOLOS_ROOT}"
+    lib.ssh.command "mkdir -p ${vSTATIC_SOLOS_ROOT}"
     log.info "created empty remote .solos config folder."
-    lib.ssh.rsync_up.remote "${vSTATIC_SOLOS_ROOT}/" "${vSTATIC_SOLOS_ROOT}/"
+    lib.ssh.rsync_up "${vSTATIC_SOLOS_ROOT}/" "${vSTATIC_SOLOS_ROOT}/"
     log.info "uploaded local .solos config folder to remote."
   fi
 
-  # The linux.sh file will run the env specific launch scripts.
-  # Important: these env specific scripts should be idempotent and performant.
-  lib.ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vOPT_SERVER} ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
+  # # The linux.sh file will run the env specific launch scripts.
+  # # Important: these env specific scripts should be idempotent and performant.
+  # lib.ssh.command "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
 
   # We might want this status in the future
   lib.status.set "${vSTATUS_BOOTSTRAPPED_REMOTE}" "$(lib.utils.full_date)"
@@ -188,7 +173,7 @@ cmd.launch() {
   if [[ -n ${bootstrapped_manually_at} ]]; then
     log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
-    lib.ssh.rsync_down.remote "${vSTATIC_SERVER_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vOPT_PROJECT_DIR}/"
+    lib.ssh.rsync_down "/root/${vSTATIC_MANUAL_FILENAME}" "${vOPT_PROJECT_DIR}/"
     log.info "downloaded manual file to: ${vOPT_PROJECT_DIR}"
     log.info "review the manual instructions before continuing"
     lib.utils.echo_line
@@ -204,9 +189,9 @@ cmd.launch() {
     log.info "completed manual bootstrap step. see \`solos --help\` for how to re-display manual instructions."
   fi
 
-  # The logic here is simpler because the bootstrap script for the docker container
-  # will never deal with things like databases or service orchestration.
-  lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vOPT_SERVER} ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
+  # # The logic here is simpler because the bootstrap script for the docker container
+  # # will never deal with things like databases or service orchestration.
+  # lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
   lib.status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(lib.utils.full_date)"
   log.info "bootstrapped the local docker container."
 
@@ -214,13 +199,13 @@ cmd.launch() {
   # if something bad happened and the old ip is the same as the current
   # we'll end up destroying the current instance. Yikes.
   local ip_to_deprovision="$(lib.store.project.get "ip_to_deprovision")"
-  if [[ ${ip_to_deprovision} = "${vENV_REMOTE_IP}" ]]; then
+  if [[ ${ip_to_deprovision} = "${vDETECTED_REMOTE_IP}" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
 
   # The active ip should never be empty.
-  if [[ -z ${vENV_REMOTE_IP} ]]; then
+  if [[ -z ${vDETECTED_REMOTE_IP} ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi

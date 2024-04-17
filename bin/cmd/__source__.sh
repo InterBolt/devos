@@ -2,15 +2,11 @@
 
 # shellcheck source=backup.sh
 . cmd/backup.sh
-# shellcheck source=checkout.sh
-. cmd/checkout.sh
-# shellcheck source=code.sh
-. cmd/code.sh
-# shellcheck source=launch.sh
-. cmd/launch.sh
+# shellcheck source=dev.sh
+. cmd/dev.sh
+# shellcheck source=create.sh
+. cmd/create.sh
 # shellcheck source=restore.sh
 . cmd/restore.sh
-# shellcheck source=sync_config.sh
-. cmd/sync_config.sh
 # shellcheck source=test.sh
 . cmd/test.sh
