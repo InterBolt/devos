@@ -14,7 +14,7 @@ vLIB_LOG_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
 
 mkdir -p "${vLIB_LOG_DIR}"
 
-vLIB_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1)"
+vLIB_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1 || echo "")"
 if [[ ${vLIB_LOG_FILESIZE} -gt 1000 ]]; then
   vLIB_LOG_BARE_LOG=true
   log.warn "LOG FILE IS GROWING LARGE: $((vLIB_LOG_FILESIZE / 1000))MB"

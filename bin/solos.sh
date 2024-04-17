@@ -10,17 +10,17 @@ vRESTRICTED_NOOP=false
 vRESTRICTED_DEVELOPER=false
 for _all_args in "$@"; do
   if [[ $_all_args = "--restricted-"* ]]; then
-    _flag_name="$("${_all_args#--restricted-}" | tr '[:lower:]' '[:upper:]')"
-    if [[ -z ${!_flag_name} ]]; then
+    _flag_name="$("${_all_args#--restricted-}")"
+    _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]')"
+    if [[ -z ${!_var_name} ]]; then
       echo "Error: unknown restricted flag: ${_all_args}" >&2
       exit 1
     else
-      # set the associated restricted variable above
-      eval "vRESTRICTED_${!_flag_name}=true"
+      eval "${!_var_name}=true"
+      set -- "${@/--restricted-"${_flag_name}"*/}"
     fi
   fi
 done
-set -- "${@/--restricted-*/}"
 
 # We might need more here later, but for now the main thing
 # is resetting the cursor via tput.
@@ -50,6 +50,9 @@ fi
 mkdir -p "${vSTATIC_SOLOS_ROOT}"
 mkdir -p "${vSTATIC_SOLOS_PROJECTS_ROOT}"
 mkdir -p "${vSTATIC_LOGS_DIR}"
+if [[ ! -f "${vSTATIC_LOG_FILEPATH}" ]]; then
+  touch "${vSTATIC_LOG_FILEPATH}"
+fi
 
 # Miscellanous values that are used throughout the script.
 # calling them "meta" because they are mostly inferred, or

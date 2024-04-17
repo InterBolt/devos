@@ -72,6 +72,8 @@ docker_run_cli() {
     /bin/bash
   )
 
+  echo "${args[*]}"
+
   # When the CLI is first installed, avoid docker run's -t option
   # It causes a TTY error, likely because it's run from a curled bash script
   # without the same stdin/out assumptions.
