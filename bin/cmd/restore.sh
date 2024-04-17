@@ -5,10 +5,8 @@
 
 cmd.restore() {
   solos.require_completed_launch_status
-  cmd.checkout
+  solos.checkout_project_dir
+  solos.store_ssh_derived_ip
 
-  if [[ "$vSTATIC_HOST" = "local" ]]; then
-    lib.validate.docker_host_running
-  fi
   log.warn "TODO: implementation needed"
 }

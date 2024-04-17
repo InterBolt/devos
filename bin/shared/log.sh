@@ -58,6 +58,11 @@ log._get_level_color() {
   esac
 }
 log._base() {
+  mkdir -p "$(dirname "${vSTATIC_LOG_FILEPATH}")"
+  if [[ ! -f ${vSTATIC_LOG_FILEPATH} ]]; then
+    touch "${vSTATIC_LOG_FILEPATH}"
+  fi
+
   local foreground="${vMETA_USE_FOREGROUND_LOGS:-true}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'

@@ -4,40 +4,17 @@
 . shared/solos_base.sh
 
 cmd.launch() {
-  cmd.checkout
+  solos.checkout_project_dir
+  solos.store_ssh_derived_ip
   exit 0
-
-  if [[ "$vCLI_OPT_HARD_RESET" = true ]]; then
-    # Will throw on a dir path that is either non-existent OR
-    # doesn't contain any file/files specific to a solos project.
-    lib.validate.throw_on_nonsolos
-    lib.utils.warn_with_delay "DANGER: about to \`rm -rf ${vCLI_OPT_DIR}\`"
-    rm -rf "$vCLI_OPT_DIR"
-    log.warn "wiped and created empty dir: $vCLI_OPT_DIR"
-  fi
-
-  # Will only throw on a dir path that already exists AND
-  # doesn't have a solos project-specific file. Doesn't care about non-existent dirs
-  # since those will just result in new solos projects.
-  lib.validate.throw_on_nonsolos_dir
-  if [[ ! -d ${vCLI_OPT_DIR} ]]; then
-    mkdir -p "${vCLI_OPT_DIR}"
-    log.info "created new SolOS project at: ${vCLI_OPT_DIR}"
-    vENV_SOLOS_ID="$(lib.utils.generate_secret)"
-    echo "${vENV_SOLOS_ID}" >"${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
-    log.info "created new SolOS project at: ${vCLI_OPT_DIR} with id: ${vENV_SOLOS_ID}"
-  fi
-  if [[ -f ${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME} ]]; then
-    vENV_SOLOS_ID="$(cat "${vCLI_OPT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}")"
-  fi
 
   # We can only set the "server" once. Maybe in the future, we'll work in
   # a way to change the server type after the fact, but for now, I'm considering
   # it a one-time thing since there's so much logic tied to a particular server type
   # and I don't want to have to write hard to reason about, defensive code.
-  if [[ ! -f ${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME} ]]; then
-    echo "${vCLI_OPT_SERVER}" >"${vSTATIC_SERVER_TYPE_FILENAME}"
-    log.info "set server type: ${vCLI_OPT_SERVER}"
+  if [[ ! -f ${vOPT_PROJECT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME} ]]; then
+    echo "${vOPT_SERVER}" >"${vSTATIC_SERVER_TYPE_FILENAME}"
+    log.info "set server type: ${vOPT_SERVER}"
   fi
 
   # This script is idempotent. But a warning doesn't hurt.
@@ -47,23 +24,17 @@ cmd.launch() {
   fi
   solos.import_project_repo
 
-  # Confirm any assumptions we make later in the script.
-  # Ex: the specified server exists, templates are valid, server/.boot dir valid, etc.
-  # We want aggressive validates BEFORE the ssh keygen and vultr provisioning
-  # sections since those create things that are harder to undo and debug.
-  lib.validate.repo "$vCLI_OPT_DIR/repo"
-
   # Generate and collect things like the caprover password, postgres passwords.
   # api keys, etc.
   local expects_these_things=(
-    "vENV_SEED_SECRET"
-    "vENV_GITHUB_USERNAME"
-    "vENV_GITHUB_EMAIL"
-    "vENV_GITHUB_TOKEN"
-    "vENV_OPENAI_API_KEY"
-    "vENV_PROVIDER_API_KEY"
-    "vENV_PROVIDER_NAME"
-    "vENV_PROVIDER_API_ENDPOINT"
+    "vSUPPLIED_SEED_SECRET"
+    "vSUPPLIED_GITHUB_USERNAME"
+    "vSUPPLIED_GITHUB_EMAIL"
+    "vSUPPLIED_GITHUB_TOKEN"
+    "vSUPPLIED_OPENAI_API_KEY"
+    "vSUPPLIED_PROVIDER_API_KEY"
+    "vSUPPLIED_PROVIDER_NAME"
+    "vSUPPLIED_PROVIDER_API_ENDPOINT"
   )
   local some_vars_not_set=false
   for expected_var in "${expects_these_things[@]}"; do
@@ -75,14 +46,14 @@ cmd.launch() {
   if [[ ${some_vars_not_set} = "true" ]]; then
     exit 1
   fi
-  vENV_SEED_SECRET="$(lib.store.set_on_empty "vENV_SEED_SECRET" "$(lib.utils.generate_secret)")"
-  vENV_GITHUB_USERNAME="$(lib.store.set_on_empty "vENV_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
-  vENV_GITHUB_EMAIL="$(lib.store.set_on_empty "vENV_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)")"
-  vENV_GITHUB_TOKEN="$(lib.store.prompt "vENV_GITHUB_TOKEN")"
-  vENV_OPENAI_API_KEY="$(lib.store.prompt "vENV_OPENAI_API_KEY")"
-  vENV_PROVIDER_API_KEY="$(lib.store.prompt "vENV_PROVIDER_API_KEY")"
-  vENV_PROVIDER_NAME="$(lib.store.prompt "vENV_PROVIDER_NAME")"
-  vENV_PROVIDER_API_ENDPOINT="$(lib.store.prompt "vENV_PROVIDER_API_ENDPOINT")"
+  vSUPPLIED_SEED_SECRET="$(lib.store.project.set_on_empty "vSUPPLIED_SEED_SECRET" "$(lib.utils.generate_secret)")"
+  vSUPPLIED_GITHUB_USERNAME="$(lib.store.project.set_on_empty "vSUPPLIED_GITHUB_USERNAME" "$(git config -l | grep user.name | cut -d = -f 2)")"
+  vSUPPLIED_GITHUB_EMAIL="$(lib.store.project.set_on_empty "vSUPPLIED_GITHUB_EMAIL" "$(git config -l | grep user.email | cut -d = -f 2)")"
+  vSUPPLIED_GITHUB_TOKEN="$(lib.store.project.prompt "vSUPPLIED_GITHUB_TOKEN")"
+  vSUPPLIED_OPENAI_API_KEY="$(lib.store.project.prompt "vSUPPLIED_OPENAI_API_KEY")"
+  vSUPPLIED_PROVIDER_API_KEY="$(lib.store.project.prompt "vSUPPLIED_PROVIDER_API_KEY")"
+  vSUPPLIED_PROVIDER_NAME="$(lib.store.project.prompt "vSUPPLIED_PROVIDER_NAME")"
+  vSUPPLIED_PROVIDER_API_ENDPOINT="$(lib.store.project.prompt "vSUPPLIED_PROVIDER_API_ENDPOINT")"
   for i in "${!expects_these_things[@]}"; do
     if [[ -z ${!expects_these_things[$i]} ]]; then
       log.error "${expects_these_things[$i]} is empty. Exiting."
@@ -99,27 +70,27 @@ cmd.launch() {
 
   # prev_id is NOT the same as ip_to_deprovision.
   # when prev_id is set and is associated with a matching
-  # ssh key, we "promote" it to vENV_IP and skip
+  # ssh key, we "promote" it to vENV_REMOTE_IP and skip
   # much (or all) of the vultr provisioning process.
-  local most_recent_ip="$(lib.store.get "most_recent_ip")"
-  local ip_to_deprovision="$(lib.store.get "ip_to_deprovision")"
+  local most_recent_ip="$(lib.store.project.get "most_recent_ip")"
+  local ip_to_deprovision="$(lib.store.project.get "ip_to_deprovision")"
   if [[ -n ${most_recent_ip} ]]; then
     log.info "the ip \`${most_recent_ip}\` from a previous run was found."
     log.info "if ssh keyfiles are the same, we will skip provisioning."
   fi
   lib.vultr.compute.provision "${most_recent_ip}"
-  vENV_IP="${vPREV_RETURN[0]}"
+  vENV_REMOTE_IP="${vPREV_RETURN[0]}"
   log.success "vultr compute is ready"
 
   # I'm treating the lib.vultr. functions as a black box and then doing
   # critical checks on the produced ip. Should throw when:
-  # 1) vENV_IP is empty after provisioning
-  # 2) the ip to deprovision in our store is the same as vENV_IP
-  if [[ -z "$vENV_IP" ]]; then
+  # 1) vENV_REMOTE_IP is empty after provisioning
+  # 2) the ip to deprovision in our store is the same as vENV_REMOTE_IP
+  if [[ -z "$vENV_REMOTE_IP" ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
-  if [[ "$ip_to_deprovision" = "$vENV_IP" ]]; then
+  if [[ "$ip_to_deprovision" = "$vENV_REMOTE_IP" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
@@ -131,13 +102,13 @@ cmd.launch() {
   # By putting the ip to deprovision in the store, we ensure that
   # a hard reset won't stop our script from deprovisioning the old instance.
   # on future runs.
-  if [[ "$vENV_IP" != "$most_recent_ip" ]]; then
-    lib.store.set "ip_to_deprovision" "$most_recent_ip"
-    lib.store.set "most_recent_ip" "$vENV_IP"
+  if [[ "$vENV_REMOTE_IP" != "$most_recent_ip" ]]; then
+    lib.store.project.set "ip_to_deprovision" "$most_recent_ip"
+    lib.store.project.set "most_recent_ip" "$vENV_REMOTE_IP"
   fi
 
   # Generates the .env/.env.sh files by mapping all
-  # global variables starting with vENV_* to both files.
+  # global variables starting with vSUPPLIED_* to both files.
   lib.env.generate_files
 
   # Builds the ssh config file for the remote server and
@@ -151,7 +122,7 @@ cmd.launch() {
   # using the `.launch` dirs from within the bin and server specific dirs.
   # Note: launch files are used later to bootstrap our environments.
   solos.merge_launch_dirs
-  local project_launch_dir="${vCLI_OPT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
+  local project_launch_dir="${vOPT_PROJECT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
 
   # Build and start the local docker container.
   # We set the COMPOSE_PROJECT_NAME environment variable to
@@ -161,7 +132,7 @@ cmd.launch() {
   # command. This keeps the compose.yml config a little simpler.
   local entry_dir="${PWD}"
   cd "${project_launch_dir}"
-  COMPOSE_PROJECT_NAME="solos-${vENV_SOLOS_ID}" docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
+  COMPOSE_PROJECT_NAME="solos-${vOPT_PROJECT_ID}" docker compose --file compose.yml up --force-recreate --build --remove-orphans --detach
   log.info "docker container is ready"
   cd "$entry_dir"
 
@@ -188,19 +159,19 @@ cmd.launch() {
   # Before bootstrapping can occur, make sure we upload the .solos config folder
   # from our local machine to the remote machine.
   # Important: we don't need to do this with the docker container because we mount it
-  if lib.ssh.command.remote '[ -d '"${vSTATIC_SERVER_CONFIG_ROOT}"' ]'; then
+  if lib.ssh.command.remote '[ -d '"${vSTATIC_SOLOS_ROOT}"' ]'; then
     log.warn "remote already has the global solos config folder. skipping."
     log.info "see \`solos --help\` for how to re-sync your local or docker dev config folder to the remote."
   else
-    lib.ssh.command.remote "mkdir -p ${vSTATIC_SERVER_CONFIG_ROOT}"
+    lib.ssh.command.remote "mkdir -p ${vSTATIC_SOLOS_ROOT}"
     log.info "created empty remote .solos config folder."
-    lib.ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${vSTATIC_SERVER_CONFIG_ROOT}/"
+    lib.ssh.rsync_up.remote "${vSTATIC_SOLOS_ROOT}/" "${vSTATIC_SOLOS_ROOT}/"
     log.info "uploaded local .solos config folder to remote."
   fi
 
   # The linux.sh file will run the env specific launch scripts.
   # Important: these env specific scripts should be idempotent and performant.
-  lib.ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vCLI_OPT_SERVER} ${vENV_GITHUB_USERNAME} ${vENV_GITHUB_EMAIL} ${vENV_GITHUB_TOKEN}"
+  lib.ssh.command.remote "/root/${vSTATIC_LINUX_SH_FILENAME} remote ${vOPT_SERVER} ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
 
   # We might want this status in the future
   lib.status.set "${vSTATUS_BOOTSTRAPPED_REMOTE}" "$(lib.utils.full_date)"
@@ -217,12 +188,12 @@ cmd.launch() {
   if [[ -n ${bootstrapped_manually_at} ]]; then
     log.warn "skipping manual bootstrap step - completed at ${bootstrapped_manually_at}"
   else
-    lib.ssh.rsync_down.remote "${vSTATIC_SERVER_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vCLI_OPT_DIR}/"
-    log.info "downloaded manual file to: ${vCLI_OPT_DIR}"
+    lib.ssh.rsync_down.remote "${vSTATIC_SERVER_ROOT}/${vSTATIC_MANUAL_FILENAME}" "${vOPT_PROJECT_DIR}/"
+    log.info "downloaded manual file to: ${vOPT_PROJECT_DIR}"
     log.info "review the manual instructions before continuing"
     lib.utils.echo_line
     echo ""
-    cat "${vCLI_OPT_DIR}/${vSTATIC_MANUAL_FILENAME}"
+    cat "${vOPT_PROJECT_DIR}/${vSTATIC_MANUAL_FILENAME}"
     echo ""
     lib.utils.echo_line
     echo -n "Hit enter (0/2) to continue."
@@ -235,21 +206,21 @@ cmd.launch() {
 
   # The logic here is simpler because the bootstrap script for the docker container
   # will never deal with things like databases or service orchestration.
-  lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vCLI_OPT_SERVER} ${vENV_GITHUB_USERNAME} ${vENV_GITHUB_EMAIL} ${vENV_GITHUB_TOKEN}"
+  lib.ssh.command.docker "${vSTATIC_DOCKER_MOUNTED_LAUNCH_DIR}/${vSTATIC_LINUX_SH_FILENAME} docker ${vOPT_SERVER} ${vSUPPLIED_GITHUB_USERNAME} ${vSUPPLIED_GITHUB_EMAIL} ${vSUPPLIED_GITHUB_TOKEN}"
   lib.status.set "${vSTATUS_BOOTSTRAPPED_DOCKER}" "$(lib.utils.full_date)"
   log.info "bootstrapped the local docker container."
 
   # This is redundant, but it's a good safety check because
   # if something bad happened and the old ip is the same as the current
   # we'll end up destroying the current instance. Yikes.
-  local ip_to_deprovision="$(lib.store.get "ip_to_deprovision")"
-  if [[ ${ip_to_deprovision} = "${vENV_IP}" ]]; then
+  local ip_to_deprovision="$(lib.store.project.get "ip_to_deprovision")"
+  if [[ ${ip_to_deprovision} = "${vENV_REMOTE_IP}" ]]; then
     log.error "Unexpected error: the ip to deprovision is the same as the current ip. Exiting."
     exit 1
   fi
 
   # The active ip should never be empty.
-  if [[ -z ${vENV_IP} ]]; then
+  if [[ -z ${vENV_REMOTE_IP} ]]; then
     log.error "Unexpected error: the current ip is empty. Exiting."
     exit 1
   fi
@@ -266,7 +237,7 @@ cmd.launch() {
     fi
     lib.vultr.compute.destroy_instance "${instance_id_to_deprovision}"
     log.info "destroyed the previous instance with ip: ${ip_to_deprovision}"
-    lib.store.del "ip_to_deprovision"
+    lib.store.project.del "ip_to_deprovision"
     log.info "deleted the ip_to_deprovision store entry."
   fi
   lib.status.set "${vSTATUS_LAUNCH_SUCCEEDED}" "$(lib.utils.full_date)"

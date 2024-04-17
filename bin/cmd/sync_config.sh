@@ -12,8 +12,9 @@ cmd.sync_config() {
   # Note: most commands will require a fully launched project.
   #
   solos.require_completed_launch_status
-  cmd.checkout
-  lib.utils.warn_with_delay "overwriting the remote config folder: ${vSTATIC_SERVER_CONFIG_ROOT}"
+  solos.checkout_project_dir
+  solos.store_ssh_derived_ip
+  lib.utils.warn_with_delay "overwriting the remote config folder: ${vSTATIC_SOLOS_ROOT}"
   local tmp_dir="/root/.tmp"
   local tmp_remote_config_dir="${tmp_dir}/${vSTATIC_CONFIG_DIRNAME}"
   #
@@ -21,15 +22,15 @@ cmd.sync_config() {
   # the old config folder and move the new one to its place. Should limit downtime.
   #
   # Note: like most commands, we should be able to run this from within our docker container
-  # no differently than if we were on the local machine. vSTATIC_MY_CONFIG_ROOT handles the
+  # no differently than if we were on the local machine. vSTATIC_SOLOS_ROOT handles the
   # different absolute paths for local and docker since it uses the built-in $HOME variable.
   #
   lib.ssh.command.remote "rm -rf ${tmp_remote_config_dir} && mkdir -p ${tmp_remote_config_dir}"
   log.info "wiped remote ${tmp_remote_config_dir} folder in preparation for rsync."
-  lib.ssh.rsync_up.remote "${vSTATIC_MY_CONFIG_ROOT}/" "${tmp_remote_config_dir}/"
-  log.info "uploaded ${vSTATIC_MY_CONFIG_ROOT} to the remote server"
-  lib.ssh.command.remote "rm -rf ${vSTATIC_SERVER_CONFIG_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_SERVER_CONFIG_ROOT}"
-  log.info "overwrote remote's config:${vSTATIC_SERVER_CONFIG_ROOT} with ${vSTATIC_HOST}'s config: ${vSTATIC_MY_CONFIG_ROOT}."
+  lib.ssh.rsync_up.remote "${vSTATIC_SOLOS_ROOT}/" "${tmp_remote_config_dir}/"
+  log.info "uploaded ${vSTATIC_SOLOS_ROOT} to the remote server"
+  lib.ssh.command.remote "rm -rf ${vSTATIC_SOLOS_ROOT} && mv ${tmp_remote_config_dir} ${vSTATIC_SOLOS_ROOT}"
+  log.info "overwrote remote's config."
   lib.ssh.command.remote "rm -rf ${tmp_remote_config_dir}"
   log.info "removed ${tmp_remote_config_dir} on the remote."
   log.info "success: synced config folder to remote."

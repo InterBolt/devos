@@ -50,10 +50,10 @@ Launches a new project, completes a partial project, or repairs an existing proj
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --server            - The type of server to bootstrap. (default: $vSTATIC_DEFAULT_SERVER)
 --help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
+--foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.
 --hard-reset        - Dangerously recreate project files and infrastructure.
 EOF
@@ -69,7 +69,7 @@ Sync your machine's \`~/.solos\` (aka your global SolOS config) to the remote se
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --help              - Print this help and exit
 EOF
 }
@@ -100,7 +100,7 @@ the --dir option is explicitly provided.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --help              - Print this help and exit
 --foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.
@@ -117,7 +117,7 @@ Open the VSCode workspaces associated with the project.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --help              - Print this help and exit
 --foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.
@@ -131,7 +131,7 @@ Backup the project to an S3 compatible bucket.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --help              - Print this help and exit
 --foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.
@@ -146,8 +146,7 @@ Restore the project from an S3 compatible bucket.
 
 $LIB_FLAGS_HEADER_AVAILABLE_OPTIONS
 
---force-config      - Will overwrite your machine's config with the backup's config.
---dir               - The directory of your SolOS project. (required on the first run)
+--project           - The project name of of your project.
 --help              - Print this help and exit
 --foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
                       the foreground.

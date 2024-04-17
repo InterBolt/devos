@@ -509,14 +509,6 @@ cmd.test() {
   # Make sure we're in a git repo and that we're either in our docker dev container
   # or on a local machine. We can't run tests in a remote environment.
   #
-  if [[ ${vSTATIC_RUNNING_IN_GIT_REPO} != true ]]; then
-    log.error "this command can only be run from within a git repo."
-    exit 1
-  fi
-  if [[ ${vSTATIC_HOST} = "remote" ]]; then
-    log.error "this command cannot be run in a remote environment."
-    exit 1
-  fi
   if [[ ! -d "lib" ]]; then
     log.error "lib directory not found. Exiting."
     exit 1
@@ -533,8 +525,8 @@ cmd.test() {
   # Then, make sure the user is allowed to pass only a function if they want and
   # we'll infer the library name from the function name.
   #
-  local lib_to_test="${vCLI_OPT_LIB}"
-  local fn_to_test="${vCLI_OPT_FN}"
+  local lib_to_test="${vOPT_LIB}"
+  local fn_to_test="${vOPT_FN}"
   local lib_dir="${PWD}"
   local lib_files=()
   local lib_test_file=""

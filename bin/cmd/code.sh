@@ -5,16 +5,12 @@
 
 cmd.code() {
   solos.require_completed_launch_status
-  cmd.checkout
+  solos.checkout_project_dir
+  solos.store_ssh_derived_ip
 
   if ! command -v "code" &>/dev/null; then
     log.error "vscode is not installed to your path. cannot continue."
   fi
-  if [[ ${vSTATIC_HOST} != "local" ]]; then
-    log.error "this command must be run from the local host. Exiting."
-    exit 1
-  fi
-  lib.validate.docker_host_running
 
   log.warn "would open vscode"
 }

@@ -33,6 +33,8 @@ for entry_arg in "$@"; do
   fi
 done
 
+echo "${vpVOLUME_SOURCE}" >"${vpVOLUME_SOURCE}/.host_path"
+
 docker_build_cached() {
   if ! docker build -q -t "${vpDOCKER_IMAGE}" bin >/dev/null; then
     echo "Error: failed to build the docker image." >&2

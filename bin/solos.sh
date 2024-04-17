@@ -13,6 +13,10 @@ for entry_arg in "$@"; do
   fi
 done
 
+# We might need more here later, but for now the main thing
+# is resetting the cursor via tput.
+trap "tput cnorm" EXIT
+
 if ! cd "$(dirname "${BASH_SOURCE[0]}")"; then
   echo "Unexpected error: could not cd into 'dirname \"\${BASH_SOURCE[0]}\"'" >&2
   exit 1
@@ -44,6 +48,14 @@ fi
 # shellcheck source=shared/static.sh
 . "shared/static.sh"
 
+# Make sure the basic directories we need exist.
+mkdir -p "${vSTATIC_SOLOS_ROOT}"
+mkdir -p "${vSTATIC_SOLOS_PROJECTS_ROOT}"
+mkdir -p "${vSTATIC_LOGS_DIR}"
+
+# Miscellanous values that are used throughout the script.
+# calling them "meta" because they are mostly inferred, or
+# derived from undocumented flags.
 vMETA_DEVELOPER_MODE=false
 if [[ $1 = "--dev" ]]; then
   vMETA_DEVELOPER_MODE=true
@@ -62,58 +74,54 @@ vMETA_BIN_DIR="$(pwd)"
 vMETA_BIN_FILEPATH="$vMETA_BIN_DIR/$0"
 vMETA_DEBUG_LEVEL=${DEBUG_LEVEL:-0}
 
+# Slots to store returns/responses. Bash don't allow rich return
+# types, so we do this hacky shit instead.
 vPREV_CURL_RESPONSE=""
 vPREV_CURL_ERR_STATUS_CODE=""
 vPREV_CURL_ERR_MESSAGE=""
 vPREV_RETURN=()
 
+# Statuses to track launch progress.
 vSTATUS_BOOTSTRAPPED_MANUALLY="completed-manual"
 vSTATUS_BOOTSTRAPPED_REMOTE="completed-remote"
 vSTATUS_LAUNCH_SUCCEEDED="completed-launch"
 vSTATUS_BOOTSTRAPPED_DOCKER="completed-docker"
 
+# The vCLI_* values get set within the cli.parse.* functions.
 vCLI_USAGE_ALLOWS_CMDS=()
 vCLI_USAGE_ALLOWS_OPTIONS=()
 vCLI_PARSED_CMD=""
 vCLI_PARSED_OPTIONS=()
-vCLI_OPT_HARD_RESET=false
-vCLI_OPT_CLEAR_CACHE=false
-vCLI_OPT_TAG=""
-vCLI_OPT_LIB=""
-vCLI_OPT_FN=""
-vCLI_OPT_DIR=""
-vCLI_OPT_SERVER=""
 
-# shellcheck disable=SC2034
-vENV_OPENAI_API_KEY=""
-# shellcheck disable=SC2034
-vENV_PROVIDER_API_KEY=""
-# shellcheck disable=SC2034
-vENV_PROVIDER_NAME="vultr"
-# shellcheck disable=SC2034
-vENV_PROVIDER_API_ENDPOINT="https://api.lib.vultr.com/v2"
-# shellcheck disable=SC2034
-vENV_GITHUB_TOKEN=""
-# shellcheck disable=SC2034
-vENV_IP=""
-# shellcheck disable=SC2034
-vENV_S3_HOST=""
-# shellcheck disable=SC2034
-vENV_S3_OBJECT_STORE=""
-# shellcheck disable=SC2034
-vENV_S3_ACCESS_KEY=""
-# shellcheck disable=SC2034
-vENV_S3_SECRET=""
-# shellcheck disable=SC2034
-vENV_GITHUB_USERNAME=""
-# shellcheck disable=SC2034
-vENV_GITHUB_EMAIL=""
-# shellcheck disable=SC2034
-vENV_SEED_SECRET=""
-# shellcheck disable=SC2034
-vENV_DB_PORT=5432
-# shellcheck disable=SC2034
-vENV_SOLOS_ID=""
+# These are not 1-1 mappings to option flags. But they ARE
+# derived from the option flags.
+vOPT_CLEAR_CACHE=false
+vOPT_TAG=""
+vOPT_LIB=""
+vOPT_FN=""
+vOPT_PROJECT_DIR=""
+vOPT_PROJECT_ID=""
+vOPT_SERVER=""
+vOPT_IS_NEW_PROJECT=false
+
+# Anything the user might supply either via a prompt or env
+# variable should go here.
+vSUPPLIED_OPENAI_API_KEY=""
+vSUPPLIED_PROVIDER_API_KEY=""
+vSUPPLIED_PROVIDER_NAME="vultr"
+vSUPPLIED_PROVIDER_API_ENDPOINT="https://api.lib.vultr.com/v2"
+vSUPPLIED_GITHUB_TOKEN=""
+vSUPPLIED_S3_HOST=""
+vSUPPLIED_S3_OBJECT_STORE=""
+vSUPPLIED_S3_ACCESS_KEY=""
+vSUPPLIED_S3_SECRET=""
+vSUPPLIED_GITHUB_USERNAME=""
+vSUPPLIED_GITHUB_EMAIL=""
+vSUPPLIED_SEED_SECRET=""
+
+# I'm not sure what "category" this is, but maybe anything we
+# "infer" from our environment?
+vENV_REMOTE_IP=""
 
 if [[ ${vMETA_DEVELOPER_MODE} = true ]]; then
   chmod +x "shared/codegen.sh"
@@ -135,50 +143,60 @@ fi
 # them with lib.* to keep them organized and separate from the rest of the lib
 # functions.
 solos.apply_parsed_cli_args() {
-  local was_server_set=false
+  local project_server_file=""
+  local project_id_file=""
+  local was_project_set=false
   if [[ -z ${vCLI_PARSED_CMD} ]]; then
     log.error "No command supplied. Please supply a command."
     exit 1
   fi
   for i in "${!vCLI_PARSED_OPTIONS[@]}"; do
     case "${vCLI_PARSED_OPTIONS[$i]}" in
-    "hard-reset")
-      vCLI_OPT_HARD_RESET=true
-      ;;
-    dir=*)
+    project=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ "$val" = "${HOME}" ]]; then
-        log.error "Danger: --dir flag cannot be set to the home directory. Exiting."
+      if [[ ! "${val}" =~ ^[a-zA-Z][a-zA-Z0-9]*$ ]]; then
+        log.error 'Invalid project name: '"${val}"'. Expects: ^[a-zA-Z][a-zA-Z0-9]*$'
         exit 1
       fi
-      if [[ ${HOME} = "${val}"* ]]; then
-        log.error "Danger: --dir flag cannot be set to a parent directory of the home directory. Exiting."
+      vOPT_PROJECT_DIR="${vSTATIC_SOLOS_PROJECTS_ROOT}/${val}"
+      project_id_file="${vOPT_PROJECT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
+      if [[ ! -d "${vOPT_PROJECT_DIR}" ]]; then
+        mkdir -p "${vOPT_PROJECT_DIR}"
+        vOPT_PROJECT_ID="$(lib.utils.generate_secret)"
+        echo "${vOPT_PROJECT_ID}" >"${project_id_file}"
+        vOPT_IS_NEW_PROJECT=true
+      elif [[ -f "${vOPT_PROJECT_DIR}" ]]; then
+        log.error "${vOPT_PROJECT_DIR} is a file. Did you pass in the wrong project name?"
+        exit 1
+      elif [[ ! -d "${vOPT_PROJECT_DIR}" ]] && [[ ! -f "${project_id_file}" ]]; then
+        log.error "${project_id_file} was not found, which means ${vOPT_PROJECT_DIR} isn't a SolOS project."
         exit 1
       fi
-      vCLI_OPT_DIR="${val}"
+      project_server_file="${vOPT_PROJECT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
+      was_project_set=true
       ;;
     server=*)
       # Always ignore unless this was provided for the launch command.
       # Prefer the user to rely on the saved server type inside their projects
-      # dir (aka $vCLI_OPT_DIR).
       if [[ "$vCLI_PARSED_CMD" = "launch" ]]; then
-        val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-        vCLI_OPT_SERVER="$val"
-        was_server_set=true
+        vOPT_SERVER="${vCLI_PARSED_OPTIONS[$i]#*=}"
+      else
+        log.error "The --server flag is only allowed on the launch command."
+        exit 1
       fi
       ;;
     tag=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [[ -n "$val" ]]; then
-        vCLI_OPT_TAG="$val"
+        vOPT_TAG="$val"
       fi
       ;;
     lib=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [[ -n "$val" ]]; then
-        vCLI_OPT_LIB="$val"
-        if [[ ! -f "lib/$vCLI_OPT_LIB.sh" ]]; then
-          log.error "Unknown lib: $vCLI_OPT_LIB"
+        vOPT_LIB="$val"
+        if [[ ! -f "lib/$vOPT_LIB.sh" ]]; then
+          log.error "Unknown lib: $vOPT_LIB"
           exit 1
         fi
       fi
@@ -186,7 +204,7 @@ solos.apply_parsed_cli_args() {
     fn=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [[ -n ${val} ]]; then
-        vCLI_OPT_FN="${val}"
+        vOPT_FN="${val}"
       else
         log.error "The --fn flag must be followed by a function name."
         exit 1
@@ -194,30 +212,84 @@ solos.apply_parsed_cli_args() {
       ;;
     esac
   done
-  local projects_server_type_file="${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
-  if [[ ${was_server_set} = "true" ]]; then
-    if [[ -f ${projects_server_type_file} ]]; then
-      local projects_server_type="$(cat "${projects_server_type_file}")"
-      if [[ -z ${projects_server_type} ]]; then
-        log.error "Unexpected error: ${projects_server_type_file} is empty"
-        exit 1
-      fi
-      if [[ -z ${vCLI_OPT_SERVER} ]]; then
-        log.error "Unexpected error: --server flag was provided with an empty value."
-        exit 1
-      fi
-      if [[ ${projects_server_type} != "${vCLI_OPT_SERVER}" ]]; then
-        log.error "cannot change the server type after the initial launch command is run"
-        log.error "found: \`${projects_server_type}\`, you provided: \`${vCLI_OPT_SERVER}\`"
-        log.error "only a hard reset (use with caution) can change the server type."
-        log.info "\`solos --help\` for more info."
-        exit 1
-      fi
-    else
-      log.warn "No server type file found at: ${vCLI_OPT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
-    fi
-  elif [[ -f ${projects_server_type_file} ]]; then
-    vCLI_OPT_SERVER="$(cat "${projects_server_type_file}")"
+
+  # User error: they supplied the --server flag on a pre-existing project.
+  # The server type should always come from the store once set.
+  if [[ -n ${vOPT_SERVER} ]] && [[ ${vOPT_IS_NEW_PROJECT} = false ]]; then
+    log.error "Cannot set the --server option for an existing project."
+    exit 1
+  fi
+
+  # User error: they tried to launch a new project without specifying a server.
+  if [[ ${vOPT_IS_NEW_PROJECT} = true ]] && [[ -z ${vOPT_SERVER} ]]; then
+    log.error "A new project requires a --server value."
+    exit 1
+  fi
+}
+solos.checkout_project_dir() {
+  if [[ ${vOPT_CHECKED_OUT} = true ]]; then
+    return 0
+  fi
+  local project_id_file="${vOPT_PROJECT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
+  local project_server_file="${vOPT_PROJECT_DIR}/${vSTATIC_SERVER_TYPE_FILENAME}"
+
+  if [[ -z ${vOPT_PROJECT_DIR} ]]; then
+    vOPT_PROJECT_DIR="$(lib.store.global.get "checked_out")"
+  fi
+  if [[ -z ${vOPT_PROJECT_DIR} ]]; then
+    log.error "Please supply a --project flag."
+    exit 1
+  fi
+  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
+    log.error "The checked out directory ${vOPT_PROJECT_DIR} no longer exists. Removing from the cache."
+    lib.store.global.del "checked_out"
+    exit 1
+  fi
+  if [[ ! -f ${project_server_file} ]]; then
+    log.error "Failed to find a server type at: ${project_server_file}"
+    exit 1
+  elif [[ ! -f ${project_id_file} ]]; then
+    log.error "Failed to find a project id at: ${project_id_file}"
+    exit 1
+  elif [[ -z ${vOPT_SERVER} ]]; then
+    vOPT_SERVER="$(cat "${project_server_file}")"
+  fi
+  if [[ -z ${vOPT_SERVER} ]]; then
+    log.error "${project_server_file} is empty. Could not determine server type."
+    log.info "To fix, manually edit ${project_server_file} to match the server type."
+    exit 1
+  fi
+  vOPT_PROJECT_ID="$(cat "${project_id_file}")"
+  if [[ -z ${vOPT_PROJECT_ID} ]]; then
+    log.error "Unexpected error: ${project_id_file} is empty."
+    exit 1
+  fi
+  store.set "checked_out" "${vOPT_PROJECT_DIR}"
+
+  # This ensures we can call this function many times without
+  # consequences. It's a no-op if the status is already set.
+  vOPT_CHECKED_OUT=true
+}
+solos.store_ssh_derived_ip() {
+  local ssh_path_config="$(lib.ssh.path_config)"
+  if [[ -f "${ssh_path_config}" ]]; then
+    # For the most part we can just assume the ip we extract here
+    # is the correct one. The time where it isn't true is if we wipe our project's .ssh
+    # dir and re-run the launch command. But since the store files are in the global config
+    # dir, we can always find it despite a wiped project dir.
+
+    # Important: a critical assumption is that the store is never wiped between
+    # the time we deleted the .ssh dir and the time we re-run the launch command.
+    local most_recent_ip="$(lib.ssh.extract_ip.remote)"
+    lib.store.project.set "most_recent_ip" "${most_recent_ip}"
+    log.info "updated the most recent ip in the lib.cache."
+  elif [[ ${vOPT_IS_NEW_PROJECT} = false ]]; then
+    # Solos doesn't allow changing the .ssh dir files via any of its commands.
+    # So if the .ssh dir is missing, it's because the user manually deleted it.
+    # When the .ssh dir is wiped, we will typically have to "re-provision" things
+    # on our cloud provider.
+    log.warn "${ssh_path_config} was not found."
+    lib.utils.warn_with_delay "will dangerously proceed without SSH keys."
   fi
 }
 solos.merge_launch_dirs() {
@@ -227,19 +299,19 @@ solos.merge_launch_dirs() {
   # to the project directory location outside of the cli.
 
   # The server launch dir contains launch files specific to the server type.
-  local server_launch_dir="${vCLI_OPT_DIR}/repo/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}/${vSTATIC_LAUNCH_DIRNAME}"
+  local server_launch_dir="${vOPT_PROJECT_DIR}/source/${vSTATIC_REPO_SERVERS_DIR}/${vOPT_SERVER}/${vSTATIC_LAUNCH_DIRNAME}"
 
   # The bin launch dir contains launch files that are shared across all server types.
   # Ex: code-workspace files, docker compose.yml file, standard linux startup script, etc.
-  local bin_launch_dir="${vCLI_OPT_DIR}/repo/${vSTATIC_BIN_LAUNCH_DIR}"
+  local bin_launch_dir="${vOPT_PROJECT_DIR}/source/${vSTATIC_BIN_LAUNCH_DIR}"
 
   # We'll combine the above launch dir files and do some variable
   # injection on them to create the final launch directory.
-  local project_launch_dir="${vCLI_OPT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
+  local project_launch_dir="${vOPT_PROJECT_DIR}/${vSTATIC_LAUNCH_DIRNAME}"
 
   # Prevent an error from resulting in a partially incomplete launch dir
   # by building everything in a tmp dir and then moving it over.
-  local tmp_dir="${vCLI_OPT_DIR}/.tmp"
+  local tmp_dir="${vOPT_PROJECT_DIR}/.tmp"
   local tmp_launch_dir="${tmp_dir}/${vSTATIC_LAUNCH_DIRNAME}"
   if [[ -d "$project_launch_dir" ]]; then
     log.warn "rebuilding the launch directory."
@@ -278,8 +350,8 @@ solos.import_project_repo() {
   # we can automate forking the repo on the initial clone so that pulls
   # won't cause any issues. But for now, the forking needs to occur
   # manually by the user in their project.
-  local clone_target_dir="${vCLI_OPT_DIR}/repo"
-  local repo_server_dir="${clone_target_dir}/${vSTATIC_REPO_SERVERS_DIR}/${vCLI_OPT_SERVER}"
+  local clone_target_dir="${vOPT_PROJECT_DIR}/source"
+  local repo_server_dir="${clone_target_dir}/${vSTATIC_REPO_SERVERS_DIR}/${vOPT_SERVER}"
   if [[ -d ${clone_target_dir} ]]; then
     log.warn "the SolOS repo was already cloned to ${clone_target_dir}."
     log.info "pulling latest changes on checked out branch."
@@ -290,7 +362,7 @@ solos.import_project_repo() {
     log.info "cloned the SolOS repo to ${clone_target_dir}."
   fi
   if [[ ! -d ${repo_server_dir} ]]; then
-    log.error "The server ${vCLI_OPT_SERVER} does not exist in the SolOS repo. Exiting."
+    log.error "The server ${vOPT_SERVER} does not exist in the SolOS repo. Exiting."
     exit 1
   fi
   find "${clone_target_dir}" -type f -name "*.sh" -exec chmod +x {} \;
@@ -334,31 +406,11 @@ solos.require_completed_launch_status() {
   # Feel free to add more paranoid checks here. The status above should cover us, but
   # it does rely on some trust that either the user didn't delete the status file or
   # that the launch script didn't leave out anything critical in a future change.
-  if ! lib.ssh.command.remote '[ -d '"${vSTATIC_SERVER_CONFIG_ROOT}"' ]'; then
-    log.error "Unexpected error: ${vSTATIC_SERVER_CONFIG_ROOT} not found on the remote."
+  if ! lib.ssh.command.remote '[ -d '"${vSTATIC_SOLOS_ROOT}"' ]'; then
+    log.error "Unexpected error: ${vSTATIC_SOLOS_ROOT} not found on the remote."
     exit 1
   fi
 }
-
-solos.trap() {
-  tput cnorm
-  local code=$?
-
-  # The cache only exists for the duration of a given run.
-  lib.cache.clear
-  if [[ $code -eq 1 ]]; then
-    exit 1
-  fi
-  exit $code
-}
-
-# This is where we set up the error trapping logic.
-# When I first created this all it did was log global variables.
-if ! declare -f solos.trap >/dev/null; then
-  log.error "solos.trap is not a defined function. Exiting."
-  exit 1
-fi
-trap "solos.trap" EXIT
 
 cli.parse.requirements
 cli.parse.cmd "$@"

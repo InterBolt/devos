@@ -13,8 +13,8 @@ viTMP_REPO="${viTMP_DIR}/solos"
 viREPO_URL="https://github.com/InterBolt/solos.git"
 viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
 viREPO_BIN_EXECUTABLE_PATH="bin/proxy.sh"
-viCONFIG_ROOT="$HOME/.solos"
-viSOURCE_ROOT="${viCONFIG_ROOT}/source"
+viSOLOS_ROOT="$HOME/.solos"
+viSOURCE_ROOT="${viSOLOS_ROOT}/source"
 
 do_clone() {
   if ! git clone "${viREPO_URL}" "${viTMP_REPO}" >/dev/null 2>&1; then
@@ -35,7 +35,7 @@ do_bin_link() {
   #
   # Fundamentally, we must clone the repo before we can source the static.sh file.
   #
-  mkdir -p "$viCONFIG_ROOT"
+  mkdir -p "$viSOLOS_ROOT"
   #
   # Overwrite the bin files stored in the config folder.
   #

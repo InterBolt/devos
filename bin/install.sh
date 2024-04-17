@@ -18,8 +18,8 @@ if [[ $1 = "--dev" ]]; then
   viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/dsolos"
   shift
 fi
-viCONFIG_ROOT="${HOME}/.solos"
-viSOURCE_ROOT="${viCONFIG_ROOT}/source"
+viSOLOS_ROOT="${HOME}/.solos"
+viSOURCE_ROOT="${viSOLOS_ROOT}/source"
 
 echo "${viREPO_BIN_EXECUTABLE_PATH}"
 
@@ -35,30 +35,17 @@ do_clone() {
 }
 
 do_bin_link() {
-  #
-  # Important: the remainder of the script assumes we're in the bin folder.
-  #
-  cd "${viTMP_REPO}/bin" || exit 1
-  #
-  # Fundamentally, we must clone the repo before we can source the static.sh file.
-  #
-  mkdir -p "$viCONFIG_ROOT"
-  #
-  # Overwrite the bin files stored in the config folder.
-  #
+
+  mkdir -p "$viSOLOS_ROOT"
   rm -rf "${viSOURCE_ROOT:?}"
   mkdir -p "${viSOURCE_ROOT:?}"
   cp -r "${viTMP_REPO}/." "${viSOURCE_ROOT:?}" || exit 1
-  #
-  # Use linking rather than copying for the simplest possible update process.
-  #
+
   if ! ln -sfv "${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}" "${viUSR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
     echo "Error: failed to link ${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
     exit 1
   fi
-  #
-  # Ensure they're executable for extra safety.
-  #
+
   chmod +x "${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}"
   chmod +x "${viUSR_LOCAL_BIN_EXECUTABLE}"
 }
