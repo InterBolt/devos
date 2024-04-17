@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-
-set -x
 # Note on the shellcheck disabling here: unused variables are allowed
 # because shellcheck can't tell that we're actually using them in other
 # scripts sourced within this one.
 # shellcheck disable=SC2034
+
+set -x
 
 # Fail if we try to set a restricted variable without a default value.
 # This would indicate a logic error.
@@ -120,7 +120,8 @@ vDETECTED_REMOTE_IP=""
 
 if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
   chmod +x "shared/codegen.sh"
-  shared/codegen.sh
+  . shared/codegen.sh
+  shared.codegen.run
 fi
 
 # shellcheck source=shared/log.sh
