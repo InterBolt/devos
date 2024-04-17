@@ -47,7 +47,7 @@ for entry_arg in "$@"; do
 done
 
 docker_build_base() {
-  if ! docker build -q -t "${vpDOCKER_BASE_IMAGE}" -f Dockerfile.base .; then
+  if ! docker build -q -t "${vpDOCKER_BASE_IMAGE}" -f Dockerfile.base . >/dev/null; then
     echo "Error: failed to build the docker image." >&2
     exit 1
   fi

@@ -4,8 +4,6 @@
 # scripts sourced within this one.
 # shellcheck disable=SC2034
 
-set -x
-
 # Fail if we try to set a restricted variable without a default value.
 # This would indicate a logic error.
 vRESTRICTED_NOOP=false
