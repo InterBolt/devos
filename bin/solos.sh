@@ -124,8 +124,6 @@ if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
   shared.codegen.run
 fi
 
-# shellcheck source=shared/log.sh
-. "shared/log.sh"
 # shellcheck source=pkg/__source__.sh
 . "pkg/__source__.sh"
 # shellcheck source=lib/__source__.sh
@@ -134,6 +132,8 @@ fi
 . "cli/__source__.sh"
 # shellcheck source=cmd/__source__.sh
 . "cmd/__source__.sh"
+# shellcheck source=shared/log.sh
+. "shared/log.sh"
 
 # Utility functions that don't yet have their own categories, so we prefix
 # them with lib.* to keep them organized and separate from the rest of the lib

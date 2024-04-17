@@ -3,7 +3,7 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-cmd.launch() {
+cmd.create() {
   solos.checkout_project_dir
   solos.detect_remote_ip
   exit 0

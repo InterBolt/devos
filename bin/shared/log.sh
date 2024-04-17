@@ -2,9 +2,6 @@
 # shellcheck disable=SC2145
 # shellcheck disable=SC2124
 
-# shellcheck source=../pkg/gum.sh
-source "pkg/gum.sh"
-
 # shellcheck source=static.sh
 source "shared/static.sh"
 
