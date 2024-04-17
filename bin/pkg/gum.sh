@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
+echo "${vSOLOS_BIN_DIR}"
+
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
