@@ -78,11 +78,11 @@ if ! do_bin_link; then
   exit 1
 fi
 
-if ! solos --postinstall --restricted-noop; then
+if ! "${viUSR_LOCAL_BIN_EXECUTABLE}" --postinstall --restricted-noop; then
   echo "Error: solos installation failed." >&2
   exit 1
 fi
 
 cd "${viENTRY_DIR}" || exit 1
 
-echo "Run \`solos --help\` to get started with SolOS"
+echo "Run \`$(basename "${viUSR_LOCAL_BIN_EXECUTABLE}") --help\` to get started with SolOS"
