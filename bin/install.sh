@@ -78,7 +78,7 @@ if ! do_bin_link; then
   exit 1
 fi
 
-if ! solos --restricted-noop; then
+if ! solos --postinstall --restricted-noop; then
   echo "Error: solos installation failed." >&2
   exit 1
 fi
