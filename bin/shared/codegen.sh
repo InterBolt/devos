@@ -3,6 +3,8 @@
 set -o pipefail
 set -o errtrace
 
+echo "${vSOLOS_STARTED_AT}"
+
 # shellcheck source=cant-source.sh
 . shared/must-source.sh
 # shellcheck source=log.sh
