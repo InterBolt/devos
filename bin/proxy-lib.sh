@@ -4,6 +4,7 @@
 # I chose to use this prefix because global variables in the main bin scripts
 # use only the "v" prefix, which makes grepping one set of variables vs the other easy.
 # I hate thinking!
+vpVOLUME_SOURCE="${HOME}/.solos"
 
 vpENTRY_DIR="${PWD}"
 trap 'cd '"${vpENTRY_DIR}"'' EXIT
@@ -26,22 +27,15 @@ if ! cd "${vpREPO_DIR}"; then
   exit 1
 fi
 vpVOLUME_HOST_PATH="${vpVOLUME_SOURCE}/.host_path"
-vpVOLUME_MOUNTED="/root/.solos"
 if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_HOST_PATH} ]]; then
   echo "Error: the .host_path file was not found in the .solos directory." >&2
   echo "This file is required to run SolOS within a Docker container." >&2
   exit 1
 fi
-
-# When running the solos CLI in a docker container, we must mount the home/.solos
-# directory from the original host machine to the nested docker container for it to work.
-# But the home directory on a host machine is going to be unique the user, so the only
-# way our containerized CLI can know the true path to the original home/.solos directory
-# is if we save their home dirpath to a file in the home/.solos directory itself.
-vpVOLUME_SOURCE="${HOME}/.solos"
 if [[ -f /.dockerenv ]]; then
   vpVOLUME_SOURCE="$(cat "${vpVOLUME_HOST_PATH}")"
 fi
+vpVOLUME_MOUNTED="/root/.solos"
 vpDOCKER_BASE_IMAGE="solos:base"
 vpDOCKER_CLI_IMAGE="soloscli:$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
 vpFROM_INSTALL_CHECK=false
