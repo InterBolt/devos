@@ -10,10 +10,10 @@ vRESTRICTED_NOOP=false
 vRESTRICTED_DEVELOPER=false
 for _all_args in "$@"; do
   if [[ $_all_args = "--restricted-"* ]]; then
-    _flag_name="$("${_all_args#--restricted-}")"
+    _flag_name="${_all_args#--restricted-}"
     _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]')"
     eval "${!_var_name}=true"
-    set -- "${@/--restricted-"${_flag_name}"*/}"
+    set -- "${@/"--restricted-${_flag_name}"*/}"
   fi
 done
 if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
