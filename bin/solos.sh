@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+
+set -x
 # Note on the shellcheck disabling here: unused variables are allowed
 # because shellcheck can't tell that we're actually using them in other
 # scripts sourced within this one.
