@@ -70,20 +70,19 @@ docker_run_cli() {
     /var/run/docker.sock:/var/run/docker.sock
     "${vpDOCKER_CLI_IMAGE}"
     /bin/bash
+    "$@"
   )
-
-  echo "${args[*]}"
 
   # When the CLI is first installed, avoid docker run's -t option
   # It causes a TTY error, likely because it's run from a curled bash script
   # without the same stdin/out assumptions.
   if [[ ${vpFROM_INSTALL_CHECK} = true ]]; then
-    if ! docker run -i "${args[@]}" "$@"; then
+    if ! docker run -i "${args[@]}"; then
       echo "Unexpected error: failed to run the docker image." >&2
       exit 1
     fi
   else
-    if ! docker run -it "${args[@]}" "$@"; then
+    if ! docker run -it "${args[@]}"; then
       echo "Unexpected error: failed to run the docker image." >&2
       exit 1
     fi
