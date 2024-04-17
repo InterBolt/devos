@@ -11,7 +11,7 @@ LIB_PASSED=()
 
 subcmd.test.precheck_variables() {
   local entry_pwd="${PWD}"
-  cd "$vENTRY_BIN_DIR"
+  cd "$vMETA_BIN_DIR"
   local errored=false
   local files
   #

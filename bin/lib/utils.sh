@@ -11,15 +11,6 @@ lib.utils.echo_line() {
   echo "$line"
 }
 
-lib.utils.exit_trap() {
-  tput cnorm
-  local code=$?
-  if [[ $code -eq 1 ]]; then
-    exit 1
-  fi
-  exit $code
-}
-
 lib.utils.generate_secret() {
   openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
 }
@@ -228,12 +219,12 @@ lib.utils.spinner() {
   wait "${pid}"
   local code=$?
   if [[ $code -ne 0 ]]; then
-    vENTRY_FOREGROUND=true
+    vMETA_USE_FOREGROUND_LOGS=true
     #
     # Grab the times first for max accuracy.
     #
-    local every_log_seconds_elapsed=$((SECONDS - vENTRY_START_SECONDS))
-    local subset_seconds_elapsed=$((start_seconds - vENTRY_START_SECONDS))
+    local every_log_seconds_elapsed=$((SECONDS - vMETA_START_SECONDS))
+    local subset_seconds_elapsed=$((start_seconds - vMETA_START_SECONDS))
     #
     # We don't need to worry about this affecting unrelated code because by this
     # point in the function, we know we're going to exit with an error code.
@@ -246,7 +237,7 @@ lib.utils.spinner() {
     local every_log="$(
       lib.utils.logdiff \
         "${vSTATIC_LOG_FILEPATH}" \
-        "${vENTRY_LOG_LINE_COUNT}" \
+        "${vMETA_LOG_LINE_COUNT}" \
         "${terminal_line_number}"
     )"
     local subset_logs="$(
@@ -289,7 +280,7 @@ lib.utils.do_task() {
     log.error "second argument must be the task function."
     exit 1
   fi
-  if [[ $vENTRY_FOREGROUND = false ]]; then
+  if [[ $vMETA_USE_FOREGROUND_LOGS = false ]]; then
     "$task" "$@" &
     local task_pid=$!
     lib.utils.spinner "${task_pid}" "${description}"

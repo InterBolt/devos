@@ -54,20 +54,8 @@ __test__.cache.clear() {
   log.error "cache.clear not implemented yet"
   return 0
 }
-__test__.cache.del() {
-  log.error "cache.del not implemented yet"
-  return 0
-}
 __test__.cache.get() {
   log.error "cache.get not implemented yet"
-  return 0
-}
-__test__.cache.overwrite_on_empty() {
-  log.error "cache.overwrite_on_empty not implemented yet"
-  return 0
-}
-__test__.cache.prompt() {
-  log.error "cache.prompt not implemented yet"
   return 0
 }
 __test__.cache.set() {

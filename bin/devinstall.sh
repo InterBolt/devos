@@ -3,12 +3,11 @@
 viENTRY_DIR="${PWD}"
 trap 'cd '"${viENTRY_DIR}"'' EXIT
 
-#
 # Note: in the prefix, "v" stands for variable and "i" for install.
 # I chose to use this prefix because global variables in the main bin scripts
 # use only the "v" prefix, which makes grepping one set of variables vs the other easy.
 # I hate thinking!
-#
+
 viTMP_DIR="$(mktemp -d 2>/dev/null)"
 viTMP_REPO="${viTMP_DIR}/solos"
 viREPO_URL="https://github.com/InterBolt/solos.git"
@@ -84,7 +83,7 @@ if ! do_bin_link; then
   exit 1
 fi
 
-if ! solos --noop --install-check; then
+if ! solos --noop; then
   echo "Error: solos installation failed." >&2
   exit 1
 fi

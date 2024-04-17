@@ -5,7 +5,7 @@
 
 lib.env.generate_files() {
   local tmp_dir="$(mktemp -d 2>/dev/null)"
-  local bin_vars=$(grep -Eo 'v[A-Z0-9_]*' "${vENTRY_BIN_FILEPATH}" | sort | uniq)
+  local bin_vars=$(grep -Eo 'v[A-Z0-9_]*' "${vMETA_BIN_FILEPATH}" | sort | uniq)
   for bin_var in $bin_vars; do
     local result="$(declare -p "${bin_var}" &>/dev/null && echo "set" || echo "unset")"
     if [[ ${result} = "unset" ]]; then

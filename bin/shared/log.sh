@@ -58,7 +58,7 @@ log._get_level_color() {
   esac
 }
 log._base() {
-  local foreground="${vENTRY_FOREGROUND:-true}"
+  local foreground="${vMETA_USE_FOREGROUND_LOGS:-true}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"

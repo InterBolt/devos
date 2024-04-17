@@ -11,13 +11,21 @@ A bash CLI designed to automate the hairy parts of doing end-to-end development 
 
 ## Installation
 
+### For users
+
 Install `solos` to your path:
 
 ```shell
-curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/install.sh?token=$(date +%s)" | bash
+curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/bin/install.sh?token=$(date +%s)" | bash
 ```
 
-That's it.
+### For contributors/developers
+
+Install `dsolos` to your path:
+
+```shell
+curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/bin/install.sh?token=$(date +%s)" | bash -s --dev
+```
 
 ## Documentation
 

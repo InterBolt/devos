@@ -139,7 +139,7 @@ lib.ssh.path_privkey.debian() {
 }
 
 lib.ssh.path_authorized_keys.self() {
-  if [[ -f "$(lib.ssh.path.self)/${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME} ]]; then
+  if [[ -f "$(lib.ssh.path.self)/${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME}" ]]; then
     echo "$(lib.ssh.path.self)/${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME}"
   else
     echo ""
@@ -147,7 +147,7 @@ lib.ssh.path_authorized_keys.self() {
 }
 
 lib.ssh.path_authorized_keys.debian() {
-  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME} ]]; then
+  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME}" ]]; then
     echo "$(lib.ssh.path.debian)${vSTATIC_SSH_AUTHORIZED_KEYS_FILENAME}"
   else
     echo ""
@@ -155,7 +155,7 @@ lib.ssh.path_authorized_keys.debian() {
 }
 
 lib.ssh.path_config.self() {
-  if [[ -f "$(lib.ssh.path.self)/${vSTATIC_SSH_CONFIG_FILENAME} ]]; then
+  if [[ -f "$(lib.ssh.path.self)/${vSTATIC_SSH_CONFIG_FILENAME}" ]]; then
     echo "$(lib.ssh.path.self)/${vSTATIC_SSH_CONFIG_FILENAME}"
   else
     echo ""
@@ -163,7 +163,7 @@ lib.ssh.path_config.self() {
 }
 
 lib.ssh.path_config.debian() {
-  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_CONFIG_FILENAME} ]]; then
+  if [[ -f "$(lib.ssh.path.debian)${vSTATIC_SSH_CONFIG_FILENAME}" ]]; then
     echo "$(lib.ssh.path.debian)${vSTATIC_SSH_CONFIG_FILENAME}"
   else
     echo ""
