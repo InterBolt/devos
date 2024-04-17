@@ -24,7 +24,7 @@ curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/bin/install.sh?t
 Install `dsolos` to your path:
 
 ```shell
-curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/bin/install.sh?token=$(date +%s)" | bash -s --dev
+curl -s "https://raw.githubusercontent.com/InterBolt/solos/main/bin/install.sh?token=$(date +%s)" | bash -s -- --dev
 ```
 
 ## Documentation
