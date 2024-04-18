@@ -4,6 +4,8 @@
 . lib/ssh.sh
 # shellcheck source=status.sh
 . lib/status.sh
+# shellcheck source=store.sh
+. lib/store.sh
 # shellcheck source=utils.sh
 . lib/utils.sh
 # shellcheck source=vultr.sh

@@ -8,7 +8,7 @@ vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS="Available options:"
 
 cli.usage.help() {
   cat <<EOF
-Usage: solos <command> [--OPTS...]
+Usage: solos command [--OPTS...]
 
 A CLI to manage SolOS projects on your local machine or container.
 

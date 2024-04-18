@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
+# shellcheck source=../shared/must-source.sh
+. shared/must-source.sh
+
 vLIB_VULTR_DEFAULTS=(
   "voc-c-2c-4gb-50s-amd"
   "ewr"
   2136
 )
 
-# shellcheck source=../shared/must-source.sh
-. shared/must-source.sh
 # --------------------------------------------------------------------------------------------
 #
 # VULTR FUNCTIONS

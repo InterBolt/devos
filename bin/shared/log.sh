@@ -52,9 +52,11 @@ log._get_level_color() {
   esac
 }
 log._base() {
-  mkdir -p "$(dirname "${vSTATIC_LOG_FILEPATH}")"
   if [[ ! -f ${vSTATIC_LOG_FILEPATH} ]]; then
-    touch "${vSTATIC_LOG_FILEPATH}"
+    if ! touch "${vSTATIC_LOG_FILEPATH}" &>/dev/null; then
+      echo "Failed to create log file: ${vSTATIC_LOG_FILEPATH}"
+      exit 1
+    fi
   fi
 
   local foreground="${vSOLOS_USE_FOREGROUND_LOGS:-true}"
@@ -95,31 +97,41 @@ log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
-  log._base "info" "$filename:$linenumber" "$@"
+  if ! log._base "info" "$filename:$linenumber" "$@"; then
+    echo "log.info failed"
+  fi
 }
 log.debug() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
-  log._base "debug" "$filename:$linenumber" "$@"
+  if ! log._base "debug" "$filename:$linenumber" "$@"; then
+    echo "log.debug failed"
+  fi
 }
 log.error() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
-  log._base "error" "$filename:$linenumber" "$@"
+  if ! log._base "error" "$filename:$linenumber" "$@"; then
+    echo "log.error failed"
+  fi
 }
 log.fatal() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
-  log._base "fatal" "$filename:$linenumber" "$@"
+  if ! log._base "fatal" "$filename:$linenumber" "$@"; then
+    echo "log.fatal failed"
+  fi
 }
 log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   filename="$(basename "$filename")"
-  log._base "warn" "$filename:$linenumber" "$@"
+  if ! log._base "warn" "$filename:$linenumber" "$@"; then
+    echo "log.warn failed"
+  fi
 }
 log.use_minimal() {
   vLIB_LOG_BARE_LOG=true

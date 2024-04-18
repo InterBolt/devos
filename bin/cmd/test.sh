@@ -4,6 +4,8 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
+vLIB_TEST_REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
+
 vCMD_TEST_FILE_OPENING_LINES=()
 vCMD_TEST_FILES_FAILED=()
 vCMD_TEST_FAILED=()
@@ -19,7 +21,7 @@ subcmd.test.precheck_variables() {
   # every referenced variable is defined in solos' global variables.
   files=$(find . -type f -name "solos*")
   for file in $files; do
-    local global_vars=$(grep -Eo 'v[A-Z0-9_]{2,}' "${file}" | grep -v "#" || echo "")
+    local global_vars=$(grep -Eo 'v[A-Z0-9_]{2,}' "${file}" | grep -v "#" | grep -v "_$" || echo "")
     for global_var in $global_vars; do
       local result="$(declare -p "$global_var" &>/dev/null && echo "set" || echo "unset")"
       if [[ "$result" = "unset" ]]; then
@@ -62,8 +64,6 @@ subcmd.test._update_beginning_file_lines() {
     "set -o errexit"
     "set -o pipefail"
     "set -o errtrace"
-    ""
-    "cd \"\$(git rev-parse --show-toplevel 2>/dev/null)/bin\" || exit 1"
     ""
     " # shellcheck source=../${lib_file}"
     ". \"lib/${lib_file}\""
@@ -126,9 +126,9 @@ subcmd.test._insert_variable_into_test_file() {
     log.error "file not found: $file"
     exit 1
   fi
-  local line_number="$(grep -nE '^v[A-Z0-9_]{2,}=' "${file}" | tail -n 1 | cut -d: -f1)"
+  local line_number="$(grep -nE '^__hook__*' "${file}" | head -n 1 | cut -d: -f1)"
   local tmp_file="${file}.tmp.$(date +%s)"
-  awk 'NR=='"$((line_number + 1))"'{print "'"${variable}="'\"\""}1' "${file}" >"${tmp_file}"
+  awk 'NR=='"$((line_number - 1))"'{print "'"${variable}="'\"\""}1' "${file}" >"${tmp_file}"
   cp -f "${tmp_file}" "${file}"
   rm -f "${tmp_file}"
 }
@@ -144,7 +144,7 @@ subcmd.test._grep_lib_used_variables() {
     log.error "file not found: $lib_file"
     exit 1
   fi
-  grep -Eo 'v[A-Z0-9_]{2,}' "$lib_file" | sort -u
+  grep -Eo 'v[A-Z0-9_]{2,}' "$lib_file" | grep -v "vSTATIC" | sort -u
 }
 
 subcmd.test._grep_lib_defined_variables() {
@@ -195,7 +195,7 @@ subcmd.test.unit.create_lib_test() {
   local defined_functions="$(subcmd.test._grep_lib_defined_functions "${lib_unit_name}")"
   local variables="$(subcmd.test._grep_lib_used_variables "${lib_file}")"
   subcmd.test._update_beginning_file_lines "${lib_file}"
-  local lines=(" ${vCMD_TEST_FILE_OPENING_LINES[@]} ")
+  local lines=("${vCMD_TEST_FILE_OPENING_LINES[@]}")
   local n=$'\n'
   for variable in $variables; do
     lines+=("$variable=\"\"")
@@ -323,6 +323,7 @@ subcmd.test.step.verify_variables() {
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
     local target_test_file_path="tests/__test__.${lib_unit_name}.sh"
+    local defined_variables_in_test="$(subcmd.test._grep_lib_defined_variables "${target_test_file_path}")"
     local used_variables_in_lib="$(subcmd.test._grep_lib_used_variables "${lib_file}")"
     for used_variable_in_lib in $used_variables_in_lib; do
       if ! echo "$defined_variables_in_test" | grep -q "^${used_variable_in_lib}$"; then
@@ -362,6 +363,7 @@ subcmd.test.step.cover_variables() {
     local undefined_variables="$(subcmd.test.unit.get_undefined_test_variables "${lib_unit_name}")"
     if [[ -n "$undefined_variables" ]]; then
       for undefined_variable in $undefined_variables; do
+
         subcmd.test._insert_variable_into_test_file "tests/__test__.${lib_unit_name}.sh" "${undefined_variable}"
       done
     fi
@@ -376,7 +378,10 @@ subcmd.test.dangerously_recreate() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
-    subcmd.test.unit.create_lib_test "${lib_unit_name}" true
+    if ! subcmd.test.unit.create_lib_test "${lib_unit_name}" true; then
+      log.error "Failed to create test file for ${lib_unit_name}"
+      exit 1
+    fi
   done
 }
 
@@ -388,7 +393,10 @@ subcmd.test.init() {
   for lib_file in "${lib_files[@]}"; do
     lib_file="$(basename "$lib_file")"
     local lib_unit_name="$(subcmd.test._extract_clean_lib_name_from_source "$lib_file")"
-    subcmd.test.unit.create_lib_test "${lib_unit_name}"
+    if ! subcmd.test.unit.create_lib_test "${lib_unit_name}"; then
+      log.error "Failed to create test file for ${lib_unit_name}"
+      exit 1
+    fi
   done
 }
 
@@ -434,8 +442,9 @@ subcmd.test.unit() {
     done
   fi
   chmod +x "$lib_test_file"
-  # shellcheck disable=SC1090
-  . "$lib_test_file"
+  cd ..
+  . lib/"${lib_test_file}"
+  cd "lib"
   if __hook__.before_file; then
     local something_failed=false
     for supplied_function in "${supplied_functions[@]}"; do
@@ -465,6 +474,7 @@ subcmd.test.unit() {
   else
     vCMD_TEST_FILES_FAILED+=("$lib_unit_name")
   fi
+  cd "${entry_dir}"
   return 0
 }
 
@@ -476,16 +486,12 @@ cmd.test() {
     log.error "lib directory not found. Exiting."
     exit 1
   fi
-
-  # Unrelated to lib tests, do some prechecks to ensure no misuse of
-  if ! subcmd.test.precheck_launchfiles; then
-    exit 1
-  fi
   if ! subcmd.test.precheck_variables; then
     exit 1
   fi
   local entry_dir="${PWD}"
   cd "lib" || exit 1
+  mkdir -p "tests"
 
   # Normalize the function name to the format: lib.<lib_name>.<function_name>.
   # Then, make sure the user is allowed to pass only a function if they want and
@@ -517,11 +523,17 @@ cmd.test() {
     lib_test_file="$lib_dir/tests/__test__.${lib_unit_name}.sh"
     lib_files+=("$lib_dir/${lib_unit_name}.sh")
   fi
-  subcmd.test.init
+  if ! subcmd.test.init; then
+    exit 1
+  fi
   log.info "initialized any missing test files"
-  subcmd.test.cover
+  if ! subcmd.test.cover; then
+    exit 1
+  fi
   log.info "covered any missing functions and variables"
-  subcmd.test.verify
+  if ! subcmd.test.verify; then
+    exit 1
+  fi
   log.info "verified function and variable coverage"
 
   # Wait until things are generated before testing for existence.

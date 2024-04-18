@@ -1,8 +1,3 @@
 #!/usr/bin/env bash
 
-__parent_path="$(cd .. && pwd)/.git"
-
-echo "The parent path is: ${__parent_path}"
-
-echo "$PWD"
-pwd
+grep -Eo 'v[A-Z0-9_]{2,}' "bin/solos.sh" | grep -v "#" | grep -v "_$" || echo ""

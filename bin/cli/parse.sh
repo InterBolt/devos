@@ -3,6 +3,9 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
+vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS="Available commands:"
+vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS="Available options:"
+
 cli.parse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     echo "true"
@@ -11,17 +14,18 @@ cli.parse._is_valid_help_command() {
   fi
 }
 cli.parse.cmd() {
+  echo "$2"
   if [[ -z "$1" ]]; then
     log.error "No command supplied."
     cli.usage.help
     exit 0
   fi
-  if [[ "$(cli.parse._is_valid_help_command "$1")" = "true" ]]; then
+  if [[ $(cli.parse._is_valid_help_command "$1") = true ]]; then
     cli.usage.help
     exit 0
   fi
   while [[ "$#" -gt 0 ]]; do
-    if [[ "$(cli.parse._is_valid_help_command "$1")" = "true" ]]; then
+    if [[ $(cli.parse._is_valid_help_command "$1") = true ]]; then
       if [[ -z "$vCLI_PARSED_CMD" ]]; then
         log.error "invalid command, use \`solos --help\` to see available commands."
         exit 1

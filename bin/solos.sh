@@ -13,7 +13,7 @@ for _all_args in "$@"; do
     _flag_name="${_all_args#--restricted-}"
     _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]')"
     eval "${!_var_name}=true"
-    set -- "${@/"--restricted-${_flag_name}"*/}"
+    shift
   fi
 done
 if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
@@ -96,6 +96,7 @@ vOPT_PROJECT_DIR=""
 vOPT_PROJECT_REL_DIR=""
 vOPT_PROJECT_ID=""
 vOPT_IS_NEW_PROJECT=false
+vOPT_CHECKED_OUT=""
 
 # Anything the user might supply either via a prompt or env
 # variable should go here.
