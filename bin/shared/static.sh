@@ -9,5 +9,6 @@ export vSTATIC_GIT_REMOTE="https://github.com/InterBolt/solos.git"
 export vSTATIC_SOLOS_ROOT="${HOME}/.solos"
 export vSTATIC_SOLOS_PROJECTS_ROOT="${HOME}/.solos/projects"
 export vSTATIC_SOLOS_ID_FILENAME=".solos_id"
+export vSTATIC_SOLOS_HOST_REFERENCE_FILE=.host_path
 export vSTATIC_LOGS_DIR="${vSTATIC_SOLOS_ROOT}/.logs"
 export vSTATIC_LOG_FILEPATH="${vSTATIC_LOGS_DIR}/solos.log"

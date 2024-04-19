@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# shellcheck source=docker.sh
+. lib/docker.sh
 # shellcheck source=ssh.sh
 . lib/ssh.sh
 # shellcheck source=status.sh

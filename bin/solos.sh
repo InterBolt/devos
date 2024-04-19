@@ -8,16 +8,22 @@
 # This would indicate a logic error.
 vRESTRICTED_NOOP=false
 vRESTRICTED_DEVELOPER=false
+vRESTRICTED_VOLUME_CTX=""
 for _all_args in "$@"; do
   if [[ $_all_args = "--restricted-"* ]]; then
     _flag_name="${_all_args#--restricted-}"
-    _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]')"
-    eval "${!_var_name}=true"
+    _flag_value="${_flag_name#*=}"
+    if [[ "${_flag_name}" = "${_flag_value}" ]]; then
+      _flag_value=true
+    fi
+    _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
+    eval "${_var_name}=${_flag_value}"
     shift
   fi
 done
+
 if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
-  echo "Running in dev mode"
+  echo "WARNING: running as dev"
 fi
 
 # We might need more here later, but for now the main thing
@@ -36,8 +42,13 @@ shopt -s dotglob
 # Extremely helpful for development where I need to test a bit of bash before integrating
 # into the CLI.
 if [[ $1 = "-" ]]; then
+  if [[ -z ${vRESTRICTED_VOLUME_CTX} ]]; then
+    echo "Error: you can only run scripts located within the ~/.solos directory." >&2
+    echo "Other directories on your computer aren't mounted into the ephemeral Docker container." >&2
+    exit 1
+  fi
   cd .. || exit 1
-  "$PWD/$2"
+  "$PWD/$2" "${@:3}"
   exit 0
 fi
 
@@ -118,12 +129,8 @@ vSUPPLIED_SEED_SECRET=""
 # "infer" from our environment?
 vDETECTED_REMOTE_IP=""
 
-if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
-  chmod +x "shared/codegen.sh"
-  . shared/codegen.sh
-  shared.codegen.run
-fi
-
+# shellcheck source=shared/log.sh
+. "shared/log.sh"
 # shellcheck source=pkg/__source__.sh
 . "pkg/__source__.sh"
 # shellcheck source=lib/__source__.sh
@@ -132,8 +139,15 @@ fi
 . "cli/__source__.sh"
 # shellcheck source=cmd/__source__.sh
 . "cmd/__source__.sh"
-# shellcheck source=shared/log.sh
-. "shared/log.sh"
+
+if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
+  chmod +x "shared/codegen.sh"
+  . shared/codegen.sh
+  if ! shared.codegen.run; then
+    log.error "Failed to generate code."
+    exit 1
+  fi
+fi
 
 # Utility functions that don't yet have their own categories, so we prefix
 # them with lib.* to keep them organized and separate from the rest of the lib
@@ -249,7 +263,7 @@ solos.detect_remote_ip() {
 solos.generate_launch_build() {
   local bin_launch_dir="${vOPT_PROJECT_DIR}/src/bin/launch"
   local project_launch_build_dir="${vOPT_PROJECT_DIR}/launch_build"
-  if [[ -d "$project_launch_dir" ]]; then
+  if [[ -d "${project_launch_build_dir}" ]]; then
     log.warn "Rebuilding the project's \`launch_build\` directory."
   fi
 
@@ -272,9 +286,9 @@ solos.generate_launch_build() {
     log.error "Unexpected error: failed to inject solos variables into the launch_build files."
     exit 1
   fi
-  rm -rf "${project_launch_dir}"
-  log.info "deleted: ${project_launch_dir}"
-  mv "${tmp_launch_dir}" "${project_launch_dir}"
+  rm -rf "${project_launch_build_dir}"
+  log.info "deleted: ${project_launch_build_dir}"
+  mv "${tmp_launch_dir}" "${project_launch_build_dir}"
   log.info "Built the project's launch_build directory."
 }
 solos.require_completed_launch_status() {

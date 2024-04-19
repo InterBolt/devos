@@ -3,6 +3,13 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
+
 vLIB_STORE_DIR="store"
 
 lib.store._del() {

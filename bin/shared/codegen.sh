@@ -3,8 +3,6 @@
 set -o pipefail
 set -o errtrace
 
-echo "${vSOLOS_STARTED_AT}"
-
 # shellcheck source=cant-source.sh
 . shared/must-source.sh
 # shellcheck source=log.sh
@@ -14,7 +12,7 @@ vLIB_CODEGEN_EXPORTER_FILENAME="__source__.sh"
 
 shared.codegen.source_relative_files() {
   local dirname="${1}"
-  local dir="bin/${dirname}"
+  local dir="${dirname}"
   if [[ ! -d ${dir} ]]; then
     log.error "A valid directory was not provided."
     exit 1
@@ -42,19 +40,19 @@ shared.codegen.source_relative_files() {
 }
 
 shared.codegen.run() {
-  if shared.codegen.source_relative_files "pkg"; then
+  if ! shared.codegen.source_relative_files "pkg"; then
     log.error "Failed to generate source exporter file (__source__.sh) for pkg"
     exit 1
   fi
-  if shared.codegen.source_relative_files "cmd"; then
+  if ! shared.codegen.source_relative_files "cmd"; then
     log.error "Failed to generate source exporter file (__source__.sh) for cmd"
     exit 1
   fi
-  if shared.codegen.source_relative_files "cli"; then
+  if ! shared.codegen.source_relative_files "cli"; then
     log.error "Failed to generate source exporter file (__source__.sh) for cli"
     exit 1
   fi
-  if shared.codegen.source_relative_files "lib"; then
+  if ! shared.codegen.source_relative_files "lib"; then
     log.error "Failed to generate source exporter file (__source__.sh) for lib"
     exit 1
   fi

@@ -11,7 +11,7 @@ vLIB_GUM_VERSION="0.13.0"
 vLIB_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
 if [[ ! -d ${vLIB_GUM_PKG_DIR} ]]; then
-  echo "failed to find bin/pkg directory. cannot install gum" >&2
+  echo "Failed to find bin/pkg directory. Cannot install gum" >&2
   exit 1
 fi
 

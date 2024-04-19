@@ -3,6 +3,16 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
+# soloscodegen --sources
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
+# shellcheck source=../lib/utils.sh
+. shared/empty.sh
+
 vLIB_VULTR_DEFAULTS=(
   "voc-c-2c-4gb-50s-amd"
   "ewr"

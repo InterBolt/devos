@@ -10,7 +10,7 @@ trap 'cd '"${viENTRY_DIR}"'' EXIT
 
 viREPO_URL="https://github.com/InterBolt/solos.git"
 viUSR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
-viREPO_BIN_EXECUTABLE_PATH="bin/proxy-prod.sh"
+viREPO_BIN_EXECUTABLE_PATH="bin/proxy.sh"
 # Don't use the restricted-* prefix because this flag is public facing
 # in the install script.
 if [[ $1 = "--dev" ]]; then
@@ -78,7 +78,7 @@ if ! do_bin_link; then
   exit 1
 fi
 
-if ! "${viUSR_LOCAL_BIN_EXECUTABLE}" --postinstall --restricted-noop; then
+if ! "${viUSR_LOCAL_BIN_EXECUTABLE}" --installer-no-tty --restricted-noop; then
   echo "Error: solos installation failed." >&2
   exit 1
 fi

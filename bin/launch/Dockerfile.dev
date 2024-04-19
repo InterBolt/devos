@@ -1,5 +1,9 @@
 FROM solos:base
 
+RUN mkdir /var/run/sshd \
+  && echo 'root:password' | chpasswd \
+  && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
 # Docker - CLI only
 RUN sudo apt-get remove docker.io \
   && sudo apt-get remove docker-doc \
@@ -17,5 +21,4 @@ RUN sudo apt-get remove docker.io \
   && apt-get update \
   && apt-get install docker-ce-cli docker-buildx-plugin -y
 
-# Solos mounted script
-ENTRYPOINT "/root/.solos/src/bin/solos.sh" "$@"
+CMD /usr/sbin/sshd -D &

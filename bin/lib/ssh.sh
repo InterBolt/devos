@@ -3,6 +3,13 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
+
 lib.ssh._validate() {
   if [[ -z ${!vDETECTED_REMOTE_IP+x} ]]; then
     log.error "vDETECTED_REMOTE_IP must be defined. Exiting."

@@ -16,18 +16,8 @@ if [[ ${vLIB_LOG_FILESIZE} -gt 1000 ]]; then
   vLIB_LOG_BARE_LOG=true
   log.warn "LOG FILE IS GROWING LARGE: $((vLIB_LOG_FILESIZE / 1000))MB"
   log.info "${vSTATIC_LOG_FILEPATH}"
-  if command -v pbcopy &>/dev/null; then
-    pbcopy <"${vSTATIC_LOG_FILEPATH}"
-    log.info "log file path copied to clipboard"
-  fi
 fi
-log._get_filesize() {
-  if [[ -f ${1} ]]; then
-    du -k "${1}" | cut -f 1
-  else
-    echo 0
-  fi
-}
+
 log._get_level_color() {
   local level="${1}"
   case "${level}" in

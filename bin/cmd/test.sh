@@ -4,7 +4,22 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-vLIB_TEST_REPO_DIR="$(git rev-parse --show-toplevel 2>/dev/null)"
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
+# shellcheck source=../lib/ssh.sh
+. shared/empty.sh
+# shellcheck source=../lib/status.sh
+. shared/empty.sh
+# shellcheck source=../lib/store.sh
+. shared/empty.sh
+# shellcheck source=../lib/utils.sh
+. shared/empty.sh
+# shellcheck source=../lib/vultr.sh
+. shared/empty.sh
 
 vCMD_TEST_FILE_OPENING_LINES=()
 vCMD_TEST_FILES_FAILED=()

@@ -2,8 +2,15 @@
 
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
+
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
 # shellcheck source=../pkg/gum.sh
-. pkg/gum.sh
+. shared/empty.sh
 
 lib.utils.echo_line() {
   terminal_width=$(tput cols)
