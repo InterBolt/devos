@@ -18,6 +18,17 @@ if [[ ${vLIB_LOG_FILESIZE} -gt 1000 ]]; then
   log.info "${vSTATIC_LOG_FILEPATH}"
 fi
 
+log._normalize_filename() {
+  local filename="${1}"
+  local host_solos_root="$(cat "${vSTATIC_SOLOS_ROOT}/${vSTATIC_SOLOS_HOST_REFERENCE_FILE}")"
+  if [[ $(basename "$(dirname "${filename}")") = "bin" ]]; then
+    filename="solos.sh"
+  else
+    filename="${filename/$HOME/${host_solos_root}}"
+  fi
+  echo "${host_solos_root}/src/bin/${filename}"
+}
+
 log._get_level_color() {
   local level="${1}"
   case "${level}" in
@@ -86,40 +97,35 @@ log._base() {
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  filename="$(basename "$filename")"
-  if ! log._base "info" "$filename:$linenumber" "$@"; then
+  if ! log._base "info" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
     echo "log.info failed"
   fi
 }
 log.debug() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  filename="$(basename "$filename")"
-  if ! log._base "debug" "$filename:$linenumber" "$@"; then
+  if ! log._base "debug" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
     echo "log.debug failed"
   fi
 }
 log.error() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  filename="$(basename "$filename")"
-  if ! log._base "error" "$filename:$linenumber" "$@"; then
+  if ! log._base "error" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
     echo "log.error failed"
   fi
 }
 log.fatal() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  filename="$(basename "$filename")"
-  if ! log._base "fatal" "$filename:$linenumber" "$@"; then
+  if ! log._base "fatal" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
     echo "log.fatal failed"
   fi
 }
 log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  filename="$(basename "$filename")"
-  if ! log._base "warn" "$filename:$linenumber" "$@"; then
+  if ! log._base "warn" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
     echo "log.warn failed"
   fi
 }

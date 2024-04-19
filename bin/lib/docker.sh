@@ -25,23 +25,23 @@ lib.docker.start_remote() {
   local caprover_remote_ip="${4}"
 
   if [[ -z "${email}" || -z "${caprover_password}" || -z "${caprover_root_domain}" || -z "${caprover_remote_ip}" ]]; then
-    log.error "Error: missing arguments. Can't start the remote docker container." >&2
+    log.error "Missing arguments. Can't start the remote docker container." >&2
     exit 1
   fi
   if [[ "${email}" != *@* ]]; then
-    log.error "Error: invalid email address." >&2
+    log.error "Invalid email address." >&2
     exit 1
   fi
   if [[ -z "${caprover_password}" ]]; then
-    log.error "Error: invalid password." >&2
+    log.error "Invalid password." >&2
     exit 1
   fi
   if [[ "${caprover_root_domain}" != *.* ]]; then
-    log.error "Error: invalid root domain." >&2
+    log.error "Invalid root domain." >&2
     exit 1
   fi
   if [[ "${caprover_remote_ip}" != *.*.*.* ]]; then
-    log.error "Error: invalid remote IP address." >&2
+    log.error "Invalid remote IP address." >&2
     exit 1
   fi
 
@@ -52,11 +52,11 @@ lib.docker.start_remote() {
   local launch_rel_dir="/src/bin/launch"
   local both_rel_volume_path="$(basename "${vSTATIC_SOLOS_PROJECTS_ROOT}")/test"
   if ! docker build -t "solos:base" -f "${vSTATIC_SOLOS_ROOT}${launch_rel_dir}/Dockerfile.base" . >/dev/null; then
-    log.error "Error: could not build the base image." >&2
+    log.error "Could not build the base image." >&2
     exit 1
   fi
   if ! docker build -t "solos:remote" -f "${vSTATIC_SOLOS_ROOT}${launch_rel_dir}/Dockerfile.remote" . >/dev/null; then
-    log.error "Error: could not build the remote image." >&2
+    log.error "Could not build the remote image." >&2
     exit 1
   fi
 
@@ -64,13 +64,13 @@ lib.docker.start_remote() {
   local host_project_dir="${host_solos_root}/${both_rel_volume_path}"
   local container_project_dir="${vSTATIC_SOLOS_ROOT}/${both_rel_volume_path}"
 
-  # This create the directory on the host and container since it's in a mounted dir.
+  # Create the directory on the host and container since it's in a mounted dir.
   mkdir -p "${container_project_dir}/captain"
 
   # Make the proxy script executable if it isn't already.
   # We already did the chmod in the dockerfile where we mount this.
   if ! chmod +x "${vSTATIC_SOLOS_ROOT}"/src/bin/proxy.sh; then
-    log.error "Error: could not make the proxy script executable." >&2
+    log.error "Could not make the proxy script executable." >&2
     exit 1
   fi
 
@@ -98,7 +98,7 @@ lib.docker.start_remote() {
     -v "${LIB_DOCKER_SOCKET_PATH}":"${LIB_DOCKER_SOCKET_PATH}" \
     solos:remote /bin/bash -c \
     "cd /root && ${cmd_symlink_bin} && ${cmd_launch_caprover} && ${cmd_setup_caprover} && ${cmd_start_ssh}"; then
-    log.error "Error: could not start the remote container." >&2
+    log.error "Could not start the remote container." >&2
     exit 1
   fi
 

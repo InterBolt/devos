@@ -127,7 +127,7 @@ HOST_SOLOS_PATH="$(cat "${CONTAINER_HOST_SOLOS_PATH_REFERENCE_FILE}")" || exit 1
 BOTH_REL_VOLUME_PATH="/projects/test/captain"
 HOST_CAPTAIN_VOLUME_PATH="${HOST_SOLOS_PATH}${BOTH_REL_VOLUME_PATH}"
 if [[ ! -d "${CONTAINER_SOLOS_PATH}/${BOTH_REL_VOLUME_PATH}" ]]; then
-  echo "Error: the test captain volume directory was not found." >&2
+  echo "The test captain volume directory was not found." >&2
   exit 1
 fi
 

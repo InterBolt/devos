@@ -22,10 +22,6 @@ for _all_args in "$@"; do
   fi
 done
 
-if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
-  echo "WARNING: running as dev"
-fi
-
 # We might need more here later, but for now the main thing
 # is resetting the cursor via tput.
 trap "tput cnorm" EXIT
@@ -43,7 +39,7 @@ shopt -s dotglob
 # into the CLI.
 if [[ $1 = "-" ]]; then
   if [[ -z ${vRESTRICTED_VOLUME_CTX} ]]; then
-    echo "Error: you can only run scripts located within the ~/.solos directory." >&2
+    echo "You can only run scripts located within the ~/.solos directory." >&2
     echo "Other directories on your computer aren't mounted into the ephemeral Docker container." >&2
     exit 1
   fi
@@ -74,7 +70,7 @@ for entry_arg in "$@"; do
     vSOLOS_USE_FOREGROUND_LOGS=true
   fi
 done
-vSOLOS_STARTED_AT="${SECONDS}"
+vSOLOS_STARTED_AT="$(date +%s)"
 vSOLOS_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
 vSOLOS_BIN_DIR="$(pwd)"
 vSOLOS_BIN_FILEPATH="$vSOLOS_BIN_DIR/$0"
@@ -323,6 +319,7 @@ fi
 # Note: if cmd = test, run without the do_task wrapper
 if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
   vSOLOS_USE_FOREGROUND_LOGS=true
+  log.info "what we see here"
   "cmd.$vCLI_PARSED_CMD"
 else
   lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"

@@ -14,7 +14,6 @@ cli.parse._is_valid_help_command() {
   fi
 }
 cli.parse.cmd() {
-  echo "$2"
   if [[ -z "$1" ]]; then
     log.error "No command supplied."
     cli.usage.help

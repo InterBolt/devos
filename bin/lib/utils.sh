@@ -119,7 +119,7 @@ lib.utils.curl.allows_error_status_codes() {
     log.error "Missing \`none\` or a list of allowed status codes."
     exit 1
   fi
-  local error_message="error: ${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
+  local error_message="${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
   local allowed="true"
   if [[ -z ${vPREV_CURL_ERR_STATUS_CODE} ]]; then
     log.info "no error status code found for curl request"
@@ -193,8 +193,7 @@ lib.utils.spinner() {
   # (that way it works for any locale as long as the font supports the characters)
   local LC_CTYPE=C
   local start_linecount=$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)
-  local start_seconds="${SECONDS}"
-
+  local start_seconds="$(date +%s)"
   local pid=$1 # Process Id of the previous running command
   local spin='⣾⣽⣻⢿⡿⣟⣯⣷'
   local charwidth=3
@@ -202,40 +201,55 @@ lib.utils.spinner() {
   if [[ -n ${prefix} ]]; then
     prefix="${prefix}: "
   fi
-  local length_of_prefix=${#prefix}
 
   local i=0
   tput civis # cursor invisible
   while kill -0 "${pid}" 2>/dev/null; do
     local i=$(((charwidth + i) % ${#spin}))
     local last_line=$(tail -n 1 "${vSTATIC_LOG_FILEPATH}")
-    local length_of_last_line=${#last_line}
-    local length_of_line=$((length_of_last_line + length_of_prefix))
-    # WORK: why this work?
+    local color_code=""
+    prev_last_line=${last_line}
     last_line=${last_line#*INFO }
+    # check if the length of the last_line changed
+    if [[ ${#last_line} -ne ${#prev_last_line} ]]; then
+      color_code="34"
+    fi
+    prev_last_line=${last_line}
+    last_line=${last_line#*WARN }
+    if [[ ${#last_line} -ne ${#prev_last_line} ]]; then
+      color_code="33"
+    fi
+    prev_last_line=${last_line}
+    last_line=${last_line#*ERROR }
+    if [[ ${#last_line} -ne ${#prev_last_line} ]]; then
+      color_code="31"
+    fi
+    prev_last_line=${last_line}
+    last_line=${last_line#*DEBUG }
+    if [[ ${#last_line} -ne ${#prev_last_line} ]]; then
+      color_code="36"
+    fi
     last_line=${last_line% source=*}
-    #
+
     # This should always match up with the info level color!
-    #
-    printf "%b" "${spin:$i:$charwidth} \e[94m${prefix}\e[0m ${last_line}"
-    echo -n "\033[$((length_of_line + 2))D"
+    printf "%b" "${spin:$i:$charwidth} \e[${color_code}m${prefix}\e[0m ${last_line}"
+    printf "\r"
     sleep .1
+    tput el
   done
-  echo -n "\033[K"
   tput cnorm
   wait "${pid}"
   local code=$?
+  local completed_seconds="$(date +%s)"
   if [[ $code -ne 0 ]]; then
     vSOLOS_USE_FOREGROUND_LOGS=true
-    #
+
     # Grab the times first for max accuracy.
-    #
-    local every_log_seconds_elapsed=$((SECONDS - vSOLOS_STARTED_AT))
-    local subset_seconds_elapsed=$((start_seconds - vSOLOS_STARTED_AT))
-    #
+    local every_log_seconds_elapsed=$((completed_seconds - vSOLOS_STARTED_AT))
+    local subset_seconds_elapsed=$((completed_seconds - start_seconds))
+
     # We don't need to worry about this affecting unrelated code because by this
     # point in the function, we know we're going to exit with an error code.
-    #
     set -o errexit
 
     local terminal_line_number="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
@@ -253,27 +267,31 @@ lib.utils.spinner() {
         "${start_linecount}" \
         "${terminal_line_number}"
     )"
+
+    local relative_logfile_path="$(basename "${vSTATIC_LOGS_DIR}")"/"$(basename "${vSTATIC_LOG_FILEPATH}")"
+    local host_solos_root="$(cat "${vSTATIC_SOLOS_ROOT}/${vSTATIC_SOLOS_HOST_REFERENCE_FILE}")"
+    local host_logfile_path="${host_solos_root}"/"${relative_logfile_path}"
     pkg.gum.danger_box "Encountered an error. Use --foreground next time to see all log levels in real-time."
     local newline=$'\n'
     local subset_logs_choice="(1) View ${subset_label} (${subset_seconds_elapsed} seconds)"
     local every_log_choice="(2) View all logs (${every_log_seconds_elapsed} seconds)"
     local choice="$(
       pkg.gum choose \
-        --cursor.foreground "#A0A" --header.foreground "#FFF" --selected.foreground "#3B78FF" \
+        --cursor.foreground "#3B78FF" --header.foreground "#FFF" \
         --header "${subset_header}" ''"${subset_logs_choice}"'' ''"${every_log_choice}"'' '(3) None'
     )"
     if [[ ${choice} = "${subset_logs_choice}" ]]; then
       pkg.gum.logs_box \
-        "Viewing ${subset_label} [${vSTATIC_LOG_FILEPATH}$newline:${start_linecount}]" \
+        "Viewing ${subset_label} [${host_logfile_path}:${start_linecount}]${newline}" \
         "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${subset_logs}"
     elif [[ ${choice} = "${every_log_choice}" ]]; then
       pkg.gum.logs_box \
-        "Viewing all logs [${vSTATIC_LOG_FILEPATH}:${start_linecount}]$newline" \
+        "Viewing all logs [${host_logfile_path}:${start_linecount}]${newline}" \
         "Tip: use --foreground next time to see logs in real-time.${newline}" \
         "${every_log}"
     elif [[ ${choice} = "NONE" ]]; then
-      log.warn "Review manually at [${vSTATIC_LOG_FILEPATH}:${start_linecount}] or supply the --foreground flag next time. Exiting."
+      log.warn "Review manually at [${host_logfile_path}:${start_linecount}] or supply the --foreground flag next time. Exiting."
     fi
     exit $code
   fi

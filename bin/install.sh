@@ -25,11 +25,11 @@ viSOURCE_ROOT="${viSOLOS_ROOT}/src"
 
 do_clone() {
   if ! git clone "${viREPO_URL}" "${viTMP_SOURCE_ROOT}" >/dev/null 2>&1; then
-    echo "Error: failed to clone ${viREPO_URL} to ${viTMP_SOURCE_ROOT}" >&2
+    echo "Failed to clone ${viREPO_URL} to ${viTMP_SOURCE_ROOT}" >&2
     exit 1
   fi
   if [[ ! -f "${viTMP_SOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH}" ]]; then
-    echo "Error: ${viTMP_SOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH} not found." >&2
+    echo "${viTMP_SOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH} not found." >&2
     exit 1
   fi
 }
@@ -41,7 +41,7 @@ do_bin_link() {
   cp -r "${viTMP_SOURCE_ROOT:?}/." "${viSOURCE_ROOT:?}" || exit 1
 
   if ! ln -sfv "${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}" "${viUSR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
-    echo "Error: failed to link ${viSOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
+    echo "Failed to link ${viSOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
     exit 1
   fi
 
@@ -54,32 +54,32 @@ do_bin_link() {
 # invoked via a docker container command.
 # shellcheck disable=SC2072
 if [[ "${BASH_VERSION}" < 3.1 ]]; then
-  echo "Error: SolOS requires Bash version 3.1 or greater to use. Detected ${BASH_VERSION}." >&2
+  echo "SolOS requires Bash version 3.1 or greater to use. Detected ${BASH_VERSION}." >&2
   exit 1
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
-  echo "Error: Docker is required to install SolOS on this system." >&2
+  echo "Docker is required to install SolOS on this system." >&2
   exit 1
 fi
 
 if ! command -v git >/dev/null 2>&1; then
-  echo "Error: git is required to install SolOS on this system." >&2
+  echo "Git is required to install SolOS on this system." >&2
   exit 1
 fi
 
 if ! do_clone; then
-  echo "Error: solos installation failed." >&2
+  echo "Solos installation failed." >&2
   exit 1
 fi
 
 if ! do_bin_link; then
-  echo "Error: solos installation failed." >&2
+  echo "Solos installation failed." >&2
   exit 1
 fi
 
 if ! "${viUSR_LOCAL_BIN_EXECUTABLE}" --installer-no-tty --restricted-noop; then
-  echo "Error: solos installation failed." >&2
+  echo "Solos installation failed." >&2
   exit 1
 fi
 

@@ -6,7 +6,7 @@ set -o errtrace
 # Checking for the vSOLOS_STARTED_AT variable protects us against accidentally running
 # a script that should almost always only be source directly.
 if [[ $((vSOLOS_SOURCED)) = 1 ]]; then
-  echo "Error: you tried sourcing this script."
+  echo "You tried sourcing this script."
   echo "This is not a solos library script. Run this script directly."
   exit 1
 fi

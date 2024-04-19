@@ -13,7 +13,7 @@ vpENTRY_DIR="${PWD}"
 trap 'cd '"${vpENTRY_DIR}"'' EXIT
 # check if the readlink command exists
 if ! command -v readlink >/dev/null 2>&1; then
-  echo "Error: \`readlink\` must exist on your system." >&2
+  echo "\`readlink\` must exist on your system." >&2
   exit 1
 fi
 vpSYMLINKED_PATH="$(readlink -f "$0" || echo "")"
@@ -29,7 +29,7 @@ if ! cd "${vpREPO_DIR}"; then
 fi
 vpVOLUME_HOST_PATH="${vpVOLUME_SOURCE}/.host_path"
 if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_HOST_PATH} ]]; then
-  echo "Error: the .host_path file was not found in the .solos directory." >&2
+  echo "The \`.host_path\` file was not found in the .solos directory." >&2
   echo "This file is required to run SolOS within a Docker container." >&2
   exit 1
 fi
@@ -66,7 +66,7 @@ echo_ctx() {
 run_solos_in_docker() {
   # Initalize the home/.solos dir if it's not already there.
   if [[ -f ${vpVOLUME_SOURCE} ]]; then
-    echo "Error: a file called .solos was detected in your home directory." >&2
+    echo "A file called .solos was detected in your home directory." >&2
     echo "This namespace is required for solos. (SolOS creates a ~/.solos dir)" >&2
     exit 1
   fi
