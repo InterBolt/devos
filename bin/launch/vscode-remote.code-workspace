@@ -1,23 +1,25 @@
 {
   "folders": [
     {
-      "uri": "vscode-remote://ssh-remote+__vDETECTED_REMOTE_IP__/root"
+      "name": "server",
+      "uri": "vscode-remote://ssh-remote+__vPROJECT_IP__/"
     },
     {
-      "name": "config",
-      "uri": "vscode-remote://ssh-remote+__vDETECTED_REMOTE_IP__/root/__vSTATIC_CONFIG_DIRNAME__"
+      "name": "caddy",
+      "uri": "vscode-remote://ssh-remote+__vPROJECT_IP__/root/solos/caddy"
     },
     {
-      "uri": "vscode-remote://ssh-remote+__vDETECTED_REMOTE_IP__/root/deployments"
+      "name": "docker",
+      "uri": "vscode-remote://ssh-remote+__vPROJECT_IP__/root/solos/docker"
     },
     {
-      "name": "system",
-      "uri": "vscode-remote://ssh-remote+__vDETECTED_REMOTE_IP__/"
+      "name": "deployments",
+      "uri": "vscode-remote://ssh-remote+__vPROJECT_IP__/root/solos/deployments"
     }
   ],
-  "remoteAuthority": "ssh-remote+__vDETECTED_REMOTE_IP__",
+  "remoteAuthority": "ssh-remote+__vPROJECT_IP__",
   "settings": {
-    "remote.SSH.configFile": "__vOPT_PROJECT_DIR__/.ssh/ssh_config",
+    "remote.SSH.configFile": "__vOPT_PROJECT_DIR__/.ssh/config",
     "remote.SSH.defaultExtensions": [
       "ms-vscode.remote-repositories",
       "ms-vscode.remote-explorer",

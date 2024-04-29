@@ -10,21 +10,23 @@
 # shellcheck source=../solos.sh
 . shared/empty.sh
 
-vLIB_STORE_DIR="store"
+vSELF_LIB_STORE_DIRNAME="store"
 
 lib.store._del() {
   local storage_dir="$1"
+  shift
   mkdir -p "${storage_dir}"
-  local tmp_filepath="${storage_dir}/$1"
-  rm -f "${tmp_filepath}"
+  local storage_file="${storage_dir}/$1"
+  rm -f "${storage_file}"
 }
 
 lib.store._get() {
   local storage_dir="$1"
+  shift
   mkdir -p "${storage_dir}"
-  local tmp_filepath="${storage_dir}/$1"
-  if [[ -f ${tmp_filepath} ]]; then
-    cat "${tmp_filepath}"
+  local storage_file="${storage_dir}/$1"
+  if [[ -f ${storage_file} ]]; then
+    cat "${storage_file}"
   else
     echo ""
   fi
@@ -32,16 +34,18 @@ lib.store._get() {
 
 lib.store._set() {
   local storage_dir="$1"
+  shift
   mkdir -p "${storage_dir}"
-  local tmp_filepath="${storage_dir}/$1"
-  if [[ ! -f ${tmp_filepath} ]]; then
-    touch "${tmp_filepath}"
+  local storage_file="${storage_dir}/$1"
+  if [[ ! -f ${storage_file} ]]; then
+    touch "${storage_file}"
   fi
-  echo "$2" >"${tmp_filepath}"
+  echo "$2" >"${storage_file}"
 }
 
 lib.store._prompt() {
   local storage_dir="$1"
+  shift
   mkdir -p "${storage_dir}"
   local input
   input="$(lib.store._get "${storage_dir}" "$1")"
@@ -59,6 +63,7 @@ lib.store._prompt() {
 
 lib.store._set_on_empty() {
   local storage_dir="$1"
+  shift
   mkdir -p "${storage_dir}"
   local cached_val
   cached_val="$(lib.store._get "$1")"
@@ -70,61 +75,58 @@ lib.store._set_on_empty() {
 }
 
 lib.store.global.del() {
-  lib.store._del "${vSTATIC_SOLOS_ROOT}/${vLIB_STORE_DIR}"
+  lib.store._del "${vSTATIC_SOLOS_ROOT}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.global.get() {
-  lib.store._get "${vSTATIC_SOLOS_ROOT}/${vLIB_STORE_DIR}"
+  lib.store._get "${vSTATIC_SOLOS_ROOT}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.global.set() {
-  lib.store._set "${vSTATIC_SOLOS_ROOT}/${vLIB_STORE_DIR}"
-}
-
-lib.store.global.prompt() {
-  lib.store._prompt "${vSTATIC_SOLOS_ROOT}/${vLIB_STORE_DIR}"
-}
-
-lib.store.global.set_on_empty() {
-  lib.store._set_on_empty "${vSTATIC_SOLOS_ROOT}/${vLIB_STORE_DIR}"
+  lib.store._set "${vSTATIC_SOLOS_ROOT}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.project.del() {
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Store error: ${vOPT_PROJECT_DIR} does not exist."
+  local project_dir="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+  if [[ ! -d ${project_dir} ]]; then
+    log.error "Store error: ${project_dir} does not exist."
     exit 1
   fi
-  lib.store._del "${vOPT_PROJECT_DIR}/${vLIB_STORE_DIR}"
+  lib.store._del "${project_dir}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.project.get() {
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Store error: ${vOPT_PROJECT_DIR} does not exist."
+  local project_dir="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+  if [[ ! -d ${project_dir} ]]; then
+    log.error "Store error: ${project_dir} does not exist."
     exit 1
   fi
-  lib.store._get "${vOPT_PROJECT_DIR}/${vLIB_STORE_DIR}"
+  lib.store._get "${project_dir}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.project.set() {
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Store error: ${vOPT_PROJECT_DIR} does not exist."
+  local project_dir="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+  if [[ ! -d ${project_dir} ]]; then
+    log.error "Store error: ${project_dir} does not exist."
     exit 1
   fi
-  lib.store._set "${vOPT_PROJECT_DIR}/${vLIB_STORE_DIR}"
+  lib.store._set "${project_dir}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.project.prompt() {
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Store error: ${vOPT_PROJECT_DIR} does not exist."
+  local project_dir="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+  if [[ ! -d ${project_dir} ]]; then
+    log.error "Store error: ${project_dir} does not exist."
     exit 1
   fi
-  lib.store._prompt "${vOPT_PROJECT_DIR}/${vLIB_STORE_DIR}"
+  lib.store._prompt "${project_dir}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }
 
 lib.store.project.set_on_empty() {
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Store error: ${vOPT_PROJECT_DIR} does not exist."
+  local project_dir="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+  if [[ ! -d ${project_dir} ]]; then
+    log.error "Store error: ${project_dir} does not exist."
     exit 1
   fi
-  lib.store._set_on_empty "${vOPT_PROJECT_DIR}/${vLIB_STORE_DIR}"
+  lib.store._set_on_empty "${project_dir}/${vSELF_LIB_STORE_DIRNAME}" "$@"
 }

@@ -5,28 +5,22 @@
 # shellcheck source=static.sh
 source "shared/static.sh"
 
-vLIB_LOG_BARE_LOG=false
-vLIB_LOG_FILESIZE=0
-vLIB_LOG_DIR="$(dirname "${vSTATIC_LOG_FILEPATH}")"
+vSELF_LOG_BARE_LOG=false
+vSELF_LOG_FILESIZE=0
 
-mkdir -p "${vLIB_LOG_DIR}"
+mkdir -p "${vSTATIC_LOGS_DIR}"
 
-vLIB_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1 || echo "")"
-if [[ ${vLIB_LOG_FILESIZE} -gt 1000 ]]; then
-  vLIB_LOG_BARE_LOG=true
-  log.warn "LOG FILE IS GROWING LARGE: $((vLIB_LOG_FILESIZE / 1000))MB"
-  log.info "${vSTATIC_LOG_FILEPATH}"
+vSELF_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}/logs.txt" | cut -f 1 || echo "")"
+if [[ ${vSELF_LOG_FILESIZE} -gt 5000 ]]; then
+  vSELF_LOG_BARE_LOG=true
+  log.warn "LOG FILE IS GROWING LARGE: ${vSELF_LOG_FILESIZE}Kb"
+  log.info "${vSTATIC_LOG_FILEPATH}/logs.txt"
 fi
 
-log._normalize_filename() {
+log._to_host_filename() {
   local filename="${1}"
-  local host_solos_root="$(cat "${vSTATIC_SOLOS_ROOT}/${vSTATIC_SOLOS_HOST_REFERENCE_FILE}")"
-  if [[ $(basename "$(dirname "${filename}")") = "bin" ]]; then
-    filename="solos.sh"
-  else
-    filename="${filename/$HOME/${host_solos_root}}"
-  fi
-  echo "${host_solos_root}/src/bin/${filename}"
+  local host="$(cat "${vSTATIC_SOLOS_ROOT}/config/host")"
+  echo "${filename/${HOME}/${host}}"
 }
 
 log._get_level_color() {
@@ -53,14 +47,14 @@ log._get_level_color() {
   esac
 }
 log._base() {
-  if [[ ! -f ${vSTATIC_LOG_FILEPATH} ]]; then
-    if ! touch "${vSTATIC_LOG_FILEPATH}" &>/dev/null; then
-      echo "Failed to create log file: ${vSTATIC_LOG_FILEPATH}"
+  if [[ ! -f ${vSTATIC_LOG_FILEPATH}/logs.txt ]]; then
+    if ! touch "${vSTATIC_LOG_FILEPATH}/logs.txt" &>/dev/null; then
+      echo "Failed to create log file: ${vSTATIC_LOG_FILEPATH}/logs.txt"
       exit 1
     fi
   fi
 
-  local foreground="${vSOLOS_USE_FOREGROUND_LOGS:-true}"
+  local output="${vSOLOS_OUTPUT:-"background"}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
@@ -84,54 +78,54 @@ log._base() {
   fi
 
   # `bare` logs don't include lots of info and don't log to a file.
-  if [[ $vLIB_LOG_BARE_LOG = true ]]; then
+  if [[ ${vSELF_LOG_BARE_LOG} = true ]]; then
     args=(--level "${level}" "${msg}")
   else
     args=(--time "kitchen" --structured --level "${level}" "${msg}")
-    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
+    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}/logs.txt" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
   fi
-  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $foreground = true ]]; then
+  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $output != "background" ]]; then
     pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
   fi
 }
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "info" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
+  if ! log._base "info" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
     echo "log.info failed"
   fi
 }
 log.debug() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "debug" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
+  if ! log._base "debug" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
     echo "log.debug failed"
   fi
 }
 log.error() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "error" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
+  if ! log._base "error" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
     echo "log.error failed"
   fi
 }
 log.fatal() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "fatal" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
+  if ! log._base "fatal" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
     echo "log.fatal failed"
   fi
 }
 log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "warn" "$(log._normalize_filename "${filename}"):$linenumber" "$@"; then
+  if ! log._base "warn" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
     echo "log.warn failed"
   fi
 }
 log.use_minimal() {
-  vLIB_LOG_BARE_LOG=true
+  vSELF_LOG_BARE_LOG=true
 }
 log.use_full() {
-  vLIB_LOG_BARE_LOG=true
+  vSELF_LOG_BARE_LOG=true
 }

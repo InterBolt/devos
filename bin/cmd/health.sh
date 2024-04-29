@@ -20,7 +20,8 @@
 # shellcheck source=../lib/vultr.sh
 . shared/empty.sh
 
-cmd.restore() {
+cmd.health() {
+  solos.use_checked_out_project
 
   log.warn "TODO: implementation needed"
 }

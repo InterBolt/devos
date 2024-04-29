@@ -21,9 +21,7 @@
 . shared/empty.sh
 
 cmd.dev() {
-  solos.require_completed_launch_status
-  solos.checkout_project_dir
-  solos.detect_remote_ip
+  solos.use_checked_out_project
 
   if ! command -v "code" &>/dev/null; then
     log.error "vscode is not installed to your path. cannot continue."

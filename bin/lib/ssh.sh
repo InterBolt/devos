@@ -10,110 +10,116 @@
 # shellcheck source=../solos.sh
 . shared/empty.sh
 
-lib.ssh._validate() {
-  if [[ -z ${!vDETECTED_REMOTE_IP+x} ]]; then
-    log.error "vDETECTED_REMOTE_IP must be defined. Exiting."
-    exit 1
-  fi
-}
-
-lib.ssh._require_ip() {
-  if [[ -z ${vDETECTED_REMOTE_IP} ]]; then
-    log.error "vDETECTED_REMOTE_IP must be defined. Exiting."
-    exit 1
-  fi
-}
-
-lib.ssh.command() {
-  lib.ssh._validate
-  lib.ssh._require_ip
+lib.ssh.project_command() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local cmd="$1"
   shift
-  ssh -i "$vOPT_PROJECT_DIR/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"${vDETECTED_REMOTE_IP}" "${cmd}"
+  ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"${vPROJECT_IP}" "${cmd}"
 }
 
-lib.ssh.rsync_up() {
-  lib.ssh._validate
-  lib.ssh._require_ip
+lib.ssh.project_rsync_up() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local source="$1"
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i $vOPT_PROJECT_DIR/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "${source}" root@"${vDETECTED_REMOTE_IP}":"${target}"
+  rsync --checksum -a -e "ssh -i ${project_dir}/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "${source}" root@"${vPROJECT_IP}":"${target}"
 }
 
-lib.ssh.rsync_down() {
-  lib.ssh._validate
-  lib.ssh._require_ip
+lib.ssh.project_rsync_down() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local source="$1"
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i $vOPT_PROJECT_DIR/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"${vDETECTED_REMOTE_IP}":"${target}" "${source}"
+  rsync --checksum -a -e "ssh -i ${project_dir}/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"${vPROJECT_IP}":"${target}" "${source}"
 }
 
-lib.ssh.cat_pubkey() {
-  if [[ -f "$vOPT_PROJECT_DIR/.ssh/id_rsa.pub" ]]; then
-    cat "$vOPT_PROJECT_DIR/.ssh/id_rsa.pub"
+lib.ssh.project_cat_pubkey() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  if [[ -f "${project_dir}/.ssh/id_rsa.pub" ]]; then
+    cat "${project_dir}/.ssh/id_rsa.pub"
   else
     echo ""
   fi
 }
 
-lib.ssh.build_keypairs() {
-  local self_publickey_path="$vOPT_PROJECT_DIR/.ssh/id_rsa.pub"
-  local self_privkey_path="$vOPT_PROJECT_DIR/.ssh/id_rsa"
-  local self_authorized_keys_path="$vOPT_PROJECT_DIR/.ssh/authorized_keys"
-  local self_config_path="$vOPT_PROJECT_DIR/.ssh/ssh_config"
-  local self_ssh_dir_path="$vOPT_PROJECT_DIR/.ssh"
+lib.ssh.project_build_keypair() {
+  local ssh_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"}"
 
-  # Only create keypair. We create the config elsewhere.
-  if [[ ! -d ${self_ssh_dir_path} ]]; then
-    mkdir -p "${self_ssh_dir_path}"
-    ssh-keygen -t rsa -q -f "${self_privkey_path}" -N "" >/dev/null
-    cat "${self_publickey_path}" >"${self_authorized_keys_path}"
+  local publickey_path="${ssh_dir}/id_rsa.pub"
+  local privkey_path="${ssh_dir}/id_rsa"
+  local authorized_keys_path="${ssh_dir}/authorized_keys"
+
+  if [[ ! -d ${ssh_dir} ]]; then
+    mkdir -p "${ssh_dir}"
+    ssh-keygen -t rsa -q -f "${privkey_path}" -N "" >/dev/null
+    cat "${publickey_path}" >"${authorized_keys_path}"
     log.info "Created ssh keypair."
+  else
+    local missing=false
+    for file in "${publickey_path}" "${privkey_path}" "${authorized_keys_path}"; do
+      if [[ ! -f ${file} ]]; then
+        log.error "Missing SSH keyfile: ${file}"
+        missing=true
+      fi
+    done
+    if [[ ${missing} = true ]]; then
+      log.error "Incomplete SSH keyfiles."
+      exit 1
+    fi
   fi
-  chmod 644 "${self_authorized_keys_path}"
-  chmod 644 "${self_publickey_path}"
-  chmod 644 "${self_config_path}"
-  chmod 600 "${self_privkey_path}"
-  log.info "Prepared the project's .ssh directory."
 }
 
-lib.ssh.build.config_file() {
+lib.ssh.project_give_keyfiles_permissions() {
+  local ssh_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"}"
+
+  local publickey_path="${ssh_dir}/id_rsa.pub"
+  local privkey_path="${ssh_dir}/id_rsa"
+  local authorized_keys_path="${ssh_dir}/authorized_keys"
+  local config_path="${ssh_dir}/config"
+
+  chmod 644 "${authorized_keys_path}"
+  chmod 644 "${publickey_path}"
+  chmod 644 "${config_path}"
+  chmod 600 "${privkey_path}"
+}
+
+lib.ssh.project_build_project_config() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local ip="$1"
   if ! [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     log.error "can't build the ssh config file with the invalid IP: ${ip}"
     exit 1
   fi
-  local privatekey_file="$vOPT_PROJECT_DIR/.ssh/id_rsa"
-  local config_file="$vOPT_PROJECT_DIR/.ssh/ssh_config"
+  local privatekey_file="${project_dir}/.ssh/id_rsa"
+  local config_file="${project_dir}/.ssh/config"
   {
-    echo "Host 127.0.0.1"
-    echo "  HostName solos-docker"
-    echo "  User root"
-    echo "  IdentityFile ${privatekey_file}"
-    echo "  Port 2222"
-    echo ""
-    echo ""
     echo "Host ${ip}"
-    echo "  HostName solos-remote"
+    echo "  HostName solos"
     echo "  User root"
     echo "  IdentityFile ${privatekey_file}"
   } >"${config_file}"
   log.info "created: ${config_file}."
 }
 
-lib.ssh.extract_ip() {
-  #
-  # We always use the ssh config file as our source of truth for the IP address.
-  #
-  local match_string="HostName solos-remote"
-  local ip=$(grep -B 1 "${match_string}" "${vOPT_PROJECT_DIR}/.ssh/ssh_config" | grep -v "${match_string}" | tail -n 1 | cut -d' ' -f 2)
+lib.ssh.project_extract_project_ip() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local config_file="${project_dir}/.ssh/config"
+  if [[ ! -f ${config_file} ]]; then
+    echo ""
+    return
+  fi
+  local match_string="HostName solos"
+  local ip=$(grep -B 1 "${match_string}" "${config_file}" | grep -v "${match_string}" | tail -n 1 | cut -d' ' -f 2)
   if [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "${ip}"
   else
     echo ""
   fi
+}
+
+lib.ssh.project_load_docker_image() {
+  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -C root@"${vPROJECT_IP}" 'docker load'
 }

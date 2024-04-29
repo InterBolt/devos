@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2103,SC2164
 
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
@@ -19,8 +20,9 @@
 . shared/empty.sh
 # shellcheck source=../lib/vultr.sh
 . shared/empty.sh
+# shellcheck source=../task/boot.sh
+. shared/empty.sh
 
-cmd.restore() {
-
-  log.warn "TODO: implementation needed"
+cmd.try() {
+  solos.use_checked_out_project
 }

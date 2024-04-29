@@ -17,5 +17,8 @@ RUN sudo apt-get remove docker.io \
   && apt-get update \
   && apt-get install docker-ce-cli docker-buildx-plugin -y
 
+ARG VERBOSE=0
+ENV VERBOSE=$VERBOSE
+
 # Solos mounted script
 ENTRYPOINT "/root/.solos/src/bin/solos.sh" "$@"

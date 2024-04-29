@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 
+# shellcheck source=../cli/usage.sh
+. cli/usage.sh
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
-
-vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS="Available commands:"
-vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS="Available options:"
+# shellcheck source=../shared/static.sh
+. shared/empty.sh
+# shellcheck source=../shared/log.sh
+. shared/empty.sh
+# shellcheck source=../solos.sh
+. shared/empty.sh
 
 cli.parse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
@@ -25,18 +30,18 @@ cli.parse.cmd() {
   fi
   while [[ "$#" -gt 0 ]]; do
     if [[ $(cli.parse._is_valid_help_command "$1") = true ]]; then
-      if [[ -z "$vCLI_PARSED_CMD" ]]; then
+      if [[ -z "${vCLI_PARSED_CMD}" ]]; then
         log.error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
-      cli.usage.command."$vCLI_PARSED_CMD".help
+      cli.usage.command."${vCLI_PARSED_CMD}".help
       exit 0
     fi
     case "$1" in
     --*)
       local key=$(echo "$1" | awk -F '=' '{print $1}' | sed 's/^--//')
       local value=$(echo "$1" | awk -F '=' '{print $2}')
-      vCLI_PARSED_OPTIONS+=("$key=$value")
+      vCLI_PARSED_OPTIONS+=("${key}=${value}")
       ;;
     *)
       if [[ -z "$1" ]]; then
@@ -44,15 +49,15 @@ cli.parse.cmd() {
       fi
       local cmd_name=$(echo "$1" | tr '-' '_')
       local is_allowed=false
-      for allowed_cmd_name in "${vCLI_USAGE_ALLOWS_CMDS[@]}"; do
-        if [[ "$cmd_name" = "$allowed_cmd_name" ]]; then
+      for allowed_cmd_name in "${vSELF_CLI_USAGE_ALLOWS_CMDS[@]}"; do
+        if [[ ${cmd_name} = ${allowed_cmd_name} ]]; then
           is_allowed=true
         fi
       done
-      if [[ "$is_allowed" = "false" ]]; then
+      if [[ ${is_allowed} = "false" ]]; then
         log.error "Unknown command: $1"
       else
-        vCLI_PARSED_CMD="$cmd_name"
+        vCLI_PARSED_CMD="${cmd_name}"
       fi
       ;;
     esac
@@ -62,40 +67,40 @@ cli.parse.cmd() {
 cli.parse.requirements() {
   for cmd_name in $(
     cli.usage.help |
-      grep -A 1000 "${vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
-      grep -B 1000 "${vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
-      grep -v "${vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS}" |
-      grep -v "${vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS}" |
+      grep -A 1000 "${vSELF_CLI_USAGE_CMD_HEADER}" |
+      grep -B 1000 "${vSELF_CLI_USAGE_OPTS_HEADER}" |
+      grep -v "${vSELF_CLI_USAGE_CMD_HEADER}" |
+      grep -v "${vSELF_CLI_USAGE_OPTS_HEADER}" |
       grep -E "^[a-z]" |
       awk '{print $1}'
   ); do
-    cmd_name=$(echo "$cmd_name" | tr '-' '_')
-    if [[ "$cmd_name" != "help" ]]; then
-      vCLI_USAGE_ALLOWS_CMDS+=("$cmd_name")
+    cmd_name=$(echo "${cmd_name}" | tr '-' '_')
+    if [[ "${cmd_name}" != "help" ]]; then
+      vSELF_CLI_USAGE_ALLOWS_CMDS+=("${cmd_name}")
     fi
   done
-  for cmd in "${vCLI_USAGE_ALLOWS_CMDS[@]}"; do
-    opts="$cmd("
+  for cmd in "${vSELF_CLI_USAGE_ALLOWS_CMDS[@]}"; do
+    opts="${cmd}("
     first=true
-    for cmd_option in $(cli.usage.command."$cmd".help | grep -E "^--" | awk '{print $1}'); do
+    for cmd_option in $(cli.usage.command."${cmd}".help | grep -E "^--" | awk '{print $1}'); do
       cmd_option=$(echo "$cmd_option" | awk -F '=' '{print $1}' | sed 's/^--//')
       if [[ "$first" = true ]]; then
-        opts="$opts$cmd_option"
+        opts="${opts}${cmd_option}"
       else
-        opts="$opts,$cmd_option"
+        opts="${opts},${cmd_option}"
       fi
       first=false
     done
-    vCLI_USAGE_ALLOWS_OPTIONS+=("$opts)")
+    vSELF_CLI_USAGE_ALLOWS_OPTIONS+=("${opts})")
   done
 }
 cli.parse.validate_opts() {
   if [[ -n ${vCLI_PARSED_OPTIONS[0]} ]]; then
     for parsed_cmd_option in "${vCLI_PARSED_OPTIONS[@]}"; do
-      for allowed_cmd_option in "${vCLI_USAGE_ALLOWS_OPTIONS[@]}"; do
+      for allowed_cmd_option in "${vSELF_CLI_USAGE_ALLOWS_OPTIONS[@]}"; do
         cmd_name=$(echo "$allowed_cmd_option" | awk -F '(' '{print $1}')
         cmd_options=$(echo "$allowed_cmd_option" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
-        if [[ "$cmd_name" = "$vCLI_PARSED_CMD" ]]; then
+        if [[ "$cmd_name" = "${vCLI_PARSED_CMD}" ]]; then
           is_cmd_option_allowed=false
           flag_name=$(echo "${parsed_cmd_option}" | awk -F '=' '{print $1}')
           for cmd_option in $(echo "$cmd_options" | tr ',' '\n'); do
@@ -103,9 +108,9 @@ cli.parse.validate_opts() {
               is_cmd_option_allowed=true
             fi
           done
-          if [[ "$is_cmd_option_allowed" = false ]]; then
+          if [[ ${is_cmd_option_allowed} = false ]]; then
             echo ""
-            echo "Command option: ${parsed_cmd_option} is not allowed for command: $vCLI_PARSED_CMD."
+            echo "Command option: ${parsed_cmd_option} is not allowed for command: ${vCLI_PARSED_CMD}."
             echo ""
             exit 1
           fi

@@ -3,22 +3,23 @@
 set -o pipefail
 set -o errtrace
 
-# shellcheck source=cant-source.sh
+# shellcheck source=must-source.sh
 . shared/must-source.sh
 # shellcheck source=log.sh
 . shared/log.sh
+# shellcheck source=static.sh
+. shared/static.sh
 
-vLIB_CODEGEN_EXPORTER_FILENAME="__source__.sh"
-
-shared.codegen.source_relative_files() {
+shared.codegen._build_sources() {
   local dirname="${1}"
+  local output_filename="${2}"
   local dir="${dirname}"
   if [[ ! -d ${dir} ]]; then
     log.error "A valid directory was not provided."
     exit 1
   fi
   local tmp_sourced_file="$(mktemp 2>/dev/null)"
-  local exports_file="${dir}/${vLIB_CODEGEN_EXPORTER_FILENAME}"
+  local exports_file="${dir}/${output_filename}"
   echo "#!/usr/bin/env bash" >"${tmp_sourced_file}"
   echo "" >>"${tmp_sourced_file}"
   for file in "${dir}"/*.sh; do
@@ -26,7 +27,7 @@ shared.codegen.source_relative_files() {
       continue
     fi
     local filename=$(basename "${file}")
-    if [[ ${filename} = "${vLIB_CODEGEN_EXPORTER_FILENAME}" ]]; then
+    if [[ ${filename} = "${output_filename}" ]]; then
       continue
     fi
     {
@@ -40,21 +41,19 @@ shared.codegen.source_relative_files() {
 }
 
 shared.codegen.run() {
-  if ! shared.codegen.source_relative_files "pkg"; then
-    log.error "Failed to generate source exporter file (__source__.sh) for pkg"
-    exit 1
-  fi
-  if ! shared.codegen.source_relative_files "cmd"; then
-    log.error "Failed to generate source exporter file (__source__.sh) for cmd"
-    exit 1
-  fi
-  if ! shared.codegen.source_relative_files "cli"; then
-    log.error "Failed to generate source exporter file (__source__.sh) for cli"
-    exit 1
-  fi
-  if ! shared.codegen.source_relative_files "lib"; then
-    log.error "Failed to generate source exporter file (__source__.sh) for lib"
-    exit 1
-  fi
-  log.info "Generated ${vLIB_CODEGEN_EXPORTER_FILENAME} files for all directories."
+  local source_filename="$1"
+  local dirs=(
+    "pkg"
+    "cmd"
+    "cli"
+    "lib"
+    "provision"
+  )
+  for dir in "${dirs[@]}"; do
+    if ! shared.codegen._build_sources "${dir}" "${source_filename}"; then
+      log.error "Failed to build ${dir}/${source_filename}"
+      exit 1
+    fi
+  done
+  log.info "Generated ${source_filename} files."
 }

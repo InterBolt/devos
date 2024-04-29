@@ -3,8 +3,10 @@
 # shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS="Available commands:"
-vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS="Available options:"
+vSELF_CLI_USAGE_CMD_HEADER="Available commands:"
+vSELF_CLI_USAGE_OPTS_HEADER="Available options:"
+vSELF_CLI_USAGE_ALLOWS_CMDS=()
+vSELF_CLI_USAGE_ALLOWS_OPTIONS=()
 
 cli.usage.help() {
   cat <<EOF
@@ -12,39 +14,42 @@ Usage: solos command [--OPTS...]
 
 A CLI to manage SolOS projects on your local machine or container.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_COMMANDS
+$vSELF_CLI_USAGE_CMD_HEADER
 
-help                     - Print this help and exit
-create                   - Create a new SolOS project.
-backup                   - Archive a SolOS project and upload it to an s3 bucket.
-restore                  - Restore a SolOS project from an s3 bucket. It is optional to 
-                           override the config on your working machine.
-dev                      - Launch a docker container and connect to it with VSCode.
-test                     - Generates and runs unit tests for each of Solos's lib.* 
-                           libraries.
+checkout                 - Switch to a pre-existing project or initialize a new one.
+provision                - Provision resources for a project (eg. storage, databases, cloud instances, etc).
+teardown                 - Teardown provisioned resources.
+backup                   - Backup all the things to an rsync target.
+restore                  - Restore all the things from an rsync target.
+health                   - Review health/status of provisioned resources.
+dev                      - Launches a VSCode workspace for a project.
+test                     - (DEV ONLY) Generates and runs unit tests. 
+try                      - (DEV ONLY) one off entrypoint to test snippets in the command portion of the 
+                           SolOS bin script.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
---help                   - Print this help and exit
---foreground             - Avoids usage of the progress spinner and subshells so that logging happens in 
-                           the foreground.
+--output                 - (default: background) When set to plain, logs will display in a cumulative way. 
+                           When set to background, a spinner is shown and only the last log will display.
+--assume-yes             - Assume yes for all prompts
 
 Source: https://github.com/InterBolt/solos
 EOF
 }
-cli.usage.command.create.help() {
+cli.usage.command.checkout.help() {
   cat <<EOF
-Usage: solos create [--OPTS...]
+Usage: solos checkout [--OPTS...]
 
-Launches a new project and sets the active project directory so 
-that subsequent commands will not need to specify the --project option.
+Creates a new project if one doesn't exist and then switches to it. The value 
+provided to --project is cache and used as the default project for future commands.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
---project           - The project name of of your project.
---help              - Print this help and exit
---foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
+--project           - The name of of your project. Will result in a new project at ~/.solos/projects/<project>.
+--output            - (default: background) When set to plain, logs will display in a cumulative way.  
+                      When set to background, a spinner is shown and only the last log will display.
+--assume-yes        - Assume yes for all prompts
+
 EOF
 }
 cli.usage.command.test.help() {
@@ -53,13 +58,14 @@ Usage: solos test [--OPTS...]
 
 DEV ONLY! Runs tests from within the SolOS source repository.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
 --lib               - (ex: "ssh" tests "lib.ssh") The name of the library to test.
 --fn                - (ex: "lib.<category>.<fn>") The name of the lib function to test.
---help              - Print this help and exit
---foreground        - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
+--output            - (default: background) When set to plain, logs will display in a cumulative way.  
+                      When set to background, a spinner is shown and only the last log will display.
+--assume-yes        - Assume yes for all prompts
+
 EOF
 }
 cli.usage.command.dev.help() {
@@ -69,39 +75,94 @@ Usage: solos dev [--OPTS...]
 Builds and runs a development docker container and opens a connected
 VSCode workspace.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
---project           - The project name of of your project.
---help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
+--project           - (default: <cache>) The project name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
+EOF
+}
+cli.usage.command.provision.help() {
+  cat <<EOF
+Usage: solos provision [--OPTS...]
+
+Initializes a new project and prepares the remote server for deployment. When this 
+is run on a pre-existing project, it will try to init or update whatever the remote
+deployment server specified in the project's config.
+
+$vSELF_CLI_USAGE_OPTS_HEADER
+
+--project           - (default: <cache>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
+EOF
+}
+cli.usage.command.teardown.help() {
+  cat <<EOF
+Usage: solos teardown [--OPTS...]
+
+Deprovision cloud resources.
+
+$vSELF_CLI_USAGE_OPTS_HEADER
+
+--project           - (default: <cache>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
 EOF
 }
 cli.usage.command.backup.help() {
   cat <<EOF
 Usage: solos backup [--OPTS...]
 
-Backup the project to an S3 compatible bucket.
+Backup all the things and rysnc them to a target
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
---project           - The project name of of your project.
---help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
+--target            - The target to rsync to in format (\`user@host:/path/to/backup\`).
+--project           - (default: <cache>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
 EOF
 }
 cli.usage.command.restore.help() {
   cat <<EOF
 Usage: solos restore [--OPTS...]
 
-Restore the project from an S3 compatible bucket.
+Restore all the things from a remote rsync target.
 
-$vLIB_FLAGS_HEADER_AVAILABLE_OPTIONS
+$vSELF_CLI_USAGE_OPTS_HEADER
 
---project           - The project name of of your project.
---help              - Print this help and exit
---foreground         - Avoids usage of the progress spinner and subshells so that logging happens in 
-                      the foreground.
+--source            - The source to rsync from in format (\`user@host:/path/to/restore\`).
+--project           - (default: <cache>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
+EOF
+}
+cli.usage.command.health.help() {
+  cat <<EOF
+Usage: solos health [--OPTS...]
+
+Review health/status of provisioned resources.
+
+$vSELF_CLI_USAGE_OPTS_HEADER
+
+--project           - (default: <cached>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way. 
+                      When set to background, a spinner is shown and only the last log will display.
+EOF
+}
+cli.usage.command.try.help() {
+  cat <<EOF
+Usage: solos try [--OPTS...]
+
+Nothing to see here.
+
+$vSELF_CLI_USAGE_OPTS_HEADER
+
+--project           - (default: <cached>) The name of of your project.
+--output            - (default: background) When set to plain, logs will display in a cumulative way.  
+                      When set to background, a spinner is shown and only the last log will display.
+--assume-yes        - Assume yes for all prompts
+
 EOF
 }

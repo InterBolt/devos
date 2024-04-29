@@ -21,9 +21,7 @@
 . shared/empty.sh
 
 cmd.backup() {
-  solos.require_completed_launch_status
-  solos.checkout_project_dir
-  solos.detect_remote_ip
+  solos.use_checked_out_project
 
   log.warn "TODO: implementation needed"
 }

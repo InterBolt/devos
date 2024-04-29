@@ -1,0 +1,8 @@
+
+:443 {
+  @root host www.__vSUPPLIED_ROOT_DOMAIN__ __vSUPPLIED_ROOT_DOMAIN__
+  @helloworld host helloworld.__vSUPPLIED_ROOT_DOMAIN__
+
+  reverse_proxy @root localhost:3000
+  reverse_proxy @helloworld localhost:3001
+}

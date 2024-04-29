@@ -7,8 +7,8 @@ cd "${HOME}" || exit 1
 # use only the "v" prefix, which makes grepping one set of variables vs the other easy.
 # I hate thinking!
 
-vpVOLUME_SOURCE="${HOME}/.solos"
-vpREPO_LAUNCH_DIR="${vpVOLUME_SOURCE}/src/bin/launch"
+vpVOLUME_ROOT="${HOME}/.solos"
+vpREPO_LAUNCH_DIR="${vpVOLUME_ROOT}/src/bin/launch"
 vpENTRY_DIR="${PWD}"
 trap 'cd '"${vpENTRY_DIR}"'' EXIT
 # check if the readlink command exists
@@ -27,14 +27,14 @@ if ! cd "${vpREPO_DIR}"; then
   echo "Unexpected error: could not cd into ${vpREPO_DIR}" >&2
   exit 1
 fi
-vpVOLUME_HOST_PATH="${vpVOLUME_SOURCE}/.host_path"
-if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_HOST_PATH} ]]; then
+vpVOLUME_HOST="${vpVOLUME_ROOT}/config/host"
+if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_HOST} ]]; then
   echo "The \`.host_path\` file was not found in the .solos directory." >&2
   echo "This file is required to run SolOS within a Docker container." >&2
   exit 1
 fi
 if [[ -f /.dockerenv ]]; then
-  vpVOLUME_SOURCE="$(cat "${vpVOLUME_HOST_PATH}")"
+  vpVOLUME_ROOT="$(cat "${vpVOLUME_HOST}")/.solos"
 fi
 vpVOLUME_MOUNTED="/root/.solos"
 vpDOCKER_BASE_IMAGE="solos:base"
@@ -63,26 +63,43 @@ echo_ctx() {
   echo "${volume_ctx}"
 }
 
+prevent_use_outside_home_dir() {
+  local entry_dir="$1"
+  local pwd_rel_to_home="${entry_dir/${HOME}/}"
+  if [[ "${pwd_rel_to_home}" == "${entry_dir}" ]]; then
+    echo "Solos must be run from your home directory." >&2
+    exit 1
+  fi
+}
+
 run_solos_in_docker() {
+  local verbose="${VERBOSE:-0}"
+  if [[ ! "${verbose}" =~ ^[01]$ ]]; then
+    echo "VERBOSE must be set to 0 (default) or 1." >&2
+    exit 1
+  fi
+  local entry_dir="$1"
+  prevent_use_outside_home_dir "${entry_dir}"
+  shift
+
   # Initalize the home/.solos dir if it's not already there.
-  if [[ -f ${vpVOLUME_SOURCE} ]]; then
+  if [[ -f ${vpVOLUME_ROOT} ]]; then
     echo "A file called .solos was detected in your home directory." >&2
     echo "This namespace is required for solos. (SolOS creates a ~/.solos dir)" >&2
     exit 1
   fi
-  mkdir -p "${vpVOLUME_SOURCE}"
-  echo "${vpVOLUME_SOURCE}" >"${vpVOLUME_HOST_PATH}"
+  mkdir -p "${vpVOLUME_ROOT}"
+  echo "${HOME}" >"${vpVOLUME_HOST}"
 
   # Build the base and cli images.
-  if ! docker build -q -t "${vpDOCKER_BASE_IMAGE}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" . >/dev/null; then
+  if ! docker build --build-arg="VERBOSE=${verbose}" -q -t "${vpDOCKER_BASE_IMAGE}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" . >/dev/null; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
-  if ! docker build -q -t "${vpDOCKER_CLI_IMAGE}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" . >/dev/null; then
+  if ! docker build --build-arg="VERBOSE=${verbose}" -q -t "${vpDOCKER_CLI_IMAGE}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" . >/dev/null; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
-
   # Notes:
   # - The --rm flag will remove the container on exit so that this is ephemeral.
   # - The two volumes are:
@@ -96,7 +113,7 @@ run_solos_in_docker() {
   local shared_docker_run_args=(
     --rm
     -v
-    "${vpVOLUME_SOURCE}:${vpVOLUME_MOUNTED}"
+    "${vpVOLUME_ROOT}:${vpVOLUME_MOUNTED}"
     -v
     /var/run/docker.sock:/var/run/docker.sock
     "${vpDOCKER_CLI_IMAGE}"

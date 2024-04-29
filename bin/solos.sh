@@ -4,24 +4,6 @@
 # scripts sourced within this one.
 # shellcheck disable=SC2034
 
-# Fail if we try to set a restricted variable without a default value.
-# This would indicate a logic error.
-vRESTRICTED_NOOP=false
-vRESTRICTED_DEVELOPER=false
-vRESTRICTED_VOLUME_CTX=""
-for _all_args in "$@"; do
-  if [[ $_all_args = "--restricted-"* ]]; then
-    _flag_name="${_all_args#--restricted-}"
-    _flag_value="${_flag_name#*=}"
-    if [[ "${_flag_name}" = "${_flag_value}" ]]; then
-      _flag_value=true
-    fi
-    _var_name="vRESTRICTED_$(echo "${_flag_name}" | tr '[:lower:]' '[:upper:]' | tr '-' '_')"
-    eval "${_var_name}=${_flag_value}"
-    shift
-  fi
-done
-
 # We might need more here later, but for now the main thing
 # is resetting the cursor via tput.
 trap "tput cnorm" EXIT
@@ -34,64 +16,55 @@ fi
 # Will include dotfiles in globbing.
 shopt -s dotglob
 
-# A secret command that we can use to run any script we want in the installed repo.
-# Extremely helpful for development where I need to test a bit of bash before integrating
-# into the CLI.
-if [[ $1 = "-" ]]; then
-  if [[ -z ${vRESTRICTED_VOLUME_CTX} ]]; then
-    echo "You can only run scripts located within the ~/.solos directory." >&2
-    echo "Other directories on your computer aren't mounted into the ephemeral Docker container." >&2
-    exit 1
-  fi
-  cd .. || exit 1
-  "$PWD/$2" "${@:3}"
-  exit 0
-fi
-
-# shellcheck source=shared/static.sh
-. "shared/static.sh"
-
-# Make sure the basic directories we need exist.
-mkdir -p "${vSTATIC_SOLOS_ROOT}"
-mkdir -p "${vSTATIC_SOLOS_PROJECTS_ROOT}"
-mkdir -p "${vSTATIC_LOGS_DIR}"
-if [[ ! -f "${vSTATIC_LOG_FILEPATH}" ]]; then
-  touch "${vSTATIC_LOG_FILEPATH}"
-fi
-
-# Miscellanous values that are used throughout the script.
-# calling them "meta" because they are mostly inferred, or
-# derived from undocumented flags.
-vSOLOS_SOURCED=1
-vSOLOS_USE_FOREGROUND_LOGS=false
-for entry_arg in "$@"; do
-  if [[ $entry_arg = "--foreground" ]]; then
-    set -- "${@/--foreground/}"
-    vSOLOS_USE_FOREGROUND_LOGS=true
-  fi
-done
-vSOLOS_STARTED_AT="$(date +%s)"
-vSOLOS_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
-vSOLOS_BIN_DIR="$(pwd)"
-vSOLOS_BIN_FILEPATH="$vSOLOS_BIN_DIR/$0"
-vSOLOS_DEBUG_LEVEL=${DEBUG_LEVEL:-0}
-
 # Slots to store returns/responses. Bash don't allow rich return
 # types, so we do this hacky shit instead.
 vPREV_CURL_RESPONSE=""
 vPREV_CURL_ERR_STATUS_CODE=""
 vPREV_CURL_ERR_MESSAGE=""
 vPREV_RETURN=()
+vPREV_NEXT_ARGS=()
 
-# Statuses to track launch progress.
-vSTATUS_BOOTSTRAPPED_MANUALLY="completed-manual"
-vSTATUS_BOOTSTRAPPED_REMOTE="completed-remote"
-vSTATUS_LAUNCH_SUCCEEDED="completed-launch"
-vSTATUS_BOOTSTRAPPED_DOCKER="completed-docker"
+# shellcheck source=shared/static.sh
+. "shared/static.sh"
+# shellcheck source=shared/helpers.sh
+. "shared/helpers.sh"
+
+helpers.simple_flag_parser \
+  --restricted-noop \
+  --restricted-developer \
+  --restricted-machine-home-path \
+  "ARGS:" "$@"
+set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
+vRESTRICTED_MODE_NOOP=${vPREV_RETURN[0]:-false}
+vRESTRICTED_MODE_DEVELOPER=${vPREV_RETURN[1]:-false}
+vRESTRICTED_MODE_MACHINE_HOME_PATH=${vPREV_RETURN[2]:-""}
+
+# A secret command that we can use to run any script we want in the installed repo.
+# Extremely helpful for development where I need to test a bit of bash before integrating
+# into the CLI.
+if [[ $1 = "-" ]]; then
+  __filepath="${2/${vRESTRICTED_MODE_MACHINE_HOME_PATH}/\/root}"
+  cd .. || exit 1
+  "${__filepath}" "${@:3}"
+  exit 0
+fi
+
+# Miscellanous values that are used throughout the script.
+# calling them "meta" because they are mostly inferred, or
+# derived from undocumented flags.
+vSOLOS_RUNTIME=1
+helpers.simple_flag_parser \
+  --output \
+  "ARGS:" "$@"
+set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
+vSOLOS_OUTPUT=${vPREV_RETURN[0]:-"background"}
+vSOLOS_STARTED_AT="$(date +%s)"
+vSOLOS_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
+vSOLOS_BIN_DIR="$(pwd)"
+vSOLOS_BIN_FILEPATH="${vSOLOS_BIN_DIR}/$0"
+vSOLOS_DEBUG=${DEBUG:-0}
 
 # The vCLI_* values get set within the cli.parse.* functions.
-vCLI_USAGE_ALLOWS_CMDS=()
-vCLI_USAGE_ALLOWS_OPTIONS=()
 vCLI_PARSED_CMD=""
 vCLI_PARSED_OPTIONS=()
 
@@ -99,96 +72,67 @@ vCLI_PARSED_OPTIONS=()
 # derived from the option flags.
 vOPT_LIB=""
 vOPT_FN=""
-vOPT_PROJECT_DIR=""
-vOPT_PROJECT_REL_DIR=""
-vOPT_PROJECT_ID=""
-vOPT_IS_NEW_PROJECT=false
-vOPT_CHECKED_OUT=""
 
 # Anything the user might supply either via a prompt or env
 # variable should go here.
 vSUPPLIED_OPENAI_API_KEY=""
 vSUPPLIED_PROVIDER_API_KEY=""
 vSUPPLIED_PROVIDER_NAME="vultr"
-vSUPPLIED_PROVIDER_API_ENDPOINT="https://api.lib.vultr.com/v2"
-vSUPPLIED_GITHUB_TOKEN=""
 vSUPPLIED_ROOT_DOMAIN=""
-vSUPPLIED_S3_HOST=""
-vSUPPLIED_S3_OBJECT_STORE=""
-vSUPPLIED_S3_ACCESS_KEY=""
-vSUPPLIED_S3_SECRET=""
-vSUPPLIED_GITHUB_USERNAME=""
-vSUPPLIED_GITHUB_EMAIL=""
 vSUPPLIED_SEED_SECRET=""
 
-# I'm not sure what "category" this is, but maybe anything we
-# "infer" from our environment?
-vDETECTED_REMOTE_IP=""
+# We need to acquire these things from the provisioning process.
+vS3_HOST=""
+vS3_OBJECT_STORE=""
+vS3_ACCESS_KEY=""
+vS3_SECRET=""
+
+# Anything that requires provisioning to have already occured.
+vPROJECT_IP=""
+vPROJECT_NAME=""
 
 # shellcheck source=shared/log.sh
 . "shared/log.sh"
-# shellcheck source=pkg/__source__.sh
-. "pkg/__source__.sh"
-# shellcheck source=lib/__source__.sh
-. "lib/__source__.sh"
-# shellcheck source=cli/__source__.sh
-. "cli/__source__.sh"
-# shellcheck source=cmd/__source__.sh
-. "cmd/__source__.sh"
 
-if [[ ${vRESTRICTED_DEVELOPER} = true ]]; then
+# Perform any code generation tasks here.
+# For now, it's just generating a __source__.sh file for
+# each of the bin's subdirs so we can source all files for
+# any category at once.
+if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
   chmod +x "shared/codegen.sh"
   . shared/codegen.sh
-  if ! shared.codegen.run; then
+  if ! shared.codegen.run "${vSTATIC_SOURCE_FILE}"; then
     log.error "Failed to generate code."
     exit 1
   fi
 fi
 
-# Utility functions that don't yet have their own categories, so we prefix
-# them with lib.* to keep them organized and separate from the rest of the lib
-# functions.
-solos.apply_parsed_cli_args() {
-  local project_server_file=""
-  local project_id_file=""
-  local was_project_set=false
-  if [[ -z ${vCLI_PARSED_CMD} ]]; then
-    log.error "No command supplied. Please supply a command."
-    exit 1
-  fi
+# shellcheck source=pkg/__source__.sh
+. "pkg/${vSTATIC_SOURCE_FILE}"
+# shellcheck source=lib/__source__.sh
+. "lib/${vSTATIC_SOURCE_FILE}"
+# shellcheck source=cli/__source__.sh
+. "cli/${vSTATIC_SOURCE_FILE}"
+# shellcheck source=cmd/__source__.sh
+. "cmd/${vSTATIC_SOURCE_FILE}"
+# shellcheck source=task/__source__.sh
+. "task/${vSTATIC_SOURCE_FILE}"
+# shellcheck source=provision/__source__.sh
+. "provision/${vSTATIC_SOURCE_FILE}"
 
-  # now handle the rest of the options.
+# Do this up top so that any missing heredocs will be caught early.
+vHEREDOC_DEBIAN_INSTALL_DOCKER="$(lib.utils.heredoc 'debian-install-docker.sh')"
+
+# For internal options only, can be a bit more hairy.
+solos.ingest_internal_options() {
   for i in "${!vCLI_PARSED_OPTIONS[@]}"; do
     case "${vCLI_PARSED_OPTIONS[$i]}" in
-    project=*)
-      val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ ! "${val}" =~ ^[a-zA-Z][a-zA-Z0-9]*$ ]]; then
-        log.error 'Invalid project name: '"${val}"'. Expects: ^[a-zA-Z][a-zA-Z0-9]*$'
-        exit 1
-      fi
-      vOPT_PROJECT_DIR="${vSTATIC_SOLOS_PROJECTS_ROOT}/${val}"
-      vOPT_PROJECT_REL_DIR=".solos/projects/${val}"
-      project_id_file="${vOPT_PROJECT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
-      if [[ ! -d "${vOPT_PROJECT_DIR}" ]]; then
-        mkdir -p "${vOPT_PROJECT_DIR}"
-        vOPT_PROJECT_ID="$(lib.utils.generate_secret)"
-        echo "${vOPT_PROJECT_ID}" >"${project_id_file}"
-        vOPT_IS_NEW_PROJECT=true
-      elif [[ -f "${vOPT_PROJECT_DIR}" ]]; then
-        log.error "${vOPT_PROJECT_DIR} is a file. Did you pass in the wrong project name?"
-        exit 1
-      elif [[ ! -d "${vOPT_PROJECT_DIR}" ]] && [[ ! -f "${project_id_file}" ]]; then
-        log.error "${project_id_file} was not found, which means ${vOPT_PROJECT_DIR} isn't a SolOS project."
-        exit 1
-      fi
-      was_project_set=true
-      ;;
     lib=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
       if [[ -n "$val" ]]; then
         vOPT_LIB="$val"
-        if [[ ! -f "lib/$vOPT_LIB.sh" ]]; then
-          log.error "Unknown lib: $vOPT_LIB"
+        if [[ ! -f "lib/${vOPT_LIB}.sh" ]]; then
+          log.error "Unknown lib: ${vOPT_LIB}"
           exit 1
         fi
       fi
@@ -205,122 +149,89 @@ solos.apply_parsed_cli_args() {
     esac
   done
 }
-solos.checkout_project_dir() {
-  if [[ ${vOPT_CHECKED_OUT} = true ]]; then
-    return 0
-  fi
-  local project_id_file="${vOPT_PROJECT_DIR}/${vSTATIC_SOLOS_ID_FILENAME}"
-  if [[ -z ${vOPT_PROJECT_DIR} ]]; then
-    vOPT_PROJECT_DIR="$(lib.store.global.get "checked_out")"
-    vOPT_PROJECT_REL_DIR=".solos/projects/$(basename "${vOPT_PROJECT_DIR}")"
-  fi
-  if [[ -z ${vOPT_PROJECT_DIR} ]]; then
-    log.error "Please supply a --project flag."
-    exit 1
-  fi
-  if [[ ! -d ${vOPT_PROJECT_DIR} ]]; then
-    log.error "The checked out directory ${vOPT_PROJECT_DIR} no longer exists. Removing from the cache."
-    lib.store.global.del "checked_out"
-    exit 1
-  fi
-  if [[ ! -f ${project_id_file} ]]; then
-    log.error "Failed to find a project id at: ${project_id_file}"
-    exit 1
-  fi
-  vOPT_PROJECT_ID="$(cat "${project_id_file}")"
-  if [[ -z ${vOPT_PROJECT_ID} ]]; then
-    log.error "Unexpected error: ${project_id_file} is empty."
-    exit 1
-  fi
-  lib.store.global.set "checked_out" "${vOPT_PROJECT_DIR}"
-
-  # Ensures no-op on next function call for idempotency.
-  vOPT_CHECKED_OUT=true
+# The main user-facing options should get implemented here.
+solos.ingest_main_options() {
+  for i in "${!vCLI_PARSED_OPTIONS[@]}"; do
+    case "${vCLI_PARSED_OPTIONS[$i]}" in
+    project=*)
+      if [[ ${vCLI_PARSED_CMD} != "checkout" ]]; then
+        log.error "The --project flag is only valid for the 'checkout' command."
+        exit 1
+      fi
+      val="${vCLI_PARSED_OPTIONS[$i]#*=}"
+      if [[ ! "${val}" =~ ^[a-zA-Z][a-zA-Z0-9]*$ ]]; then
+        log.error 'Invalid project name: '"${val}"'. Expects: ^[a-zA-Z][a-zA-Z0-9]*$'
+        exit 1
+      fi
+      vPROJECT_NAME="${val}"
+      ;;
+    esac
+  done
 }
-solos.detect_remote_ip() {
-  local ssh_path_config="${vOPT_PROJECT_DIR}/.ssh/ssh_config"
-  if [[ -f "${ssh_path_config}" ]]; then
-    # Note: For the most part we can just assume the ip we extract here
-    # is the correct one. The time where it isn't true is if we wipe our project's .ssh
-    # dir and re-run the launch command. But since the store files are in the global config
-    # dir, we can always find it despite a wiped project dir.
-    local most_recent_ip="$(lib.ssh.extract_ip)"
-    lib.store.project.set "most_recent_ip" "${most_recent_ip}"
-    log.info "Found a remote ip in the ssh config file."
-  elif [[ ${vOPT_IS_NEW_PROJECT} = false ]]; then
-    # Note: Solos doesn't allow changing the .ssh dir files via any of its commands.
-    # So if the ssh config file is missing, I'd rather error and exit than try to account for it.
-    # If there are legitimate reasons for changing the ssh dirs than we can add a command
-    # to deal with any hairyness separately and at a future date.
-    log.error "${ssh_path_config} was not found."
+solos.collect_supplied_variables() {
+  # Automatically generate a secret if one doesn't exist.
+  vSUPPLIED_SEED_SECRET="$(lib.store.project.set_on_empty "secret" "$(lib.utils.generate_secret)")"
+  # Prompts
+  vSUPPLIED_PROVIDER_NAME="$(lib.store.project.prompt "provider_name" 'Only "vultr" is supported at this time.')"
+  if [[ ! -d ${vSOLOS_BIN_DIR}/provision/${vSUPPLIED_PROVIDER_NAME} ]]; then
+    log.error "Unknown provider: ${vSUPPLIED_PROVIDER_NAME}. See the 'provision' directory for supported providers."
     exit 1
   fi
+  vSUPPLIED_ROOT_DOMAIN="$(lib.store.project.prompt "root_domain")"
+  vSUPPLIED_PROVIDER_API_KEY="$(lib.store.project.prompt "provider_api_key" 'Use your provider dashboard to create an API key.')"
+  vSUPPLIED_OPENAI_API_KEY="$(lib.store.project.prompt "openai_api_key" 'Use the OpenAI dashboard to create an API key.')"
+  # Try to grab things from project store
+  vS3_OBJECT_STORE="$(lib.store.project.get "s3_object_store")"
+  vS3_ACCESS_KEY="$(lib.store.project.get "s3_access_key")"
+  vS3_SECRET="$(lib.store.project.get "s3_secret")"
+  vS3_HOST="$(lib.store.project.get "s3_host")"
 }
-solos.generate_launch_build() {
-  local bin_launch_dir="${vOPT_PROJECT_DIR}/src/bin/launch"
-  local project_launch_build_dir="${vOPT_PROJECT_DIR}/launch_build"
-  if [[ -d "${project_launch_build_dir}" ]]; then
-    log.warn "Rebuilding the project's \`launch_build\` directory."
-  fi
-
-  # Create the tmp dir where we'll do our template variable injection.
-  # This way if it fails, we don't need to worry about how to mend our
-  # files back to their original state.
-  local tmp_dir="$(mktmp -d)"
-  local tmp_launch_dir="${tmp_dir}/$(basename "${project_launch_build_dir}")"
-  mkdir -p "${tmp_launch_dir}"
-
-  # Clarification: I don't expect the server specific launch files to
-  # require variable injection, however variable injection will still work
-  # since we call the injection command on the fully built directory
-  # which contains both server specific and shared launch files.
-
-  # Move the template files into the tmp dir and then do variable injection
-  # on them.
-  cp -a "${bin_launch_dir}/." "${tmp_launch_dir}/"
-  if ! lib.utils.template_variables "${tmp_launch_dir}" "commit" 2>&1; then
-    log.error "Unexpected error: failed to inject solos variables into the launch_build files."
+# Ensure the user doesn't have to supply the --project flag every time.
+solos.use_checked_out_project() {
+  vPROJECT_NAME="$(lib.store.global.get "project_name")"
+  if [[ -z ${vPROJECT_NAME} ]]; then
+    log.error "No project currently checked out."
     exit 1
   fi
-  rm -rf "${project_launch_build_dir}"
-  log.info "deleted: ${project_launch_build_dir}"
-  mv "${tmp_launch_dir}" "${project_launch_build_dir}"
-  log.info "Built the project's launch_build directory."
-}
-solos.require_completed_launch_status() {
-  if [[ -z "$(lib.status.get "$vSTATUS_LAUNCH_SUCCEEDED")" ]]; then
-    log.error "Launch status is still incomplete."
-    log.info "\`solos --help\` for more info."
-    exit 1
-  fi
-
-  # Feel free to add more paranoid checks here. The status above should cover us, but
-  # it does rely on some trust that either the user didn't delete the status file or
-  # that the launch script didn't leave out anything critical in a future change.
-  if ! lib.ssh.command.remote '[ -d '"${vSTATIC_SOLOS_ROOT}"' ]'; then
-    log.error "Unexpected error: ${vSTATIC_SOLOS_ROOT} not found on the remote."
-    exit 1
-  fi
+  vPROJECT_IP="$(lib.ssh.project_extract_project_ip)"
 }
 
+# Make sure all the provision implementations match the declared interface.
+if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
+  log.info "Validating interfaces..."
+  sleep .5
+  if ! lib.utils.validate_interfaces \
+    "${vSOLOS_BIN_DIR}/provision" \
+    "${vSTATIC_INTERFACE_FILE}"; then
+    log.error "Failed to validate interfaces."
+    exit 1
+  fi
+fi
+
+# Parses CLI arguments into simpler data structures and validates against
+# the usage strings in cli/usage.sh.
 cli.parse.requirements
 cli.parse.cmd "$@"
 cli.parse.validate_opts
-solos.apply_parsed_cli_args
 
 # Before doing ANYTHING, check that our command actually exists.
-# This is the earliest we can call this because we need the
-# parsed arguments.
-if ! command -v "cmd.$vCLI_PARSED_CMD" &>/dev/null; then
-  log.error "No implementation for $vCLI_PARSED_CMD exists."
+if ! command -v "cmd.${vCLI_PARSED_CMD}" &>/dev/null; then
+  log.error "No implementation for ${vCLI_PARSED_CMD} exists."
   exit 1
 fi
 
-# Note: if cmd = test, run without the do_task wrapper
-if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
-  vSOLOS_USE_FOREGROUND_LOGS=true
-  log.info "what we see here"
-  "cmd.$vCLI_PARSED_CMD"
-else
-  lib.utils.do_task "Running ${vCLI_PARSED_CMD}" "cmd.$vCLI_PARSED_CMD"
+# Assign the cli flag options to some of our global variables.
+# Seperate "main" from "test" options to not overwhelm the user
+# facing implementation.
+solos.ingest_main_options
+if [[ ${vCLI_PARSED_CMD} = "test" ]]; then
+  solos.ingest_internal_options
 fi
+
+# # Note: if cmd = test, run without the do_task wrapper
+# if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
+#   vSOLOS_OUTPUT=plain
+#   "cmd.$vCLI_PARSED_CMD"
+# else
+#   lib.utils.do_task "Running [${vCLI_PARSED_CMD}]" "cmd.$vCLI_PARSED_CMD"
+# fi

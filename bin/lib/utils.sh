@@ -242,7 +242,7 @@ lib.utils.spinner() {
   local code=$?
   local completed_seconds="$(date +%s)"
   if [[ $code -ne 0 ]]; then
-    vSOLOS_USE_FOREGROUND_LOGS=true
+    vSOLOS_OUTPUT="plain"
 
     # Grab the times first for max accuracy.
     local every_log_seconds_elapsed=$((completed_seconds - vSOLOS_STARTED_AT))
@@ -305,7 +305,7 @@ lib.utils.do_task() {
     log.error "second argument must be the task function."
     exit 1
   fi
-  if [[ $vSOLOS_USE_FOREGROUND_LOGS = false ]]; then
+  if [[ $vSOLOS_OUTPUT = "background" ]]; then
     "$task" "$@" &
     local task_pid=$!
     lib.utils.spinner "${task_pid}" "${description}"
@@ -313,4 +313,111 @@ lib.utils.do_task() {
     log.info "$description"
     "$task" "$@"
   fi
+}
+
+lib.utils.heredoc() {
+  local heredoc="$1"
+  cat "${vSTATIC_SRC_DIR}/bin/heredocs/${heredoc}"
+}
+
+lib.utils.validate_interface() {
+  local interface_prefix="$1"
+  local cmds=("${@:2}")
+  for command in "${cmds[@]}"; do
+    if ! declare -f "${interface_prefix}.${command}" >/dev/null; then
+      log.error "${interface_prefix}.${command} doesn't exist."
+      exit 1
+    fi
+  done
+}
+
+lib.utils.validate_fs() {
+  local errors=()
+  local return_code=0
+  local parent_dir="$1"
+  shift
+  local children=("$@")
+  for child in "${children[@]}"; do
+    local type="${child%%:*}"
+    local name="${child#*:}"
+    local path="${parent_dir}/${name}"
+    if [[ "${type}" == "dir" ]]; then
+      if [[ ! -d "${path}" ]]; then
+        errors+=("${path} is not a directory")
+        return_code=1
+      fi
+    elif [[ "${type}" == "file" ]]; then
+      if [[ ! -f "${path}" ]]; then
+        errors+=("${path} is not a file")
+        return_code=1
+      fi
+    else
+      errors+=("unknown type: ${type}")
+      return_code=1
+    fi
+  done
+  for error in "${errors[@]}"; do
+    log.error "${error}"
+  done
+  return ${return_code}
+}
+lib.utils.validate_interfaces() {
+  local target_dir="$1"
+  local interface_file="$1/$2"
+  if [[ ! -d ${target_dir} ]]; then
+    log.error "Unexpected error: ${target_dir} is not a directory. Failed to validate interfaces."
+    return 1
+  fi
+  if [[ ! -f "${interface_file}" ]]; then
+    log.error "Unexpected error: ${interface_file} was not found. Failed to validate interfaces."
+    return 1
+  fi
+
+  # Collect the files in the target dir.
+  local filenames=()
+  for file in "${target_dir}"/*; do
+    if [[ ! -f ${file} ]]; then
+      continue
+    fi
+    local filename=$(basename "${file}")
+    # All "special" files in SolOS follow the pattern __<name>__.<ext>
+    # So we skip those since they live outside of our interface assumptions.
+    if [[ ${filename} = "__"* ]]; then
+      continue
+    fi
+    filenames+=("${filename}")
+  done
+
+  # Collect the expected methods from the interface file.
+  local expected_methods=()
+  while IFS= read -r line; do
+    expected_methods+=("${line}")
+  done <"${interface_file}"
+
+  # Determine which files are invalid, if any, and log which methods
+  # in particular are either invalid or missing
+  local invalid_files=()
+  for filename in "${filenames[@]}"; do
+    local is_invalid=false
+    local name="${filename%.*}"
+    name="${name//-/_}"
+    local prefix="${dir}.${name}"
+    local cmds=("${@:2}")
+    for cmd in "${expected_methods}[@]"; do
+      if ! declare -f "${prefix}.${cmd}" >/dev/null; then
+        log.error "${prefix}.${cmd} doesn't exist."
+        is_invalid=true
+      fi
+    done
+    if [[ ${is_invalid} = true ]]; then
+      invalid_files+=("${filename}")
+    fi
+  done
+  for invalid_file in "${invalid_files[@]}"; do
+    log.error "${invalid_file} does not implement the interface."
+  done
+
+  # The return code is the number of invalid files.
+  # Is that a good idea??
+  return ${#invalid_files[@]}
 }
