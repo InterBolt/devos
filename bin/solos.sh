@@ -53,7 +53,6 @@ helpers.simple_flag_parser \
   "ARGS:" "$@"
 set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
 vSOLOS_STARTED_AT="$(date +%s)"
-vSOLOS_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
 vSOLOS_BIN_DIR="$(pwd)"
 vSOLOS_BIN_FILEPATH="${vSOLOS_BIN_DIR}/$0"
 vSOLOS_DEBUG=${DEBUG:-0}
