@@ -25,6 +25,8 @@ helpers.simple_flag_parser() {
           flag_values+=("true")
         fi
         set -- "${@/''"${cli_arg}"''/}"
+      else
+        flag_values+=("")
       fi
     done
   done
