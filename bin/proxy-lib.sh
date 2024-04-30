@@ -49,14 +49,17 @@ done
 test_exec() {
   local args=()
   if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
-      args=(-i "${vpGIT_HASH}" echo "")
+      if docker exec -i "${vpGIT_HASH}" echo "" &>/dev/null; then
+        return 0
+      else
+        return 1
+      fi
   else
-      args=(-it "${vpGIT_HASH}" echo "")
-  fi
-  if docker exec "${args[@]}" &>/dev/null; then
-    return 0
-  else
-    return 1
+      if docker exec -i "${vpGIT_HASH}" echo "" &>/dev/null; then
+        return 0
+      else
+        return 1
+      fi
   fi
 }
 
