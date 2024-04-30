@@ -75,11 +75,11 @@ run_solos_in_docker() {
   echo "${HOME}" >"${vpVOLUME_CONFIG_HOSTFILE}"
 
   # Build the base and cli images.
-  if ! docker build -q -t "solos:base" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" .; then
+  if ! docker build -t "solos:base" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
-  if ! docker build -q -t "solos-cli:${vpGIT_HASH}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" .; then
+  if ! docker build -t "solos-cli:${vpGIT_HASH}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
