@@ -47,7 +47,13 @@ for entry_arg in "$@"; do
 done
 
 test_exec() {
-  if docker exec -it "${vpGIT_HASH}" echo "" &>/dev/null; then
+  local args=()
+  if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
+      args=(-i "${vpGIT_HASH}" echo "")
+  else
+      args=(-it "${vpGIT_HASH}" echo "")
+  fi
+  if docker exec "${args[@]}" &>/dev/null; then
     return 0
   else
     return 1
