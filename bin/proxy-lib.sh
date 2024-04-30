@@ -39,12 +39,15 @@ fi
 vpVOLUME_MOUNTED="/root/.solos"
 vpGIT_HASH="$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
 vpINSTALLER_NO_TTY_FLAG=false
+__next_args=()
 for entry_arg in "$@"; do
   if [[ $entry_arg = "--installer-no-tty" ]]; then
-    set -- "${@/--installer-no-tty/}"
     vpINSTALLER_NO_TTY_FLAG=true
+  else
+    __next_args+=("$entry_arg")
   fi
 done
+set -- "${__next_args[@]}" || exit 1
 
 test_exec() {
   local args=()
