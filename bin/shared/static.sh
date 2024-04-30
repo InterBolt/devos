@@ -10,6 +10,6 @@ export vSTATIC_SOLOS_ROOT="${HOME}/.solos"
 export vSTATIC_SOLOS_PROJECTS_DIR="${vSTATIC_SOLOS_ROOT}/projects"
 export vSTATIC_SOLOS_CONFIG_DIR="${vSTATIC_SOLOS_ROOT}/config"
 export vSTATIC_LOGS_DIR="${vSTATIC_SOLOS_ROOT}/logs"
-
+export vSTATIC_LOG_FILEPATH="${vSTATIC_LOGS_DIR}/logs.txt"
 export vSTATIC_SOURCE_FILE="__source__.sh"
 export vSTATIC_INTERFACE_FILE="__interface__.txt"

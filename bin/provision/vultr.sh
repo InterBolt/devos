@@ -14,18 +14,18 @@
 
 vSELF_PROVISION_VULTR_API_ENDPOINT="https://api.lib.vultr.com/v2"
 
-provision.vultr._destroy_instance() {
-  lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/instances/${instance_id}" \
-    -X DELETE \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
-  lib.utils.curl.allows_error_status_codes "none"
-}
-
 provision.vultr._launch_instance() {
-  local sshkey_id="$1"
+  local pubkey="$1"
+  local label="solos-${vPROJECT_ID}"
   local plan="voc-c-2c-4gb-50s-amd"
   local region="ewr"
   local os_id="2136"
+  provision.vultr._get_pubkey_id "${pubkey}"
+  local pubkey_id="${vPREV_RETURN[0]}"
+  if [[ -z ${pubkey_id} ]]; then
+    log.error "Unexpected error: no SSH public key found."
+    exit 1
+  fi
   # This function will launch an instance on vultr with the params supplied
   # and return the ip and instance id seperated by a space.
   # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
@@ -40,18 +40,17 @@ provision.vultr._launch_instance() {
       "os_id" : '"${os_id}"',
       "backups" : "disabled",
       "tags": [
-        "source_solos"
-        "'"ssh_${sshkey_id}"'"
+        "solos-project-'"${vPROJECT_NAME}"'"
       ],
       "sshkey_id": [
-        "'"${sshkey_id}"'"
+        "'"${pubkey_id}"'"
       ]
     }'
   lib.utils.curl.allows_error_status_codes "none"
   local ip="$(jq -r '.instance.main_ip' <<<"${vPREV_CURL_RESPONSE}")"
   local instance_id="$(jq -r '.instance.id' <<<"${vPREV_CURL_RESPONSE}")"
-  vPREV_RETURN=("$ip" "$instance_id")
-  echo "$ip $instance_id"
+  vPREV_RETURN=("${ip}")
+  vPREV_RETURN+=("${instance_id}")
 }
 
 provision.vultr._wait_for_instance() {
@@ -79,7 +78,7 @@ provision.vultr._wait_for_instance() {
 }
 
 provision.vultr._get_object_storage_id() {
-  local label="$1"
+  local label="solos-${vPROJECT_ID}"
   local object_storage_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
     -X GET \
@@ -119,8 +118,8 @@ provision.vultr._get_ewr_cluster_id() {
 }
 
 provision.vultr._create_storage() {
-  local label="$1"
-  local cluster_id="$2"
+  local cluster_id="$1"
+  local label="solos-${vPROJECT_ID}"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
     -X POST \
     -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}" \
@@ -135,34 +134,34 @@ provision.vultr._create_storage() {
   echo "${object_storage_id}"
 }
 
-provision.vultr.server_tag_exists() {
-  local instance_id="$1"
-  local tag="$2"
-  local tags
-  local found=false
-  lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/instances/${instance_id}" \
+provision.vultr._get_pubkey_id() {
+  local pubkey="$1"
+  local found_pubkey_id=""
+  lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
     -X GET \
     -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
-  tags=$(jq -r '.instance.tags' <<<"${vPREV_CURL_RESPONSE}")
-  for i in "${!tags[@]}"; do
-    if [[ ${tags[$i]} = "${tag}" ]]; then
-      found=true
+  local found_pubkey_ids=$(jq -r '.ssh_keys[].id' <<<"${vPREV_CURL_RESPONSE}")
+  local found_pubkeys=$(jq -r '.ssh_keys[].ssh_key' <<<"${vPREV_CURL_RESPONSE}")
+  # We don't care what the public key is labelled as, simply if it exists.
+  # Each public key should inherently be unique to the project.
+  for i in "${!found_pubkeys[@]}"; do
+    if [[ ${pubkey} = ${found_pubkeys[$i]} ]]; then
+      found_pubkey_id="${found_pubkey_ids[$i]}"
+      break
     fi
   done
-  vPREV_RETURN=("$found")
-  echo "$found"
+  vPREV_RETURN=("${found_pubkey_id}")
 }
 
 provision.vultr.save_pubkey() {
-  local label="$1"
-  local pubkey="$2"
+  local pubkey="$1"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
     -X POST \
     -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
-          "name" : "'"${label}"'",
+          "name" : "solos-'"$(date +%s)"'",
           "ssh_key" : "'"${pubkey}"'"
         }'
   lib.utils.curl.allows_error_status_codes "none"
@@ -172,77 +171,23 @@ provision.vultr.save_pubkey() {
     sleep 1
     exit 1
   fi
-  echo "${pubkey_id}"
+  vPREV_RETURN=("${pubkey_id}")
 }
 
-provision.vultr.get_pubkey_id() {
-  local pub_key="$1"
-  local found_ssh_keys
-  local found_ssh_key_names
-  local match_exists=false
-  local matching_ssh_key_found=false
-  local matching_ssh_key_name_found=false
-  local matching_sshkey_id=""
-  # This function will loop through the existing ssh keys on vultr
-  # and ask, "is the name and public key the same as the one we have?"
-  # If so, we echo the ssh key id and exit. We'll echo an empty
-  # string if the key doesn't exist.
-  lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
-    -X GET \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
-  lib.utils.curl.allows_error_status_codes "none"
-  found_sshkey_ids=$(jq -r '.ssh_keys[].id' <<<"${vPREV_CURL_RESPONSE}")
-  found_ssh_keys=$(jq -r '.ssh_keys[].ssh_key' <<<"${vPREV_CURL_RESPONSE}")
-  found_ssh_key_names=$(jq -r '.ssh_keys[].name' <<<"${vPREV_CURL_RESPONSE}")
-  for i in "${!found_ssh_keys[@]}"; do
-    if [[ "solos" = "${found_ssh_key_names[$i]}" ]]; then
-      matching_ssh_key_name_found=true
-    fi
-    if [[ ${pub_key} = ${found_ssh_keys[$i]} ]]; then
-      matching_ssh_key_found=true
-    fi
-    if [[ ${matching_ssh_key_found} = true ]] && [[ ${matching_ssh_key_name_found} = true ]]; then
-      match_exists=true
-      matching_sshkey_id="${found_sshkey_ids[$i]}"
-      break
-    fi
-  done
-  # Catch conflicts where a matching ssh key exists, but it's name is different.
-  # Or where a matching ssh key name exists, but it's public key contents are different.
-  # Note: technically we could just say "if match_exists=false" error and exit.
-  # But the extra info is nice for debugging.
-  if [[ ${match_exists} = false ]] && [[ ${matching_ssh_key_found} = true ]]; then
-    log.error "a conflict was found where a matching ssh key exists, but it's name is different."
-    for i in "${!found_ssh_keys[@]}"; do
-      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
-    done
-    exit 1
+provision.vultr.find_pubkey() {
+  local pubkey="$1"
+  local exists=true
+  provision.vultr._get_pubkey_id "${pubkey}"
+  local pubkey_id="${vPREV_RETURN[0]:-""}"
+  if [[ -z ${pubkey_id} ]]; then
+    exists=false
   fi
-  if [[ ${match_exists} = false ]] && [[ ${matching_ssh_key_name_found} = true ]]; then
-    log.error "a conflict was found where a matching ssh key name exists, but it's public key contents are different."
-    for i in "${!found_ssh_keys[@]}"; do
-      log.error "found_sshkey_id: ${found_sshkey_ids[$i]} found_sshkey_name: ${found_ssh_key_names[$i]}"
-    done
-    exit 1
-  fi
-  if [[ -n ${matching_sshkey_id} ]]; then
-    vPREV_RETURN=("$matching_sshkey_id")
-    echo "${matching_sshkey_id}"
-  else
-    vPREV_RETURN=()
-    echo ""
-  fi
+  vPREV_RETURN=("${exists}")
 }
 
 provision.vultr.create_server() {
-  local project_name="$1"
-  local ssh_pubkey="$2"
-  if [[ -z ${project_name} ]]; then
-    log.error "Unexpected error: empty project name supplied."
-    exit 1
-  fi
-  local label="solos-${project_name}"
-  provision.vultr._launch_instance "${label}" "${created_sshkey_id}"
+  local pubkey="$1"
+  provision.vultr._launch_instance "${pubkey}"
   next_ip="${vPREV_RETURN[0]}"
   instance_id="${vPREV_RETURN[1]}"
   provision.vultr._wait_for_instance "${instance_id}"
@@ -251,21 +196,14 @@ provision.vultr.create_server() {
 }
 
 provision.vultr.s3() {
-  local project_name="$1"
-  if [[ -z ${project_name} ]]; then
-    log.error "Unexpected error: empty project name supplied."
-    exit 1
-  fi
-  local object_storage_id=""
-  local label="solos-${project_name}"
-  provision.vultr._get_object_storage_id "${label}"
-  object_storage_id="${vPREV_RETURN[0]}"
-  if [[ -n ${object_storage_id} ]]; then
-    log.error "Unexpected error: Vultr object storage with the label: ${label} already exists."
-    exit 1
-  else
-    local cluster_id="$(provision.vultr._get_ewr_cluster_id)"
-    object_storage_id="$(provision.vultr._create_storage "${label}" "${cluster_id}")"
+  # See if we can skip the provisioning proccess for S3 if the object storage
+  # with a matching label already exists.
+  provision.vultr._get_object_storage_id
+  local object_storage_id="${vPREV_RETURN[0]}"
+  if [[ -z ${object_storage_id} ]]; then
+    # Create the storage is the EWR region (east I think?)
+    local ewr_cluster_id="$(provision.vultr._get_ewr_cluster_id)"
+    object_storage_id="$(provision.vultr._create_storage "${ewr_cluster_id}")"
   fi
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage/${object_storage_id}" \
     -X GET \

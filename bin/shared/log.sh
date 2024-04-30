@@ -9,17 +9,24 @@ vSELF_LOG_BARE_LOG=false
 vSELF_LOG_FILESIZE=0
 
 mkdir -p "${vSTATIC_LOGS_DIR}"
+if [[ ! -f ${vSTATIC_LOG_FILEPATH} ]]; then
+  touch "${vSTATIC_LOG_FILEPATH}"
+fi
 
-vSELF_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}/logs.txt" | cut -f 1 || echo "")"
+vSELF_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1 || echo "")"
 if [[ ${vSELF_LOG_FILESIZE} -gt 5000 ]]; then
   vSELF_LOG_BARE_LOG=true
   log.warn "LOG FILE IS GROWING LARGE: ${vSELF_LOG_FILESIZE}Kb"
-  log.info "${vSTATIC_LOG_FILEPATH}/logs.txt"
+  log.info "${vSTATIC_LOG_FILEPATH}"
 fi
 
 log._to_host_filename() {
   local filename="${1}"
+  if [[ ${filename} != /* ]]; then
+    filename="$(pwd)/${filename}"
+  fi
   local host="$(cat "${vSTATIC_SOLOS_ROOT}/config/host")"
+
   echo "${filename/${HOME}/${host}}"
 }
 
@@ -47,14 +54,13 @@ log._get_level_color() {
   esac
 }
 log._base() {
-  if [[ ! -f ${vSTATIC_LOG_FILEPATH}/logs.txt ]]; then
-    if ! touch "${vSTATIC_LOG_FILEPATH}/logs.txt" &>/dev/null; then
-      echo "Failed to create log file: ${vSTATIC_LOG_FILEPATH}/logs.txt"
+  if [[ ! -f ${vSTATIC_LOG_FILEPATH} ]]; then
+    if ! touch "${vSTATIC_LOG_FILEPATH}" &>/dev/null; then
+      echo "Failed to create log file: ${vSTATIC_LOG_FILEPATH}"
       exit 1
     fi
   fi
 
-  local output="${vSOLOS_OUTPUT:-"background"}"
   local debug=${DEBUG:-false}
   local date_format='+%F %T'
   local formatted_date="$(date "${date_format}")"
@@ -77,16 +83,17 @@ log._base() {
     date_args=()
   fi
 
-  # `bare` logs don't include lots of info and don't log to a file.
-  if [[ ${vSELF_LOG_BARE_LOG} = true ]]; then
-    args=(--level "${level}" "${msg}")
-  else
-    args=(--time "kitchen" --structured --level "${level}" "${msg}")
-    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" --file "${vSTATIC_LOG_FILEPATH}/logs.txt" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
-  fi
-  if [[ $level = "fatal" ]] || [[ $debug = true ]] || [[ $debug -eq 1 ]] || [[ $output != "background" ]]; then
-    pkg.gum log --level.foreground "$(log._get_level_color "${level}")" "${args[@]}" "${source_args[@]}" "${date_args[@]}"
-  fi
+  pkg.gum log \
+    --level.foreground "$(log._get_level_color "${level}")" \
+    --file "${vSTATIC_LOG_FILEPATH}" \
+    --time "kitchen" \
+    --structured \
+    --level "${level}" "${msg}" "${source_args[@]}" "${date_args[@]}"
+
+  pkg.gum log \
+    --level.foreground "$(log._get_level_color "${level}")" \
+    --structured \
+    --level "${level}" "${msg}" "${source_args[@]}"
 }
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"

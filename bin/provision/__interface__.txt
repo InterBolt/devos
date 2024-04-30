@@ -1,5 +1,4 @@
-s3
-get_pubkey_id
+save_pubkey
+find_pubkey
 create_server
-get_server_id
-server_tag_exists
+s3

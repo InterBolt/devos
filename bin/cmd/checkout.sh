@@ -25,29 +25,32 @@ cmd.checkout() {
     log.error "Unexpected error: please supply --project."
     exit 1
   fi
-  log.info "Checking out ${vPROJECT_NAME}"
-  sleep .5
   if [[ ! -d ${vSTATIC_SOLOS_PROJECTS_DIR} ]]; then
     mkdir -p "${vSTATIC_SOLOS_PROJECTS_DIR}"
+    log.info "No projects found. Creating ~/.solos/projects directory."
   fi
   # If the project dir exists, let's assume it was setup ok.
-  # We'll use a tmp dir to set it up so that any failures that occur
-  # before we're done won't result in a partial project dir.
+  # We'll use a tmp dir to build up the files so that unexpected errors
+  # won't result in a partial project dir.
   if [[ ! -d ${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME} ]]; then
-    local tmp_project_dir="$(mktemp -d)"
-    if [[ ! -d ${tmp_project_dir} ]]; then
+    local project_id="$(lib.utils.generate_project_id)"
+    local tmp_project_ssh_dir="$(mktemp -d)"
+    if [[ ! -d ${tmp_project_ssh_dir} ]]; then
       log.error "Unexpected error: no tmp dir was created."
       exit 1
     fi
-    local tmp_ssh_dir="${tmp_project_dir}/.ssh"
-    mkdir -p "${tmp_ssh_dir}"
-    lib.ssh.project_build_keypair "${tmp_ssh_dir}"
-    lib.ssh.project_give_keyfiles_permissions "${tmp_ssh_dir}"
-    cp -a "${tmp_project_dir}" "${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
-    rm -rf "${tmp_project_dir}"
+    lib.ssh.project_build_keypair "${tmp_project_ssh_dir}" || exit 1
+    log.info "${vPROJECT_NAME} - Created keypair for project"
+    lib.ssh.project_give_keyfiles_permissions "${tmp_project_ssh_dir}" || exit 1
+    log.info "${vPROJECT_NAME} - Set permissions on keypair for project"
+    mkdir -p "${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
+    cp -a "${tmp_project_ssh_dir}" "${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"
+    echo "${project_id}" >"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/id"
+    log.info "${vPROJECT_NAME} - Established project directory"
   fi
   # We should be able to re-run the checkout command and pick up where we left
   # off if we didn't supply all the variables the first time.
   solos.collect_supplied_variables
   lib.store.global.set "project_name" "${vPROJECT_NAME}"
+  log.info "${vPROJECT_NAME} - Checkout out."
 }

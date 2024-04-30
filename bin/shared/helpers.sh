@@ -24,8 +24,6 @@ helpers.simple_flag_parser() {
         else
           flag_values+=("true")
         fi
-        echo "Parsed internal-use flag: ${flag_name}=${flag_values[-1]}"
-        echo "Will remove it from the script's global args."
         set -- "${@/''"${cli_arg}"''/}"
       fi
     done
@@ -41,4 +39,19 @@ helpers.simple_flag_parser() {
   set -- "${nonempty_cli_args[@]}" || exit 1
   vPREV_NEXT_ARGS=("$@")
   vPREV_RETURN=("${flag_values[@]}")
+}
+
+helpers.run_anything() {
+  local home_path="$1"
+  shift
+  if [[ $1 = "-" ]]; then
+    if [[ -z ${home_path} ]]; then
+      echo "No home path found at: ${home_path}" >&2
+      exit 1
+    fi
+    local filepath="${2/${home_path}/\/root}"
+    cd .. || exit 1
+    "${filepath}" "${@:3}"
+    exit 0
+  fi
 }

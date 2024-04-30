@@ -51,11 +51,16 @@ lib.ssh.project_build_keypair() {
   local privkey_path="${ssh_dir}/id_rsa"
   local authorized_keys_path="${ssh_dir}/authorized_keys"
 
-  if [[ ! -d ${ssh_dir} ]]; then
+  if [[ ! -f ${privkey_path} ]]; then
+    local entry_dir="$(pwd)"
     mkdir -p "${ssh_dir}"
-    ssh-keygen -t rsa -q -f "${privkey_path}" -N "" >/dev/null
+    cd "${ssh_dir}" || exit 1
+    if ! ssh-keygen -t rsa -q -f "${privkey_path}" -N "" >/dev/null; then
+      log.error "Could not create SSH keypair."
+      exit 1
+    fi
+    cd "${entry_dir}" || exit 1
     cat "${publickey_path}" >"${authorized_keys_path}"
-    log.info "Created ssh keypair."
   else
     local missing=false
     for file in "${publickey_path}" "${privkey_path}" "${authorized_keys_path}"; do
@@ -79,13 +84,18 @@ lib.ssh.project_give_keyfiles_permissions() {
   local authorized_keys_path="${ssh_dir}/authorized_keys"
   local config_path="${ssh_dir}/config"
 
+  # This is the only file that we should ever create in an empty state.
+  if [[ ! -f ${config_path} ]]; then
+    touch "${config_path}"
+  fi
+
   chmod 644 "${authorized_keys_path}"
   chmod 644 "${publickey_path}"
   chmod 644 "${config_path}"
   chmod 600 "${privkey_path}"
 }
 
-lib.ssh.project_build_project_config() {
+lib.ssh.project_build_config() {
   local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local ip="$1"
   if ! [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then

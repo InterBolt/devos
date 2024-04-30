@@ -4,14 +4,13 @@
 # scripts sourced within this one.
 # shellcheck disable=SC2034
 
+set -o errexit
+
 # We might need more here later, but for now the main thing
 # is resetting the cursor via tput.
 trap "tput cnorm" EXIT
 
-if ! cd "$(dirname "${BASH_SOURCE[0]}")"; then
-  echo "Unexpected error: could not cd into 'dirname \"\${BASH_SOURCE[0]}\"'" >&2
-  exit 1
-fi
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # Will include dotfiles in globbing.
 shopt -s dotglob
@@ -30,24 +29,14 @@ vPREV_NEXT_ARGS=()
 . "shared/helpers.sh"
 
 helpers.simple_flag_parser \
-  --restricted-noop \
   --restricted-developer \
-  --restricted-machine-home-path \
   "ARGS:" "$@"
 set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
-vRESTRICTED_MODE_NOOP=${vPREV_RETURN[0]:-false}
 vRESTRICTED_MODE_DEVELOPER=${vPREV_RETURN[1]:-false}
-vRESTRICTED_MODE_MACHINE_HOME_PATH=${vPREV_RETURN[2]:-""}
 
-# A secret command that we can use to run any script we want in the installed repo.
-# Extremely helpful for development where I need to test a bit of bash before integrating
-# into the CLI.
-if [[ $1 = "-" ]]; then
-  __filepath="${2/${vRESTRICTED_MODE_MACHINE_HOME_PATH}/\/root}"
-  cd .. || exit 1
-  "${__filepath}" "${@:3}"
-  exit 0
-fi
+# A secret command that enables a developer to run ANY bash script by supplying "-"
+# as the first argument and the path to the script as the second.
+helpers.run_anything "$(cat "${vSTATIC_SOLOS_CONFIG_DIR}/host" || echo "")" "$@"
 
 # Miscellanous values that are used throughout the script.
 # calling them "meta" because they are mostly inferred, or
@@ -57,7 +46,6 @@ helpers.simple_flag_parser \
   --output \
   "ARGS:" "$@"
 set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
-vSOLOS_OUTPUT=${vPREV_RETURN[0]:-"background"}
 vSOLOS_STARTED_AT="$(date +%s)"
 vSOLOS_LOG_LINE_COUNT="$(wc -l <"${vSTATIC_LOG_FILEPATH}" | xargs)"
 vSOLOS_BIN_DIR="$(pwd)"
@@ -90,6 +78,7 @@ vS3_SECRET=""
 # Anything that requires provisioning to have already occured.
 vPROJECT_IP=""
 vPROJECT_NAME=""
+vPROJECT_ID=""
 
 # shellcheck source=shared/log.sh
 . "shared/log.sh"
@@ -101,10 +90,7 @@ vPROJECT_NAME=""
 if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
   chmod +x "shared/codegen.sh"
   . shared/codegen.sh
-  if ! shared.codegen.run "${vSTATIC_SOURCE_FILE}"; then
-    log.error "Failed to generate code."
-    exit 1
-  fi
+  shared.codegen.run "${vSTATIC_SOURCE_FILE}"
 fi
 
 # shellcheck source=pkg/__source__.sh
@@ -115,24 +101,21 @@ fi
 . "cli/${vSTATIC_SOURCE_FILE}"
 # shellcheck source=cmd/__source__.sh
 . "cmd/${vSTATIC_SOURCE_FILE}"
-# shellcheck source=task/__source__.sh
-. "task/${vSTATIC_SOURCE_FILE}"
 # shellcheck source=provision/__source__.sh
 . "provision/${vSTATIC_SOURCE_FILE}"
 
 # Do this up top so that any missing heredocs will be caught early.
 vHEREDOC_DEBIAN_INSTALL_DOCKER="$(lib.utils.heredoc 'debian-install-docker.sh')"
 
-# For internal options only, can be a bit more hairy.
-solos.ingest_internal_options() {
+solos.ingest_test_options() {
   for i in "${!vCLI_PARSED_OPTIONS[@]}"; do
     case "${vCLI_PARSED_OPTIONS[$i]}" in
     lib=*)
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ -n "$val" ]]; then
-        vOPT_LIB="$val"
+      if [[ -n ${val} ]]; then
+        vOPT_LIB="${val}"
         if [[ ! -f "lib/${vOPT_LIB}.sh" ]]; then
-          log.error "Unknown lib: ${vOPT_LIB}"
+          log.error "Unknown error: lib/${vOPT_LIB}.sh does not exist."
           exit 1
         fi
       fi
@@ -159,8 +142,8 @@ solos.ingest_main_options() {
         exit 1
       fi
       val="${vCLI_PARSED_OPTIONS[$i]#*=}"
-      if [[ ! "${val}" =~ ^[a-zA-Z][a-zA-Z0-9]*$ ]]; then
-        log.error 'Invalid project name: '"${val}"'. Expects: ^[a-zA-Z][a-zA-Z0-9]*$'
+      if [[ ! "${val}" =~ ^[a-z_-]*$ ]]; then
+        log.error 'Invalid project name: '"${val}"'. Can only contain lowercase letters, underscores, and hyphens.'
         exit 1
       fi
       vPROJECT_NAME="${val}"
@@ -173,11 +156,18 @@ solos.collect_supplied_variables() {
   vSUPPLIED_SEED_SECRET="$(lib.store.project.set_on_empty "secret" "$(lib.utils.generate_secret)")"
   # Prompts
   vSUPPLIED_PROVIDER_NAME="$(lib.store.project.prompt "provider_name" 'Only "vultr" is supported at this time.')"
-  if [[ ! -d ${vSOLOS_BIN_DIR}/provision/${vSUPPLIED_PROVIDER_NAME} ]]; then
-    log.error "Unknown provider: ${vSUPPLIED_PROVIDER_NAME}. See the 'provision' directory for supported providers."
-    exit 1
+  local path_to_provision_implementation="${vSOLOS_BIN_DIR}/provision/${vSUPPLIED_PROVIDER_NAME}.sh"
+  if [[ ! -f ${path_to_provision_implementation} ]]; then
+    log.error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
+    lib.store.project.del "provider_name"
+    solos.collect_supplied_variables
   fi
   vSUPPLIED_ROOT_DOMAIN="$(lib.store.project.prompt "root_domain")"
+  if [[ ! "${vSUPPLIED_ROOT_DOMAIN}" =~ \.[a-z]+$ ]]; then
+    log.error "Invalid root domain: ${vSUPPLIED_ROOT_DOMAIN}."
+    lib.store.project.del "root_domain"
+    solos.collect_supplied_variables
+  fi
   vSUPPLIED_PROVIDER_API_KEY="$(lib.store.project.prompt "provider_api_key" 'Use your provider dashboard to create an API key.')"
   vSUPPLIED_OPENAI_API_KEY="$(lib.store.project.prompt "openai_api_key" 'Use the OpenAI dashboard to create an API key.')"
   # Try to grab things from project store
@@ -193,19 +183,18 @@ solos.use_checked_out_project() {
     log.error "No project currently checked out."
     exit 1
   fi
+  vPROJECT_ID="$(lib.utils.get_project_id)"
+  if [[ -z ${vPROJECT_ID} ]]; then
+    log.error "Unexpected error: no project ID found for ${vPROJECT_NAME}."
+    exit 1
+  fi
   vPROJECT_IP="$(lib.ssh.project_extract_project_ip)"
 }
 
-# Make sure all the provision implementations match the declared interface.
 if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
-  log.info "Validating interfaces..."
-  sleep .5
-  if ! lib.utils.validate_interfaces \
+  lib.utils.validate_interfaces \
     "${vSOLOS_BIN_DIR}/provision" \
-    "${vSTATIC_INTERFACE_FILE}"; then
-    log.error "Failed to validate interfaces."
-    exit 1
-  fi
+    "${vSTATIC_INTERFACE_FILE}"
 fi
 
 # Parses CLI arguments into simpler data structures and validates against
@@ -214,7 +203,10 @@ cli.parse.requirements
 cli.parse.cmd "$@"
 cli.parse.validate_opts
 
-# Before doing ANYTHING, check that our command actually exists.
+if [[ -z ${vCLI_PARSED_CMD} ]]; then
+  exit 1
+fi
+
 if ! command -v "cmd.${vCLI_PARSED_CMD}" &>/dev/null; then
   log.error "No implementation for ${vCLI_PARSED_CMD} exists."
   exit 1
@@ -225,13 +217,7 @@ fi
 # facing implementation.
 solos.ingest_main_options
 if [[ ${vCLI_PARSED_CMD} = "test" ]]; then
-  solos.ingest_internal_options
+  solos.ingest_test_options
 fi
 
-# # Note: if cmd = test, run without the do_task wrapper
-# if [[ "$vCLI_PARSED_CMD" = "test" ]]; then
-#   vSOLOS_OUTPUT=plain
-#   "cmd.$vCLI_PARSED_CMD"
-# else
-#   lib.utils.do_task "Running [${vCLI_PARSED_CMD}]" "cmd.$vCLI_PARSED_CMD"
-# fi
+"cmd.${vCLI_PARSED_CMD}"

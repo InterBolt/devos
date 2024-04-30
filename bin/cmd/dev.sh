@@ -22,10 +22,5 @@
 
 cmd.dev() {
   solos.use_checked_out_project
-
-  if ! command -v "code" &>/dev/null; then
-    log.error "vscode is not installed to your path. cannot continue."
-  fi
-
-  log.warn "would open vscode"
+  log.warn "TODO: implementation needed"
 }

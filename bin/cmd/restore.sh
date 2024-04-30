@@ -21,6 +21,5 @@
 . shared/empty.sh
 
 cmd.restore() {
-
   log.warn "TODO: implementation needed"
 }

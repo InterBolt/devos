@@ -47,13 +47,12 @@ lib.store._prompt() {
   local storage_dir="$1"
   shift
   mkdir -p "${storage_dir}"
-  local input
-  input="$(lib.store._get "${storage_dir}" "$1")"
+  local input="$(lib.store._get "${storage_dir}" "$1")"
+
   if [[ -z ${input} ]]; then
-    echo -n "Enter the $1:"
-    read -r input
+    input="$(pkg.gum input --cursor.foreground "#3B78FF" --prompt "Enter $1: ")"
     if [[ -z ${input} ]]; then
-      log.error "cannot be empty. Exiting."
+      log.error "Can't be empty."
       exit 1
     fi
     lib.store._set "${storage_dir}" "$1" "${input}"
