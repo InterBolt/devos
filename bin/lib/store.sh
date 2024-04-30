@@ -65,7 +65,7 @@ lib.store._set_on_empty() {
   shift
   mkdir -p "${storage_dir}"
   local cached_val
-  cached_val="$(lib.store._get "$1")"
+  cached_val="$(lib.store._get "${storage_dir}" "$1")"
   local next_val="$2"
   if [[ -z ${cached_val} ]]; then
     lib.store._set "${storage_dir}" "$1" "${next_val}"

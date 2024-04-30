@@ -16,8 +16,7 @@ fi
 vSELF_LOG_FILESIZE="$(du -k "${vSTATIC_LOG_FILEPATH}" | cut -f 1 || echo "")"
 if [[ ${vSELF_LOG_FILESIZE} -gt 5000 ]]; then
   vSELF_LOG_BARE_LOG=true
-  log.warn "LOG FILE IS GROWING LARGE: ${vSELF_LOG_FILESIZE}Kb"
-  log.info "${vSTATIC_LOG_FILEPATH}"
+  echo "LOG FILE IS GROWING LARGE: ${vSELF_LOG_FILESIZE}Kb"
 fi
 
 log._to_host_filename() {

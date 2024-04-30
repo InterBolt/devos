@@ -132,16 +132,6 @@ lib.utils.heredoc() {
   local heredoc="$1"
   cat "${vSTATIC_SRC_DIR}/bin/heredocs/${heredoc}"
 }
-lib.utils.validate_interface() {
-  local interface_prefix="$1"
-  local cmds=("${@:2}")
-  for command in "${cmds[@]}"; do
-    if ! declare -f "${interface_prefix}.${command}" >/dev/null; then
-      log.error "${interface_prefix}.${command} doesn't exist."
-      exit 1
-    fi
-  done
-}
 lib.utils.validate_fs() {
   local errors=()
   local return_code=0
@@ -214,7 +204,7 @@ lib.utils.validate_interfaces() {
     name="${name//-/_}"
     local prefix="${dir}.${name}"
     local cmds=("${@:2}")
-    for cmd in "${expected_methods}[@]"; do
+    for cmd in "${expected_methods[@]}"; do
       if ! declare -f "${prefix}.${cmd}" >/dev/null; then
         log.error "${prefix}.${cmd} doesn't exist."
         is_invalid=true

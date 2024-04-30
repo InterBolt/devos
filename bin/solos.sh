@@ -36,7 +36,7 @@ set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
 vRESTRICTED_MODE_DEVELOPER=${vPREV_RETURN[0]:-false}
 vRESTRICTED_MODE_NOOP=${vPREV_RETURN[1]:-false}
 
-if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then 
+if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
 
@@ -86,6 +86,8 @@ vPROJECT_IP=""
 vPROJECT_NAME=""
 vPROJECT_ID=""
 
+# shellcheck source=pkg/__source__.sh
+. "pkg/${vSTATIC_SOURCE_FILE}"
 # shellcheck source=shared/log.sh
 . "shared/log.sh"
 
@@ -99,8 +101,6 @@ if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
   shared.codegen.run "${vSTATIC_SOURCE_FILE}"
 fi
 
-# shellcheck source=pkg/__source__.sh
-. "pkg/${vSTATIC_SOURCE_FILE}"
 # shellcheck source=lib/__source__.sh
 . "lib/${vSTATIC_SOURCE_FILE}"
 # shellcheck source=cli/__source__.sh
