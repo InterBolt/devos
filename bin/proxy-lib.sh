@@ -49,22 +49,24 @@ done
 test_exec() {
   local args=()
   if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
-      if docker exec -i "${vpGIT_HASH}" echo "" &>/dev/null; then
-        return 0
-      else
-        return 1
-      fi
+    args=(-i "${vpGIT_HASH}" echo "")
   else
-      if docker exec -i "${vpGIT_HASH}" echo "" &>/dev/null; then
-        return 0
-      else
-        return 1
-      fi
+    args=(-it "${vpGIT_HASH}" echo "")
   fi
+  if ! docker exec "${args[@]}" >/dev/null &>/dev/null; then
+    return 1
+  fi
+  return 0
 }
 
 exec_solos() {
-  docker exec -it "${vpGIT_HASH}" /root/.solos/src/bin/solos.sh "$@"
+  local args=()
+  if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
+    args=(-i "${vpGIT_HASH}" /root/.solos/src/bin/solos.sh)
+  else
+    args=(-it "${vpGIT_HASH}" /root/.solos/src/bin/solos.sh)
+  fi
+  docker exec "${args[@]}" "$@"
 }
 
 run_solos_in_docker() {
