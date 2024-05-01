@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2115
 
-# shellcheck source=../shared/must-source.sh
-. shared/must-source.sh
-
 vSELF_PKG_GUM_ENTRY_DIR="${PWD}"
 vSELF_PKG_GUM_PKG_DIR="${vSELF_PKG_GUM_ENTRY_DIR}/pkg"
 vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"

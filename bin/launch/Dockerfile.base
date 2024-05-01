@@ -13,6 +13,7 @@ RUN apt-get update \
   postgresql-client \
   lsb-release \
   ca-certificates \
+  man-db \
   curl \
   jq \
   wget \

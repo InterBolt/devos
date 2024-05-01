@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+vpENTRY_DIR="${PWD}"
+
 cd "${HOME}" || exit 1
 
 # Note: in the prefix, "v" stands for variable and "i" for install.
@@ -9,14 +11,7 @@ cd "${HOME}" || exit 1
 
 vpVOLUME_ROOT="${HOME}/.solos"
 vpREPO_LAUNCH_DIR="${vpVOLUME_ROOT}/src/bin/launch"
-vpENTRY_DIR="${PWD}"
-trap 'cd '"${vpENTRY_DIR}"'' EXIT
-# check if the readlink command exists
-if ! command -v readlink >/dev/null 2>&1; then
-  echo "\`readlink\` must exist on your system." >&2
-  exit 1
-fi
-vpSYMLINKED_PATH="$(readlink -f "$0" || echo "")"
+vpSYMLINKED_PATH="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/proxy.sh")"
 if [[ -z ${vpSYMLINKED_PATH} ]]; then
   echo "Unexpected error: couldn't detect symbolic linking" >&2
   exit 1
@@ -28,16 +23,8 @@ if ! cd "${vpREPO_DIR}"; then
   exit 1
 fi
 vpVOLUME_CONFIG_HOSTFILE="${vpVOLUME_ROOT}/config/host"
-if [[ -f /.dockerenv ]] && [[ ! -f ${vpVOLUME_CONFIG_HOSTFILE} ]]; then
-  echo "The \`.host_path\` file was not found in the .solos directory." >&2
-  echo "This file is required to run SolOS within a Docker container." >&2
-  exit 1
-fi
-if [[ -f /.dockerenv ]]; then
-  vpVOLUME_ROOT="$(cat "${vpVOLUME_CONFIG_HOSTFILE}")/.solos"
-fi
 vpVOLUME_MOUNTED="/root/.solos"
-vpGIT_HASH="$(git rev-parse --short HEAD | cut -c1-7 || echo "")"
+vpGIT_HASH="$(cd "${vpVOLUME_ROOT}/src" && git rev-parse --short HEAD | cut -c1-7 || echo "")"
 vpINSTALLER_NO_TTY_FLAG=false
 __next_args=()
 for entry_arg in "$@"; do
@@ -62,23 +49,23 @@ test_exec() {
   return 0
 }
 
-exec_solos() {
+exec_cmd() {
+  local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i "${vpGIT_HASH}" /root/.solos/src/bin/solos.sh)
+    args=(-i -w "${container_ctx}" "${vpGIT_HASH}")
   else
-    args=(-it "${vpGIT_HASH}" /root/.solos/src/bin/solos.sh)
+    args=(-it -w "${container_ctx}" "${vpGIT_HASH}")
   fi
-  docker exec "${args[@]}" "$@"
+  docker exec "${args[@]}" /bin/bash --rcfile /root/.solos/.bashrc -i -c "${*}"
 }
 
-run_solos_in_docker() {
-  local entry_dir="$1"
-  shift
+run_cmd_in_docker() {
   if test_exec; then
-    exec_solos "$@"
+    exec_cmd "$@"
     return 0
   fi
+
   # Initalize the home/.solos dir if it's not already there.
   if [[ -f ${vpVOLUME_ROOT} ]]; then
     echo "A file called .solos was detected in your home directory." >&2
@@ -91,20 +78,21 @@ run_solos_in_docker() {
   # Build the base and cli images.
   if ! docker build -t "solos:base" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" .; then
     echo "Unexpected error: failed to build the docker image." >&2
+    sleep 10
     exit 1
   fi
   if ! docker build -t "solos-cli:${vpGIT_HASH}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" .; then
     echo "Unexpected error: failed to build the docker image." >&2
+    sleep 10
     exit 1
   fi
   local shared_docker_run_args=(
-    --name
-    "${vpGIT_HASH}"
+    --name "${vpGIT_HASH}"
     -d
-    -v
-    "${vpVOLUME_ROOT}:${vpVOLUME_MOUNTED}"
-    -v
-    /var/run/docker.sock:/var/run/docker.sock
+    -v /var/run/docker.sock:/var/run/docker.sock
+    -v "${vpVOLUME_ROOT}:${vpVOLUME_MOUNTED}"
+    -v /usr/local/bin/solos:/usr/local/bin/solos
+    -v /usr/local/bin/dsolos:/usr/local/bin/dsolos
     "solos-cli:${vpGIT_HASH}"
   )
   if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
@@ -115,5 +103,5 @@ run_solos_in_docker() {
   while ! test_exec; do
     sleep .2
   done
-  exec_solos "$@"
+  exec_cmd "$@"
 }

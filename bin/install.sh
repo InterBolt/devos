@@ -13,8 +13,9 @@ if [[ $1 = "--dev" ]]; then
 fi
 viTMP_DIR="$(mktemp -d 2>/dev/null)"
 viTMP_SOURCE_ROOT="${viTMP_DIR}/src"
-viSOLOS_ROOT="${HOME}/.solos"
-viSOURCE_ROOT="${viSOLOS_ROOT}/src"
+viSOLOS_DIR="${HOME}/.solos"
+viSOLOS_SRC_DIR="${viSOLOS_DIR}/src"
+viSOLOS_VSCODE_BASHRC_FILE="${viSOLOS_DIR}/vscode.bashrc"
 
 do_clone() {
   if ! git clone "${viREPO_URL}" "${viTMP_SOURCE_ROOT}" >/dev/null 2>&1; then
@@ -27,15 +28,23 @@ do_clone() {
   fi
 }
 do_bin_link() {
-  mkdir -p "$viSOLOS_ROOT"
-  rm -rf "${viSOURCE_ROOT:?}"
-  mkdir -p "${viSOURCE_ROOT:?}"
-  cp -r "${viTMP_SOURCE_ROOT:?}/." "${viSOURCE_ROOT:?}" || exit 1
-  if ! ln -sfv "${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}" "${viUSR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
-    echo "Failed to link ${viSOURCE_ROOT}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
+  mkdir -p "$viSOLOS_DIR"
+  if [[ ! -f "${viSOLOS_VSCODE_BASHRC_FILE:?}" ]]; then
+    {
+      echo "source \"\${HOME}/.solos/src/bin/.bashrc\""
+      echo ""
+      echo "# This file is sourced inside of the docker container when the command is run."
+      echo "# Add your customizations:"
+    } >"${viSOLOS_VSCODE_BASHRC_FILE}"
+  fi
+  rm -rf "${viSOLOS_SRC_DIR:?}"
+  mkdir -p "${viSOLOS_SRC_DIR:?}"
+  cp -r "${viTMP_SOURCE_ROOT:?}/." "${viSOLOS_SRC_DIR:?}" || exit 1
+  if ! ln -sfv "${viSOLOS_SRC_DIR:?}/${viREPO_BIN_EXECUTABLE_PATH}" "${viUSR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
+    echo "Failed to link ${viSOLOS_SRC_DIR}/${viREPO_BIN_EXECUTABLE_PATH} to ${viUSR_LOCAL_BIN_EXECUTABLE}" >&2
     exit 1
   fi
-  chmod +x "${viSOURCE_ROOT:?}/${viREPO_BIN_EXECUTABLE_PATH}"
+  chmod +x "${viSOLOS_SRC_DIR:?}/${viREPO_BIN_EXECUTABLE_PATH}"
   chmod +x "${viUSR_LOCAL_BIN_EXECUTABLE}"
 }
 if [[ "${BASH_VERSION}" < 3.1 ]]; then
