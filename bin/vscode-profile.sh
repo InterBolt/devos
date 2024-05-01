@@ -31,10 +31,16 @@ implement_proxy() {
   if [[ ${cmd} = "clear" ]]; then
     return 0
   fi
-  if [[ ${cmd} = "code "* ]]; then
+  if [[ ${cmd} = "which code "* ]]; then
+    return 0
+  fi
+  if [[ ${cmd} = "git" ]]; then
     return 0
   fi
   if [[ ${cmd} = "git "* ]]; then
+    return 0
+  fi
+  if [[ ${cmd} = "which git "* ]]; then
     return 0
   fi
   if [[ ${first_run} = true ]]; then
