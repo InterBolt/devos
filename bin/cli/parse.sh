@@ -8,7 +8,7 @@
 . shared/empty.sh
 # shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../solos.sh
+# shellcheck source=../bin.sh
 . shared/empty.sh
 
 cli.parse._is_valid_help_command() {

@@ -3,7 +3,7 @@
 set -o pipefail
 set -o errtrace
 
-# shellcheck source=../solos.sh
+# shellcheck source=../bin.sh
 . shared/empty.sh
 
 # Checking for the vSOLOS_STARTED_AT variable protects us against accidentally running

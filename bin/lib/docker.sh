@@ -10,7 +10,7 @@ SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 . shared/empty.sh
 # shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../solos.sh
+# shellcheck source=../bin.sh
 . shared/empty.sh
 
 # lib.docker.install_remote() {
@@ -73,12 +73,12 @@ SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
 #   # Make the proxy script executable if it isn't already.
 #   # We already did the chmod in the dockerfile where we mount this.
-#   if ! chmod +x "${vSTATIC_SOLOS_ROOT}"/src/bin/proxy.sh; then
+#   if ! chmod +x "${vSTATIC_SOLOS_ROOT}"/src/bin/solos.sh; then
 #     log.error "Could not make the proxy script executable." >&2
 #     exit 1
 #   fi
 
-#   local cmd_symlink_bin="ln -sfv ${vSTATIC_SOLOS_ROOT}/src/bin/proxy.sh /usr/local/bin/solos && chmod +x /usr/local/bin/solos"
+#   local cmd_symlink_bin="ln -sfv ${vSTATIC_SOLOS_ROOT}/src/bin/solos.sh /usr/local/bin/solos && chmod +x /usr/local/bin/solos"
 #   local cmd_launch_caprover='docker run \
 #     -p 80:80 -p 443:443 -p 3000:3000 \
 #     -e ACCEPTED_TERMS=true \

@@ -7,7 +7,7 @@
 . shared/empty.sh
 # shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../solos.sh
+# shellcheck source=../bin.sh
 . shared/empty.sh
 # shellcheck source=../pkg/gum.sh
 . shared/empty.sh
@@ -219,7 +219,7 @@ lib.utils.validate_interfaces() {
   done
 
   local invalid_file_count="${#invalid_files[@]}"
-  if [[ ${invalid_file_count} > 0 ]]; then
+  if [[ ${invalid_file_count} -gt 0 ]]; then
     log.error "Found ${invalid_file_count} invalid files."
     exit 1
   fi

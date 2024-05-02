@@ -2,28 +2,31 @@
 
 shopt -s extdebug
 
-vprofENTRY_DIR="${PWD}"
-vprofPROXY_LIB_PATH="${HOME}/.solos/src/bin/proxy-lib.sh"
+__s__RAG_DIR="${HOME}/.solos/rag"
+__s__RAG_CAPTURED="${__s__RAG_DIR}/captured"
+__s__RAG_NOTES="${__s__RAG_DIR}/notes"
+__s__ENTRY_DIR="${PWD}"
+__s__LIB_PATH="${HOME}/.solos/src/bin/lib.sh"
 
-if [[ ! ${vprofENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
+if [[ ! ${__s__ENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 else
-  cd "${vprofENTRY_DIR}" || exit 1
+  cd "${__s__ENTRY_DIR}" || exit 1
 fi
 
 # We always initialize in the .solos directory.
-PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${vprofENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
+PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${__s__ENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
 
 # pull in the library we use to run the CLI in the docker container.
-. "${vprofPROXY_LIB_PATH}" || exit 1
+. "${__s__LIB_PATH}" || exit 1
 
-___ran=false
+__s__ran=false
 
-docker_proxy() {
+__s__execute_in_container() {
   # Not sure why but on the initial run, the working directory is not set correctly.
-  if [[ ${___ran} = false ]]; then
-    cd "${vprofENTRY_DIR}" || exit 1
-    ___ran=true
+  if [[ ${__s__ran} = false ]]; then
+    cd "${__s__ENTRY_DIR}" || exit 1
+    __s__ran=true
   fi
 
   # These commands should run on the host.
@@ -57,8 +60,19 @@ docker_proxy() {
     return 0
   fi
 
+  # We cheat and execute some of the "rag" commands from the host since
+  # they are just opening files in vscode.
+  if [[ ${BASH_COMMAND} = "rag notes" ]]; then
+    code "${__s__RAG_NOTES}"
+    return 1
+  fi
+  if [[ ${BASH_COMMAND} = "rag captured" ]]; then
+    code "${__s__RAG_CAPTURED}"
+    return 1
+  fi
+
+  # Determine if the command will modify the working directory.
   local will_modify_pwd=false
-  # These commands manipulate our working directory and need to be run on the host.
   if [[ ${BASH_COMMAND} = "cd "* ]]; then
     will_modify_pwd=true
   elif [[ ${BASH_COMMAND} = "pushd "* ]]; then
@@ -67,11 +81,11 @@ docker_proxy() {
     will_modify_pwd=true
   fi
 
+  # The PS1 is different when we are in the .solos directory than when we are not.
+  # This is important because we want to visually indicate when we are running commands
+  # in the docker container vs on the host.
   if [[ ${will_modify_pwd} = true ]]; then
     eval "${BASH_COMMAND} $@"
-    # Visually differ the prompt to indicate where commands are being run.
-    # Outside of mounted volume, commands run on the host. Within - we run them in the
-    # docker container.
     if [[ ! ${PWD} = "${HOME}/.solos"* ]]; then
       PS1='host\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/~}"'\[\033[00m\]$ '
     else
@@ -80,14 +94,13 @@ docker_proxy() {
     return 1
   fi
 
-  # Returning 0 will allow the original command to run.
+  # Always run on the host when not inside the .solos directory.
   if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
     return 0
   fi
 
-  # This will run the command in the docker container and stop the original command from running.
-  run_cmd_in_docker "${BASH_COMMAND}" "$@"
+  containerized_run "${BASH_COMMAND}" "$@"
   return 1
 }
 
-trap 'docker_proxy' DEBUG
+trap '__s__execute_in_container' DEBUG

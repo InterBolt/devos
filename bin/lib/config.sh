@@ -6,7 +6,7 @@
 . shared/empty.sh
 # shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../solos.sh
+# shellcheck source=../bin.sh
 . shared/empty.sh
 
 lib.config.del() {
