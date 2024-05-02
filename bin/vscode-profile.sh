@@ -2,53 +2,63 @@
 
 shopt -s extdebug
 
-ENTRY_DIR="${PWD}"
-PROXY_LIB_PATH="${HOME}/.solos/src/bin/proxy-lib.sh"
+vprofENTRY_DIR="${PWD}"
+vprofPROXY_LIB_PATH="${HOME}/.solos/src/bin/proxy-lib.sh"
 
-if [[ ! ${ENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
+if [[ ! ${vprofENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 else
-  cd "${ENTRY_DIR}" || exit 1
+  cd "${vprofENTRY_DIR}" || exit 1
 fi
 
-PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${ENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
+# We always initialize in the .solos directory.
+PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${vprofENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
 
-if [[ -s ${PROXY_LIB_PATH} ]]; then
-  . "${PROXY_LIB_PATH}" || exit 1
-else
-  echo "${PROXY_LIB_PATH} was not found." >&2
-  exit 1
-fi
+# pull in the library we use to run the CLI in the docker container.
+. "${vprofPROXY_LIB_PATH}" || exit 1
 
-first_run=true
+vprofRAN_ONCE=false
 
-implement_proxy() {
-  local cmd=$1
+docker_proxy() {
+  local cmd="${BASH_COMMAND}"
   shift
-  if [[ ${cmd} = "exit" ]]; then
+
+  # These commands should run on the host.
+  if [[ ${BASH_COMMAND} = "exit" ]] ||
+    [[ ${BASH_COMMAND} = "clear" ]] ||
+    [[ ${BASH_COMMAND} = "code" ]] ||
+    [[ ${BASH_COMMAND} = "code "* ]] ||
+    [[ ${BASH_COMMAND} = "which code" ]] ||
+    [[ ${BASH_COMMAND} = "man code" ]] ||
+    [[ ${BASH_COMMAND} = "help code" ]] ||
+    [[ ${BASH_COMMAND} = "info code" ]] ||
+    [[ ${BASH_COMMAND} = "git" ]] ||
+    [[ ${BASH_COMMAND} = "git "* ]] ||
+    [[ ${BASH_COMMAND} = "which git" ]] ||
+    [[ ${BASH_COMMAND} = "man git" ]] ||
+    [[ ${BASH_COMMAND} = "help git" ]] ||
+    [[ ${BASH_COMMAND} = "info git" ]]; then
     return 0
   fi
-  if [[ ${cmd} = "clear" ]]; then
-    return 0
+
+  # Not sure why but on the initial run, the working directory is not set correctly.
+  if [[ ${vprofRAN_ONCE} = false ]]; then
+    cd "${vprofENTRY_DIR}" || exit 1
+    vprofRAN_ONCE=true
   fi
-  if [[ ${cmd} = "which code "* ]]; then
-    return 0
-  fi
-  if [[ ${cmd} = "git" ]]; then
-    return 0
-  fi
-  if [[ ${cmd} = "git "* ]]; then
-    return 0
-  fi
-  if [[ ${cmd} = "which git "* ]]; then
-    return 0
-  fi
-  if [[ ${first_run} = true ]]; then
-    cd "${ENTRY_DIR}" || exit 1
-    first_run=false
-  fi
-  if [[ ${cmd} = "cd "* ]] || [[ ${cmd} = "cd" ]] || [[ ${cmd} = "pushd "* ]] || [[ ${cmd} = "popd" ]]; then
-    eval "${cmd} $@"
+
+  # These commands manipulate our working directory and need to be run on the host.
+  if [[ ${BASH_COMMAND} = "cd "* ]] ||
+    [[ ${BASH_COMMAND} = "cd" ]] ||
+    [[ ${BASH_COMMAND} = "pushd "* ]] ||
+    [[ ${BASH_COMMAND} = "popd" ]]; then
+
+    # Run the command on the host.
+    eval "${BASH_COMMAND} $@"
+
+    # Visually differ the prompt to indicate where commands are being run.
+    # Outside of mounted volume, commands run on the host. Within - we run them in the
+    # docker container.
     if [[ ! ${PWD} = "${HOME}/.solos"* ]]; then
       PS1='host\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/~}"'\[\033[00m\]$ '
     else
@@ -56,17 +66,15 @@ implement_proxy() {
     fi
     return 1
   fi
+
+  # Returning 0 will allow the original command to run.
   if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
     return 0
   fi
-  run_cmd_in_docker "${cmd}" "$@"
+
+  # This will run the command in the docker container and stop the original command from running.
+  run_cmd_in_docker "${BASH_COMMAND}" "$@"
   return 1
 }
 
-run_on_debug() {
-  implement_proxy "${BASH_COMMAND}" "$@"
-  local code=$?
-  return ${code}
-}
-
-trap run_on_debug DEBUG
+trap docker_proxy DEBUG

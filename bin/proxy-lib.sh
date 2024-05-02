@@ -1,35 +1,30 @@
 #!/usr/bin/env bash
 
-vpENTRY_DIR="${PWD}"
+vproxyENTRY_DIR="${PWD}"
 
 cd "${HOME}" || exit 1
 
-# Note: in the prefix, "v" stands for variable and "i" for install.
-# I chose to use this prefix because global variables in the main bin scripts
-# use only the "v" prefix, which makes grepping one set of variables vs the other easy.
-# I hate thinking!
-
-vpVOLUME_ROOT="${HOME}/.solos"
-vpREPO_LAUNCH_DIR="${vpVOLUME_ROOT}/src/bin/launch"
-vpSYMLINKED_PATH="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/proxy.sh")"
-if [[ -z ${vpSYMLINKED_PATH} ]]; then
+vproxyVOLUME_ROOT="${HOME}/.solos"
+vproxyREPO_LAUNCH_DIR="${vproxyVOLUME_ROOT}/src/bin/launch"
+vproxySYMLINKED_PATH="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/proxy.sh")"
+if [[ -z ${vproxySYMLINKED_PATH} ]]; then
   echo "Unexpected error: couldn't detect symbolic linking" >&2
   exit 1
 fi
-vpBIN_DIR="$(dirname "${vpSYMLINKED_PATH}")"
-vpREPO_DIR="$(dirname "${vpBIN_DIR}")"
-if ! cd "${vpREPO_DIR}"; then
-  echo "Unexpected error: could not cd into ${vpREPO_DIR}" >&2
+vproxyBIN_DIR="$(dirname "${vproxySYMLINKED_PATH}")"
+vproxyREPO_DIR="$(dirname "${vproxyBIN_DIR}")"
+if ! cd "${vproxyREPO_DIR}"; then
+  echo "Unexpected error: could not cd into ${vproxyREPO_DIR}" >&2
   exit 1
 fi
-vpVOLUME_CONFIG_HOSTFILE="${vpVOLUME_ROOT}/config/host"
-vpVOLUME_MOUNTED="/root/.solos"
-vpGIT_HASH="$(cd "${vpVOLUME_ROOT}/src" && git rev-parse --short HEAD | cut -c1-7 || echo "")"
-vpINSTALLER_NO_TTY_FLAG=false
+vproxyVOLUME_CONFIG_HOSTFILE="${vproxyVOLUME_ROOT}/config/host"
+vproxyVOLUME_MOUNTED="/root/.solos"
+vproxyGIT_HASH="$(cd "${vproxyVOLUME_ROOT}/src" && git rev-parse --short HEAD | cut -c1-7 || echo "")"
+vproxyINSTALLER_NO_TTY_FLAG=false
 __next_args=()
 for entry_arg in "$@"; do
   if [[ $entry_arg = "--installer-no-tty" ]]; then
-    vpINSTALLER_NO_TTY_FLAG=true
+    vproxyINSTALLER_NO_TTY_FLAG=true
   else
     __next_args+=("$entry_arg")
   fi
@@ -38,10 +33,10 @@ set -- "${__next_args[@]}" || exit 1
 
 test_exec() {
   local args=()
-  if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i "${vpGIT_HASH}" echo "")
+  if [[ ${vproxyINSTALLER_NO_TTY_FLAG} = true ]]; then
+    args=(-i "${vproxyGIT_HASH}" echo "")
   else
-    args=(-it "${vpGIT_HASH}" echo "")
+    args=(-it "${vproxyGIT_HASH}" echo "")
   fi
   if ! docker exec "${args[@]}" >/dev/null &>/dev/null; then
     return 1
@@ -52,10 +47,10 @@ test_exec() {
 exec_cmd() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
-  if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i -w "${container_ctx}" "${vpGIT_HASH}")
+  if [[ ${vproxyINSTALLER_NO_TTY_FLAG} = true ]]; then
+    args=(-i -w "${container_ctx}" "${vproxyGIT_HASH}")
   else
-    args=(-it -w "${container_ctx}" "${vpGIT_HASH}")
+    args=(-it -w "${container_ctx}" "${vproxyGIT_HASH}")
   fi
   docker exec "${args[@]}" /bin/bash --rcfile /root/.solos/.bashrc -i -c "${*}"
 }
@@ -67,35 +62,35 @@ run_cmd_in_docker() {
   fi
 
   # Initalize the home/.solos dir if it's not already there.
-  if [[ -f ${vpVOLUME_ROOT} ]]; then
+  if [[ -f ${vproxyVOLUME_ROOT} ]]; then
     echo "A file called .solos was detected in your home directory." >&2
     echo "This namespace is required for solos. (SolOS creates a ~/.solos dir)" >&2
     exit 1
   fi
-  mkdir -p "$(dirname "${vpVOLUME_CONFIG_HOSTFILE}")"
-  echo "${HOME}" >"${vpVOLUME_CONFIG_HOSTFILE}"
+  mkdir -p "$(dirname "${vproxyVOLUME_CONFIG_HOSTFILE}")"
+  echo "${HOME}" >"${vproxyVOLUME_CONFIG_HOSTFILE}"
 
   # Build the base and cli images.
-  if ! docker build -t "solos:base" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.base" .; then
+  if ! docker build -t "solos:base" -f "${vproxyREPO_LAUNCH_DIR}/Dockerfile.base" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     sleep 10
     exit 1
   fi
-  if ! docker build -t "solos-cli:${vpGIT_HASH}" -f "${vpREPO_LAUNCH_DIR}/Dockerfile.cli" .; then
+  if ! docker build -t "solos-cli:${vproxyGIT_HASH}" -f "${vproxyREPO_LAUNCH_DIR}/Dockerfile.cli" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     sleep 10
     exit 1
   fi
   local shared_docker_run_args=(
-    --name "${vpGIT_HASH}"
+    --name "${vproxyGIT_HASH}"
     -d
     -v /var/run/docker.sock:/var/run/docker.sock
-    -v "${vpVOLUME_ROOT}:${vpVOLUME_MOUNTED}"
+    -v "${vproxyVOLUME_ROOT}:${vproxyVOLUME_MOUNTED}"
     -v /usr/local/bin/solos:/usr/local/bin/solos
     -v /usr/local/bin/dsolos:/usr/local/bin/dsolos
-    "solos-cli:${vpGIT_HASH}"
+    "solos-cli:${vproxyGIT_HASH}"
   )
-  if [[ ${vpINSTALLER_NO_TTY_FLAG} = true ]]; then
+  if [[ ${vproxyINSTALLER_NO_TTY_FLAG} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}" &
   else
     docker run -it "${shared_docker_run_args[@]}" &
