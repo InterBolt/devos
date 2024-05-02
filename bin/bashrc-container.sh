@@ -93,6 +93,7 @@ __s__find_rag_note() {
 rag() {
   local command_was_supplied=false
   local no_more_opts=false
+  local opt_captured_only=false
   local opt_command_only=false
   local opt_tag_only=false
   local opt_note_only=false
@@ -101,6 +102,11 @@ rag() {
     --help)
       __s__print_rag_help
       return 0
+      ;;
+    --captured-only)
+      opt_captured_only=true
+      opt_command_only=true
+      shift
       ;;
     -h)
       __s__print_rag_help
@@ -167,32 +173,46 @@ rag() {
       return 1
     fi
   fi
-  if [[ ${command_was_supplied} = false ]] && [[ -z ${user_tag} ]] && [[ -z ${user_note} ]]; then
+  if [[ ${command_was_supplied} = false ]] && [[ -z ${user_tag} ]] && [[ -z ${user_note} ]] && [[ ${opt_captured_only} = false ]]; then
     echo "No command, tag, or note was supplied. Exiting."
     return 0
   fi
   local loglines=$(wc -l <"${__s__RAG_NOTES}")
-  if [[ ${loglines} -gt 3 ]]; then
-    echo "" >>"${__s__RAG_NOTES}"
-    echo "--- ${__s__SECTION_DELIMITER} ---" >>"${__s__RAG_NOTES}"
-  fi
-  echo "(ID) $(date +%s%N)" >>"${__s__RAG_NOTES}"
-  echo "(DATE) $(date)" >>"${__s__RAG_NOTES}"
-  if [[ -n "${user_tag}" ]] && [[ ${opt_command_only} = false ]]; then
-    echo "(TAG) ${user_tag}" >>"${__s__RAG_NOTES}"
-  fi
-  if [[ -n "${user_note}" ]] && [[ ${opt_command_only} = false ]]; then
-    echo "(NOTE) ${user_note}" >>"${__s__RAG_NOTES}"
-  fi
-  if [[ ${command_was_supplied} = true ]]; then
-    echo "(COMMAND) ${*}" >>"${__s__RAG_NOTES}"
-    echo "(OUTPUT)" >>"${__s__RAG_NOTES}"
-    # Will run our comand using the same RC file as the user would normally and
-    # will capture some output: the note/tag > notes file, and any stdout lines that start with [RAG] > captured file.
-    # Paranoid note: I filter the delimiter from the output before saving the notes file.
-    # Since the delimiter is a hash, I only expect to remove it when somehow the source code
-    # for this script makes its way into the output.
-    /bin/bash --rcfile /root/.solos/.bashrc -i -c "$@" |
-      tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}") >(sed "s/${__s__SECTION_DELIMITER}//g" >>"${__s__RAG_NOTES}")
+
+  if [[ ${opt_captured_only} = false ]]; then
+    if [[ ${loglines} -gt 3 ]]; then
+      echo "" >>"${__s__RAG_NOTES}"
+      echo "--- ${__s__SECTION_DELIMITER} ---" >>"${__s__RAG_NOTES}"
+    fi
+    echo "(ID) $(date +%s%N)" >>"${__s__RAG_NOTES}"
+    echo "(DATE) $(date)" >>"${__s__RAG_NOTES}"
+    if [[ -n "${user_tag}" ]] && [[ ${opt_command_only} = false ]]; then
+      echo "(TAG) ${user_tag}" >>"${__s__RAG_NOTES}"
+    fi
+    if [[ -n "${user_note}" ]] && [[ ${opt_command_only} = false ]]; then
+      echo "(NOTE) ${user_note}" >>"${__s__RAG_NOTES}"
+    fi
+    if [[ ${command_was_supplied} = true ]]; then
+      echo "(COMMAND) ${*}" >>"${__s__RAG_NOTES}"
+      echo "(OUTPUT)" >>"${__s__RAG_NOTES}"
+      # Will run our comand using the same RC file as the user would normally and
+      # will capture some output: the note/tag > notes file, and any stdout lines that start with [RAG] > captured file.
+      # Paranoid note: I filter the delimiter from the output before saving the notes file.
+      # Since the delimiter is a hash, I only expect to remove it when somehow the source code
+      # for this script makes its way into the output.
+      "$@" |
+        tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}") >(sed "s/${__s__SECTION_DELIMITER}//g" >>"${__s__RAG_NOTES}")
+    fi
+  else
+    "$@" |
+      tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}")
   fi
 }
+
+# __s__rag_intercept() {
+#   echo "LSKDJFKJSHFKJSD"
+#   rag --captured-only "${BASH_COMMAND[@]}"
+#   return 1
+# }
+
+# trap '__s__rag_intercept' DEBUG

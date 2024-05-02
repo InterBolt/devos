@@ -19,7 +19,6 @@ if ! cd "${__LIB_REPO_DIR}"; then
 fi
 __LIB_VOLUME_CONFIG_HOSTFILE="${__LIB_VOLUME_ROOT}/config/host"
 __LIB_VOLUME_MOUNTED="/root/.solos"
-__LIB_GIT_HASH="$(cd "${__LIB_VOLUME_ROOT}/src" && git rev-parse --short HEAD | cut -c1-7 || echo "")"
 __LIB_INSTALLER_NO_TTY_FLAG=false
 __LIB_next_args=()
 for entry_arg in "$@"; do
@@ -31,12 +30,16 @@ for entry_arg in "$@"; do
 done
 set -- "${__LIB_next_args[@]}" || exit 1
 
+__hash() {
+  git -C "${__LIB_VOLUME_ROOT}/src" rev-parse --short HEAD | cut -c1-7 || echo ""
+}
+
 __test() {
   local args=()
   if [[ ${__LIB_INSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i "${__LIB_GIT_HASH}" echo "")
+    args=(-i "$(__hash)" echo "")
   else
-    args=(-it "${__LIB_GIT_HASH}" echo "")
+    args=(-it "$(__hash)" echo "")
   fi
   if ! docker exec "${args[@]}" >/dev/null &>/dev/null; then
     return 1
@@ -48,9 +51,9 @@ __exec() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${__LIB_INSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i -w "${container_ctx}" "${__LIB_GIT_HASH}")
+    args=(-i -w "${container_ctx}" "$(__hash)")
   else
-    args=(-it -w "${container_ctx}" "${__LIB_GIT_HASH}")
+    args=(-it -w "${container_ctx}" "$(__hash)")
   fi
   docker exec "${args[@]}" /bin/bash --rcfile /root/.solos/.bashrc -i -c "${*}"
 }
@@ -76,19 +79,23 @@ containerized_run() {
     sleep 10
     exit 1
   fi
-  if ! docker build -t "solos-cli:${__LIB_GIT_HASH}" -f "${__LIB_REPO_LAUNCH_DIR}/Dockerfile.cli" .; then
+  if ! docker build -t "solos-cli:$(__hash)" -f "${__LIB_REPO_LAUNCH_DIR}/Dockerfile.cli" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     sleep 10
     exit 1
   fi
   local shared_docker_run_args=(
-    --name "${__LIB_GIT_HASH}"
+    --name "$(__hash)"
     -d
-    -v /var/run/docker.sock:/var/run/docker.sock
-    -v "${__LIB_VOLUME_ROOT}:${__LIB_VOLUME_MOUNTED}"
-    -v /usr/local/bin/solos:/usr/local/bin/solos
-    -v /usr/local/bin/dsolos:/usr/local/bin/dsolos
-    "solos-cli:${__LIB_GIT_HASH}"
+    -v
+    /var/run/docker.sock:/var/run/docker.sock
+    -v
+    -v
+    /usr/local/bin/solos:/usr/local/bin/solos
+    -v
+    /usr/local/bin/dsolos:/usr/local/bin/dsolos
+    "${__LIB_VOLUME_ROOT}:${__LIB_VOLUME_MOUNTED}"
+    "solos-cli:$(__hash)"
   )
   if [[ ${__LIB_INSTALLER_NO_TTY_FLAG} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}" &

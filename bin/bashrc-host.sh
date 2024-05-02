@@ -22,7 +22,7 @@ PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${__s__ENTRY_DIR/\$HOME/
 
 __s__ran=false
 
-__s__execute_in_container() {
+execute_in_container() {
   # Not sure why but on the initial run, the working directory is not set correctly.
   if [[ ${__s__ran} = false ]]; then
     cd "${__s__ENTRY_DIR}" || exit 1
@@ -75,7 +75,9 @@ __s__execute_in_container() {
 
   # Determine if the command will modify the working directory.
   local will_modify_pwd=false
-  if [[ ${BASH_COMMAND} = "cd "* ]]; then
+  if [[ ${BASH_COMMAND} = "cd" ]]; then
+    will_modify_pwd=true
+  elif [[ ${BASH_COMMAND} = "cd "* ]]; then
     will_modify_pwd=true
   elif [[ ${BASH_COMMAND} = "pushd "* ]]; then
     will_modify_pwd=true
@@ -105,4 +107,4 @@ __s__execute_in_container() {
   return 1
 }
 
-trap '__s__execute_in_container' DEBUG
+trap 'execute_in_container' DEBUG
