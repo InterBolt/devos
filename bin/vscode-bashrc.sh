@@ -2,6 +2,8 @@
 
 shopt -s extdebug
 
+vrcNEVER_CHANGE_THIS='cca07f6cb9d2e0f8ff1dd8c79d508727'
+
 # Grab gum and go
 vrcBASHRC_ENTRY_DIR="${PWD}"
 cd "${HOME}/.solos/src/bin"
@@ -31,7 +33,7 @@ note() {
   if [[ ! -z ${user_note} ]] && [[ ${should_log} = true ]]; then
     if [[ ! -z $(cat "${vrcRAG_NOTES}") ]]; then
       echo "" >>"${vrcRAG_NOTES}"
-      echo "---" >>"${vrcRAG_NOTES}"
+      echo "--- ${vrcNEVER_CHANGE_THIS}" >>"${vrcRAG_NOTES}"
       echo "" >>"${vrcRAG_NOTES}"
     fi
     echo "DATE: $(date)" >>"${vrcRAG_NOTES}"
@@ -47,7 +49,7 @@ rag() {
   local ragged_lines=$(wc -l <"${vrcRAG_RAGGED}")
   if [[ ${ragged_lines} > 3 ]]; then
     echo "" >>"${vrcRAG_RAGGED}"
-    echo "---" >>"${vrcRAG_RAGGED}"
+    echo "--- ${vrcNEVER_CHANGE_THIS}" >>"${vrcRAG_RAGGED}"
     echo "" >>"${vrcRAG_RAGGED}"
   fi
   echo "DATE: $(date)" >>"${vrcRAG_RAGGED}"
@@ -55,7 +57,7 @@ rag() {
   echo "PRE-RUN NOTE: ${rag_note}" >>"${vrcRAG_RAGGED}"
   echo "COMMAND OUTPUT:" >>"${vrcRAG_RAGGED}"
   echo "\`\`\`" >>"${vrcRAG_RAGGED}"
-  "$@" | tee -a >(grep "^booger" >>"${vrcRAG_STDOUT}") "${vrcRAG_RAGGED}"
+  /bin/bash "$@" | tee -a >(grep "^\[RAG\]" >>"${vrcRAG_STDOUT}") "${vrcRAG_RAGGED}"
   echo "\`\`\`" >>"${vrcRAG_RAGGED}"
   return 0
 }
