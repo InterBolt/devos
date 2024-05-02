@@ -17,45 +17,58 @@ PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${vprofENTRY_DIR/\$HOME/
 # pull in the library we use to run the CLI in the docker container.
 . "${vprofPROXY_LIB_PATH}" || exit 1
 
-vprofRAN_ONCE=false
+___ran=false
 
 docker_proxy() {
-  local cmd="${BASH_COMMAND}"
-  shift
-
   # These commands should run on the host.
-  if [[ ${BASH_COMMAND} = "exit" ]] ||
-    [[ ${BASH_COMMAND} = "clear" ]] ||
-    [[ ${BASH_COMMAND} = "code" ]] ||
-    [[ ${BASH_COMMAND} = "code "* ]] ||
-    [[ ${BASH_COMMAND} = "which code" ]] ||
-    [[ ${BASH_COMMAND} = "man code" ]] ||
-    [[ ${BASH_COMMAND} = "help code" ]] ||
-    [[ ${BASH_COMMAND} = "info code" ]] ||
-    [[ ${BASH_COMMAND} = "git" ]] ||
-    [[ ${BASH_COMMAND} = "git "* ]] ||
-    [[ ${BASH_COMMAND} = "which git" ]] ||
-    [[ ${BASH_COMMAND} = "man git" ]] ||
-    [[ ${BASH_COMMAND} = "help git" ]] ||
-    [[ ${BASH_COMMAND} = "info git" ]]; then
+  if [[ ${BASH_COMMAND} = "exit" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "clear" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "code" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "code "* ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "which code" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "man code" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "help code" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "info code" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "git" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "git "* ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "which git" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "man git" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "help git" ]]; then
+    return 0
+  elif [[ ${BASH_COMMAND} = "info git" ]]; then
     return 0
   fi
 
   # Not sure why but on the initial run, the working directory is not set correctly.
-  if [[ ${vprofRAN_ONCE} = false ]]; then
+  if [[ ${___ran} = false ]]; then
     cd "${vprofENTRY_DIR}" || exit 1
-    vprofRAN_ONCE=true
+    ___ran=true
   fi
 
+  local will_modify_pwd=false
   # These commands manipulate our working directory and need to be run on the host.
-  if [[ ${BASH_COMMAND} = "cd "* ]] ||
-    [[ ${BASH_COMMAND} = "cd" ]] ||
-    [[ ${BASH_COMMAND} = "pushd "* ]] ||
-    [[ ${BASH_COMMAND} = "popd" ]]; then
+  if [[ ${BASH_COMMAND} = "cd "* ]]; then
+    will_modify_pwd=true
+  elif [[ ${BASH_COMMAND} = "pushd "* ]]; then
+    will_modify_pwd=true
+  elif [[ ${BASH_COMMAND} = "popd" ]]; then
+    will_modify_pwd=true
+  fi
 
-    # Run the command on the host.
+  if [[ ${will_modify_pwd} = true ]]; then
     eval "${BASH_COMMAND} $@"
-
     # Visually differ the prompt to indicate where commands are being run.
     # Outside of mounted volume, commands run on the host. Within - we run them in the
     # docker container.
@@ -77,4 +90,4 @@ docker_proxy() {
   return 1
 }
 
-trap docker_proxy DEBUG
+trap 'docker_proxy' DEBUG
