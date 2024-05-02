@@ -20,6 +20,12 @@ PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${vprofENTRY_DIR/\$HOME/
 ___ran=false
 
 docker_proxy() {
+  # Not sure why but on the initial run, the working directory is not set correctly.
+  if [[ ${___ran} = false ]]; then
+    cd "${vprofENTRY_DIR}" || exit 1
+    ___ran=true
+  fi
+
   # These commands should run on the host.
   if [[ ${BASH_COMMAND} = "exit" ]]; then
     return 0
@@ -49,12 +55,6 @@ docker_proxy() {
     return 0
   elif [[ ${BASH_COMMAND} = "info git" ]]; then
     return 0
-  fi
-
-  # Not sure why but on the initial run, the working directory is not set correctly.
-  if [[ ${___ran} = false ]]; then
-    cd "${vprofENTRY_DIR}" || exit 1
-    ___ran=true
   fi
 
   local will_modify_pwd=false
