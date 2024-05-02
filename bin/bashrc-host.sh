@@ -22,7 +22,7 @@ PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${__s__ENTRY_DIR/\$HOME/
 
 __s__ran=false
 
-execute_in_container() {
+__s__exec() {
   # Not sure why but on the initial run, the working directory is not set correctly.
   if [[ ${__s__ran} = false ]]; then
     cd "${__s__ENTRY_DIR}" || exit 1
@@ -63,12 +63,12 @@ execute_in_container() {
   # We cheat and execute some of the "rag" commands from the host since
   # they are just opening files in vscode.
   if [[ ${BASH_COMMAND} = "rag notes" ]]; then
-    local rag_notes_line_count="$(wc -l <"${__s__RAG_NOTES}")"
+    local rag_notes_line_count="$(wc -l <"${__s__RAG_NOTES}" | xargs)"
     code --goto "${__s__RAG_NOTES}:${rag_notes_line_count}"
     return 1
   fi
   if [[ ${BASH_COMMAND} = "rag captured" ]]; then
-    local rag_captured_line_count="$(wc -l <"${__s__RAG_CAPTURED}")"
+    local rag_captured_line_count="$(wc -l <"${__s__RAG_CAPTURED}" | xargs)"
     code --goto "${__s__RAG_CAPTURED}:${rag_captured_line_count}"
     return 1
   fi
@@ -107,4 +107,4 @@ execute_in_container() {
   return 1
 }
 
-trap 'execute_in_container' DEBUG
+trap '__s__exec' DEBUG

@@ -2,6 +2,7 @@
 
 shopt -s extdebug
 
+__s__PREV_RETURN=()
 # A delimiter that SHOULD NEVER CHANGE!
 # Used to parse sections of the notes file.
 __s__SECTION_DELIMITER='cca07f6cb9d2e1f8ff1dd8c79d508727'
@@ -65,13 +66,15 @@ __s__prompt_tag() {
 
 __s__print_rag_help() {
   cat <<EOF
-Usage: rag [options] ...
+
+Usage: rag [options] <command> | rag notes | rag captured
 
 Description:
+
   Prompts the user to write a note. Any positional arguments supplied that are 
   not valid options will be executed as a command. The output of the command is
   recorded along with the note for future reference.
-  
+
   The name "rag" was chosen because the notes we take along with
   the commands we run will aid in a retrieval augmentation generation
   (RAG) system.
@@ -79,15 +82,62 @@ Description:
   Notes file: ${__s__RAG_NOTES}
 
 Options:
+
   -f=<match>  Find a specific note via a match string.
   -n          Note only. Will not prompt for a tag.
   -t          Tag only. Will not prompt for a note.
   -c          Command only. Will not prompt for a note or a tag. Overrides -t and -n.
+
 EOF
 }
 
 __s__find_rag_note() {
-  echo ""
+  local match_string="$1"
+  local iter="${2:-"1"}"
+  if [[ ${iter} = 1 ]]; then
+    __s__PREV_RETURN=()
+  fi
+  local block_start_line="${iter}"
+  if [[ ${block_start_line} -gt 1 ]]; then
+    block_start_line=$(("$(grep -n "${__s__SECTION_DELIMITER}" "${__s__RAG_NOTES}" | sed -n "$((iter - 1))p" | cut -d: -f1)"))
+  fi
+  local block_close_line=$(("$(grep -n "${__s__SECTION_DELIMITER}" "${__s__RAG_NOTES}" | sed -n "$((iter))p" | cut -d: -f1)"))
+  local is_last=false
+  if [[ ${block_close_line} -eq 0 ]]; then
+    block_close_line=$(wc -l <"${__s__RAG_NOTES}" | xargs)
+    is_last=true
+  fi
+
+  local found_match=false
+  local newline=$'\n'
+  local block_lines=""
+  local i=0
+  while IFS= read -r line; do
+    if [[ ${line} = *"${__s__SECTION_DELIMITER}"* ]]; then
+      continue
+    fi
+    if [[ ${i} -gt 0 ]]; then
+      block_lines+="${newline}${line}"
+    else
+      block_lines+="${line}"
+    fi
+    i=$((i + 1))
+    if [[ ${line} = *"${match_string}"* ]]; then
+      found_match=true
+    fi
+  done < <(sed -n "${block_start_line},${block_close_line}p" "${__s__RAG_NOTES}")
+
+  if [[ ${found_match} = true ]]; then
+    __s__PREV_RETURN+=("${block_lines}")
+  fi
+  if [[ ${is_last} = false ]]; then
+    __s__find_rag_note "${match_string}" $((iter + 1))
+  else
+    for block in "${__s__PREV_RETURN[@]}"; do
+      echo "${block}"
+    done
+    __s__PREV_RETURN=()
+  fi
 }
 
 rag() {
@@ -184,35 +234,37 @@ rag() {
       echo "" >>"${__s__RAG_NOTES}"
       echo "--- ${__s__SECTION_DELIMITER} ---" >>"${__s__RAG_NOTES}"
     fi
-    echo "(ID) $(date +%s%N)" >>"${__s__RAG_NOTES}"
-    echo "(DATE) $(date)" >>"${__s__RAG_NOTES}"
+    echo "[ID] $(date +%s%N)" >>"${__s__RAG_NOTES}"
+    echo "[DATE] $(date)" >>"${__s__RAG_NOTES}"
     if [[ -n "${user_tag}" ]] && [[ ${opt_command_only} = false ]]; then
-      echo "(TAG) ${user_tag}" >>"${__s__RAG_NOTES}"
+      echo "[TAG] ${user_tag}" >>"${__s__RAG_NOTES}"
     fi
     if [[ -n "${user_note}" ]] && [[ ${opt_command_only} = false ]]; then
-      echo "(NOTE) ${user_note}" >>"${__s__RAG_NOTES}"
+      echo "[NOTE] ${user_note}" >>"${__s__RAG_NOTES}"
     fi
     if [[ ${command_was_supplied} = true ]]; then
-      echo "(COMMAND) ${*}" >>"${__s__RAG_NOTES}"
-      echo "(OUTPUT)" >>"${__s__RAG_NOTES}"
+      echo "[COMMAND] ${*}" >>"${__s__RAG_NOTES}"
+      echo "[OUTPUT]" >>"${__s__RAG_NOTES}"
       # Will run our comand using the same RC file as the user would normally and
       # will capture some output: the note/tag > notes file, and any stdout lines that start with [RAG] > captured file.
       # Paranoid note: I filter the delimiter from the output before saving the notes file.
       # Since the delimiter is a hash, I only expect to remove it when somehow the source code
       # for this script makes its way into the output.
-      "$@" |
+      eval ''"${*}"'' |
         tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}") >(sed "s/${__s__SECTION_DELIMITER}//g" >>"${__s__RAG_NOTES}")
     fi
   else
-    "$@" |
+    eval ''"${*}"'' |
       tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}")
   fi
 }
 
-# __s__rag_intercept() {
-#   echo "LSKDJFKJSHFKJSD"
-#   rag --captured-only "${BASH_COMMAND[@]}"
-#   return 1
-# }
+__s__rag_intercept() {
+  if [[ ${BASH_COMMAND} = rag* ]]; then
+    return 0
+  fi
+  rag --captured-only "${BASH_COMMAND}"
+  exit 1
+}
 
-# trap '__s__rag_intercept' DEBUG
+trap '__s__rag_intercept' DEBUG
