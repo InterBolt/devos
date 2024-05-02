@@ -90,6 +90,10 @@ containerized_run() {
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
+    /usr/local/bin/solos:/usr/local/bin/solos
+    -v
+    /usr/local/bin/dsolos:/usr/local/bin/dsolos
+    -v
     "${__LIB_VOLUME_ROOT}:${__LIB_VOLUME_MOUNTED}"
     "solos-cli:$(__hash)"
   )
