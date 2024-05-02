@@ -35,11 +35,12 @@ __hash() {
 }
 
 __test() {
+  local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${__LIB_INSTALLER_NO_TTY_FLAG} = true ]]; then
-    args=(-i "$(__hash)" echo "")
+    args=(-i -w "${container_ctx}" "$(__hash)" echo "")
   else
-    args=(-it "$(__hash)" echo "")
+    args=(-it -w "${container_ctx}" "$(__hash)" echo "")
   fi
   if ! docker exec "${args[@]}" >/dev/null &>/dev/null; then
     return 1
@@ -72,7 +73,6 @@ containerized_run() {
   fi
   mkdir -p "$(dirname "${__LIB_VOLUME_CONFIG_HOSTFILE}")"
   echo "${HOME}" >"${__LIB_VOLUME_CONFIG_HOSTFILE}"
-
   # Build the base and cli images.
   if ! docker build -t "solos:base" -f "${__LIB_REPO_LAUNCH_DIR}/Dockerfile.base" .; then
     echo "Unexpected error: failed to build the docker image." >&2
@@ -90,10 +90,6 @@ containerized_run() {
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
-    -v
-    /usr/local/bin/solos:/usr/local/bin/solos
-    -v
-    /usr/local/bin/dsolos:/usr/local/bin/dsolos
     "${__LIB_VOLUME_ROOT}:${__LIB_VOLUME_MOUNTED}"
     "solos-cli:$(__hash)"
   )

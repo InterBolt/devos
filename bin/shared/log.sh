@@ -25,7 +25,6 @@ log._to_host_filename() {
     filename="$(pwd)/${filename}"
   fi
   local host="$(cat "${vSTATIC_SOLOS_ROOT}/config/host")"
-
   echo "${filename/${HOME}/${host}}"
 }
 
