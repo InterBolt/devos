@@ -63,11 +63,13 @@ __s__execute_in_container() {
   # We cheat and execute some of the "rag" commands from the host since
   # they are just opening files in vscode.
   if [[ ${BASH_COMMAND} = "rag notes" ]]; then
-    code "${__s__RAG_NOTES}"
+    local rag_notes_line_count="$(wc -l <"${__s__RAG_NOTES}")"
+    code --goto "${__s__RAG_NOTES}:${rag_notes_line_count}"
     return 1
   fi
   if [[ ${BASH_COMMAND} = "rag captured" ]]; then
-    code "${__s__RAG_CAPTURED}"
+    local rag_captured_line_count="$(wc -l <"${__s__RAG_CAPTURED}")"
+    code --goto "${__s__RAG_CAPTURED}:${rag_captured_line_count}"
     return 1
   fi
 

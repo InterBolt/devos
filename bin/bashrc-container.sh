@@ -8,7 +8,6 @@ __s__SECTION_DELIMITER='cca07f6cb9d2e1f8ff1dd8c79d508727'
 # A string that internal functions can echo to signal an exit.
 # Prefixed for debugging purposes.
 __s__SIGEXIT='SOLOS:SIGEXIT:60854c1d118ce5b9ba7c50996d3b81cb'
-
 # Grab gum by cd'ing into the bin directory and sourcing the source file.
 # The cd'ing isn't ideal but I decided to treat ever file in the bin directory
 # as if it were being run from the bin directory for simplicity.
@@ -16,7 +15,6 @@ __s__BASHRC_ENTRY_DIR="${PWD}"
 cd "${HOME}/.solos/src/bin"
 source pkg/__source__.sh
 cd "${__s__BASHRC_ENTRY_DIR}"
-
 # Initialize the rag directory
 __s__RAG_DIR="${HOME}/.solos/rag"
 __s__RAG_TAGS="${__s__RAG_DIR}/tags"
@@ -175,6 +173,7 @@ rag() {
   fi
   local loglines=$(wc -l <"${__s__RAG_NOTES}")
   if [[ ${loglines} -gt 3 ]]; then
+    echo "" >>"${__s__RAG_NOTES}"
     echo "--- ${__s__SECTION_DELIMITER} ---" >>"${__s__RAG_NOTES}"
   fi
   echo "(ID) $(date +%s%N)" >>"${__s__RAG_NOTES}"
