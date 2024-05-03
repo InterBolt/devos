@@ -1,6 +1,1 @@
-echo "hey yo $(uname)"
-echo "[RAG] hey rag $(uname)"
-echo "hey yo $(uname)"
-echo "imnewman $(uname)"
-echo "hey yo $(uname)"
-echo "[RAG] hey rag last cca07f6cb9d2e1f8ff1dd8c79d508727 $(uname)"
+

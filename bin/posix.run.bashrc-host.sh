@@ -2,31 +2,31 @@
 
 shopt -s extdebug
 
-__s__RAG_DIR="${HOME}/.solos/rag"
-__s__RAG_CAPTURED="${__s__RAG_DIR}/captured"
-__s__RAG_NOTES="${__s__RAG_DIR}/notes"
-__s__ENTRY_DIR="${PWD}"
-__s__LIB_PATH="${HOME}/.solos/src/bin/lib.sh"
+__v__RAG_DIR="${HOME}/.solos/rag"
+__v__RAG_CAPTURED="${__v__RAG_DIR}/captured"
+__v__RAG_NOTES="${__v__RAG_DIR}/notes"
+__v__ENTRY_DIR="${PWD}"
+__v__LIB_PATH="${HOME}/.solos/src/bin/lib.sh"
 
-if [[ ! ${__s__ENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
+if [[ ! ${__v__ENTRY_DIR} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 else
-  cd "${__s__ENTRY_DIR}" || exit 1
+  cd "${__v__ENTRY_DIR}" || exit 1
 fi
 
 # We always initialize in the .solos directory.
-PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${__s__ENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
+PS1='\[\033[01;32m\]solos\[\033[00m\]:\[\033[01;34m\]'"\${__v__ENTRY_DIR/\$HOME/~}"'\[\033[00m\]$ '
 
 # pull in the library we use to run the CLI in the docker container.
-. "${__s__LIB_PATH}" || exit 1
+. "${__v__LIB_PATH}" || exit 1
 
-__s__ran=false
+__v__ran=false
 
-__s__exec() {
+__f__exec() {
   # Not sure why but on the initial run, the working directory is not set correctly.
-  if [[ ${__s__ran} = false ]]; then
-    cd "${__s__ENTRY_DIR}" || exit 1
-    __s__ran=true
+  if [[ ${__v__ran} = false ]]; then
+    cd "${__v__ENTRY_DIR}" || exit 1
+    __v__ran=true
   fi
 
   # These commands should run on the host.
@@ -63,13 +63,13 @@ __s__exec() {
   # We cheat and execute some of the "rag" commands from the host since
   # they are just opening files in vscode.
   if [[ ${BASH_COMMAND} = "rag notes" ]]; then
-    local rag_notes_line_count="$(wc -l <"${__s__RAG_NOTES}" | xargs)"
-    code --goto "${__s__RAG_NOTES}:${rag_notes_line_count}"
+    local rag_notes_line_count="$(wc -l <"${__v__RAG_NOTES}" | xargs)"
+    code --goto "${__v__RAG_NOTES}:${rag_notes_line_count}"
     return 1
   fi
   if [[ ${BASH_COMMAND} = "rag captured" ]]; then
-    local rag_captured_line_count="$(wc -l <"${__s__RAG_CAPTURED}" | xargs)"
-    code --goto "${__s__RAG_CAPTURED}:${rag_captured_line_count}"
+    local rag_captured_line_count="$(wc -l <"${__v__RAG_CAPTURED}" | xargs)"
+    code --goto "${__v__RAG_CAPTURED}:${rag_captured_line_count}"
     return 1
   fi
 
@@ -103,8 +103,8 @@ __s__exec() {
     return 0
   fi
 
-  containerized_run "${BASH_COMMAND}" "$@"
+  __f__run "${BASH_COMMAND}" "$@"
   return 1
 }
 
-trap '__s__exec' DEBUG
+trap '__f__exec' DEBUG

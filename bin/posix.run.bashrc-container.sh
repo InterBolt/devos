@@ -2,40 +2,40 @@
 
 shopt -s extdebug
 
-__s__PREV_RETURN=()
+__var__PREV_RETURN=()
 # A delimiter that SHOULD NEVER CHANGE!
 # Used to parse sections of the notes file.
-__s__SECTION_DELIMITER='cca07f6cb9d2e1f8ff1dd8c79d508727'
+__var__SECTION_DELIMITER='cca07f6cb9d2e1f8ff1dd8c79d508727'
 # A string that internal functions can echo to signal an exit.
 # Prefixed for debugging purposes.
-__s__SIGEXIT='SOLOS:SIGEXIT:60854c1d118ce5b9ba7c50996d3b81cb'
+__var__SIGEXIT='SOLOS:SIGEXIT:60854c1d118ce5b9ba7c50996d3b81cb'
 # Grab gum by cd'ing into the bin directory and sourcing the source file.
 # The cd'ing isn't ideal but I decided to treat ever file in the bin directory
 # as if it were being run from the bin directory for simplicity.
-__s__BASHRC_ENTRY_DIR="${PWD}"
+__var__BASHRC_ENTRY_DIR="${PWD}"
 cd "${HOME}/.solos/src/bin"
 source pkg/__source__.sh
-cd "${__s__BASHRC_ENTRY_DIR}"
+cd "${__var__BASHRC_ENTRY_DIR}"
 # Initialize the rag directory
-__s__RAG_DIR="${HOME}/.solos/rag"
-__s__RAG_TAGS="${__s__RAG_DIR}/tags"
-__s__RAG_NOTES="${__s__RAG_DIR}/notes"
-__s__RAG_CAPTURED="${__s__RAG_DIR}/captured"
-mkdir -p "${__s__RAG_DIR}"
-if [[ ! -f "${__s__RAG_NOTES}" ]]; then
-  touch "${__s__RAG_NOTES}"
+__var__RAG_DIR="${HOME}/.solos/rag"
+__var__RAG_TAGS="${__var__RAG_DIR}/tags"
+__var__RAG_NOTES="${__var__RAG_DIR}/notes"
+__var__RAG_CAPTURED="${__var__RAG_DIR}/captured"
+mkdir -p "${__var__RAG_DIR}"
+if [[ ! -f "${__var__RAG_NOTES}" ]]; then
+  touch "${__var__RAG_NOTES}"
 fi
-if [[ ! -f "${__s__RAG_TAGS}" ]]; then
-  echo "none" >>"${__s__RAG_TAGS}"
-  echo "create" >>"${__s__RAG_TAGS}"
+if [[ ! -f "${__var__RAG_TAGS}" ]]; then
+  echo "none" >>"${__var__RAG_TAGS}"
+  echo "create" >>"${__var__RAG_TAGS}"
 fi
-if [[ ! -f "${__s__RAG_CAPTURED}" ]]; then
-  touch "${__s__RAG_CAPTURED}"
+if [[ ! -f "${__var__RAG_CAPTURED}" ]]; then
+  touch "${__var__RAG_CAPTURED}"
 fi
 
-__s__prompt_tag() {
+__fn__prompt_tag() {
   local newline=$'\n'
-  local tags="$(cat "${__s__RAG_TAGS}")"
+  local tags="$(cat "${__var__RAG_TAGS}")"
   local tags_file=""
   local i=0
   while IFS= read -r line; do
@@ -48,23 +48,23 @@ __s__prompt_tag() {
       i=$((i + 1))
     fi
   done <<<"${tags}"
-  local tag_choice="$(echo "${tags_file}" | pkg.gum choose --limit 1 || echo "${__s__SIGEXIT}")"
+  local tag_choice="$(echo "${tags_file}" | pkg.gum choose --limit 1 || echo "${__var__SIGEXIT}")"
   if [[ ${tag_choice} = "none" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
   elif [[ ${tag_choice} = "create" ]]; then
     local new_tag="$(pkg.gum input --placeholder "Type new tag" || echo "")"
     if [[ -n "${new_tag}" ]]; then
-      sed -i '1s/^/'"${new_tag}"'\n/' "${__s__RAG_TAGS}"
+      sed -i '1s/^/'"${new_tag}"'\n/' "${__var__RAG_TAGS}"
       echo "${new_tag}"
     else
-      __s__prompt_tag
+      __fn__prompt_tag
     fi
   else
     echo "${tag_choice}"
   fi
 }
 
-__s__print_rag_help() {
+__fn__print_rag_help() {
   cat <<EOF
 
 Usage: rag [options] <command> | rag notes | rag captured
@@ -79,7 +79,7 @@ Description:
   the commands we run will aid in a retrieval augmentation generation
   (RAG) system.
 
-  Notes file: ${__s__RAG_NOTES}
+  Notes file: ${__var__RAG_NOTES}
 
 Options:
 
@@ -91,20 +91,20 @@ Options:
 EOF
 }
 
-__s__find_rag_note() {
+__fn__find_rag_note() {
   local match_string="$1"
   local iter="${2:-"1"}"
   if [[ ${iter} = 1 ]]; then
-    __s__PREV_RETURN=()
+    __var__PREV_RETURN=()
   fi
   local block_start_line="${iter}"
   if [[ ${block_start_line} -gt 1 ]]; then
-    block_start_line=$(("$(grep -n "${__s__SECTION_DELIMITER}" "${__s__RAG_NOTES}" | sed -n "$((iter - 1))p" | cut -d: -f1)"))
+    block_start_line=$(("$(grep -n "${__var__SECTION_DELIMITER}" "${__var__RAG_NOTES}" | sed -n "$((iter - 1))p" | cut -d: -f1)"))
   fi
-  local block_close_line=$(("$(grep -n "${__s__SECTION_DELIMITER}" "${__s__RAG_NOTES}" | sed -n "$((iter))p" | cut -d: -f1)"))
+  local block_close_line=$(("$(grep -n "${__var__SECTION_DELIMITER}" "${__var__RAG_NOTES}" | sed -n "$((iter))p" | cut -d: -f1)"))
   local is_last=false
   if [[ ${block_close_line} -eq 0 ]]; then
-    block_close_line=$(wc -l <"${__s__RAG_NOTES}" | xargs)
+    block_close_line=$(wc -l <"${__var__RAG_NOTES}" | xargs)
     is_last=true
   fi
 
@@ -113,7 +113,7 @@ __s__find_rag_note() {
   local block_lines=""
   local i=0
   while IFS= read -r line; do
-    if [[ ${line} = *"${__s__SECTION_DELIMITER}"* ]]; then
+    if [[ ${line} = *"${__var__SECTION_DELIMITER}"* ]]; then
       continue
     fi
     if [[ ${i} -gt 0 ]]; then
@@ -125,18 +125,18 @@ __s__find_rag_note() {
     if [[ ${line} = *"${match_string}"* ]]; then
       found_match=true
     fi
-  done < <(sed -n "${block_start_line},${block_close_line}p" "${__s__RAG_NOTES}")
+  done < <(sed -n "${block_start_line},${block_close_line}p" "${__var__RAG_NOTES}")
 
   if [[ ${found_match} = true ]]; then
-    __s__PREV_RETURN+=("${block_lines}")
+    __var__PREV_RETURN+=("${block_lines}")
   fi
   if [[ ${is_last} = false ]]; then
-    __s__find_rag_note "${match_string}" $((iter + 1))
+    __fn__find_rag_note "${match_string}" $((iter + 1))
   else
-    for block in "${__s__PREV_RETURN[@]}"; do
+    for block in "${__var__PREV_RETURN[@]}"; do
       echo "${block}"
     done
-    __s__PREV_RETURN=()
+    __var__PREV_RETURN=()
   fi
 }
 
@@ -150,7 +150,7 @@ rag() {
   while [[ ${no_more_opts} = false ]]; do
     case $1 in
     --help)
-      __s__print_rag_help
+      __fn__print_rag_help
       return 0
       ;;
     --captured-only)
@@ -159,11 +159,11 @@ rag() {
       shift
       ;;
     -h)
-      __s__print_rag_help
+      __fn__print_rag_help
       return 0
       ;;
     -f)
-      __s__find_rag_note "$2"
+      __fn__find_rag_note "$2"
       return 0
       ;;
     -c)
@@ -181,11 +181,11 @@ rag() {
     -f=)
       # the match_string is the right hand value in -f=match
       local match_string="${1#*=}"
-      __s__find_rag_note "${match_string}"
+      __fn__find_rag_note "${match_string}"
       return 0
       ;;
     help)
-      __s__print_rag_help
+      __fn__print_rag_help
       return 0
       ;;
     *)
@@ -199,8 +199,8 @@ rag() {
   fi
   local user_note=""
   if [[ ${opt_tag_only} = false ]] && [[ ${opt_command_only} = false ]]; then
-    user_note="$(pkg.gum input --placeholder "Type note" || echo "${__s__SIGEXIT}")"
-    if [[ ${user_note} = "${__s__SIGEXIT}" ]]; then
+    user_note="$(pkg.gum input --placeholder "Type note" || echo "${__var__SIGEXIT}")"
+    if [[ ${user_note} = "${__var__SIGEXIT}" ]]; then
       return 1
     fi
     if [[ -z ${user_note} ]]; then
@@ -218,8 +218,8 @@ rag() {
   fi
   local user_tag=""
   if [[ ${opt_note_only} = false ]] && [[ ${opt_command_only} = false ]]; then
-    user_tag="$(__s__prompt_tag)"
-    if [[ ${user_tag} = "${__s__SIGEXIT}" ]]; then
+    user_tag="$(__fn__prompt_tag)"
+    if [[ ${user_tag} = "${__var__SIGEXIT}" ]]; then
       return 1
     fi
   fi
@@ -227,39 +227,44 @@ rag() {
     echo "No command, tag, or note was supplied. Exiting."
     return 0
   fi
-  local loglines=$(wc -l <"${__s__RAG_NOTES}")
+  local loglines=$(wc -l <"${__var__RAG_NOTES}")
 
   if [[ ${opt_captured_only} = false ]]; then
     if [[ ${loglines} -gt 3 ]]; then
-      echo "" >>"${__s__RAG_NOTES}"
-      echo "--- ${__s__SECTION_DELIMITER} ---" >>"${__s__RAG_NOTES}"
+      echo "" >>"${__var__RAG_NOTES}"
+      echo "--- ${__var__SECTION_DELIMITER} ---" >>"${__var__RAG_NOTES}"
     fi
-    echo "[ID] $(date +%s%N)" >>"${__s__RAG_NOTES}"
-    echo "[DATE] $(date)" >>"${__s__RAG_NOTES}"
+    echo "[ID] $(date +%s%N)" >>"${__var__RAG_NOTES}"
+    echo "[DATE] $(date)" >>"${__var__RAG_NOTES}"
     if [[ -n "${user_tag}" ]] && [[ ${opt_command_only} = false ]]; then
-      echo "[TAG] ${user_tag}" >>"${__s__RAG_NOTES}"
+      echo "[TAG] ${user_tag}" >>"${__var__RAG_NOTES}"
     fi
     if [[ -n "${user_note}" ]] && [[ ${opt_command_only} = false ]]; then
-      echo "[NOTE] ${user_note}" >>"${__s__RAG_NOTES}"
+      echo "[NOTE] ${user_note}" >>"${__var__RAG_NOTES}"
     fi
     if [[ ${command_was_supplied} = true ]]; then
-      echo "[COMMAND] ${*}" >>"${__s__RAG_NOTES}"
-      echo "[OUTPUT]" >>"${__s__RAG_NOTES}"
-      # Will run our comand using the same RC file as the user would normally and
-      # will capture some output: the note/tag > notes file, and any stdout lines that start with [RAG] > captured file.
+      echo "[COMMAND] ${*}" >>"${__var__RAG_NOTES}"
+      echo "[OUTPUT]" >>"${__var__RAG_NOTES}"
+      # Capture some output: the note/tag > notes file, and any stdout lines that start with [RAG] > captured file.
       # Paranoid note: I filter the delimiter from the output before saving the notes file.
       # Since the delimiter is a hash, I only expect to remove it when somehow the source code
       # for this script makes its way into the output.
       eval ''"${*}"'' |
-        tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}") >(sed "s/${__s__SECTION_DELIMITER}//g" >>"${__s__RAG_NOTES}")
+        tee -a >(grep "^\[RAG\]" >>"${__var__RAG_CAPTURED}") >(sed "s/${__var__SECTION_DELIMITER}//g" >>"${__var__RAG_NOTES}")
+      local post_run_note="$(pkg.gum input --placeholder "Post-run note:" || echo "${__var__SIGEXIT}")"
+      if [[ ${post_run_note} = "${__var__SIGEXIT}" ]]; then
+        return 1
+      elif [[ -n "${post_run_note}" ]]; then
+        echo "[POST] ${post_run_note}" >>"${__var__RAG_NOTES}"
+      fi
     fi
   else
     eval ''"${*}"'' |
-      tee -a >(grep "^\[RAG\]" >>"${__s__RAG_CAPTURED}")
+      tee -a >(grep "^\[RAG\]" >>"${__var__RAG_CAPTURED}")
   fi
 }
 
-__s__rag_intercept() {
+__fn__rag_intercept() {
   if [[ ${BASH_COMMAND} = rag* ]]; then
     return 0
   fi
@@ -267,4 +272,4 @@ __s__rag_intercept() {
   exit 1
 }
 
-trap '__s__rag_intercept' DEBUG
+trap '__fn__rag_intercept' DEBUG
