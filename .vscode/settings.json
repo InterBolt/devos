@@ -11,7 +11,7 @@
   "terminal.integrated.cwd": "${workspaceFolder}",
   "terminal.integrated.profiles.osx": {
     "solos": {
-      "path": "/Users/colinlaptop/.solos/src/bin/vscode.sh",
+      "path": "/Users/colinlaptop/.solos/src/bin/posix.vscode.sh",
       "args": []
     },
     "bash": null,

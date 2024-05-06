@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
 # shellcheck source=lib.sh
-. "${HOME}"/.solos/src/bin/lib.sh || exit 1
+. "${HOME}"/.solos/src/bin/posix.run.sh || exit 1
 
-containerized_run /root/.solos/src/bin/bin.sh "$@"
+__base__fn__run /root/.solos/src/bin/solos.sh "$@"

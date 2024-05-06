@@ -44,11 +44,15 @@ pkg.gum.install() {
 pkg.gum() {
   local executable_path="$(pkg.gum.install)"
   if [[ -f ${executable_path} ]]; then
-    "$executable_path" "$@"
+    "${executable_path}" "$@"
   else
     echo "failed to install gum" >&2
     exit 1
   fi
+}
+
+pkg.gum.github_token() {
+  pkg.gum input --password --placeholder "Enter Github access token:"
 }
 
 pkg.gum.danger_box() {
@@ -63,38 +67,6 @@ pkg.gum.success_box() {
   local terminal_width=$(tput cols)
   pkg.gum style \
     --foreground "#0F0" --border-foreground "#0F0" --border thick \
-    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
-    "$@"
-}
-
-pkg.gum.info_box() {
-  local terminal_width=$(tput cols)
-  pkg.gum style \
-    --foreground "#3B78FF" --border-foreground "#3B78FF" --border thick \
-    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
-    "$@"
-}
-
-pkg.gum.debug_box() {
-  local terminal_width=$(tput cols)
-  pkg.gum style \
-    --foreground "#A0A" --border-foreground "#A0A" --border thick \
-    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
-    "$@"
-}
-
-pkg.gum.logs_box() {
-  local terminal_width="$(tput cols)"
-  pkg.gum style \
-    --foreground "#FFF" --border-foreground "#FFF" --border thick \
-    --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
-    "$@"
-}
-
-pkg.gum.warning_box() {
-  local terminal_width=$(tput cols)
-  pkg.gum style \
-    --foreground "#FA0" --border-foreground "#FA0" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
 }

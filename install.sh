@@ -1,54 +1,65 @@
 #!/usr/bin/env bash
 
-# Implications of needing to run this via curl and piping to bash:
-#
-# To mitigate the risks of the script failing due to a network
-# or escaping error, we place as much of the script's code inside a __var__main
-# function as possible, global variable definitions included.
-# __var__main function. By the time the main function is running, we can guarantee that
-# failures will only occur due to faulty programming.
+__var__ENTRY_DIR="${PWD}"
+trap 'cd '"${__var__ENTRY_DIR}"'' EXIT
 
-iENTRY_DIR="${PWD}"
-trap 'cd '"${iENTRY_DIR}"'' EXIT
+__var__REPO_URL="https://github.com/InterBolt/solos.git"
+__var__USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
+__var__REPO_BIN_EXECUTABLE_PATH="bin/posix.run.solos.sh"
+if [[ $1 = "--dev" ]]; then
+  __var__REPO_BIN_EXECUTABLE_PATH="bin/posix.run.solos-dev.sh"
+  __var__USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/dsolos"
+  shift
+fi
+__var__TMP_DIR="$(mktemp -d 2>/dev/null)"
+__var__TMP_SOURCE_ROOT="${__var__TMP_DIR}/src"
+__var__SOLOS_DIR="${HOME}/.solos"
+__var__SOLOS_SRC_DIR="${__var__SOLOS_DIR}/src"
+__var__SOLOS_VSCODE_BASHRC_FILE="${__var__SOLOS_DIR}/.bashrc"
 
 __fn__clone() {
-  if ! git clone "${iREPO_URL}" "${iTMP_SOURCE_ROOT}" >/dev/null 2>&1; then
-    echo "Failed to clone ${iREPO_URL} to ${iTMP_SOURCE_ROOT}" >&2
+  if ! git clone "${__var__REPO_URL}" "${__var__TMP_SOURCE_ROOT}" >/dev/null 2>&1; then
+    echo "Failed to clone ${__var__REPO_URL} to ${__var__TMP_SOURCE_ROOT}" >&2
     exit 1
   fi
-  if [[ ! -f "${iTMP_SOURCE_ROOT}/${iREPO_BIN_EXECUTABLE_PATH}" ]]; then
-    echo "${iTMP_SOURCE_ROOT}/${iREPO_BIN_EXECUTABLE_PATH} not found." >&2
+  if [[ ! -f "${__var__TMP_SOURCE_ROOT}/${__var__REPO_BIN_EXECUTABLE_PATH}" ]]; then
+    echo "${__var__TMP_SOURCE_ROOT}/${__var__REPO_BIN_EXECUTABLE_PATH} not found." >&2
     exit 1
   fi
 }
 __fn__init_fs() {
+  mkdir -p "${__var__SOLOS_DIR}" || exit 1
+  mkdir -p "${__var__SOLOS_DIR}/secrets" || exit 1
 
-}
-__fn__link_bin() {
-  mkdir -p "$iSOLOS_DIR"
-  if [[ ! -f "${iSOLOS_VSCODE_BASHRC_FILE:?}" ]]; then
+  # Create the bashrc file
+  if [[ ! -f "${__var__SOLOS_VSCODE_BASHRC_FILE:?}" ]]; then
     {
-      echo "source \"\${HOME}/.solos/src/bin/bashrc-container.sh\""
+      echo "#!/usr/bin/env bash"
+      echo ""
+      echo "source \"\${HOME}/.solos/src/bin/profile/bashrc.sh\""
       echo ""
       echo "# This file is sourced inside of the docker container when the command is run."
       echo "# Add your customizations:"
-    } >"${iSOLOS_VSCODE_BASHRC_FILE}"
+    } >"${__var__SOLOS_VSCODE_BASHRC_FILE}"
   fi
-  rm -rf "${iSOLOS_SRC_DIR:?}"
-  mkdir -p "${iSOLOS_SRC_DIR:?}"
-  cp -r "${iTMP_SOURCE_ROOT:?}/." "${iSOLOS_SRC_DIR:?}" || exit 1
-  if ! ln -sfv "${iSOLOS_SRC_DIR:?}/${iREPO_BIN_EXECUTABLE_PATH}" "${iUSR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
-    echo "Failed to link ${iSOLOS_SRC_DIR}/${iREPO_BIN_EXECUTABLE_PATH} to ${iUSR_LOCAL_BIN_EXECUTABLE}" >&2
+
+  # Create the source code dir and copy the cloned repo into it.
+  rm -rf "${__var__SOLOS_SRC_DIR:?}" || exit 1
+  mkdir -p "${__var__SOLOS_SRC_DIR:?}" || exit 1
+  cp -r "${__var__TMP_SOURCE_ROOT:?}/." "${__var__SOLOS_SRC_DIR:?}" || exit 1
+}
+__fn__link_bin() {
+  if ! ln -sfv "${__var__SOLOS_SRC_DIR:?}/${__var__REPO_BIN_EXECUTABLE_PATH}" "${__var__USR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
+    echo "Failed to link ${__var__SOLOS_SRC_DIR}/${__var__REPO_BIN_EXECUTABLE_PATH} to ${__var__USR_LOCAL_BIN_EXECUTABLE}" >&2
     exit 1
   fi
-  chmod +x "${iUSR_LOCAL_BIN_EXECUTABLE}"
+  if ! chmod +x "${__var__USR_LOCAL_BIN_EXECUTABLE}"; then
+    echo "Failed to make ${__var__USR_LOCAL_BIN_EXECUTABLE} executable." >&2
+    exit 1
+  fi
 }
 
 __fn__MAIN() {
-  if [[ "${BASH_VERSION}" < 3.1 ]]; then
-    echo "SolOS requires Bash version 3.1 or greater to use. Detected ${BASH_VERSION}." >&2
-    return 1
-  fi
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
     return 1
@@ -69,7 +80,7 @@ __fn__MAIN() {
     echo "Solos installation failed." >&2
     return 1
   fi
-  if ! "${iUSR_LOCAL_BIN_EXECUTABLE}" --installer-no-tty --restricted-noop; then
+  if ! "${__var__USR_LOCAL_BIN_EXECUTABLE}" --installer-no-tty --restricted-noop; then
     echo "Solos installation failed." >&2
     return 1
   fi

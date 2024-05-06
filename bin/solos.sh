@@ -40,10 +40,6 @@ if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
 
-# A secret command that enables a developer to run ANY bash script by supplying "-"
-# as the first argument and the path to the script as the second.
-helpers.run_anything "$(cat "${vSTATIC_SOLOS_CONFIG_DIR}/host" || echo "")" "$@"
-
 # Miscellanous values that are used throughout the script.
 # calling them "meta" because they are mostly inferred, or
 # derived from undocumented flags.

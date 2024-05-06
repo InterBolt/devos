@@ -48,6 +48,7 @@ shared.codegen.run() {
     "cli"
     "lib"
     "provision"
+    "profile"
   )
   for dir in "${dirs[@]}"; do
     if ! shared.codegen._build_sources "${dir}" "${source_filename}"; then

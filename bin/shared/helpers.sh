@@ -42,18 +42,3 @@ helpers.simple_flag_parser() {
   vPREV_NEXT_ARGS=("$@")
   vPREV_RETURN=("${flag_values[@]}")
 }
-
-helpers.run_anything() {
-  local home_path="$1"
-  shift
-  if [[ $1 = "-" ]]; then
-    if [[ -z ${home_path} ]]; then
-      echo "No home path found at: ${home_path}" >&2
-      exit 1
-    fi
-    local filepath="${2/${home_path}/\/root}"
-    cd .. || exit 1
-    "${filepath}" "${@:3}"
-    exit 0
-  fi
-}

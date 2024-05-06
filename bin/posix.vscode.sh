@@ -1,3 +1,5 @@
 #!/usr/bin/env bash
 
-/bin/bash --rcfile "${HOME}"/.solos/src/bin/bashrc-host.sh -i
+. "${HOME}/.solos/src/bin/posix.run.sh"
+
+__base__fn__shell

@@ -1,1 +1,0 @@
-# Solos Development Philosophy
