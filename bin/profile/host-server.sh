@@ -39,11 +39,10 @@ __host__fn__listen() {
   local stderr_file="${HOME}/${__host__var__stderr}"
   local command_file="${HOME}/${__host__var__command}"
   rm -f "${stdout_file}" "${stderr_file}" "${command_file}" "${done_file}"
+  touch "${stdout_file}" "${stderr_file}" "${command_file}" "${done_file}"
   while true; do
-    touch "${stdout_file}" "${stderr_file}" "${command_file}" "${done_file}"
     local command=""
     if [[ -f "${command_file}" ]]; then
-      # replace occurrences of /root/ with $HOME/
       command="$(cat "${command_file}" | sed "s/\/root\//\$HOME\//g")"
     fi
     if [[ -n ${command} ]]; then

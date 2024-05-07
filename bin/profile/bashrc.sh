@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+shopt -s extdebug
+
 __bashrc__var__self="${BASH_SOURCE[0]}"
 
 __bashrc__fn__source_and_set_cwd() {
@@ -29,7 +31,7 @@ Welcome to the SolOS integrated VSCode terminal.
 
 The following commands are available:
 
-- \`rag\`: Take notes and intelligently capture stdout. See \`rag --help\`.
+- \`rag\`: Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
 - \`solos\`: A CLI utility for managing deployment servers. See \`solos --help\`.
 - \`host\`: A utility for evaluating commands on your host machine. Use with caution!
 
@@ -82,6 +84,7 @@ __bashrc__fn__setup() {
   else
     warnings+="/etc/bash_completion not found. Bash completions will not be available."
   fi
+
   if [[ ${warnings} ]]; then
     for warning in "${warnings[@]}"; do
       echo -e "\033[0;31mWARNING:\033[0m ${warning}"
@@ -90,29 +93,33 @@ __bashrc__fn__setup() {
 }
 
 __bashrc__fn__preeval() {
-  if [[ ${BASH_COMMAND} = "exit" ]]; then
+  local cmd="${*}"
+  if [[ ${cmd} = "exit" ]]; then
     return 0
   fi
-  if [[ ${BASH_COMMAND} = "cd "* ]]; then
+  if [[ ${cmd} = "host "* ]]; then
     return 0
   fi
-  if [[ ${BASH_COMMAND} = "cd" ]]; then
+  if [[ ${cmd} = "cd "* ]]; then
     return 0
   fi
-  if [[ ${BASH_COMMAND} = "rag captured" ]]; then
+  if [[ ${cmd} = "cd" ]]; then
+    return 0
+  fi
+  if [[ ${cmd} = "rag captured" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/captured")"
     code -g "${HOME}/.solos/rag/captured:${line_count}"
     return 1
   fi
-  if [[ ${BASH_COMMAND} = "rag notes" ]]; then
+  if [[ ${cmd} = "rag notes" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/notes")"
     code -g "${HOME}/.solos/rag/notes:${line_count}"
     return 1
   fi
-  if [[ ${BASH_COMMAND} = "code "* ]]; then
+  if [[ ${cmd} = "code "* ]]; then
     return 0
   fi
-  if [[ ${BASH_COMMAND} = "rag "* ]]; then
+  if [[ ${cmd} = "rag "* ]]; then
     return 0
   fi
   rag --captured-only ''"${BASH_COMMAND}"''
@@ -141,4 +148,9 @@ _custom_command_completions() {
   local cur prev words cword
   _init_completion || return
   _command_offset 1
-} && complete -F _custom_command_completions rag
+}
+
+complete -F _custom_command_completions rag
+
+git config --global user.email "$(host git config --global user.email)"
+git config --global user.user "$(host git config --global user.user)"

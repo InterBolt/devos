@@ -2,4 +2,4 @@
 
 . "${HOME}/.solos/src/bin/docker.sh"
 
-__docker__fn__exec_shell
+__docker__fn__shell
