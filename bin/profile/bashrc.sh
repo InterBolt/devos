@@ -1,46 +1,28 @@
 #!/usr/bin/env bash
 
 __bashrc__var__self="${BASH_SOURCE[0]}"
-__bashrc__var__ENTRY_PWD="${PWD}"
-cd "${HOME}/.solos/src/bin" || exit 1
-. pkg/__source__.sh || exit 1
-. profile/rag.sh || exit 1
-. external/bash-preexec.sh || exit 1
-. profile/host.sh || exit 1
-cd "${__bashrc__var__ENTRY_PWD}" || exit 1
 
-__bashrc__var__warnings=()
+__bashrc__fn__source_and_set_cwd() {
+  local entry_pwd="${PWD}"
+  # Be paranoid about the current working directory before sourcing anything.
+  cd "${HOME}/.solos/src/bin" || exit 1
+  . pkg/__source__.sh || exit 1
+  cd "${HOME}/.solos/src/bin" || exit 1
+  . profile/rag.sh || exit 1
+  cd "${HOME}/.solos/src/bin" || exit 1
+  . external/bash-preexec.sh || exit 1
+  cd "${HOME}/.solos/src/bin" || exit 1
+  . profile/host.sh || exit 1
+  cd "${entry_pwd}" || exit 1
 
-if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
-  cd "${HOME}/.solos" || exit 1
-fi
-__var__LAUNCH_PWD="${PWD}"
-PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
+  # The terminal should always start within the .solos directory.
+  if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
+    cd "${HOME}/.solos" || exit 1
+  fi
+}
 
-if command -v gh >/dev/null 2>&1; then
-  __var__GH_AVAILABLE=true
-else
-  __var__GH_AVAILABLE=false
-fi
-__var__GH_TOKEN_FILE="${HOME}/.solos/secrets/gh_token"
-if [[ ${__var__GH_AVAILABLE} = false ]]; then
-  __bashrc__var__warnings+="The 'gh' command is not available. This shell is not authenticated with Git."
-elif [[ ! -f ${__var__GH_TOKEN_FILE} ]]; then
-  __bashrc__var__warnings+="The 'gh' command is available but no token was found at ${__var__GH_TOKEN_FILE}."
-elif ! gh auth login --with-token <"${__var__GH_TOKEN_FILE}" >/dev/null; then
-  __bashrc__var__warnings+="Failed to authenticate with Git."
-fi
-if [ -f /etc/bash_completion ]; then
-  . /etc/bash_completion
-else
-  __bashrc__var__warnings+="/etc/bash_completion not found. Bash completions will not be available."
-fi
-if [[ ${__bashrc__var__warnings} ]]; then
-  for warning in "${__bashrc__var__warnings[@]}"; do
-    echo -e "\033[0;31mWARNING:\033[0m ${warning}"
-  done
-else
-  __bashrc__var__path_to_this_script="${HOME}/.solos/src/bin/profile/bashrc.sh"
+__bashrc__fn__welcome_message() {
+  # Make the CLI prompt pretty.
   cat <<EOF
 
 Welcome to the SolOS integrated VSCode terminal.
@@ -73,20 +55,41 @@ Github repository: https://github.com/interbolt/solos
 Type \`exit\` to leave the SolOS shell.
 
 EOF
-  __bashrc__var__gh_status_line="$(gh auth status | grep "Logged in")"
-  __bashrc__var__gh_status_line="${__bashrc__var__gh_status_line##*" "}"
-  echo -e "\033[0;32mLogged in to Github ${__bashrc__var__gh_status_line} \033[0m"
+  local gh_status_line="$(gh auth status | grep "Logged in")"
+  gh_status_line="${gh_status_line##*" "}"
+  echo -e "\033[0;32mLogged in to Github ${gh_status_line} \033[0m"
   echo ""
-fi
-
-code() {
-  local bin_path="$(host which code)"
-  host "${bin_path}" "${*}"
 }
 
-shopt -s extdebug
+__bashrc__fn__setup() {
+  local warnings=()
+  local gh_token_file="${HOME}/.solos/secrets/gh_token"
+  local gh_cmd_available=false
+  if command -v gh >/dev/null 2>&1; then
+    gh_cmd_available=true
+  fi
+  if [[ ${gh_cmd_available} = false ]]; then
+    warnings+="The 'gh' command is not available. This shell is not authenticated with Git."
+  elif [[ ! -f ${gh_token_file} ]]; then
+    warnings+="The 'gh' command is available but no token was found at ${gh_token_file}."
+  elif ! gh auth login --with-token <"${gh_token_file}" >/dev/null; then
+    warnings+="Failed to authenticate with Git."
+  elif ! gh auth setup-git 2>/dev/null; then
+    warnings+="Failed to setup Git."
+  fi
+  if [[ -f "/etc/bash_completion" ]]; then
+    . /etc/bash_completion
+  else
+    warnings+="/etc/bash_completion not found. Bash completions will not be available."
+  fi
+  if [[ ${warnings} ]]; then
+    for warning in "${warnings[@]}"; do
+      echo -e "\033[0;31mWARNING:\033[0m ${warning}"
+    done
+  fi
+}
 
-__bashrc__fn__cmd_proxy() {
+__bashrc__fn__preeval() {
   if [[ ${BASH_COMMAND} = "exit" ]]; then
     return 0
   fi
@@ -116,4 +119,26 @@ __bashrc__fn__cmd_proxy() {
   return 1
 }
 
-preexec_functions+=("__bashrc__fn__cmd_proxy")
+__bashrc__fn__source_and_set_cwd
+
+PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
+
+__bashrc__fn__setup
+__bashrc__fn__welcome_message
+preexec_functions+=("__bashrc__fn__preeval")
+
+# Public functions for the user.
+code() {
+  local bin_path="$(host which code)"
+  host "${bin_path}" "${*}"
+}
+
+welcome() {
+  __bashrc__fn__welcome_message
+}
+
+_custom_command_completions() {
+  local cur prev words cword
+  _init_completion || return
+  _command_offset 1
+} && complete -F _custom_command_completions rag

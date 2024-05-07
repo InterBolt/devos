@@ -27,7 +27,6 @@ __host__fn__cleanup() {
       fi
       if [[ $(ps aux | grep "${pid}" | grep -v "grep ${pid}" | wc -l) -gt 0 ]]; then
         kill -9 "${pid}" >/dev/null || exit 1
-        echo "Cleaned PIDS: ${pid}"
       fi
       pid_index=$((pid_index + 1))
     done
