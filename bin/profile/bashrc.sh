@@ -6,7 +6,6 @@ __bashrc__var__self="${BASH_SOURCE[0]}"
 
 __bashrc__fn__source_and_set_cwd() {
   local entry_pwd="${PWD}"
-  # Be paranoid about the current working directory before sourcing anything.
   cd "${HOME}/.solos/src/bin" || exit 1
   . pkg/__source__.sh || exit 1
   cd "${HOME}/.solos/src/bin" || exit 1
@@ -155,6 +154,32 @@ _custom_command_completions() {
 complete -F _custom_command_completions rag
 
 # Public functions.
+gh_update_token() {
+  local tmp_file="$(mktemp -q)"
+  local gh_token_path="${HOME}/.solos/secrets/gh_token"
+  pkg.gum.github_token >"${tmp_file}" || exit 1
+  gh_token=$(cat "${tmp_file}")
+  if gh auth login --with-token <"${tmp_file}" >/dev/null; then
+    echo "Successfully updated the Github token."
+    # Wait for a successful login before saving it.
+    echo "${gh_token}" >"${gh_token_path}"
+    gh auth status
+  fi
+}
+gh_update_email() {
+  local tmp_file="$(mktemp -q)"
+  pkg.gum.github_email >"${tmp_file}" || exit 1
+  local gh_email=$(cat "${tmp_file}")
+  git config --global user.email "${gh_email}"
+  host git config --global user.email "${gh_email}"
+}
+gh_update_username() {
+  local tmp_file="$(mktemp -q)"
+  pkg.gum.github_username >"${tmp_file}" || exit 1
+  local gh_username=$(cat "${tmp_file}")
+  git config --global user.name "${gh_username}"
+  host git config --global user.name "${gh_username}"
+}
 code() {
   local bin_path="$(host which code)"
   host "${bin_path}" "${*}"

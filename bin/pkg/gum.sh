@@ -55,6 +55,14 @@ pkg.gum.github_token() {
   pkg.gum input --password --placeholder "Enter Github access token:"
 }
 
+pkg.gum.github_email() {
+  pkg.gum input --placeholder "Enter Github email:"
+}
+
+pkg.gum.github_name() {
+  pkg.gum input --placeholder "Enter Github username:"
+}
+
 pkg.gum.danger_box() {
   local terminal_width=$(tput cols)
   pkg.gum style \
