@@ -71,23 +71,35 @@ __bashrc__fn__setup() {
     gh_cmd_available=true
   fi
   if [[ ${gh_cmd_available} = false ]]; then
-    warnings+="The 'gh' command is not available. This shell is not authenticated with Git."
+    warnings+=("The 'gh' command is not available. This shell is not authenticated with Git.")
   elif [[ ! -f ${gh_token_file} ]]; then
-    warnings+="The 'gh' command is available but no token was found at ${gh_token_file}."
+    warnings+=("The 'gh' command is available but no token was found at ${gh_token_file}.")
   elif ! gh auth login --with-token <"${gh_token_file}" >/dev/null; then
-    warnings+="Failed to authenticate with Git."
+    warnings+=("Failed to authenticate with Git.")
   elif ! gh auth setup-git 2>/dev/null; then
-    warnings+="Failed to setup Git."
+    warnings+=("Failed to setup Git.")
   fi
   if [[ -f "/etc/bash_completion" ]]; then
     . /etc/bash_completion
   else
-    warnings+="/etc/bash_completion not found. Bash completions will not be available."
+    warnings+=("/etc/bash_completion not found. Bash completions will not be available.")
   fi
-
+  local gh_email="$(host git config --global user.email)"
+  local gh_user="$(host git config --global user.name)"
+  if [[ -n ${gh_email} ]]; then
+    git config --global user.email "${gh_email}"
+  else
+    warnings+=("No email found in Git configuration.")
+  fi
+  if [[ -n ${gh_user} ]]; then
+    git config --global user.name "${gh_user}"
+  else
+    warnings+=("No username found in Git configuration.")
+  fi
   if [[ ${warnings} ]]; then
     for warning in "${warnings[@]}"; do
       echo -e "\033[0;31mWARNING:\033[0m ${warning}"
+      sleep .2
     done
   fi
 }
@@ -134,23 +146,27 @@ __bashrc__fn__setup
 __bashrc__fn__welcome_message
 preexec_functions+=("__bashrc__fn__preeval")
 
-# Public functions for the user.
-code() {
-  local bin_path="$(host which code)"
-  host "${bin_path}" "${*}"
-}
-
-welcome() {
-  __bashrc__fn__welcome_message
-}
-
+# Custom completions.
 _custom_command_completions() {
   local cur prev words cword
   _init_completion || return
   _command_offset 1
 }
-
 complete -F _custom_command_completions rag
 
-git config --global user.email "$(host git config --global user.email)"
-git config --global user.user "$(host git config --global user.user)"
+# Public functions.
+code() {
+  local bin_path="$(host which code)"
+  host "${bin_path}" "${*}"
+}
+welcome() {
+  __bashrc__fn__welcome_message
+}
+solos() {
+  local executable_path="${HOME}/.solos/src/bin/solos.sh"
+  "${executable_path}" "$@"
+}
+dsolos() {
+  local executable_path="${HOME}/.solos/src/bin/solos.sh"
+  "${executable_path}" --restricted-developer "$@"
+}

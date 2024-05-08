@@ -10,11 +10,20 @@ host() {
   local cmd=''"${*}"''
   rm -f "${stdout_file}"
   echo "" >"${done_file}"
+  echo "" >"${stderr_file}"
+  echo "" >"${stdout_file}"
   echo ''"${cmd}"'' >"${command_file}"
-  while [[ ! -f "${stdout_file}" ]]; do
+  while [[ $(cat "${done_file}") != "DONE" ]]; do
     sleep 0.1
   done
-  cat "${stdout_file}"
-  cat "${stderr_file}" || echo "" >&2
+  # trim empty trailing newline
+  stdout="$(cat "${stdout_file}")"
+  stderr="$(cat "${stderr_file}")"
   rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
+  if [[ -n ${stdout} ]]; then
+    echo "${stdout}"
+  fi
+  if [[ -n ${stderr} ]]; then
+    echo "${stderr}" >&2
+  fi
 }
