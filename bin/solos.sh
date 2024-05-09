@@ -6,10 +6,6 @@
 
 set -o errexit
 
-# We might need more here later, but for now the main thing
-# is resetting the cursor via tput.
-trap "tput cnorm" EXIT
-
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 # Will include dotfiles in globbing.

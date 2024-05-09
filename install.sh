@@ -1,65 +1,77 @@
 #!/usr/bin/env bash
 
-__var__ENTRY_DIR="${PWD}"
-trap 'cd '"${__var__ENTRY_DIR}"'' EXIT
+__install__var__entry_dir="${PWD}"
+trap 'cd '"${__install__var__entry_dir}"'' EXIT
 
-__var__REPO_URL="https://github.com/InterBolt/solos.git"
-__var__USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/solos"
-__var__REPO_BIN_EXECUTABLE_PATH="bin/posix.run.solos.sh"
+__install__var__target_bin_path="/usr/local/bin/solos"
+__install__var__bin_suffix=""
+__install__var__cmd_prefix=""
 if [[ $1 = "--dev" ]]; then
-  __var__REPO_BIN_EXECUTABLE_PATH="bin/posix.run.solos-dev.sh"
-  __var__USR_LOCAL_BIN_EXECUTABLE="/usr/local/bin/dsolos"
+  __install__var__bin_suffix="-dev"
+  __install__var__cmd_prefix="d"
   shift
 fi
-__var__TMP_DIR="$(mktemp -d 2>/dev/null)"
-__var__TMP_SOURCE_ROOT="${__var__TMP_DIR}/src"
-__var__SOLOS_DIR="${HOME}/.solos"
-__var__SOLOS_SRC_DIR="${__var__SOLOS_DIR}/src"
-__var__SOLOS_VSCODE_BASHRC_FILE="${__var__SOLOS_DIR}/.bashrc"
+__install__var__solos_dir="${HOME}/.solos"
+__install__var__solos_src_dir="${__install__var__solos_dir}/src"
+__install__var__solos_vscode_bashrc_file="${__install__var__solos_dir}/.bashrc"
 
-__fn__clone() {
-  if ! git clone "${__var__REPO_URL}" "${__var__TMP_SOURCE_ROOT}" >/dev/null 2>&1; then
-    echo "Failed to clone ${__var__REPO_URL} to ${__var__TMP_SOURCE_ROOT}" >&2
+__install__var__prev_return=()
+
+__install__fn__clone() {
+  local tmp_source_root="$(mktemp -d 2>/dev/null)/src"
+  local repo_url="https://github.com/InterBolt/solos.git"
+  if ! git clone "${repo_url}" "${tmp_source_root}" >/dev/null 2>&1; then
+    echo "Failed to clone ${repo_url} to ${tmp_source_root}" >&2
     exit 1
   fi
-  if [[ ! -f "${__var__TMP_SOURCE_ROOT}/${__var__REPO_BIN_EXECUTABLE_PATH}" ]]; then
-    echo "${__var__TMP_SOURCE_ROOT}/${__var__REPO_BIN_EXECUTABLE_PATH} not found." >&2
+  if [[ ! -f "${tmp_source_root}/bin${__install__var__bin_suffix}.sh" ]]; then
+    echo "${tmp_source_root}/bin${__install__var__bin_suffix}.sh not found." >&2
+    exit 1
+  fi
+  __install__var__prev_return=("${tmp_source_root}")
+}
+__install__fn__init_fs() {
+  local tmp_src_dir="${1}"
+  local solos_dir="${HOME}/.solos"
+  local solos_bashrc="${solos_dir}/.bashrc"
+  local src_dir="${solos_dir}/src"
+
+  mkdir -p "${solos_dir}" || exit 1
+  mkdir -p "${solos_dir}/secrets" || exit 1
+
+  if [[ ! -f "${solos_bashrc}" ]]; then
+    "${solos_bashrc}" <<EOF
+#!/usr/bin/env bash
+
+source "\${HOME}/.solos/src/bin/profile/bashrc.sh"
+
+# Add your customizations to the SolOS shell:
+# Tip: type \`man\` in the shell to see what functions and aliases are available.
+EOF
+  fi
+  if [[ "${src_dir}" != "${HOME}/"*"/"* ]]; then
+    echo "The source directory must be a subchild of your \$HOME directory." >&2
+    exit 1
+  else
+    rm -rf "${src_dir}" || exit 1
+    mkdir -p "${src_dir}" || exit 1
+    cp -r "${tmp_src_dir}/." "${src_dir}" || exit 1
+  fi
+}
+__install__fn__link_bin() {
+  local src_dir="${HOME}/.solos/src"
+  local target_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
+  if ! ln -sfv "${src_dir}" "${target_path}" >/dev/null; then
+    echo "Failed to link ${src_dir} to ${target_path}" >&2
+    exit 1
+  fi
+  if ! chmod +x "${target_path}"; then
+    echo "Failed to make ${target_path} executable." >&2
     exit 1
   fi
 }
-__fn__init_fs() {
-  mkdir -p "${__var__SOLOS_DIR}" || exit 1
-  mkdir -p "${__var__SOLOS_DIR}/secrets" || exit 1
-
-  # Create the bashrc file
-  if [[ ! -f "${__var__SOLOS_VSCODE_BASHRC_FILE:?}" ]]; then
-    {
-      echo "#!/usr/bin/env bash"
-      echo ""
-      echo "source \"\${HOME}/.solos/src/bin/profile/bashrc.sh\""
-      echo ""
-      echo "# This file is sourced inside of the docker container when the command is run."
-      echo "# Add your customizations:"
-    } >"${__var__SOLOS_VSCODE_BASHRC_FILE}"
-  fi
-
-  # Create the source code dir and copy the cloned repo into it.
-  rm -rf "${__var__SOLOS_SRC_DIR:?}" || exit 1
-  mkdir -p "${__var__SOLOS_SRC_DIR:?}" || exit 1
-  cp -r "${__var__TMP_SOURCE_ROOT:?}/." "${__var__SOLOS_SRC_DIR:?}" || exit 1
-}
-__fn__link_bin() {
-  if ! ln -sfv "${__var__SOLOS_SRC_DIR:?}/${__var__REPO_BIN_EXECUTABLE_PATH}" "${__var__USR_LOCAL_BIN_EXECUTABLE}" >/dev/null; then
-    echo "Failed to link ${__var__SOLOS_SRC_DIR}/${__var__REPO_BIN_EXECUTABLE_PATH} to ${__var__USR_LOCAL_BIN_EXECUTABLE}" >&2
-    exit 1
-  fi
-  if ! chmod +x "${__var__USR_LOCAL_BIN_EXECUTABLE}"; then
-    echo "Failed to make ${__var__USR_LOCAL_BIN_EXECUTABLE} executable." >&2
-    exit 1
-  fi
-}
-
-__fn__MAIN() {
+__install__fn__main() {
+  local target_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
     return 1
@@ -68,25 +80,25 @@ __fn__MAIN() {
     echo "Git is required to install SolOS on this system." >&2
     return 1
   fi
-  if ! __fn__clone; then
-    echo "Solos installation failed." >&2
+  if ! __install__fn__clone; then
+    echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __fn__init_fs; then
-    echo "Solos installation failed." >&2
+  if ! __install__fn__init_fs "${__install__var__prev_return[0]}"; then
+    echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __fn__link_bin; then
-    echo "Solos installation failed." >&2
+  if ! __install__fn__link_bin; then
+    echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! "${__var__USR_LOCAL_BIN_EXECUTABLE}" --installer-no-tty --restricted-noop; then
-    echo "Solos installation failed." >&2
+  if ! "${target_path}" --installer-no-tty --restricted-noop; then
+    echo "SolOS installation failed." >&2
     return 1
   fi
-  echo "Run \`solos --help\` to get started."
+  echo "Run \`${__install__var__cmd_prefix}solos --help\` to get started."
 }
 
-if ! __fn__MAIN; then
+if ! __install__fn__main; then
   exit 1
 fi

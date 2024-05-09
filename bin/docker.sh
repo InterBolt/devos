@@ -43,8 +43,8 @@ __docker__fn__hash() {
 __docker__fn__cleanup_old_containers() {
   local hash="$(__docker__fn__hash)"
   for image_name in $(docker ps -a --format "{{.Image}}" --no-trunc); do
-    if [[ ${image_name} = "solos-cli:"* ]]; then
-      local image_hash="${image_name#solos-cli:}"
+    if [[ ${image_name} = "solos:"* ]]; then
+      local image_hash="${image_name#solos:}"
       if [[ ${image_hash} != "${hash}" ]]; then
         local container_id=$(docker ps -a --format "{{.ID}} {{.Image}}" --no-trunc | grep "${image_name}" | awk '{print $1}')
         if [[ -n ${container_id} ]]; then
@@ -109,7 +109,7 @@ __docker__fn__build_and_run() {
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
-  if ! docker build -t "solos-cli:$(__docker__fn__hash)" -f "${__docker__var__repo_launch_dir}/Dockerfile.cli" .; then
+  if ! docker build -t "solos:$(__docker__fn__hash)" -f "${__docker__var__repo_launch_dir}/Dockerfile.shell" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
@@ -133,7 +133,7 @@ __docker__fn__build_and_run() {
     /var/run/docker.sock:/var/run/docker.sock
     -v
     "${__docker__var__volume_root}:${__docker__var__volume_mounted}"
-    "solos-cli:$(__docker__fn__hash)"
+    "solos:$(__docker__fn__hash)"
   )
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}" &

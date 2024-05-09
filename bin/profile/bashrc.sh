@@ -22,38 +22,66 @@ __bashrc__fn__source_and_set_cwd() {
   fi
 }
 
+__bashrc__fn__print_commands() {
+  cat <<EOF
+- \`man\`:                 Print info about the shell, available commands, and customization instructions.
+- \`rag \$@\`:              Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
+- \`solos \$@\`:            A CLI utility for managing deployment servers. See \`solos --help\`.
+- \`dsolos \$@\`:           A restricted version of \`solos\` for developers. See \`dsolos --help\`.
+- \`gh_update_token\`:     Update the Github token.
+- \`gh_update_email\`:     Update the Github email.
+- \`gh_update_username\`:  Update the Github username.
+- \`host \$@\`:             Evaluates args as a command on the host machine. Try: \`host uname\`.
+EOF
+}
+
+__bashrc__fn__print_about_shell() {
+  cat <<EOF
+- SHELL: BASH
+- PWD: ${PWD}
+- HOME: ${HOME}
+- BASH_VERSION: ${BASH_VERSION}
+- DISTRO: $(lsb_release -d | cut -f2)
+- TERM: ${TERM}
+EOF
+}
+
+__bashrc__fn__print_customizations() {
+  cat <<EOF
+- User managed rcfile: ~/.solos/.bashrc
+- SolOS internal rcfile: ~/.solos/src/bin/profile/bashrc.sh
+- Secrets: ~/.solos/secrets
+- Source code: ~/.solos/src
+EOF
+}
+
+__bashrc__fn__print_man() {
+  cat <<EOF
+Available commands:
+$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
+$(__bashrc__fn__print_commands)
+
+Shell information:
+$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
+$(__bashrc__fn__print_about_shell)
+
+Customization instructions:
+$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
+$(__bashrc__fn__print_customizations)
+
+Source code:
+$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
+https://github.com/interbolt/solos
+EOF
+}
+
 __bashrc__fn__welcome_message() {
   # Make the CLI prompt pretty.
   cat <<EOF
 
-Welcome to the SolOS integrated VSCode terminal.
+Welcome to the SolOS Shell!
 
-The following commands are available:
-
-- \`rag\`: Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
-- \`solos\`: A CLI utility for managing deployment servers. See \`solos --help\`.
-- \`host\`: A utility for evaluating commands on your host machine. Use with caution!
-
-Considerations:
-
-- The SolOS custom commands are only available to shells that source: ${__bashrc__var__self/'/root'/"~"}
-- Bash completions are installed and available.
-- Bash version is 5.2
-- The docker CLI will use your host's daemon.
-
-Known limitations:
-
-- The container will always use Debian
-- No support out of the box for zsh, fish, or other shells.
-
-Customize:
-
-- Customize this shell via: ~/.solos/.bashrc
-- Modify the SolOS source code: ~/.solos/src
-
-Github repository: https://github.com/interbolt/solos
-
-Type \`exit\` to leave the SolOS shell.
+$(__bashrc__fn__print_man)
 
 EOF
   local gh_status_line="$(gh auth status | grep "Logged in")"
@@ -133,7 +161,7 @@ __bashrc__fn__preeval() {
   if [[ ${cmd} = "rag "* ]]; then
     return 0
   fi
-  rag --captured-only ''"${BASH_COMMAND}"''
+  rag --captured-only ''"${cmd}"''
   return 1
 }
 
@@ -184,14 +212,16 @@ code() {
   local bin_path="$(host which code)"
   host "${bin_path}" "${*}"
 }
-welcome() {
-  __bashrc__fn__welcome_message
-}
 solos() {
   local executable_path="${HOME}/.solos/src/bin/solos.sh"
-  "${executable_path}" "$@"
+  bash "${executable_path}" "$@"
 }
 dsolos() {
   local executable_path="${HOME}/.solos/src/bin/solos.sh"
-  "${executable_path}" --restricted-developer "$@"
+  bash "${executable_path}" --restricted-developer "$@"
+}
+man() {
+  echo ""
+  __bashrc__fn__print_man
+  echo ""
 }
