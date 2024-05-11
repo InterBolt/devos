@@ -59,10 +59,10 @@ EOF
   fi
 }
 __install__fn__link_bin() {
-  local src_dir="${HOME}/.solos/src"
+  local linked_path="${HOME}/.solos/src/bin/bin${__install__var__bin_suffix}.sh"
   local target_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
-  if ! ln -sfv "${src_dir}" "${target_path}" >/dev/null; then
-    echo "Failed to link ${src_dir} to ${target_path}" >&2
+  if ! ln -sfv "${linked_path}" "${target_path}" >/dev/null; then
+    echo "Failed to link ${linked_path} to ${target_path}" >&2
     exit 1
   fi
   if ! chmod +x "${target_path}"; then
