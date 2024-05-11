@@ -94,7 +94,7 @@ __docker__fn__exec_command() {
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
   fi
-  docker exec "${args[@]}" /bin/bash --rcfile ${HOME}/.solos/.bashrc -i -c ''"${*}"''
+  docker exec "${args[@]}" /bin/bash -i -c ''"${*}"''
 }
 __docker__fn__build_and_run() {
   if [[ -f ${__docker__var__volume_root} ]]; then
