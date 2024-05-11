@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set +x
+set -x
 
 __docker__var__entry_dir="${PWD}"
 
