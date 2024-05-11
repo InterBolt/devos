@@ -24,8 +24,8 @@ __install__fn__clone() {
     echo "Failed to clone ${repo_url} to ${tmp_source_root}" >&2
     exit 1
   fi
-  if [[ ! -f "${tmp_source_root}/bin${__install__var__bin_suffix}.sh" ]]; then
-    echo "${tmp_source_root}/bin${__install__var__bin_suffix}.sh not found." >&2
+  if [[ ! -f "${tmp_source_root}/bin/bin${__install__var__bin_suffix}.sh" ]]; then
+    echo "${tmp_source_root}/bin/bin${__install__var__bin_suffix}.sh not found." >&2
     exit 1
   fi
   __install__var__prev_return=("${tmp_source_root}")
