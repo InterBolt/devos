@@ -37,7 +37,6 @@ __install__fn__init_fs() {
   local src_dir="${solos_dir}/src"
 
   mkdir -p "${solos_dir}" || exit 1
-  mkdir -p "${solos_dir}/secrets" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     "${solos_bashrc}" <<EOF
