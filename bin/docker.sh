@@ -60,6 +60,7 @@ __docker__fn__cleanup_old_containers() {
 __docker__fn__test() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
+  echo "__docker__var__installer_no_tty_flag = ${__docker__var__installer_no_tty_flag}"
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
     args=(-i -w "${container_ctx}" "$(__docker__fn__hash)" echo "")
   else
