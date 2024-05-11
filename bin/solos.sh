@@ -24,6 +24,8 @@ vPREV_NEXT_ARGS=()
 # shellcheck source=shared/helpers.sh
 . "shared/helpers.sh"
 
+echo "$@"
+
 helpers.simple_flag_parser \
   --restricted-developer \
   --restricted-noop \
@@ -31,8 +33,6 @@ helpers.simple_flag_parser \
 set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
 vRESTRICTED_MODE_DEVELOPER=${vPREV_RETURN[0]:-false}
 vRESTRICTED_MODE_NOOP=${vPREV_RETURN[1]:-false}
-
-echo "vRESTRICTED_MODE_NOOP = ${vRESTRICTED_MODE_NOOP}"
 
 if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
