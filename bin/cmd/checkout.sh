@@ -52,5 +52,18 @@ cmd.checkout() {
   # off if we didn't supply all the variables the first time.
   solos.collect_supplied_variables
   lib.store.global.set "project_name" "${vPROJECT_NAME}"
+
+  local vscode_dir="${HOME}/.solos/.vscode"
+  mkdir -p "${vscode_dir}"
+  local tmp_dir="$(mktemp -d)"
+  cp launch/solos.code-workspace "${tmp_dir}/solos.code-workspace"
+  if lib.utils.template_variables "${tmp_dir}/solos.code-workspace"; then
+    rm -f "${vscode_dir}/solos.code-workspace"
+    mv "${tmp_dir}/solos.code-workspace" "${vscode_dir}/solos.code-workspace"
+    log.info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
+  else
+    log.warn "Failed to template the Visual Studio Code workspace file."
+  fi
+
   log.info "${vPROJECT_NAME} - Checkout out."
 }

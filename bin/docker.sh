@@ -113,19 +113,6 @@ __docker__fn__build_and_run() {
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1
   fi
-  mkdir -p "${HOME}/.solos/secrets"
-  local gh_token_path="${HOME}/.solos/secrets/gh_token"
-  local gh_token=""
-  if [[ -f ${gh_token_path} ]]; then
-    gh_token=$(cat "${gh_token_path}")
-  else
-    pkg.gum.github_token >"${gh_token_path}" || exit 1
-    gh_token=$(cat "${gh_token_path}")
-  fi
-  if [[ -z ${gh_token} ]]; then
-    echo "A Github personal access token was not provided. Exiting..." >&2
-    exit 1
-  fi
   local shared_docker_run_args=(
     --name "$(__docker__fn__hash)"
     -d

@@ -48,6 +48,7 @@ vSOLOS_STARTED_AT="$(date +%s)"
 vSOLOS_BIN_DIR="$(pwd)"
 vSOLOS_BIN_FILEPATH="${vSOLOS_BIN_DIR}/$0"
 vSOLOS_DEBUG=${DEBUG:-0}
+vSOLOS_HOST="$(cat "${vSTATIC_SOLOS_ROOT}/config/host" 2>/dev/null || echo "/root")"
 
 # The vCLI_* values get set within the cli.parse.* functions.
 vCLI_PARSED_CMD=""

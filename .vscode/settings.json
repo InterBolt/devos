@@ -8,6 +8,7 @@
   "editor.formatOnSave": true,
   "search.useIgnoreFiles": true,
   "terminal.integrated.defaultProfile.osx": "solos",
+  "terminal.integrated.defaultProfile.linux": "solos",
   "terminal.integrated.cwd": "${workspaceFolder}",
   "terminal.integrated.profiles.osx": {
     "solos": {
@@ -21,23 +22,14 @@
     "pwsh": null
   },
   "terminal.integrated.profiles.linux": {
-    "bash": {
-      "path": "bash",
-      "icon": "terminal-bash"
+    "solos": {
+      "path": "/Users/colinlaptop/.solos/src/bin/vscode.sh",
+      "args": []
     },
-    "zsh": {
-      "path": "zsh"
-    },
-    "fish": {
-      "path": "fish"
-    },
-    "tmux": {
-      "path": "tmux",
-      "icon": "terminal-tmux"
-    },
-    "pwsh": {
-      "path": "pwsh",
-      "icon": "terminal-powershell"
-    }
+    "bash": null,
+    "zsh": null,
+    "fish": null,
+    "tmux": null,
+    "pwsh": null
   }
 }

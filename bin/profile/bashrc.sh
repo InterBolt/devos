@@ -92,7 +92,11 @@ EOF
 
 __bashrc__fn__setup() {
   local warnings=()
+  mkdir -p "${HOME}/.solos/secrets"
   local gh_token_file="${HOME}/.solos/secrets/gh_token"
+  if [[ ! -f ${gh_token_path} ]]; then
+    pkg.gum.github_token >"${gh_token_path}" || exit 1
+  fi
   local gh_cmd_available=false
   if command -v gh >/dev/null 2>&1; then
     gh_cmd_available=true

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 
-set -m
-
 host() {
+  set -m
   local done_file="${HOME}/.solos/pipes/host.done"
   local command_file="${HOME}/.solos/pipes/host.command"
   local stdout_file="${HOME}/.solos/pipes/host.stdout"
@@ -16,7 +15,6 @@ host() {
   while [[ $(cat "${done_file}") != "DONE" ]]; do
     sleep 0.1
   done
-  # trim empty trailing newline
   stdout="$(cat "${stdout_file}")"
   stderr="$(cat "${stderr_file}")"
   rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
@@ -26,4 +24,5 @@ host() {
   if [[ -n ${stderr} ]]; then
     echo "${stderr}" >&2
   fi
+  set +m
 }

@@ -22,7 +22,6 @@ teardown                 - Teardown provisioned resources.
 backup                   - Backup all the things to an rsync target.
 restore                  - Restore all the things from an rsync target.
 health                   - Review health/status of provisioned resources.
-dev                      - Launches a VSCode workspace for a project.
 test                     - (DEV ONLY) Generates and runs unit tests. 
 try                      - (DEV ONLY) one off entrypoint to test snippets in the command portion of the 
                            SolOS bin script.
@@ -59,19 +58,6 @@ $vSELF_CLI_USAGE_OPTS_HEADER
 --lib               - (ex: "ssh" tests "lib.ssh") The name of the library to test.
 --fn                - (ex: "lib.<category>.<fn>") The name of the lib function to test.
 --assume-yes        - Assume yes for all prompts
-
-EOF
-}
-cli.usage.command.dev.help() {
-  cat <<EOF
-Usage: solos dev [--OPTS...]
-
-Builds and runs a development docker container and opens a connected
-VSCode workspace.
-
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---project           - (default: <cache>) The project name of of your project.
 
 EOF
 }

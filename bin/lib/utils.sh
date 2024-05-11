@@ -54,7 +54,7 @@ lib.utils.template_variables() {
   fi
   local errored=false
   for file in "${eligible_files[@]}"; do
-    bin_vars=$(grep -oE "__v[A-Z0-9_]*__" "${file}" || echo "" | sed 's/__//g')
+    bin_vars=$(grep -o "__v[A-Z0-9_]*__" "${file}" | sed 's/__//g')
     for bin_var in ${bin_vars}; do
       if [[ -z ${!bin_var+x} ]]; then
         log.error "Template variables error: ${file} is using an unset variable: ${bin_var}"
@@ -66,8 +66,8 @@ lib.utils.template_variables() {
         errored=true
         continue
       fi
-      if [[ ${errored} = "false" ]] && [[ ${behavior} = "commit" ]]; then
-        sed -i '' "s,\_\_${bin_var}\_\_,${!bin_var},g" "${file}"
+      if [[ ${errored} = "false" ]]; then
+        sed -i "s,__${bin_var}__,${!bin_var},g" "${file}"
       fi
     done
   done
@@ -202,7 +202,7 @@ lib.utils.validate_interfaces() {
     local is_invalid=false
     local name="${filename%.*}"
     name="${name//-/_}"
-    local prefix="${dir}.${name}"
+    local prefix="$(basename "${target_dir}").${name}"
     local cmds=("${@:2}")
     for cmd in "${expected_methods[@]}"; do
       if ! declare -f "${prefix}.${cmd}" >/dev/null; then

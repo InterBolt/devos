@@ -1,0 +1,67 @@
+{
+  "folders": [
+    {
+      "name": "Project: __vPROJECT_NAME__",
+      "uri": "__vSOLOS_HOST__/.solos/projects"
+    },
+    {
+      "name": "SolOS",
+      "uri": "__vSOLOS_HOST__/.solos"
+    }
+  ],
+  "settings": {
+    "terminal.integrated.defaultProfile.osx": "solos",
+    "terminal.integrated.defaultProfile.linux": "solos",
+    "terminal.integrated.cwd": "${workspaceFolder}",
+    "terminal.integrated.profiles.osx": {
+      "solos": {
+        "path": "__vSOLOS_HOST__/.solos/src/bin/vscode.sh",
+        "args": []
+      },
+      "bash": null,
+      "zsh": null,
+      "fish": null,
+      "tmux": null,
+      "pwsh": null
+    },
+    "terminal.integrated.profiles.linux": {
+      "solos": {
+        "path": "__vSOLOS_HOST__/.solos/src/bin/vscode.sh",
+        "args": []
+      },
+      "bash": null,
+      "zsh": null,
+      "fish": null,
+      "tmux": null,
+      "pwsh": null
+    },
+    "[toml]": {
+      "editor.formatOnSave": false
+    },
+    "typescript.format.enable": true,
+    "javascript.format.enable": true,
+    "html.format.enable": true,
+    "editor.formatOnSave": true,
+    "search.useIgnoreFiles": true,
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/bower_components": true,
+      "**/*.code-search": true,
+      "/tmp": true,
+      "/var": true,
+      "/opt": true,
+      "/media": true,
+      "/home": true,
+      "/boot": true,
+      "/proc": true,
+      "/srv": true,
+      "/mnt": true,
+      "/etc": true,
+      "/dist": true,
+      "/run": true,
+      "/sys": true,
+      "/usr": true,
+      "**/.vscode-server": true
+    }
+  }
+}
