@@ -4,8 +4,6 @@
 . cmd/backup.sh
 # shellcheck source=checkout.sh
 . cmd/checkout.sh
-# shellcheck source=dev.sh
-. cmd/dev.sh
 # shellcheck source=health.sh
 . cmd/health.sh
 # shellcheck source=provision.sh
