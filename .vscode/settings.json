@@ -12,7 +12,7 @@
   "terminal.integrated.cwd": "${workspaceFolder}",
   "terminal.integrated.profiles.osx": {
     "solos": {
-      "path": "/Users/colinlaptop/.solos/src/bin/vscode.sh",
+      "path": "/Users/colinlaptop/.solos/src/bin/shell.sh",
       "args": []
     },
     "bash": null,
@@ -23,7 +23,7 @@
   },
   "terminal.integrated.profiles.linux": {
     "solos": {
-      "path": "/Users/colinlaptop/.solos/src/bin/vscode.sh",
+      "path": "/Users/colinlaptop/.solos/src/bin/shell.sh",
       "args": []
     },
     "bash": null,

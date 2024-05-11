@@ -105,10 +105,6 @@ __docker__fn__build_and_run() {
   fi
   mkdir -p "$(dirname "${__docker__var__volume_config_hostfile}")"
   echo "${HOME}" >"${__docker__var__volume_config_hostfile}"
-  if ! docker build -t "solos:base" -f "${__docker__var__repo_launch_dir}/Dockerfile.base" .; then
-    echo "Unexpected error: failed to build the docker image." >&2
-    exit 1
-  fi
   if ! docker build -t "solos:$(__docker__fn__hash)" -f "${__docker__var__repo_launch_dir}/Dockerfile.shell" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     exit 1

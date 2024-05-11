@@ -39,7 +39,7 @@ __install__fn__init_fs() {
   mkdir -p "${solos_dir}" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
-    "${solos_bashrc}" <<EOF
+    cat <<EOF >"${solos_bashrc}"
 #!/usr/bin/env bash
 
 source "\${HOME}/.solos/src/bin/profile/bashrc.sh"
@@ -58,19 +58,19 @@ EOF
   fi
 }
 __install__fn__link_bin() {
-  local linked_path="${HOME}/.solos/src/bin/bin${__install__var__bin_suffix}.sh"
-  local target_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
-  if ! ln -sfv "${linked_path}" "${target_path}" >/dev/null; then
-    echo "Failed to link ${linked_path} to ${target_path}" >&2
+  local src_bin_path="${HOME}/.solos/src/bin/bin${__install__var__bin_suffix}.sh"
+  local target_bin_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
+  if ! ln -sfv "${src_bin_path}" "${target_bin_path}" >/dev/null; then
+    echo "Failed to link ${src_bin_path} to ${target_bin_path}" >&2
     exit 1
   fi
-  if ! chmod +x "${target_path}"; then
-    echo "Failed to make ${target_path} executable." >&2
+  if ! chmod +x "${target_bin_path}"; then
+    echo "Failed to make ${target_bin_path} executable." >&2
     exit 1
   fi
 }
 __install__fn__main() {
-  local target_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
+  local target_bin_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
     return 1
@@ -91,7 +91,7 @@ __install__fn__main() {
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! "${target_path}" --installer-no-tty --restricted-noop; then
+  if ! "${target_bin_path}" --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     return 1
   fi

@@ -56,14 +56,13 @@ cmd.checkout() {
   local vscode_dir="${HOME}/.solos/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"
-  cp launch/solos.code-workspace "${tmp_dir}/solos.code-workspace"
-  if lib.utils.template_variables "${tmp_dir}/solos.code-workspace"; then
-    rm -f "${vscode_dir}/solos.code-workspace"
-    mv "${tmp_dir}/solos.code-workspace" "${vscode_dir}/solos.code-workspace"
+  cp launch/solos.code-workspace "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
+  if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
+    cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
     log.info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
   else
-    log.warn "Failed to template the Visual Studio Code workspace file."
+    log.error "${vPROJECT_NAME} - Failed to build the code workspace file."
+    exit 1
   fi
-
   log.info "${vPROJECT_NAME} - Checkout out."
 }

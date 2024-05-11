@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
-FILE="/tmp/tmp.zzlmc7S1PB/solos.code-workspace"
+cd /Users/colinlaptop/tmkmk/solos
 
-grep -o "__v[A-Z0-9_]*__" "${FILE}" | sed 's/__//g'
+if [[ ! -e /etc/solos ]]; then
+  echo "YAY: NOT FOUND"
+fi
+if [[ -e test.sh ]]; then
+  echo "YAY: FOUND"
+fi
+if [[ -e bin/shared ]]; then
+  echo "YAY: FOUND"
+fi
