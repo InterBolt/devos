@@ -24,8 +24,6 @@ vPREV_NEXT_ARGS=()
 # shellcheck source=shared/helpers.sh
 . "shared/helpers.sh"
 
-echo "$@"
-
 helpers.simple_flag_parser \
   --restricted-developer \
   --restricted-noop \
