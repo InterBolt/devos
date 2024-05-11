@@ -91,7 +91,7 @@ __docker__fn__exec_shell() {
 __docker__fn__exec_command() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
-  if [[ ${__docker__var__INSTALcLER_NO_TTY_FLAG} = true ]]; then
+  if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
     args=(-i -w "${container_ctx}" "$(__docker__fn__hash)")
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
