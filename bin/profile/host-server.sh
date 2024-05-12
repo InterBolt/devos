@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-__host__var__command=".solos/pipes/host.command"
-__host__var__stdout=".solos/pipes/host.stdout"
-__host__var__done=".solos/pipes/host.done"
-__host__var__stderr=".solos/pipes/host.stderr"
+__host__var__dir=".solos/relay"
+__host__var__command="${__host__var__dir}/host.command"
+__host__var__stdout="${__host__var__dir}/host.stdout"
+__host__var__stderr="${__host__var__dir}/host.stderr"
+__host__var__done="${__host__var__dir}/host.done"
 
 __host__fn__cleanup() {
   local ps_info="$(
@@ -32,6 +33,7 @@ __host__fn__cleanup() {
 }
 
 __host__fn__listen() {
+  mkdir -p "${HOME}/${__host__var__dir}"
   local done_file="${HOME}/${__host__var__done}"
   local stdout_file="${HOME}/${__host__var__stdout}"
   local stderr_file="${HOME}/${__host__var__stderr}"

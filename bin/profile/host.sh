@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 host() {
-  local done_file="${HOME}/.solos/pipes/host.done"
-  local command_file="${HOME}/.solos/pipes/host.command"
-  local stdout_file="${HOME}/.solos/pipes/host.stdout"
-  local stderr_file="${HOME}/.solos/pipes/host.stderr"
+  local done_file="${HOME}/.solos/relay/host.done"
+  local command_file="${HOME}/.solos/relay/host.command"
+  local stdout_file="${HOME}/.solos/relay/host.stdout"
+  local stderr_file="${HOME}/.solos/relay/host.stderr"
   local cmd=''"${*}"''
   rm -f "${stdout_file}"
   echo "" >"${done_file}"

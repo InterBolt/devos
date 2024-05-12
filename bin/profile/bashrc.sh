@@ -93,9 +93,9 @@ EOF
 __bashrc__fn__setup() {
   local warnings=()
   mkdir -p "${HOME}/.solos/secrets"
-  local gh_token_file="${HOME}/.solos/secrets/gh_token"
+  local gh_token_path="${HOME}/.solos/secrets/gh_token"
   if [[ ! -f ${gh_token_path} ]]; then
-    pkg.gum.github_token >"${gh_token_path}" || exit 1
+    pkg.gum.github_token >"${gh_token_path}"
   fi
   local gh_cmd_available=false
   if command -v gh >/dev/null 2>&1; then
@@ -103,9 +103,9 @@ __bashrc__fn__setup() {
   fi
   if [[ ${gh_cmd_available} = false ]]; then
     warnings+=("The 'gh' command is not available. This shell is not authenticated with Git.")
-  elif [[ ! -f ${gh_token_file} ]]; then
-    warnings+=("The 'gh' command is available but no token was found at ${gh_token_file}.")
-  elif ! gh auth login --with-token <"${gh_token_file}" >/dev/null; then
+  elif [[ ! -f ${gh_token_path} ]]; then
+    warnings+=("The 'gh' command is available but no token was found at ${gh_token_path}.")
+  elif ! gh auth login --with-token <"${gh_token_path}" >/dev/null; then
     warnings+=("Failed to authenticate with Git.")
   elif ! gh auth setup-git 2>/dev/null; then
     warnings+=("Failed to setup Git.")

@@ -2,7 +2,8 @@
   "folders": [
     {
       "name": "Project: __vPROJECT_NAME__",
-      "uri": "__vSOLOS_HOST__/.solos/projects"
+      "uri": "__vSOLOS_HOST__/.solos/projects",
+      "profile": "solos"
     },
     {
       "name": "SolOS",
