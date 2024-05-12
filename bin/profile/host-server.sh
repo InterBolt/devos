@@ -32,7 +32,6 @@ __host__fn__cleanup() {
 }
 
 __host__fn__listen() {
-  set -x
   local done_file="${HOME}/${__host__var__done}"
   local stdout_file="${HOME}/${__host__var__stdout}"
   local stderr_file="${HOME}/${__host__var__stderr}"

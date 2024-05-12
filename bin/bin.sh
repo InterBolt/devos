@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-set -x
-
 . "${HOME}"/.solos/src/bin/docker.sh || exit 1
 # shellcheck source=shared/bin-host-post-fn.sh
 . "${HOME}"/.solos/src/bin/shared/bin-post-hook.sh || exit 1

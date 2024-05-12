@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 host() {
-  set -m
   local done_file="${HOME}/.solos/pipes/host.done"
   local command_file="${HOME}/.solos/pipes/host.command"
   local stdout_file="${HOME}/.solos/pipes/host.stdout"
