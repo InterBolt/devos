@@ -94,7 +94,7 @@ __docker__fn__exec_command() {
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
   fi
-  docker exec "${args[@]}" /bin/bash --rcfile ${HOME}/.solos/.bashrc -i -c ''"${*}"''
+  docker exec "${args[@]}" /bin/bash -i -c ''"${*}"''
 }
 __docker__fn__build_and_run() {
   if [[ -f ${__docker__var__volume_root} ]]; then
@@ -133,7 +133,8 @@ __docker__fn__shell() {
   fi
   __docker__fn__build_and_run
   if ! __docker__fn__cleanup_old_containers; then
-    echo "Failed to cleanup old containers. Continuing anyways..." >&2
+    echo "Unexpected error: failed to cleanup old containers." >&2
+    exit 1
   fi
   __docker__fn__exec_shell
 }
@@ -144,7 +145,8 @@ __docker__fn__run() {
   fi
   __docker__fn__build_and_run
   if ! __docker__fn__cleanup_old_containers; then
-    echo "Failed to cleanup old containers. Continuing anyways..." >&2
+    echo "Unexpected error: failed to cleanup old containers." >&2
+    exit 1
   fi
   __docker__fn__exec_command "$@"
 }
