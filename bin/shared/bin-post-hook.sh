@@ -47,10 +47,10 @@ __bin_post_hook__fn__checkout() {
     echo "Unexpected error: no project specified." >&2
     exit 1
   fi
-  local code_workspace_file="/root/.solos/src/.vscode/solos-${project}.code-workspace"
+  local code_workspace_file="/root/.solos/.vscode/solos-${project}.code-workspace"
   if [[ ! -f "${code_workspace_file}" ]]; then
     echo "Unexpected error: no code workspace file found for project ${project}." >&2
     exit 1
   fi
-  code "/root/.solos/src/.vscode/solos-${project}.code-workspace"
+  code "/root/.solos/.vscode/solos-${project}.code-workspace"
 }
