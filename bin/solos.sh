@@ -32,19 +32,19 @@ if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
 
-. "pkg/${vSTATIC_SOURCE_FILE}"
+. "pkg/__source__.sh"
 . "shared/log.sh"
 
 if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
   chmod +x "shared/codegen.sh"
   . shared/codegen.sh
-  shared.codegen.run "${vSTATIC_SOURCE_FILE}"
+  shared.codegen.run "__source__.sh"
 fi
 
-. "lib/${vSTATIC_SOURCE_FILE}"
-. "cli/${vSTATIC_SOURCE_FILE}"
-. "cmd/${vSTATIC_SOURCE_FILE}"
-. "provision/${vSTATIC_SOURCE_FILE}"
+. "lib/__source__.sh"
+. "cli/__source__.sh"
+. "cmd/__source__.sh"
+. "provision/__source__.sh"
 
 # The directory path of the user's home directory.
 # Everything here runs in docker so this is the only way I
@@ -131,7 +131,7 @@ solos.use_checked_out_project() {
 if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
   lib.utils.validate_interfaces \
     "${vSOLOS_BIN_DIR}/provision" \
-    "${vSTATIC_INTERFACE_FILE}"
+    __interface__.txt
 fi
 
 # Parses CLI arguments into simpler data structures and validates against

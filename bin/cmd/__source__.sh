@@ -6,5 +6,4 @@
 . cmd/provision.sh
 . cmd/restore.sh
 . cmd/teardown.sh
-. cmd/test.sh
 . cmd/try.sh

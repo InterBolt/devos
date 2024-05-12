@@ -49,7 +49,11 @@ RUN sudo apt-get remove docker.io \
   && apt-get update \
   && apt-get install docker-ce-cli docker-buildx-plugin -y
 
-RUN sudo mkdir -p /etc/solos \
-  && sudo date > /etc/solos/last_build_date
+RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash \
+  && export NVM_DIR="$HOME/.nvm" \
+  && [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" \
+  && [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" \
+  && nvm install 20 \
+  && nvm use 20
 
 CMD ["tail", "-f", "/dev/null"]

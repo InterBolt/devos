@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
 
-__install__var__entry_dir="${PWD}"
-trap 'cd '"${__install__var__entry_dir}"'' EXIT
+__var__entry_dir="${PWD}"
+trap 'cd '"${__var__entry_dir}"'' EXIT
 
-__install__var__target_bin_path="/usr/local/bin/solos"
-__install__var__bin_suffix=""
-__install__var__cmd_prefix=""
+__var__target_bin_path="/usr/local/bin/solos"
+__var__bin_suffix=""
+__var__cmd_prefix=""
 if [[ $1 = "--dev" ]]; then
-  __install__var__bin_suffix="-dev"
-  __install__var__cmd_prefix="d"
+  __var__bin_suffix="-dev"
+  __var__cmd_prefix="d"
   shift
 fi
-__install__var__solos_dir="${HOME}/.solos"
-__install__var__solos_src_dir="${__install__var__solos_dir}/src"
-__install__var__solos_vscode_bashrc_file="${__install__var__solos_dir}/.bashrc"
-__install__var__prev_return=()
+__var__solos_dir="${HOME}/.solos"
+__var__solos_src_dir="${__var__solos_dir}/src"
+__var__solos_vscode_bashrc_file="${__var__solos_dir}/.bashrc"
+__var__prev_return=()
 
-__install__fn__clone() {
+__fn__clone() {
   local tmp_source_root="$(mktemp -d 2>/dev/null)/src"
   local repo_url="https://github.com/InterBolt/solos.git"
   if ! git clone "${repo_url}" "${tmp_source_root}" >/dev/null 2>&1; then
     echo "Failed to clone ${repo_url} to ${tmp_source_root}" >&2
     exit 1
   fi
-  if [[ ! -f "${tmp_source_root}/host/bin${__install__var__bin_suffix}.sh" ]]; then
-    echo "${tmp_source_root}/host/bin${__install__var__bin_suffix}.sh not found." >&2
+  if [[ ! -f "${tmp_source_root}/host/bin${__var__bin_suffix}.sh" ]]; then
+    echo "${tmp_source_root}/host/bin${__var__bin_suffix}.sh not found." >&2
     exit 1
   fi
-  __install__var__prev_return=("${tmp_source_root}")
+  __var__prev_return=("${tmp_source_root}")
 }
-__install__fn__init_fs() {
+__fn__init_fs() {
   local tmp_src_dir="${1}"
   local solos_dir="${HOME}/.solos"
   local solos_bashrc="${solos_dir}/.bashrc"
@@ -56,9 +56,9 @@ EOF
     cp -r "${tmp_src_dir}/." "${src_dir}" || exit 1
   fi
 }
-__install__fn__link_bin() {
-  local src_bin_path="${HOME}/.solos/src/host/bin${__install__var__bin_suffix}.sh"
-  local target_bin_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
+__fn__link_bin() {
+  local src_bin_path="${HOME}/.solos/src/host/bin${__var__bin_suffix}.sh"
+  local target_bin_path="/usr/local/bin/${__var__cmd_prefix}solos"
   if ! ln -sfv "${src_bin_path}" "${target_bin_path}" >/dev/null; then
     echo "Failed to link ${src_bin_path} to ${target_bin_path}" >&2
     exit 1
@@ -68,8 +68,8 @@ __install__fn__link_bin() {
     exit 1
   fi
 }
-__install__fn__main() {
-  local target_bin_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
+__fn__main() {
+  local target_bin_path="/usr/local/bin/${__var__cmd_prefix}solos"
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
     return 1
@@ -78,15 +78,15 @@ __install__fn__main() {
     echo "Git is required to install SolOS on this system." >&2
     return 1
   fi
-  if ! __install__fn__clone; then
+  if ! __fn__clone; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __install__fn__init_fs "${__install__var__prev_return[0]}"; then
+  if ! __fn__init_fs "${__var__prev_return[0]}"; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __install__fn__link_bin; then
+  if ! __fn__link_bin; then
     echo "SolOS installation failed." >&2
     return 1
   fi
@@ -94,9 +94,9 @@ __install__fn__main() {
     echo "SolOS installation failed." >&2
     return 1
   fi
-  echo "Run \`${__install__var__cmd_prefix}solos --help\` to get started."
+  echo "Run \`${__var__cmd_prefix}solos --help\` to get started."
 }
 
-if ! __install__fn__main; then
+if ! __fn__main; then
   exit 1
 fi

@@ -2,19 +2,16 @@
 
 ####################################################################################
 #####
-##### Command documentation:
-#####   - Creates a project directory for the user.
-#####   - Generates a keypair for the project if it doesn't exist.
-#####   - Sets the permissions on the keypair.
-#####   - Saves the project id to the project directory.
-#####   - Saves the project name to the global store so that future commands
-#####     automatically know which project to work with.
-#####   - Creates a Visual Studio Code workspace file for the project. This file is
-#####     always regenerated to ensure that the latest variables are used.
+##### - Creates a project directory for the user.
+##### - Generates a keypair for the project if it doesn't exist.
+##### - Sets the permissions on the keypair.
+##### - Saves the project id to the project directory.
+##### - Saves the project name to the global store so that future commands
+#####   automatically know which project to work with.
+##### - Creates a Visual Studio Code workspace file for the project. This file is
+#####   always regenerated to ensure that the latest variables are used.
 #####
 ####################################################################################
-
-. shared/must-source.sh
 
 cmd.checkout() {
   if [[ -z ${vPROJECT_NAME} ]]; then
@@ -48,7 +45,7 @@ cmd.checkout() {
   # off if we didn't supply all the variables the first time.
   solos.collect_supplied_variables
   lib.store.global.set "checked_out_project" "${vPROJECT_NAME}"
-  local vscode_dir="${HOME}/.solos/.vscode"
+  local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"
   cp launch/solos.code-workspace "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"

@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/must-source.sh
-
 . shared/empty.sh
 . shared/empty.sh
 . shared/empty.sh

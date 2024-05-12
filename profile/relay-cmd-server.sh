@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
-__host__var__dir=".solos/relay"
-__host__var__command="${__host__var__dir}/command"
-__host__var__stdout="${__host__var__dir}/stdout"
-__host__var__stderr="${__host__var__dir}/stderr"
-__host__var__done="${__host__var__dir}/done"
+__relay_cmd_server__var__dir=".solos/relay"
+__relay_cmd_server__var__command="${__relay_cmd_server__var__dir}/command"
+__relay_cmd_server__var__stdout="${__relay_cmd_server__var__dir}/stdout"
+__relay_cmd_server__var__stderr="${__relay_cmd_server__var__dir}/stderr"
+__relay_cmd_server__var__done="${__relay_cmd_server__var__dir}/done"
 
-__host__fn__cleanup() {
+__relay_cmd_server__fn__cleanup() {
   local ps_info="$(
     ps aux | grep "relay-cmd-server.sh" | grep -v "grep relay-cmd-server.sh" | grep -v "$$" |
       tr -s ' '
@@ -32,12 +32,12 @@ __host__fn__cleanup() {
   fi
 }
 
-__host__fn__listen() {
-  mkdir -p "${HOME}/${__host__var__dir}"
-  local done_file="${HOME}/${__host__var__done}"
-  local stdout_file="${HOME}/${__host__var__stdout}"
-  local stderr_file="${HOME}/${__host__var__stderr}"
-  local command_file="${HOME}/${__host__var__command}"
+__relay_cmd_server__fn__listen() {
+  mkdir -p "${HOME}/${__relay_cmd_server__var__dir}"
+  local done_file="${HOME}/${__relay_cmd_server__var__done}"
+  local stdout_file="${HOME}/${__relay_cmd_server__var__stdout}"
+  local stderr_file="${HOME}/${__relay_cmd_server__var__stderr}"
+  local command_file="${HOME}/${__relay_cmd_server__var__command}"
   rm -f "${stdout_file}" "${stderr_file}" "${command_file}" "${done_file}"
   touch "${stdout_file}" "${stderr_file}" "${command_file}" "${done_file}"
   while true; do
@@ -65,5 +65,5 @@ __host__fn__listen() {
   done
 }
 
-__host__fn__cleanup
-__host__fn__listen &
+__relay_cmd_server__fn__cleanup
+__relay_cmd_server__fn__listen &

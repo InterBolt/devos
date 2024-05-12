@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/must-source.sh
-
 cmd.provision() {
   solos.use_checked_out_project
   solos.collect_supplied_variables

@@ -2,8 +2,6 @@
 
 SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
-. shared/must-source.sh
-
 . shared/empty.sh
 . shared/empty.sh
 . shared/empty.sh

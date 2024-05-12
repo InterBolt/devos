@@ -1,18 +1,18 @@
 {
   "folders": [
     {
-      "name": "Project: __vPROJECT_NAME__",
+      "name": "__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
       "profile": "solos"
     },
     {
-      "name": "SolOS",
+      "name": ".solos",
       "uri": "__vUSERS_HOME_DIR__/.solos",
       "profile": "solos"
     },
     {
-      "name": "VSCode",
-      "uri": "__vUSERS_HOME_DIR__/.solos/.vscode",
+      "name": ".vscode",
+      "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__/.vscode",
       "profile": "solos"
     }
   ],

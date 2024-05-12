@@ -3,7 +3,6 @@
 set -o pipefail
 set -o errtrace
 
-. shared/must-source.sh
 . shared/log.sh
 . shared/static.sh
 

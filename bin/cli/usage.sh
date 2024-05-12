@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/must-source.sh
-
 vSELF_CLI_USAGE_CMD_HEADER="Available commands:"
 vSELF_CLI_USAGE_OPTS_HEADER="Available options:"
 vSELF_CLI_USAGE_ALLOWS_CMDS=()
