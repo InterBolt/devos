@@ -97,7 +97,6 @@ __docker__fn__exec_command() {
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
     bash_args=(-i -c ''"${*}"'')
   fi
-  echo "docker exec ${args[@]} /bin/bash ${bash_args[@]}"
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 __docker__fn__build_and_run() {
