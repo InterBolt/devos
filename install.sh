@@ -14,7 +14,6 @@ fi
 __install__var__solos_dir="${HOME}/.solos"
 __install__var__solos_src_dir="${__install__var__solos_dir}/src"
 __install__var__solos_vscode_bashrc_file="${__install__var__solos_dir}/.bashrc"
-
 __install__var__prev_return=()
 
 __install__fn__clone() {
@@ -24,8 +23,8 @@ __install__fn__clone() {
     echo "Failed to clone ${repo_url} to ${tmp_source_root}" >&2
     exit 1
   fi
-  if [[ ! -f "${tmp_source_root}/bin/bin${__install__var__bin_suffix}.sh" ]]; then
-    echo "${tmp_source_root}/bin/bin${__install__var__bin_suffix}.sh not found." >&2
+  if [[ ! -f "${tmp_source_root}/host/bin${__install__var__bin_suffix}.sh" ]]; then
+    echo "${tmp_source_root}/host/bin${__install__var__bin_suffix}.sh not found." >&2
     exit 1
   fi
   __install__var__prev_return=("${tmp_source_root}")
@@ -42,7 +41,7 @@ __install__fn__init_fs() {
     cat <<EOF >"${solos_bashrc}"
 #!/usr/bin/env bash
 
-source "\${HOME}/.solos/src/bin/profile/bashrc.sh"
+source "\${HOME}/.solos/src/profile/bashrc.sh"
 
 # Add your customizations to the SolOS shell:
 # Tip: type \`man\` in the shell to see what functions and aliases are available.
@@ -58,7 +57,7 @@ EOF
   fi
 }
 __install__fn__link_bin() {
-  local src_bin_path="${HOME}/.solos/src/bin/bin${__install__var__bin_suffix}.sh"
+  local src_bin_path="${HOME}/.solos/src/host/bin${__install__var__bin_suffix}.sh"
   local target_bin_path="/usr/local/bin/${__install__var__cmd_prefix}solos"
   if ! ln -sfv "${src_bin_path}" "${target_bin_path}" >/dev/null; then
     echo "Failed to link ${src_bin_path} to ${target_bin_path}" >&2

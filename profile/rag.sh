@@ -130,7 +130,7 @@ __rag__fn__find_rag_note() {
     __rag__var__PREV_RETURN=()
   fi
 }
-rag() {
+__rag__fn__main() {
   local command_was_supplied=false
   local no_more_opts=false
   local opt_captured_only=false

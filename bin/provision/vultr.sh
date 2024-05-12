@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-# shellcheck source=../shared/static.sh
 . shared/empty.sh
-# shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../bin.sh
 . shared/empty.sh
-# shellcheck source=../lib/utils.sh
 . shared/empty.sh
 
 vSELF_PROVISION_VULTR_API_ENDPOINT="https://api.lib.vultr.com/v2"
@@ -31,7 +26,7 @@ provision.vultr._launch_instance() {
   # TODO[question]: what immediate status will we expect the server to be in after recieving a 201 response?
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/instances" \
     -X POST \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}" \
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
       "region" : "'"${region}"'",
@@ -65,7 +60,7 @@ provision.vultr._wait_for_instance() {
     fi
     lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/instances/${instance_id}" \
       -X GET \
-      -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
+      -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}"
     lib.utils.curl.allows_error_status_codes "none"
     local queried_server_status="$(jq -r '.instance.server_status' <<<"${vPREV_CURL_RESPONSE}")"
     local queried_status="$(jq -r '.instance.status' <<<"${vPREV_CURL_RESPONSE}")"
@@ -82,7 +77,7 @@ provision.vultr._get_object_storage_id() {
   local object_storage_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
     -X GET \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
   local object_storage_labels=$(jq -r '.object_storages[].label' <<<"${vPREV_CURL_RESPONSE}")
   local object_storage_ids=$(jq -r '.object_storages[].id' <<<"${vPREV_CURL_RESPONSE}")
@@ -103,7 +98,7 @@ provision.vultr._get_ewr_cluster_id() {
   local cluster_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage/clusters" \
     -X GET \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
   local cluster_ids=$(jq -r '.clusters[].id' <<<"${vPREV_CURL_RESPONSE}")
   local cluster_regions=$(jq -r '.clusters[].region' <<<"${vPREV_CURL_RESPONSE}")
@@ -122,7 +117,7 @@ provision.vultr._create_storage() {
   local label="solos-${vPROJECT_ID}"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
     -X POST \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}" \
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
         "label" : "'"${label}"'",
@@ -139,7 +134,7 @@ provision.vultr._get_pubkey_id() {
   local found_pubkey_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
     -X GET \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
   local found_pubkey_ids=$(jq -r '.ssh_keys[].id' <<<"${vPREV_CURL_RESPONSE}")
   local found_pubkeys=$(jq -r '.ssh_keys[].ssh_key' <<<"${vPREV_CURL_RESPONSE}")
@@ -158,7 +153,7 @@ provision.vultr.save_pubkey() {
   local pubkey="$1"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
     -X POST \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}" \
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}" \
     -H "Content-Type: application/json" \
     --data '{
           "name" : "solos-'"$(date +%s)"'",
@@ -207,7 +202,7 @@ provision.vultr.s3() {
   fi
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage/${object_storage_id}" \
     -X GET \
-    -H "Authorization: Bearer ${vSUPPLIED_PROVIDER_API_KEY}"
+    -H "Authorization: Bearer ${vPROJECT_PROVIDER_API_KEY}"
   lib.utils.curl.allows_error_status_codes "none"
 
   vPREV_RETURN=()

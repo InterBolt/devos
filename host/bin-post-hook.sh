@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. "${HOME}"/.solos/src/bin/shared/helpers.sh || exit 1
-
 # A utility function. There is not command called `determine_host_post_fn`
 __bin_post_hook__fn__determine_command() {
   while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
@@ -47,10 +45,10 @@ __bin_post_hook__fn__checkout() {
     echo "Unexpected error: no project specified." >&2
     exit 1
   fi
-  local code_workspace_file="/root/.solos/.vscode/solos-${project}.code-workspace"
+  local code_workspace_file="${HOME}/.solos/.vscode/solos-${project}.code-workspace"
   if [[ ! -f "${code_workspace_file}" ]]; then
     echo "Unexpected error: no code workspace file found for project ${project}." >&2
     exit 1
   fi
-  code "/root/.solos/.vscode/solos-${project}.code-workspace"
+  code "${HOME}/.solos/.vscode/solos-${project}.code-workspace"
 }

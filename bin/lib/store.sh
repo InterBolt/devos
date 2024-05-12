@@ -1,13 +1,9 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-# shellcheck source=../shared/static.sh
 . shared/empty.sh
-# shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../bin.sh
 . shared/empty.sh
 
 vSELF_LIB_STORE_DIRNAME="store"
@@ -25,10 +21,12 @@ lib.store._get() {
   shift
   mkdir -p "${storage_dir}"
   local storage_file="${storage_dir}/$1"
+  shift
+  local fallback_val="${1:-""}"
   if [[ -f ${storage_file} ]]; then
     cat "${storage_file}"
   else
-    echo ""
+    echo "${fallback_val}"
   fi
 }
 

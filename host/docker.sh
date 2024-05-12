@@ -19,7 +19,7 @@ if ! cd "${__docker__var__repo_dir}"; then
   echo "Unexpected error: could not cd into ${__docker__var__repo_dir}" >&2
   exit 1
 fi
-__docker__var__volume_config_hostfile="${__docker__var__volume_root}/config/host"
+__docker__var__volume_config_hostfile="${__docker__var__volume_root}/store/users_home_dir"
 __docker__var__volume_mounted="/root/.solos"
 __docker__var__installer_no_tty_flag=false
 __docker__var__next_args=()
@@ -81,8 +81,8 @@ __docker__fn__exec_shell() {
   local entry_dir="${PWD}"
   local bashrc_path="${HOME}/.solos/.bashrc"
   local relative_bashrc_path="${bashrc_path/#$HOME/~}"
-  cd "${HOME}/.solos/src/bin" || exit 1
-  ./profile/host-server.sh || exit 1
+  cd "${HOME}/.solos/src" || exit 1
+  ./profile/relay-cmd-server.sh || exit 1
   cd "${entry_dir}" || exit 1
   docker exec "${args[@]}" /bin/bash --rcfile "${relative_bashrc_path}" -i
 }

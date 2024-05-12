@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2317
 
 SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-# shellcheck source=../shared/static.sh
 . shared/empty.sh
-# shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../bin.sh
 . shared/empty.sh
 
 # lib.docker.install_remote() {

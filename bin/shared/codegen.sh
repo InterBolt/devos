@@ -3,11 +3,8 @@
 set -o pipefail
 set -o errtrace
 
-# shellcheck source=must-source.sh
 . shared/must-source.sh
-# shellcheck source=log.sh
 . shared/log.sh
-# shellcheck source=static.sh
 . shared/static.sh
 
 shared.codegen._build_sources() {
@@ -31,7 +28,6 @@ shared.codegen._build_sources() {
       continue
     fi
     {
-      echo "# shellcheck source=${filename}"
       echo ". ${dirname}/${filename}"
     } >>"${tmp_sourced_file}"
   done

@@ -8,12 +8,10 @@ __bashrc__fn__source_and_set_cwd() {
   local entry_pwd="${PWD}"
   cd "${HOME}/.solos/src/bin" || exit 1
   . pkg/__source__.sh || exit 1
-  cd "${HOME}/.solos/src/bin" || exit 1
-  . profile/rag.sh || exit 1
-  cd "${HOME}/.solos/src/bin" || exit 1
-  . external/bash-preexec.sh || exit 1
-  cd "${HOME}/.solos/src/bin" || exit 1
-  . profile/host.sh || exit 1
+  cd "${HOME}/.solos/src/profile" || exit 1
+  . rag.sh || exit 1
+  cd "${HOME}/.solos/src/profile" || exit 1
+  . bash-preexec.sh || exit 1
   cd "${entry_pwd}" || exit 1
 
   # The terminal should always start within the .solos directory.
@@ -26,12 +24,12 @@ __bashrc__fn__print_commands() {
   cat <<EOF
 - \`man\`:                 Print info about the shell, available commands, and customization instructions.
 - \`rag \$@\`:              Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
+- \`host \$@\`:             Evaluates args as a command on the host machine. Try: \`host uname\`.
 - \`solos \$@\`:            A CLI utility for managing deployment servers. See \`solos --help\`.
 - \`dsolos \$@\`:           A restricted version of \`solos\` for developers. See \`dsolos --help\`.
 - \`gh_update_token\`:     Update the Github token.
 - \`gh_update_email\`:     Update the Github email.
 - \`gh_update_username\`:  Update the Github username.
-- \`host \$@\`:             Evaluates args as a command on the host machine. Try: \`host uname\`.
 EOF
 }
 
@@ -76,7 +74,6 @@ EOF
 }
 
 __bashrc__fn__welcome_message() {
-  # Make the CLI prompt pretty.
   cat <<EOF
 
 Welcome to the SolOS Shell!
@@ -186,6 +183,33 @@ _custom_command_completions() {
 complete -F _custom_command_completions rag
 
 # Public functions.
+rag() {
+  __rag__fn__main "$@"
+}
+host() {
+  local done_file="${HOME}/.solos/relay/done"
+  local command_file="${HOME}/.solos/relay/command"
+  local stdout_file="${HOME}/.solos/relay/stdout"
+  local stderr_file="${HOME}/.solos/relay/stderr"
+  local cmd=''"${*}"''
+  rm -f "${stdout_file}"
+  echo "" >"${done_file}"
+  echo "" >"${stderr_file}"
+  echo "" >"${stdout_file}"
+  echo ''"${cmd}"'' >"${command_file}"
+  while [[ $(cat "${done_file}") != "DONE" ]]; do
+    sleep 0.1
+  done
+  stdout="$(cat "${stdout_file}")"
+  stderr="$(cat "${stderr_file}")"
+  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
+  if [[ -n ${stdout} ]]; then
+    echo "${stdout}"
+  fi
+  if [[ -n ${stderr} ]]; then
+    echo "${stderr}" >&2
+  fi
+}
 gh_update_token() {
   local tmp_file="$(mktemp -q)"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"

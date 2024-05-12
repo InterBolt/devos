@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 __host__var__dir=".solos/relay"
-__host__var__command="${__host__var__dir}/host.command"
-__host__var__stdout="${__host__var__dir}/host.stdout"
-__host__var__stderr="${__host__var__dir}/host.stderr"
-__host__var__done="${__host__var__dir}/host.done"
+__host__var__command="${__host__var__dir}/command"
+__host__var__stdout="${__host__var__dir}/stdout"
+__host__var__stderr="${__host__var__dir}/stderr"
+__host__var__done="${__host__var__dir}/done"
 
 __host__fn__cleanup() {
   local ps_info="$(
-    ps aux | grep "host-server.sh" | grep -v "grep host-server.sh" | grep -v "$$" |
+    ps aux | grep "relay-cmd-server.sh" | grep -v "grep relay-cmd-server.sh" | grep -v "$$" |
       tr -s ' '
   )"
   local pids_previous="$(

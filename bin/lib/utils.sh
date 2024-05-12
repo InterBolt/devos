@@ -1,15 +1,10 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
-# shellcheck source=../shared/static.sh
 . shared/empty.sh
-# shellcheck source=../shared/log.sh
 . shared/empty.sh
-# shellcheck source=../bin.sh
 . shared/empty.sh
-# shellcheck source=../pkg/gum.sh
 . shared/empty.sh
 
 lib.utils.echo_line() {
@@ -92,7 +87,6 @@ lib.utils.curl() {
   vPREV_CURL_ERR_MESSAGE="${error_message}"
   vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"${vPREV_CURL_RESPONSE}")"
 }
-# shellcheck disable=SC2120
 lib.utils.curl.allows_error_status_codes() {
   # A note on the "none" argument:
   # The benefit of forcing the caller to "say" their intention rather
@@ -127,10 +121,6 @@ lib.utils.curl.allows_error_status_codes() {
   else
     log.warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
   fi
-}
-lib.utils.heredoc() {
-  local heredoc="$1"
-  cat "${vSTATIC_SRC_DIR}/bin/heredocs/${heredoc}"
 }
 lib.utils.validate_fs() {
   local errors=()

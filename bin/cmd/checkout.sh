@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
-. shared/must-source.sh
+####################################################################################
+#####
+##### Command documentation:
+#####   - Creates a project directory for the user.
+#####   - Generates a keypair for the project if it doesn't exist.
+#####   - Sets the permissions on the keypair.
+#####   - Saves the project id to the project directory.
+#####   - Saves the project name to the global store so that future commands
+#####     automatically know which project to work with.
+#####   - Creates a Visual Studio Code workspace file for the project. This file is
+#####     always regenerated to ensure that the latest variables are used.
+#####
+####################################################################################
 
-# shellcheck source=../shared/static.sh
-. shared/empty.sh
-# shellcheck source=../shared/log.sh
-. shared/empty.sh
-# shellcheck source=../bin.sh
-. shared/empty.sh
-# shellcheck source=../lib/ssh.sh
-. shared/empty.sh
-# shellcheck source=../lib/status.sh
-. shared/empty.sh
-# shellcheck source=../lib/store.sh
-. shared/empty.sh
-# shellcheck source=../lib/utils.sh
-. shared/empty.sh
-# shellcheck source=../lib/vultr.sh
-. shared/empty.sh
+. shared/must-source.sh
 
 cmd.checkout() {
   if [[ -z ${vPROJECT_NAME} ]]; then
-    log.error "Unexpected error: please supply --project."
+    log.error "No project name was supplied."
     exit 1
   fi
   if [[ ! -d ${vSTATIC_SOLOS_PROJECTS_DIR} ]]; then
@@ -51,8 +47,7 @@ cmd.checkout() {
   # We should be able to re-run the checkout command and pick up where we left
   # off if we didn't supply all the variables the first time.
   solos.collect_supplied_variables
-  lib.store.global.set "project_name" "${vPROJECT_NAME}"
-
+  lib.store.global.set "checked_out_project" "${vPROJECT_NAME}"
   local vscode_dir="${HOME}/.solos/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"

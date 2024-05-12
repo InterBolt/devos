@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2145
-# shellcheck disable=SC2124
 
-# shellcheck source=static.sh
 source "shared/static.sh"
 
 vSELF_LOG_BARE_LOG=false
@@ -24,7 +21,7 @@ log._to_host_filename() {
   if [[ ${filename} != /* ]]; then
     filename="$(pwd)/${filename}"
   fi
-  local host="$(cat "${vSTATIC_SOLOS_ROOT}/config/host")"
+  local host="$(cat "${vSTATIC_SOLOS_ROOT}/store/users_home_dir")"
   echo "${filename/${HOME}/${host}}"
 }
 

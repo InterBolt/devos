@@ -2,8 +2,8 @@
 
 # The parsing logic we use for the main CLI commands will need to handle more
 # types of use cases and provide stronger UX. As a result, it prone to grow in
-# complexity. This flag parse OTOH is used by devs only and doesn't need to be pretty.
-helpers.simple_flag_parser() {
+# complexity. This flag parser OTOH is used by devs only and doesn't need to be pretty.
+shared.flag_parser.run() {
   vPREV_RETURN=()
   local flag_names=()
   while [[ $# -gt 0 ]] && [[ $1 != "ARGS:" ]]; do
@@ -18,7 +18,7 @@ helpers.simple_flag_parser() {
   local flag_values=()
   for flag_name in "${flag_names[@]}"; do
     for cli_arg in "$@"; do
-      if [[ ${cli_arg} = "${flag_name}" ]] || [[ ${cli_arg} = "${flag_name}="* ]]; then
+      if [[ ${cli_arg} = ${flag_name} ]] || [[ ${cli_arg} = "${flag_name}="* ]]; then
         if [[ ${cli_arg} = *'='* ]]; then
           flag_values+=("${cli_arg#*=}")
         else
@@ -34,7 +34,7 @@ helpers.simple_flag_parser() {
   # Now remove the flags we already parsed.
   local nonempty_cli_args=()
   for cli_arg in "$@"; do
-    if [ -n "${cli_arg}" ]; then
+    if [ -n ${cli_arg} ]; then
       nonempty_cli_args+=("${cli_arg}")
     fi
   done

@@ -1,42 +1,22 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
-
-# shellcheck source=../shared/static.sh
-. shared/empty.sh
-# shellcheck source=../shared/log.sh
-. shared/empty.sh
-# shellcheck source=../bin.sh
-. shared/empty.sh
-# shellcheck source=../lib/ssh.sh
-. shared/empty.sh
-# shellcheck source=../lib/status.sh
-. shared/empty.sh
-# shellcheck source=../lib/store.sh
-. shared/empty.sh
-# shellcheck source=../lib/utils.sh
-. shared/empty.sh
-# shellcheck source=../lib/vultr.sh
-. shared/empty.sh
-# shellcheck source=../task/boot.sh
-. shared/empty.sh
 
 cmd.provision() {
   solos.use_checked_out_project
   solos.collect_supplied_variables
 
   # Simply retrieves storage info if the provisioning already happened.
-  log.info "${vPROJECT_NAME} - Provisioning S3-compatible ${vSUPPLIED_PROVIDER_NAME} storage"
-  provision."${vSUPPLIED_PROVIDER_NAME}".s3
-  vS3_OBJECT_STORE="${vPREV_RETURN[0]}"
-  vS3_ACCESS_KEY="${vPREV_RETURN[1]}"
-  vS3_SECRET="${vPREV_RETURN[2]}"
-  vS3_HOST="${vPREV_RETURN[3]}"
-  lib.store.project.set "s3_object_store" "${vS3_OBJECT_STORE}"
-  lib.store.project.set "s3_access_key" "${vS3_ACCESS_KEY}"
-  lib.store.project.set "s3_secret" "${vS3_SECRET}"
-  lib.store.project.set "s3_host" "${vS3_HOST}"
+  log.info "${vPROJECT_NAME} - Provisioning S3-compatible ${vPROJECT_PROVIDER_NAME} storage"
+  provision."${vPROJECT_PROVIDER_NAME}".s3
+  vPROJECT_S3_OBJECT_STORE="${vPREV_RETURN[0]}"
+  vPROJECT_S3_ACCESS_KEY="${vPREV_RETURN[1]}"
+  vPROJECT_S3_SECRET="${vPREV_RETURN[2]}"
+  vPROJECT_S3_HOST="${vPREV_RETURN[3]}"
+  lib.store.project.set "s3_object_store" "${vPROJECT_S3_OBJECT_STORE}"
+  lib.store.project.set "s3_access_key" "${vPROJECT_S3_ACCESS_KEY}"
+  lib.store.project.set "s3_secret" "${vPROJECT_S3_SECRET}"
+  lib.store.project.set "s3_host" "${vPROJECT_S3_HOST}"
 
   # If a pub key was not created exit early
   local pubkey="$(lib.ssh.project_cat_pubkey)"
@@ -47,13 +27,13 @@ cmd.provision() {
 
   # Figure out the ssh key id by either finding it or creating it.
   log.info "${vPROJECT_NAME} - Creating or finding the project's SSH keypair on Vultr."
-  provision."${vSUPPLIED_PROVIDER_NAME}".find_pubkey "${pubkey}"
+  provision."${vPROJECT_PROVIDER_NAME}".find_pubkey "${pubkey}"
   if [[ ${vPREV_RETURN[0]} = false ]]; then
     provision.vultr.save_pubkey "${pubkey}"
   fi
 
   if [[ -z ${vPROJECT_IP} ]]; then
-    provision."${vSUPPLIED_PROVIDER_NAME}".create_server "${pubkey}"
+    provision."${vPROJECT_PROVIDER_NAME}".create_server "${pubkey}"
     local server_ip="${vPREV_RETURN[0]:-""}"
     if [[ -z ${server_ip} ]]; then
       log.error "Unexpected error: no provisioned IP was found."
@@ -121,10 +101,30 @@ cmd.provision() {
   lib.ssh.project_rsync_up "${launch_dir}/Dockerfile.caddy" "/root/solos/docker/"
 
   # TODO: research other ways to install based on the OS. For now, I'm fine
-  # TODO[.]: assuming debian for all the things.
+  # TODO[c]: assuming debian for all the things.
   log.info "${vPROJECT_NAME} - Installing Docker."
   lib.ssh.project_command <<EOF
-${vHEREDOC_DEBIAN_INSTALL_DOCKER}
+#!/usr/bin/env bash
+
+apt-get remove docker.io docker-doc docker-compose podman-docker containerd runc
+
+# Add Docker's official GPG key:
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+
+# Add the repository to Apt sources:
+echo \
+  "deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
+    bookworm stable" |
+  tee /etc/apt/sources.list.d/docker.list
+apt-get update
+
+apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+if ! docker run hello-world; then
+  echo "Docker failed to run hello-world." >&2
+  exit 1
+fi
 EOF
 
   log.info "${vPROJECT_NAME} - Building Caddy."

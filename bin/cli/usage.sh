@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-# shellcheck source=../shared/must-source.sh
 . shared/must-source.sh
 
 vSELF_CLI_USAGE_CMD_HEADER="Available commands:"
@@ -14,7 +13,7 @@ Usage: solos command [--OPTS...]
 
 A CLI to manage SolOS projects on your local machine or container.
 
-$vSELF_CLI_USAGE_CMD_HEADER
+${vSELF_CLI_USAGE_CMD_HEADER}
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
 provision                - Provision resources for a project (eg. storage, databases, cloud instances, etc).
@@ -22,13 +21,12 @@ teardown                 - Teardown provisioned resources.
 backup                   - Backup all the things to an rsync target.
 restore                  - Restore all the things from an rsync target.
 health                   - Review health/status of provisioned resources.
-test                     - (DEV ONLY) Generates and runs unit tests. 
-try                      - (DEV ONLY) one off entrypoint to test snippets in the command portion of the 
-                           SolOS bin script.
+test                     - (DEV ONLY) Undocumented.
+try                      - (DEV ONLY) Undocumented.
 
-$vSELF_CLI_USAGE_OPTS_HEADER
+${vSELF_CLI_USAGE_OPTS_HEADER}
 
---assume-yes             - Assume yes for all prompts
+--assume-yes        - Assume yes for all prompts.
 
 Source: https://github.com/InterBolt/solos
 EOF
@@ -40,10 +38,9 @@ Usage: solos checkout [--OPTS...]
 Creates a new project if one doesn't exist and then switches to it. The value 
 provided to --project is cache and used as the default project for future commands.
 
-$vSELF_CLI_USAGE_OPTS_HEADER
+${vSELF_CLI_USAGE_OPTS_HEADER}
 
 --project           - The name of of your project. Will result in a new project at ~/.solos/projects/<project>.
---assume-yes        - Assume yes for all prompts
 
 EOF
 }
@@ -51,13 +48,12 @@ cli.usage.command.test.help() {
   cat <<EOF
 Usage: solos test [--OPTS...]
 
-DEV ONLY! Runs tests from within the SolOS source repository.
+Undocumented.
 
-$vSELF_CLI_USAGE_OPTS_HEADER
+${vSELF_CLI_USAGE_OPTS_HEADER}
 
 --lib               - (ex: "ssh" tests "lib.ssh") The name of the library to test.
 --fn                - (ex: "lib.<category>.<fn>") The name of the lib function to test.
---assume-yes        - Assume yes for all prompts
 
 EOF
 }
@@ -69,10 +65,6 @@ Initializes a new project and prepares the remote server for deployment. When th
 is run on a pre-existing project, it will try to init or update whatever the remote
 deployment server specified in the project's config.
 
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---project           - (default: <cache>) The name of of your project.
-
 EOF
 }
 cli.usage.command.teardown.help() {
@@ -80,10 +72,6 @@ cli.usage.command.teardown.help() {
 Usage: solos teardown [--OPTS...]
 
 Deprovision cloud resources.
-
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---project           - (default: <cache>) The name of of your project.
 
 EOF
 }
@@ -93,11 +81,6 @@ Usage: solos backup [--OPTS...]
 
 Backup all the things and rysnc them to a target
 
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---target            - The target to rsync to in format (\`user@host:/path/to/backup\`).
---project           - (default: <cache>) The name of of your project.
-
 EOF
 }
 cli.usage.command.restore.help() {
@@ -105,11 +88,6 @@ cli.usage.command.restore.help() {
 Usage: solos restore [--OPTS...]
 
 Restore all the things from a remote rsync target.
-
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---source            - The source to rsync from in format (\`user@host:/path/to/restore\`).
---project           - (default: <cache>) The name of of your project.
 
 EOF
 }
@@ -119,22 +97,13 @@ Usage: solos health [--OPTS...]
 
 Review health/status of provisioned resources.
 
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---project           - (default: <cached>) The name of of your project.
-
 EOF
 }
 cli.usage.command.try.help() {
   cat <<EOF
 Usage: solos try [--OPTS...]
 
-Nothing to see here.
-
-$vSELF_CLI_USAGE_OPTS_HEADER
-
---project           - (default: <cached>) The name of of your project.
---assume-yes        - Assume yes for all prompts
+Undocumented.
 
 EOF
 }
