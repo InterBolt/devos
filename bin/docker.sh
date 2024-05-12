@@ -92,10 +92,10 @@ __docker__fn__exec_command() {
   local bash_args=()
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
     args=(-i -w "${container_ctx}" "$(__docker__fn__hash)")
-    bash_args=(-i -c ''"${*}"'')
+    bash_args=(-c ''"${*}"'')
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
-    bash_args=(-c ''"${*}"'')
+    bash_args=(-i -c ''"${*}"'')
   fi
   echo "docker exec ${args[@]} /bin/bash ${bash_args[@]}"
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
