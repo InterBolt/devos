@@ -88,16 +88,13 @@ __docker__fn__exec_shell() {
 }
 __docker__fn__exec_command() {
   local container_ctx="${PWD/#$HOME//root}"
-  local exec_cmd=""
   local args=()
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
     args=(-i -w "${container_ctx}" "$(__docker__fn__hash)")
-    exec_cmd=''"${*}"' >/dev/null 2>&1'
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
-    exec_cmd=''"${*}"''
   fi
-  docker exec "${args[@]}" /bin/bash -i -c "${exec_cmd}"
+  docker exec "${args[@]}" /bin/bash --rcfile ${HOME}/.solos/.bashrc -i -c ''"${*}"''
 }
 __docker__fn__build_and_run() {
   if [[ -f ${__docker__var__volume_root} ]]; then

@@ -6,7 +6,6 @@ __host__var__done=".solos/pipes/host.done"
 __host__var__stderr=".solos/pipes/host.stderr"
 
 __host__fn__cleanup() {
-  set -m
   local ps_info="$(
     ps aux | grep "host-server.sh" | grep -v "grep host-server.sh" | grep -v "$$" |
       tr -s ' '
@@ -30,11 +29,10 @@ __host__fn__cleanup() {
       pid_index=$((pid_index + 1))
     done
   fi
-  set +m
 }
 
 __host__fn__listen() {
-  set -m
+  set -x
   local done_file="${HOME}/${__host__var__done}"
   local stdout_file="${HOME}/${__host__var__stdout}"
   local stderr_file="${HOME}/${__host__var__stderr}"
@@ -64,7 +62,6 @@ __host__fn__listen() {
     fi
     sleep .2
   done
-  set +m
 }
 
 __host__fn__cleanup

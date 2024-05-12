@@ -24,5 +24,4 @@ host() {
   if [[ -n ${stderr} ]]; then
     echo "${stderr}" >&2
   fi
-  set +m
 }
