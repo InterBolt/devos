@@ -11,7 +11,7 @@ shared.codegen._build_sources() {
   local output_filename="${2}"
   local dir="${dirname}"
   if [[ ! -d ${dir} ]]; then
-    log.error "A valid directory was not provided."
+    log_error "A valid directory was not provided."
     exit 1
   fi
   local tmp_sourced_file="$(mktemp 2>/dev/null)"
@@ -38,7 +38,6 @@ shared.codegen._build_sources() {
 shared.codegen.run() {
   local source_filename="$1"
   local dirs=(
-    "pkg"
     "cmd"
     "cli"
     "lib"
@@ -47,9 +46,9 @@ shared.codegen.run() {
   )
   for dir in "${dirs[@]}"; do
     if ! shared.codegen._build_sources "${dir}" "${source_filename}"; then
-      log.error "Failed to build ${dir}/${source_filename}"
+      log_error "Failed to build ${dir}/${source_filename}"
       exit 1
     fi
   done
-  log.info "Generated ${source_filename} files."
+  log_info "Generated ${source_filename} files."
 }

@@ -11,7 +11,7 @@ provision.vultr._launch_instance() {
   provision.vultr._get_pubkey_id "${pubkey}"
   local pubkey_id="${vPREV_RETURN[0]}"
   if [[ -z ${pubkey_id} ]]; then
-    log.error "Unexpected error: no SSH public key found."
+    log_error "Unexpected error: no SSH public key found."
     exit 1
   fi
   # This function will launch an instance on vultr with the params supplied
@@ -48,7 +48,7 @@ provision.vultr._wait_for_instance() {
   local max_retries=30
   while true; do
     if [[ ${max_retries} -eq 0 ]]; then
-      log.error "Unknown error: vultr instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
+      log_error "Unknown error: vultr instance: ${instance_id} did not reach the expected server status: ${expected_status} after 5 minutes."
       exit 1
     fi
     lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/instances/${instance_id}" \
@@ -155,7 +155,7 @@ provision.vultr.save_pubkey() {
   lib.utils.curl.allows_error_status_codes "none"
   pubkey_id="$(jq -r '.ssh_key.id' <<<"${vPREV_CURL_RESPONSE}")"
   if [[ -z ${pubkey_id} ]]; then
-    log.error "Unexpected error: failed to create an SSH keypair on Vultr."
+    log_error "Unexpected error: failed to create an SSH keypair on Vultr."
     sleep 1
     exit 1
   fi

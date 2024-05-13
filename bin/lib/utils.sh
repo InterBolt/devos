@@ -13,7 +13,7 @@ lib.utils.generate_project_id() {
   date +%H:%M:%S:%N | sha256sum | base64 | tr '[:upper:]' '[:lower:]' | head -c 16
 }
 lib.utils.get_project_id() {
-  local project_id_file="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/id"
+  local project_id_file="${HOME}/.solos/projects/${vPROJECT_NAME}/id"
   if [[ -f ${project_id_file} ]]; then
     cat "${project_id_file}"
   else
@@ -45,12 +45,12 @@ lib.utils.template_variables() {
     bin_vars=$(grep -o "__v[A-Z0-9_]*__" "${file}" | sed 's/__//g')
     for bin_var in ${bin_vars}; do
       if [[ -z ${!bin_var+x} ]]; then
-        log.error "Template variables error: ${file} is using an unset variable: ${bin_var}"
+        log_error "Template variables error: ${file} is using an unset variable: ${bin_var}"
         errored=true
         continue
       fi
       if [[ -z ${!bin_var} ]]; then
-        log.error "Template variables error: ${file} is using an empty variable: ${bin_var}"
+        log_error "Template variables error: ${file} is using an empty variable: ${bin_var}"
         errored=true
         continue
       fi
@@ -85,13 +85,13 @@ lib.utils.curl.allows_error_status_codes() {
   # The benefit of forcing the caller to "say" their intention rather
   # than just leaving the arg list empty is purely for readability.
   if [[ -z $1 ]]; then
-    log.error "Missing \`none\` or a list of allowed status codes."
+    log_error "Missing \`none\` or a list of allowed status codes."
     exit 1
   fi
   local error_message="${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
   local allowed="true"
   if [[ -z ${vPREV_CURL_ERR_STATUS_CODE} ]]; then
-    log.info "no error status code found for curl request"
+    log_info "no error status code found for curl request"
     return
   fi
   if [[ $1 = "none" ]]; then
@@ -105,14 +105,14 @@ lib.utils.curl.allows_error_status_codes() {
   for allowed_status_code in "${allowed_status_codes[@]}"; do
     if [[ ${vPREV_CURL_ERR_STATUS_CODE} = "${allowed_status_code}" ]]; then
       allowed="true"
-      log.info "set allowed to true for status code: ${allowed_status_code}"
+      log_info "set allowed to true for status code: ${allowed_status_code}"
     fi
   done
   if [[ -z ${allowed} ]]; then
-    log.error "${error_message}"
+    log_error "${error_message}"
     exit 1
   else
-    log.warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
+    log_warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
   fi
 }
 lib.utils.validate_fs() {
@@ -141,7 +141,7 @@ lib.utils.validate_fs() {
     fi
   done
   for error in "${errors[@]}"; do
-    log.error "${error}"
+    log_error "${error}"
   done
   return ${return_code}
 }
@@ -149,11 +149,11 @@ lib.utils.validate_interfaces() {
   local target_dir="$1"
   local interface_file="$1/$2"
   if [[ ! -d ${target_dir} ]]; then
-    log.error "Unexpected error: ${target_dir} is not a directory. Failed to validate interfaces."
+    log_error "Unexpected error: ${target_dir} is not a directory. Failed to validate interfaces."
     exit 1
   fi
   if [[ ! -f "${interface_file}" ]]; then
-    log.error "Unexpected error: ${interface_file} was not found. Failed to validate interfaces."
+    log_error "Unexpected error: ${interface_file} was not found. Failed to validate interfaces."
     exit 1
   fi
 
@@ -189,7 +189,7 @@ lib.utils.validate_interfaces() {
     local cmds=("${@:2}")
     for cmd in "${expected_methods[@]}"; do
       if ! declare -f "${prefix}.${cmd}" >/dev/null; then
-        log.error "${prefix}.${cmd} doesn't exist."
+        log_error "${prefix}.${cmd} doesn't exist."
         is_invalid=true
       fi
     done
@@ -198,12 +198,12 @@ lib.utils.validate_interfaces() {
     fi
   done
   for invalid_file in "${invalid_files[@]}"; do
-    log.error "${invalid_file} does not implement the interface."
+    log_error "${invalid_file} does not implement the interface."
   done
 
   local invalid_file_count="${#invalid_files[@]}"
   if [[ ${invalid_file_count} -gt 0 ]]; then
-    log.error "Found ${invalid_file_count} invalid files."
+    log_error "Found ${invalid_file_count} invalid files."
     exit 1
   fi
 }

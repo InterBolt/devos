@@ -30,20 +30,17 @@ __bashrc__fn__host() {
 }
 
 __bashrc__fn__source() {
-  local entry_pwd="${PWD}"
-  cd "${HOME}/.solos/src/bin" || exit 1
-  . pkg/__source__.sh || exit 1
-  cd "${HOME}/.solos/src/profile" || exit 1
-  . rag.sh || exit 1
-  cd "${HOME}/.solos/src/profile" || exit 1
-  . bash-preexec.sh || exit 1
-  cd "${entry_pwd}" || exit 1
+  . "${HOME}/.solos/src/log.sh" || exit 1
+  . "${HOME}/.solos/src/pkg/gum.sh" || exit 1
+  . "${HOME}/.solos/src/profile/rag.sh" || exit 1
+  . "${HOME}/.solos/src/profile/bash-preexec.sh" || exit 1
 }
 
 __bashrc__fn__print_commands() {
   cat <<EOF
 - man:                        Print info about this shell.
 - rag \$@:                     Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
+- log_<level> \$@:             Log a message. Try: \`log_info "Hello, world!"\`.
 - host \$@:                    Evaluates args as a command on the host machine. Try: \`host --help\`.
 - solos \$@:                   A CLI utility for managing deployment servers. See \`solos --help\`.
 - dsolos \$@:                  A restricted version of \`solos\` for developers. See \`dsolos --help\`.
@@ -115,7 +112,7 @@ __bashrc__fn__setup_interactive_shell() {
   mkdir -p "${HOME}/.solos/secrets"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"
   if [[ ! -f ${gh_token_path} ]]; then
-    pkg.gum.github_token >"${gh_token_path}"
+    gum_github_token >"${gh_token_path}"
   fi
   local gh_cmd_available=false
   if command -v gh >/dev/null 2>&1; then
@@ -220,10 +217,10 @@ EOF
 gh_token() {
   local tmp_file="$(mktemp -q)"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"
-  pkg.gum.github_token >"${tmp_file}" || exit 1
+  gum_github_token >"${tmp_file}" || exit 1
   gh_token=$(cat "${tmp_file}")
   if gh auth login --with-token <"${tmp_file}" >/dev/null; then
-    echo "Successfully updated the Github token."
+    log_info "Updated Github token."
     # Wait for a successful login before saving it.
     echo "${gh_token}" >"${gh_token_path}"
     gh auth status
@@ -231,14 +228,14 @@ gh_token() {
 }
 gh_email() {
   local tmp_file="$(mktemp -q)"
-  pkg.gum.github_email >"${tmp_file}" || exit 1
+  gum_github_email >"${tmp_file}" || exit 1
   local gh_email=$(cat "${tmp_file}")
   git config --global user.email "${gh_email}"
   host git config --global user.email "${gh_email}"
 }
 gh_name() {
   local tmp_file="$(mktemp -q)"
-  pkg.gum.github_name >"${tmp_file}" || exit 1
+  gum_github_name >"${tmp_file}" || exit 1
   local gh_name=$(cat "${tmp_file}")
   git config --global user.name "${gh_name}"
   host git config --global user.name "${gh_name}"
@@ -262,6 +259,12 @@ man() {
 }
 
 __bashrc__fn__app_context_preeval() {
+  local entry_pwd="${PWD}"
+  local first_arg="$1"
+  if [[ -f ${first_arg} ]]; then
+    cd "$(dirname "${first_arg}")" || exit 1
+    first_arg="$(basename "${first_arg}")"
+  fi
   if [[ ${PWD} =~ ^${HOME}/\.solos/projects/([^/]*)/apps/([^/]*) ]]; then
     local project_name="${BASH_REMATCH[1]}"
     local app_name="${BASH_REMATCH[2]}"
@@ -270,6 +273,7 @@ __bashrc__fn__app_context_preeval() {
       "${preexec_script}"
     fi
   fi
+  cd "${entry_pwd}" || exit 1
   return 0
 }
 

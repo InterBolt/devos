@@ -39,11 +39,11 @@ __rag__fn__prompt_tag() {
       i=$((i + 1))
     fi
   done <<<"${tags}"
-  local tag_choice="$(echo "${tags_file}" | pkg.gum choose --limit 1 || echo "${__rag__var__SIGEXIT}")"
+  local tag_choice="$(echo "${tags_file}" | gum_bin choose --limit 1 || echo "${__rag__var__SIGEXIT}")"
   if [[ ${tag_choice} = "<none>" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
   elif [[ ${tag_choice} = "<create>" ]]; then
-    local new_tag="$(pkg.gum input --placeholder "Type new tag" || echo "")"
+    local new_tag="$(gum_bin input --placeholder "Type new tag" || echo "")"
     if [[ -n "${new_tag}" ]]; then
       sed -i '1s/^/'"${new_tag}"'\n/' "${__rag__var__RAG_TAGS}"
       echo "${new_tag}"
@@ -177,18 +177,18 @@ __rag__fn__main() {
   fi
   local user_note=""
   if [[ ${opt_tag_only} = false ]] && [[ ${opt_command_only} = false ]]; then
-    user_note="$(pkg.gum input --placeholder "Type note" || echo "${__rag__var__SIGEXIT}")"
+    user_note="$(gum_bin input --placeholder "Type note" || echo "${__rag__var__SIGEXIT}")"
     if [[ ${user_note} = "${__rag__var__SIGEXIT}" ]]; then
       return 1
     fi
     if [[ -z ${user_note} ]]; then
-      if ! pkg.gum confirm --default "Are you sure you don't want to include a note?" --affirmative="Continue" --negative="Cancel"; then
+      if ! gum_bin confirm --default "Are you sure you don't want to include a note?" --affirmative="Continue" --negative="Cancel"; then
         rag
         return 0
       fi
     fi
     if [[ ${#user_note} -lt 3 ]]; then
-      if ! pkg.gum confirm --default "Is this note correct: \`${user_note}\`?" --affirmative="Continue" --negative="Cancel"; then
+      if ! gum_bin confirm --default "Is this note correct: \`${user_note}\`?" --affirmative="Continue" --negative="Cancel"; then
         rag
         return 0
       fi
@@ -228,7 +228,7 @@ __rag__fn__main() {
       # for this script makes its way into the output.
       eval "${cmd}" |
         tee -a >(grep "^\[RAG\]" >>"${__rag__var__RAG_CAPTURED}") >(sed "s/${__rag__var__DELIMITER}//g" >>"${__rag__var__RAG_NOTES}")
-      local post_run_note="$(pkg.gum input --placeholder "Post-run note:" || echo "${__rag__var__SIGEXIT}")"
+      local post_run_note="$(gum_bin input --placeholder "Post-run note:" || echo "${__rag__var__SIGEXIT}")"
       if [[ ${post_run_note} = "${__rag__var__SIGEXIT}" ]]; then
         return 1
       elif [[ -n "${post_run_note}" ]]; then

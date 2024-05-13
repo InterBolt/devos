@@ -52,3 +52,43 @@ __bin_post_hook__fn__checkout() {
   fi
   code "${code_workspace_file}"
 }
+
+__bin_post_hook__fn__app() {
+  if [[ -e /etc/solos ]]; then
+    return 0
+  fi
+  if [[ -z "${1}" ]]; then
+    echo "Unexpected error: no project specified." >&2
+    exit 1
+  fi
+  local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
+  local project_dir="${HOME}/.solos/projects/${project}"
+  if [[ ! -d "${HOME}/.solos/projects/${project}" ]]; then
+    echo "Unexpected error: no project specified." >&2
+    exit 1
+  fi
+  local cmd=""
+  local app=""
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+    --*)
+      shift
+      ;;
+    *)
+      if [[ -z "${cmd}" ]]; then
+        cmd="$1"
+      else
+        app="$1"
+        break
+      fi
+      shift
+      ;;
+    esac
+  done
+  local app_dir="${HOME}/.solos/projects/${project}/apps/${app}"
+  if [[ ! -d "${app_dir}" ]]; then
+    echo "Unexpected error: couldn't find - ${app_dir}" >&2
+    exit 1
+  fi
+  code -r "${app_dir}/solos.preexec.sh"
+}

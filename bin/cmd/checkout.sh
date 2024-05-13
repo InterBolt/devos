@@ -2,14 +2,14 @@
 
 cmd.checkout() {
   if [[ -z ${vPROJECT_NAME} ]]; then
-    log.error "No project name was supplied."
+    log_error "No project name was supplied."
     exit 1
   fi
-  if [[ ! -d ${vSTATIC_SOLOS_PROJECTS_DIR} ]]; then
-    mkdir -p "${vSTATIC_SOLOS_PROJECTS_DIR}"
-    log.info "No projects found. Creating ~/.solos/projects directory."
+  if [[ ! -d ${HOME}/.solos/projects ]]; then
+    mkdir -p "${HOME}/.solos/projects"
+    log_info "No projects found. Creating ~/.solos/projects directory."
   fi
-  local install_file="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/install.sh"
+  local install_file="${HOME}/.solos/projects/${vPROJECT_NAME}/install.sh"
   if [[ -f ${install_file} ]]; then
     chmod +x ${install_file}
     "${install_file}"
@@ -17,27 +17,27 @@ cmd.checkout() {
     cat <<EOF >"${install_file}"
 #!/usr/bin/env bash
 EOF
-    log.info "${vPROJECT_NAME} - Created the project's install.sh file: ${install_file//${HOME}/\~}"
+    log_info "${vPROJECT_NAME} - Created the project's install.sh file: ${install_file//${HOME}/\~}"
   fi
-  log.info "${vPROJECT_NAME} - Installed project."
+  log_info "${vPROJECT_NAME} - Installed project."
   # If the project dir exists, let's assume it was setup ok.
   # We'll use a tmp dir to build up the files so that unexpected errors
   # won't result in a partial project dir.
-  if [[ ! -d ${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME} ]]; then
+  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
     local project_id="$(lib.utils.generate_project_id)"
     local tmp_project_ssh_dir="$(mktemp -d)"
     if [[ ! -d ${tmp_project_ssh_dir} ]]; then
-      log.error "Unexpected error: no tmp dir was created."
+      log_error "Unexpected error: no tmp dir was created."
       exit 1
     fi
     lib.ssh.project_build_keypair "${tmp_project_ssh_dir}" || exit 1
-    log.info "${vPROJECT_NAME} - Created keypair for project"
+    log_info "${vPROJECT_NAME} - Created keypair for project"
     lib.ssh.project_give_keyfiles_permissions "${tmp_project_ssh_dir}" || exit 1
-    log.info "${vPROJECT_NAME} - Set permissions on keypair for project"
-    mkdir -p "${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"
-    cp -a "${tmp_project_ssh_dir}" "${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"
-    echo "${project_id}" >"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/id"
-    log.info "${vPROJECT_NAME} - Established project directory"
+    log_info "${vPROJECT_NAME} - Set permissions on keypair for project"
+    mkdir -p "${HOME}/.solos/projects/${vPROJECT_NAME}"
+    cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
+    echo "${project_id}" >"${HOME}/.solos/projects/${vPROJECT_NAME}/id"
+    log_info "${vPROJECT_NAME} - Established project directory"
   fi
   # We should be able to re-run the checkout command and pick up where we left
   # off if we didn't supply all the variables the first time.
@@ -49,10 +49,10 @@ EOF
   cp launch/solos.code-workspace "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
   if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
     cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
-    log.info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
+    log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
   else
-    log.error "${vPROJECT_NAME} - Failed to build the code workspace file."
+    log_error "${vPROJECT_NAME} - Failed to build the code workspace file."
     exit 1
   fi
-  log.info "${vPROJECT_NAME} - Checkout out."
+  log_info "${vPROJECT_NAME} - Checkout out."
 }

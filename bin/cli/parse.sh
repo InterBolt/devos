@@ -11,7 +11,7 @@ cli.parse._is_valid_help_command() {
 }
 cli.parse.cmd() {
   if [[ -z "$1" ]]; then
-    log.error "No command supplied."
+    log_error "No command supplied."
     cli.usage.help
     exit 0
   fi
@@ -23,7 +23,7 @@ cli.parse.cmd() {
   while [[ "$#" -gt 0 ]]; do
     if [[ $(cli.parse._is_valid_help_command "$1") = true ]]; then
       if [[ -z "${vCLI_CMD}" ]]; then
-        log.error "invalid command, use \`solos --help\` to see available commands."
+        log_error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
       cli.usage.command."${vCLI_CMD}".help
@@ -52,7 +52,7 @@ cli.parse.cmd() {
         fi
       done
       if [[ ${is_allowed} = "false" ]]; then
-        log.error "Unknown command: $1"
+        log_error "Unknown command: $1"
       else
         vCLI_CMD="${cmd_name}"
       fi

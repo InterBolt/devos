@@ -18,8 +18,7 @@ vPREV_CURL_ERR_MESSAGE=""
 vPREV_RETURN=()
 vPREV_NEXT_ARGS=()
 
-. "shared/static.sh"
-. "shared/flag-parser.sh"
+. "${HOME}/.solos/src/bin/shared/flag-parser.sh"
 
 shared.flag_parser.run \
   --restricted-developer \
@@ -32,19 +31,23 @@ if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
 
-. "pkg/__source__.sh"
-. "shared/log.sh"
+. "${HOME}/.solos/src/pkg/gum.sh"
+. "${HOME}/.solos/src/log.sh"
 
-if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
-  chmod +x "shared/codegen.sh"
-  . shared/codegen.sh
-  shared.codegen.run "__source__.sh"
-fi
-
-. "lib/__source__.sh"
-. "cli/__source__.sh"
-. "cmd/__source__.sh"
-. "provision/__source__.sh"
+. "${HOME}/.solos/src/bin/cli/usage.sh"
+. "${HOME}/.solos/src/bin/cli/parse.sh"
+. "${HOME}/.solos/src/bin/lib/docker.sh"
+. "${HOME}/.solos/src/bin/lib/store.sh"
+. "${HOME}/.solos/src/bin/lib/ssh.sh"
+. "${HOME}/.solos/src/bin/lib/utils.sh"
+. "${HOME}/.solos/src/bin/cmd/app.sh"
+. "${HOME}/.solos/src/bin/cmd/backup.sh"
+. "${HOME}/.solos/src/bin/cmd/checkout.sh"
+. "${HOME}/.solos/src/bin/cmd/health.sh"
+. "${HOME}/.solos/src/bin/cmd/provision.sh"
+. "${HOME}/.solos/src/bin/cmd/restore.sh"
+. "${HOME}/.solos/src/bin/cmd/teardown.sh"
+. "${HOME}/.solos/src/bin/cmd/try.sh"
 
 # The directory path of the user's home directory.
 # Everything here runs in docker so this is the only way I
@@ -81,12 +84,12 @@ solos.ingest_main_options() {
       ;;
     project=*)
       if [[ ${vCLI_CMD} != "checkout" ]]; then
-        log.error "The --project flag is only valid for the 'checkout' command."
+        log_error "The --project flag is only valid for the 'checkout' command."
         exit 1
       fi
       val="${vCLI_OPTIONS[$i]#*=}"
       if [[ ! "${val}" =~ ^[a-z_-]*$ ]]; then
-        log.error 'Invalid project name: '"${val}"'. Can only contain lowercase letters, underscores, and hyphens.'
+        log_error 'Invalid project name: '"${val}"'. Can only contain lowercase letters, underscores, and hyphens.'
         exit 1
       fi
       vPROJECT_NAME="${val}"
@@ -98,7 +101,7 @@ solos.prune_nonexistent_apps() {
   local tmp_dir="$(mktemp -d)"
   local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
-    log.error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
+    log_error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
     exit 1
   fi
   local tmp_vscode_workspace_file="${tmp_dir}/$(basename ${vscode_workspace_file})"
@@ -114,17 +117,17 @@ solos.prune_nonexistent_apps() {
   if [[ ${#nonexistent_apps[@]} -eq 0 ]]; then
     return 0
   fi
-  log.info "Found nonexistent apps: ${nonexistent_apps[*]}"
+  log_info "Found nonexistent apps: ${nonexistent_apps[*]}"
   for nonexistent_app in "${nonexistent_apps[@]}"; do
     jq 'del(.folders[] | select(.name == "App.'"${nonexistent_app}"'"))' "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
     mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
   done
   if ! jq . "${tmp_vscode_workspace_file}" >/dev/null; then
-    log.error "Failed to validate the updated code workspace file: ${tmp_vscode_workspace_file}"
+    log_error "Failed to validate the updated code workspace file: ${tmp_vscode_workspace_file}"
     exit 1
   fi
   cp -f "${tmp_vscode_workspace_file}" "${vscode_workspace_file}"
-  log.info "Removed nonexistent apps from the code workspace file."
+  log_info "Removed nonexistent apps from the code workspace file."
   return 0
 }
 solos.prompts() {
@@ -134,13 +137,13 @@ solos.prompts() {
   vPROJECT_PROVIDER_NAME="$(lib.store.project.prompt "provider_name" 'Only "vultr" is supported at this time.')"
   local path_to_provision_implementation="${vSOLOS_BIN_DIR}/provision/${vPROJECT_PROVIDER_NAME}.sh"
   if [[ ! -f ${path_to_provision_implementation} ]]; then
-    log.error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
+    log_error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
     lib.store.project.del "provider_name"
     solos.prompts
   fi
   vPROJECT_ROOT_DOMAIN="$(lib.store.project.prompt "root_domain")"
   if [[ ! "${vPROJECT_ROOT_DOMAIN}" =~ \.[a-z]+$ ]]; then
-    log.error "Invalid root domain: ${vPROJECT_ROOT_DOMAIN}."
+    log_error "Invalid root domain: ${vPROJECT_ROOT_DOMAIN}."
     lib.store.project.del "root_domain"
     solos.prompts
   fi
@@ -156,12 +159,12 @@ solos.prompts() {
 solos.use_checked_out_project() {
   vPROJECT_NAME="$(lib.store.global.get "checked_out_project")"
   if [[ -z ${vPROJECT_NAME} ]]; then
-    log.error "No project currently checked out."
+    log_error "No project currently checked out."
     exit 1
   fi
   vPROJECT_ID="$(lib.utils.get_project_id)"
   if [[ -z ${vPROJECT_ID} ]]; then
-    log.error "Unexpected error: no project ID found for ${vPROJECT_NAME}."
+    log_error "Unexpected error: no project ID found for ${vPROJECT_NAME}."
     exit 1
   fi
   vPROJECT_IP="$(lib.ssh.project_extract_project_ip)"
@@ -184,7 +187,7 @@ if [[ -z ${vCLI_CMD} ]]; then
 fi
 
 if ! command -v "cmd.${vCLI_CMD}" &>/dev/null; then
-  log.error "No implementation for ${vCLI_CMD} exists."
+  log_error "No implementation for ${vCLI_CMD} exists."
   exit 1
 fi
 
@@ -199,6 +202,6 @@ fi
 "cmd.${vCLI_CMD}" || true
 if [[ -n ${vPROJECT_NAME} ]]; then
   if ! solos.prune_nonexistent_apps; then
-    log.error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
+    log_error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
   fi
 fi

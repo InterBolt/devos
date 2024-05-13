@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-__docker__var__entry_dir="${PWD}"
-
-cd "${HOME}" || exit 1
-
 __docker__var__rag_dir="${HOME}/.solos/rag"
 __docker__var__rag_captured="${__docker__var__rag_dir}/captured"
 __docker__var__volume_root="${HOME}/.solos"
@@ -14,11 +10,6 @@ if [[ -z ${__docker__var__symlinked_path} ]]; then
   exit 1
 fi
 __docker__var__bin_dir="$(dirname "${__docker__var__symlinked_path}")"
-__docker__var__repo_dir="$(dirname "${__docker__var__bin_dir}")"
-if ! cd "${__docker__var__repo_dir}"; then
-  echo "Unexpected error: could not cd into ${__docker__var__repo_dir}" >&2
-  exit 1
-fi
 __docker__var__volume_config_hostfile="${__docker__var__volume_root}/store/users_home_dir"
 __docker__var__volume_mounted="/root/.solos"
 __docker__var__installer_no_tty_flag=false
@@ -32,10 +23,8 @@ for entry_arg in "$@"; do
 done
 set -- "${__docker__var__next_args[@]}" || exit 1
 
-__docker__var__entry_dir="${PWD}"
-cd "${HOME}/.solos/src/bin" || exit 1
-source pkg/__source__.sh
-cd "${__docker__var__entry_dir}" || exit 1
+# Make sure we can use the gum cli utilities
+. "${HOME}/.solos/src/pkg/gum.sh"
 
 __docker__fn__hash() {
   git -C "${__docker__var__volume_root}/src" rev-parse --short HEAD | cut -c1-7 || echo ""

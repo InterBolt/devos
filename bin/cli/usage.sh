@@ -45,7 +45,7 @@ EOF
 }
 cli.usage.command.app.help() {
   cat <<EOF
-Usage: solos app [--OPTS...]
+Usage: solos app <app-name> [--OPTS...]
 
 Initialize a new app within a project if the app doesn't already exist. If it does,
 it will checkout and re-install env dependencies for the app.

@@ -1,17 +1,11 @@
 #!/usr/bin/env bash
 
-vSELF_PKG_GUM_ENTRY_DIR="${PWD}"
-vSELF_PKG_GUM_PKG_DIR="${vSELF_PKG_GUM_ENTRY_DIR}/pkg"
+vSELF_PKG_GUM_PKG_DIR="$(dirname "$0")"
 vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"
 vSELF_PKG_GUM_VERSION="0.13.0"
 vSELF_PKG_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
-if [[ ! -d ${vSELF_PKG_GUM_PKG_DIR} ]]; then
-  echo "Failed to find bin/pkg directory. Cannot install gum" >&2
-  exit 1
-fi
-
-pkg.gum._get_release_download_url() {
+__gum__fn__get_release_file() {
   local release=""
   if [[ $(uname) = 'Darwin' ]]; then
     if [[ $(uname -m) = 'arm64' ]]; then
@@ -29,8 +23,8 @@ pkg.gum._get_release_download_url() {
   echo "${release}"
 }
 
-pkg.gum.install() {
-  local release="$(pkg.gum._get_release_download_url)"
+gum_install() {
+  local release="$(__gum__fn__get_release_file)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
   local location_dir="${vSELF_PKG_GUM_PKG_DIR}/${vSELF_PKG_GUM_RELEASES_DIRNAME}/${release_download_dirname}"
   mkdir -p "${location_dir}"
@@ -40,8 +34,8 @@ pkg.gum.install() {
   echo "${location_dir}/gum"
 }
 
-pkg.gum() {
-  local executable_path="$(pkg.gum.install)"
+gum_bin() {
+  local executable_path="$(gum_install)"
   if [[ -f ${executable_path} ]]; then
     "${executable_path}" "$@"
   else
@@ -50,26 +44,26 @@ pkg.gum() {
   fi
 }
 
-pkg.gum.github_token() {
-  pkg.gum input --password --placeholder "Enter Github access token:"
+gum_github_token() {
+  gum_bin input --password --placeholder "Enter Github access token:"
 }
 
-pkg.gum.github_email() {
-  pkg.gum input --placeholder "Enter Github email:"
+gum_github_email() {
+  gum_bin input --placeholder "Enter Github email:"
 }
 
-pkg.gum.github_name() {
-  pkg.gum input --placeholder "Enter Github username:"
+gum_github_name() {
+  gum_bin input --placeholder "Enter Github username:"
 }
 
-pkg.gum.repo_url() {
-  pkg.gum input --placeholder "Provide a github repo url:"
+gum_repo_url() {
+  gum_bin input --placeholder "Provide a github repo url:"
 }
 
-pkg.gum.confirm_new_app() {
+gum_confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
-  if pkg.gum confirm \
+  if gum_bin confirm \
     --prompt.align left \
     "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
     --affirmative="Yes" \
@@ -80,17 +74,17 @@ pkg.gum.confirm_new_app() {
   fi
 }
 
-pkg.gum.danger_box() {
+gum_danger_box() {
   local terminal_width=$(tput cols)
-  pkg.gum style \
+  gum_bin style \
     --foreground "#F02" --border-foreground "#F02" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
 }
 
-pkg.gum.success_box() {
+gum_success_box() {
   local terminal_width=$(tput cols)
-  pkg.gum style \
+  gum_bin style \
     --foreground "#0F0" --border-foreground "#0F0" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"

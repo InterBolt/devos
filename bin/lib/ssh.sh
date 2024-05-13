@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
 lib.ssh.project_command() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local cmd="$1"
   shift
   ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"${vPROJECT_IP}" "${cmd}"
 }
 
 lib.ssh.project_rsync_up() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local source="$1"
   shift
   local target="$2"
@@ -17,7 +17,7 @@ lib.ssh.project_rsync_up() {
 }
 
 lib.ssh.project_rsync_down() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local source="$1"
   shift
   local target="$2"
@@ -26,7 +26,7 @@ lib.ssh.project_rsync_down() {
 }
 
 lib.ssh.project_cat_pubkey() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   if [[ -f "${project_dir}/.ssh/id_rsa.pub" ]]; then
     cat "${project_dir}/.ssh/id_rsa.pub"
   else
@@ -35,7 +35,7 @@ lib.ssh.project_cat_pubkey() {
 }
 
 lib.ssh.project_build_keypair() {
-  local ssh_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"}"
+  local ssh_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"}"
 
   local publickey_path="${ssh_dir}/id_rsa.pub"
   local privkey_path="${ssh_dir}/id_rsa"
@@ -46,7 +46,7 @@ lib.ssh.project_build_keypair() {
     mkdir -p "${ssh_dir}"
     cd "${ssh_dir}" || exit 1
     if ! ssh-keygen -t rsa -q -f "${privkey_path}" -N "" >/dev/null; then
-      log.error "Could not create SSH keypair."
+      log_error "Could not create SSH keypair."
       exit 1
     fi
     cd "${entry_dir}" || exit 1
@@ -55,19 +55,19 @@ lib.ssh.project_build_keypair() {
     local missing=false
     for file in "${publickey_path}" "${privkey_path}" "${authorized_keys_path}"; do
       if [[ ! -f ${file} ]]; then
-        log.error "Missing SSH keyfile: ${file}"
+        log_error "Missing SSH keyfile: ${file}"
         missing=true
       fi
     done
     if [[ ${missing} = true ]]; then
-      log.error "Incomplete SSH keyfiles."
+      log_error "Incomplete SSH keyfiles."
       exit 1
     fi
   fi
 }
 
 lib.ssh.project_give_keyfiles_permissions() {
-  local ssh_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/.ssh"}"
+  local ssh_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"}"
 
   local publickey_path="${ssh_dir}/id_rsa.pub"
   local privkey_path="${ssh_dir}/id_rsa"
@@ -86,10 +86,10 @@ lib.ssh.project_give_keyfiles_permissions() {
 }
 
 lib.ssh.project_build_config() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local ip="$1"
   if ! [[ "${ip}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    log.error "can't build the ssh config file with the invalid IP: ${ip}"
+    log_error "can't build the ssh config file with the invalid IP: ${ip}"
     exit 1
   fi
   local privatekey_file="${project_dir}/.ssh/id_rsa"
@@ -100,11 +100,11 @@ lib.ssh.project_build_config() {
     echo "  User root"
     echo "  IdentityFile ${privatekey_file}"
   } >"${config_file}"
-  log.info "created: ${config_file}."
+  log_info "created: ${config_file}."
 }
 
 lib.ssh.project_extract_project_ip() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local config_file="${project_dir}/.ssh/config"
   if [[ ! -f ${config_file} ]]; then
     echo ""
@@ -120,6 +120,6 @@ lib.ssh.project_extract_project_ip() {
 }
 
 lib.ssh.project_load_docker_image() {
-  local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
+  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -C root@"${vPROJECT_IP}" 'docker load'
 }
