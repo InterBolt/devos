@@ -32,13 +32,9 @@ __bin__fn__main() {
     fi
     __bin__fn__run checkout "${restricted_flags[@]}" --project="${curr_project}"
   else
-    local next_project=""
-    for arg in "$@"; do
-      if [[ ${arg} = --project=* ]]; then
-        next_project="${arg#--project=}"
-        break
-      fi
-    done
+    local next_project="$(
+      head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
+    )"
     if [[ ${curr_project} != "${next_project}" ]]; then
       __docker__fn__destroy
     fi
