@@ -2,10 +2,6 @@
 
 SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-
 # lib.docker.install_remote() {
 
 # }

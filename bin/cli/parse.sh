@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 
 . cli/usage.sh
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
 
 cli.parse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
@@ -22,6 +19,7 @@ cli.parse.cmd() {
     cli.usage.help
     exit 0
   fi
+  local post_command_arg_index=0
   while [[ "$#" -gt 0 ]]; do
     if [[ $(cli.parse._is_valid_help_command "$1") = true ]]; then
       if [[ -z "${vCLI_CMD}" ]]; then
@@ -39,6 +37,11 @@ cli.parse.cmd() {
       ;;
     *)
       if [[ -z "$1" ]]; then
+        break
+      fi
+      if [[ -n "${vCLI_CMD}" ]]; then
+        post_command_arg_index=$((post_command_arg_index + 1))
+        vCLI_OPTIONS+=("argv${post_command_arg_index}=$1")
         break
       fi
       local cmd_name=$(echo "$1" | tr '-' '_')
@@ -100,6 +103,9 @@ cli.parse.validate_opts() {
               is_cmd_option_allowed=true
             fi
           done
+          if [[ ${flag_name} = "argv"* ]]; then
+            is_cmd_option_allowed=true
+          fi
           if [[ ${is_cmd_option_allowed} = false ]]; then
             echo ""
             echo "Command option: ${cmd_option} is not allowed for command: ${vCLI_CMD}."

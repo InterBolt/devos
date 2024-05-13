@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+. cmd/app.sh
 . cmd/backup.sh
 . cmd/checkout.sh
 . cmd/health.sh

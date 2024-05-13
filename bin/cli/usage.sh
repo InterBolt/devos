@@ -14,6 +14,7 @@ A CLI to manage SolOS projects on your local machine or container.
 ${vSELF_CLI_USAGE_CMD_HEADER}
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
+app                      - Initializes or checks out a project app.
 provision                - Provision resources for a project (eg. storage, databases, cloud instances, etc).
 teardown                 - Teardown provisioned resources.
 backup                   - Backup all the things to an rsync target.
@@ -39,6 +40,15 @@ provided to --project is cache and used as the default project for future comman
 ${vSELF_CLI_USAGE_OPTS_HEADER}
 
 --project           - The name of of your project. Will result in a new project at ~/.solos/projects/<project>.
+
+EOF
+}
+cli.usage.command.app.help() {
+  cat <<EOF
+Usage: solos app [--OPTS...]
+
+Initialize a new app within a project if the app doesn't already exist. If it does,
+it will checkout and re-install env dependencies for the app.
 
 EOF
 }

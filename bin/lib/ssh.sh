@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-
 lib.ssh.project_command() {
   local project_dir="${1:-"${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}"}"
   local cmd="$1"

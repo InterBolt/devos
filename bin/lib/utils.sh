@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-
 lib.utils.echo_line() {
   terminal_width=$(tput cols)
   line=$(printf "%${terminal_width}s" | tr " " "-")

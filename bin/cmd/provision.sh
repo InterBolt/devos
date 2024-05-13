@@ -2,7 +2,7 @@
 
 cmd.provision() {
   solos.use_checked_out_project
-  solos.collect_supplied_variables
+  solos.prompts
 
   # Simply retrieves storage info if the provisioning already happened.
   log.info "${vPROJECT_NAME} - Provisioning S3-compatible ${vPROJECT_PROVIDER_NAME} storage"

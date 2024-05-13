@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-
 vSELF_LIB_STORE_DIRNAME="store"
 
 lib.store._del() {

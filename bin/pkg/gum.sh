@@ -62,6 +62,24 @@ pkg.gum.github_name() {
   pkg.gum input --placeholder "Enter Github username:"
 }
 
+pkg.gum.repo_url() {
+  pkg.gum input --placeholder "Provide a github repo url:"
+}
+
+pkg.gum.confirm_new_app() {
+  local project_name="$1"
+  local project_app="$2"
+  if pkg.gum confirm \
+    --prompt.align left \
+    "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
+    --affirmative="Yes" \
+    --negative="No, exit without creating the app."; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+
 pkg.gum.danger_box() {
   local terminal_width=$(tput cols)
   pkg.gum style \

@@ -29,7 +29,7 @@ __bashrc__fn__host() {
   fi
 }
 
-__bashrc__fn__source_and_set_cwd() {
+__bashrc__fn__source() {
   local entry_pwd="${PWD}"
   cd "${HOME}/.solos/src/bin" || exit 1
   . pkg/__source__.sh || exit 1
@@ -38,10 +38,6 @@ __bashrc__fn__source_and_set_cwd() {
   cd "${HOME}/.solos/src/profile" || exit 1
   . bash-preexec.sh || exit 1
   cd "${entry_pwd}" || exit 1
-
-  if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
-    cd "${HOME}/.solos" || exit 1
-  fi
 }
 
 __bashrc__fn__print_commands() {
@@ -114,7 +110,7 @@ EOF
   echo ""
 }
 
-__bashrc__fn__setup() {
+__bashrc__fn__setup_interactive_shell() {
   local warnings=()
   mkdir -p "${HOME}/.solos/secrets"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"
@@ -193,23 +189,6 @@ __bashrc__fn__preeval() {
   return 1
 }
 
-__bashrc__fn__source_and_set_cwd
-
-PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
-
-__bashrc__fn__setup
-__bashrc__fn__welcome_message
-preexec_functions+=("__bashrc__fn__preeval")
-
-# Custom completions.
-_custom_command_completions() {
-  local cur prev words cword
-  _init_completion || return
-  _command_offset 1
-}
-complete -F _custom_command_completions rag
-complete -F _custom_command_completions host
-
 # Public functions.
 rag() {
   __rag__fn__main "$@"
@@ -281,3 +260,50 @@ man() {
   __bashrc__fn__print_man
   echo ""
 }
+
+__bashrc__fn__app_context_preeval() {
+  if [[ ${PWD} =~ ^${HOME}/\.solos/projects/([^/]*)/apps/([^/]*) ]]; then
+    local project_name="${BASH_REMATCH[1]}"
+    local app_name="${BASH_REMATCH[2]}"
+    local preexec_script="${HOME}/.solos/projects/${project_name}/apps/${app_name}/solos.preexec.sh"
+    if [[ -f ${preexec_script} ]]; then
+      "${preexec_script}"
+    fi
+  fi
+  return 0
+}
+
+__bashrc__fn__main() {
+  local source_only=false
+  while [[ $# -gt 0 ]]; do
+    if [[ ${1} = "--source-only" ]]; then
+      source_only=true
+    fi
+    shift
+  done
+  if [[ ${source_only} = true ]]; then
+    return 0
+  fi
+
+  PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
+
+  __bashrc__fn__setup_interactive_shell
+  __bashrc__fn__welcome_message
+  preexec_functions+=("__bashrc__fn__preeval")
+}
+
+__bashrc__fn__source
+if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
+  cd "${HOME}/.solos" || exit 1
+fi
+preexec_functions+=("__bashrc__fn__app_context_preeval")
+__bashrc__fn__main "$@"
+
+# Custom completions.
+_custom_command_completions() {
+  local cur prev words cword
+  _init_completion || return
+  _command_offset 1
+}
+complete -F _custom_command_completions rag
+complete -F _custom_command_completions host

@@ -40,20 +40,12 @@ cd "${__docker__var__entry_dir}" || exit 1
 __docker__fn__hash() {
   git -C "${__docker__var__volume_root}/src" rev-parse --short HEAD | cut -c1-7 || echo ""
 }
-__docker__fn__cleanup_old_containers() {
-  local hash="$(__docker__fn__hash)"
-  for image_name in $(docker ps -a --format "{{.Image}}" --no-trunc); do
+__docker__fn__destroy() {
+  for image_name in $(docker ps -a --format '{{.Image}}'); do
     if [[ ${image_name} = "solos:"* ]]; then
-      local image_hash="${image_name#solos:}"
-      if [[ ${image_hash} != "${hash}" ]]; then
-        local container_id=$(docker ps -a --format "{{.ID}} {{.Image}}" --no-trunc | grep "${image_name}" | awk '{print $1}')
-        if [[ -n ${container_id} ]]; then
-          if ! docker rm -f "${container_id}" >/dev/null 2>&1; then
-            echo "Failed to remove container: ${container_id}" >&2
-            return 1
-          fi
-        fi
-      fi
+      docker stop "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null 2>&1
+      docker rm "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null 2>&1
+      docker rmi "${image_name}" >/dev/null 2>&1
     fi
   done
 }
@@ -114,6 +106,8 @@ __docker__fn__build_and_run() {
   local shared_docker_run_args=(
     --name "$(__docker__fn__hash)"
     -d
+    --network
+    host
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
@@ -134,11 +128,11 @@ __docker__fn__shell() {
     __docker__fn__exec_shell
     return 0
   fi
-  __docker__fn__build_and_run
-  if ! __docker__fn__cleanup_old_containers; then
+  if ! __docker__fn__destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     exit 1
   fi
+  __docker__fn__build_and_run
   __docker__fn__exec_shell
 }
 __docker__fn__run() {
@@ -146,10 +140,10 @@ __docker__fn__run() {
     __docker__fn__exec_command "$@"
     return 0
   fi
-  __docker__fn__build_and_run
-  if ! __docker__fn__cleanup_old_containers; then
+  if ! __docker__fn__destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     exit 1
   fi
+  __docker__fn__build_and_run
   __docker__fn__exec_command "$@"
 }

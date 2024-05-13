@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-. shared/empty.sh
-
 vSELF_PROVISION_VULTR_API_ENDPOINT="https://api.lib.vultr.com/v2"
 
 provision.vultr._launch_instance() {

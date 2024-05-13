@@ -1,18 +1,5 @@
 #!/usr/bin/env bash
 
-####################################################################################
-#####
-##### - Creates a project directory for the user.
-##### - Generates a keypair for the project if it doesn't exist.
-##### - Sets the permissions on the keypair.
-##### - Saves the project id to the project directory.
-##### - Saves the project name to the global store so that future commands
-#####   automatically know which project to work with.
-##### - Creates a Visual Studio Code workspace file for the project. This file is
-#####   always regenerated to ensure that the latest variables are used.
-#####
-####################################################################################
-
 cmd.checkout() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log.error "No project name was supplied."
@@ -22,6 +9,17 @@ cmd.checkout() {
     mkdir -p "${vSTATIC_SOLOS_PROJECTS_DIR}"
     log.info "No projects found. Creating ~/.solos/projects directory."
   fi
+  local install_file="${vSTATIC_SOLOS_PROJECTS_DIR}/${vPROJECT_NAME}/install.sh"
+  if [[ -f ${install_file} ]]; then
+    chmod +x ${install_file}
+    "${install_file}"
+  else
+    cat <<EOF >"${install_file}"
+#!/usr/bin/env bash
+EOF
+    log.info "${vPROJECT_NAME} - Created the project's install.sh file: ${install_file//${HOME}/\~}"
+  fi
+  log.info "${vPROJECT_NAME} - Installed project."
   # If the project dir exists, let's assume it was setup ok.
   # We'll use a tmp dir to build up the files so that unexpected errors
   # won't result in a partial project dir.
@@ -43,7 +41,7 @@ cmd.checkout() {
   fi
   # We should be able to re-run the checkout command and pick up where we left
   # off if we didn't supply all the variables the first time.
-  solos.collect_supplied_variables
+  solos.prompts
   lib.store.global.set "checked_out_project" "${vPROJECT_NAME}"
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"

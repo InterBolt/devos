@@ -63,6 +63,7 @@ vPROJECT_ROOT_DOMAIN=""
 vPROJECT_SEED_SECRET=""
 vPROJECT_IP=""
 vPROJECT_NAME=""
+vPROJECT_APP=""
 vPROJECT_ID=""
 vPROJECT_S3_HOST=""
 vPROJECT_S3_OBJECT_STORE=""
@@ -73,6 +74,11 @@ vPROJECT_S3_SECRET=""
 solos.ingest_main_options() {
   for i in "${!vCLI_OPTIONS[@]}"; do
     case "${vCLI_OPTIONS[$i]}" in
+    argv1=*)
+      if [[ ${vCLI_CMD} = "app" ]]; then
+        vPROJECT_APP="${vCLI_OPTIONS[$i]#*=}"
+      fi
+      ;;
     project=*)
       if [[ ${vCLI_CMD} != "checkout" ]]; then
         log.error "The --project flag is only valid for the 'checkout' command."
@@ -88,7 +94,40 @@ solos.ingest_main_options() {
     esac
   done
 }
-solos.collect_supplied_variables() {
+solos.prune_nonexistent_apps() {
+  local tmp_dir="$(mktemp -d)"
+  local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
+  if [[ ! -f ${vscode_workspace_file} ]]; then
+    log.error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
+    exit 1
+  fi
+  local tmp_vscode_workspace_file="${tmp_dir}/$(basename ${vscode_workspace_file})"
+  cp -f "${vscode_workspace_file}" "${tmp_vscode_workspace_file}"
+  local apps="$(jq '.folders[] | select(.name | startswith("App."))' "${tmp_vscode_workspace_file}" | grep -Po '"name": "\K[^"]*' | cut -d'.' -f2)"
+  local nonexistent_apps=()
+  while read -r app; do
+    local app_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/apps/${app}"
+    if [[ ! -d ${app_dir} ]]; then
+      nonexistent_apps+=("${app}")
+    fi
+  done <<<"${apps}"
+  if [[ ${#nonexistent_apps[@]} -eq 0 ]]; then
+    return 0
+  fi
+  log.info "Found nonexistent apps: ${nonexistent_apps[*]}"
+  for nonexistent_app in "${nonexistent_apps[@]}"; do
+    jq 'del(.folders[] | select(.name == "App.'"${nonexistent_app}"'"))' "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
+    mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
+  done
+  if ! jq . "${tmp_vscode_workspace_file}" >/dev/null; then
+    log.error "Failed to validate the updated code workspace file: ${tmp_vscode_workspace_file}"
+    exit 1
+  fi
+  cp -f "${tmp_vscode_workspace_file}" "${vscode_workspace_file}"
+  log.info "Removed nonexistent apps from the code workspace file."
+  return 0
+}
+solos.prompts() {
   # Automatically generate a secret if one doesn't exist.
   vPROJECT_SEED_SECRET="$(lib.store.project.set_on_empty "secret" "$(lib.utils.generate_secret)")"
   # Prompts
@@ -97,13 +136,13 @@ solos.collect_supplied_variables() {
   if [[ ! -f ${path_to_provision_implementation} ]]; then
     log.error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
     lib.store.project.del "provider_name"
-    solos.collect_supplied_variables
+    solos.prompts
   fi
   vPROJECT_ROOT_DOMAIN="$(lib.store.project.prompt "root_domain")"
   if [[ ! "${vPROJECT_ROOT_DOMAIN}" =~ \.[a-z]+$ ]]; then
     log.error "Invalid root domain: ${vPROJECT_ROOT_DOMAIN}."
     lib.store.project.del "root_domain"
-    solos.collect_supplied_variables
+    solos.prompts
   fi
   vPROJECT_PROVIDER_API_KEY="$(lib.store.project.prompt "provider_api_key" 'Use your provider dashboard to create an API key.')"
   vPROJECT_OPENAI_API_KEY="$(lib.store.project.prompt "openai_api_key" 'Use the OpenAI dashboard to create an API key.')"
@@ -157,4 +196,9 @@ if [[ ${vCLI_CMD} = "test" ]]; then
   solos.ingest_test_options
 fi
 
-"cmd.${vCLI_CMD}"
+"cmd.${vCLI_CMD}" || true
+if [[ -n ${vPROJECT_NAME} ]]; then
+  if ! solos.prune_nonexistent_apps; then
+    log.error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
+  fi
+fi

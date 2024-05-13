@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 
-source "shared/static.sh"
+vSELF_LOG_ENTRY_DIR="${PWD}"
+
+# We do sourcing this way to ensure the log functions are available anywhere we need them as a single import
+# we also check if the pkg.gum command is available before sourcing pkg/__source__.sh because I don't want to blindly assume
+# that the pkg/__source__.sh file idempotent.
+cd "${HOME}/.solos/src/bin" || exit 1
+. "${HOME}/.solos/src/bin/shared/static.sh" || exit 1
+if ! command -v pkg.gum &>/dev/null; then
+  . "${HOME}/.solos/src/bin/pkg/__source__.sh" || exit 1
+fi
+cd "${vSELF_LOG_ENTRY_DIR}" || exit 1
 
 vSELF_LOG_BARE_LOG=false
 vSELF_LOG_FILESIZE=0

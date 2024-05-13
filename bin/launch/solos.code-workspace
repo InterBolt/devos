@@ -9,11 +9,6 @@
       "name": ".solos",
       "uri": "__vUSERS_HOME_DIR__/.solos",
       "profile": "solos"
-    },
-    {
-      "name": ".vscode",
-      "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__/.vscode",
-      "profile": "solos"
     }
   ],
   "settings": {
@@ -22,7 +17,7 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "solos": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/bin/shell.sh",
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
         "args": []
       },
       "bash": null,
@@ -33,7 +28,7 @@
     },
     "terminal.integrated.profiles.linux": {
       "solos": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/bin/shell.sh",
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
         "args": []
       },
       "bash": null,
