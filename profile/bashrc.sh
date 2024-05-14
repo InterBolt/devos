@@ -49,8 +49,6 @@ __bashrc__fn__host() {
 
 __bashrc__fn__print_man() {
   cat <<EOF
-$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-
 $(
     __table_outputs__fn__format \
       "COMMAND,DESCRIPTION" \

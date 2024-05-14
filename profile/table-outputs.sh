@@ -19,40 +19,6 @@ __table_outputs__fn__extract_help_description() {
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
 }
 
-__table_outputs__fn__help() {
-  local newline=$'\n'
-  local output=""
-  local idx=0
-  for command_name in "$@"; do
-    local command_description="$("${command_name}" --help | __table_outputs__fn__extract_help_description)"
-    if [[ ${idx} -eq 0 ]]; then
-      output+="${command_name}^${command_description}"
-    else
-      output+="${newline}${command_name}^${command_description}"
-    fi
-    idx=$((idx + 1))
-  done
-  output=$(echo "${output}" | column -t -N COMMANDS,DESCRIPTIONS -s '^' -o '|')
-  IFS=$'\n'
-  local lines=""
-  for line in ${output}; do
-    local c1="$(echo "${line}" | cut -d '|' -f1)"
-    local c2="$(echo "${line}" | cut -d '|' -f2 | fold -s -w 80)"
-    idx=0
-    for description_line in ${c2}; do
-      if [[ ${idx} -eq 0 ]]; then
-        line="${c1}|${description_line}"
-      else
-        line+="${IFS}$(printf '%*s' "${#c1}" '')  ${description_line}"
-      fi
-      idx=$((idx + 1))
-    done
-    lines+="${line}${IFS}"
-  done
-  echo "${lines}" | sed 's/|/  /g'
-  unset IFS
-}
-
 __table_outputs__fn__format() {
   local headers="$1"
   shift
@@ -96,6 +62,7 @@ __table_outputs__fn__format() {
     done
     lines+="${line}${IFS}"
   done
-  echo "${lines}" | sed 's/|/  /g'
+  local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
+  echo "${lines}" | sed 's/|/  /g' | sed '2s/^/'"${full_line}"'\n/'
   unset IFS
 }
