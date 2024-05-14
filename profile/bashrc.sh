@@ -2,7 +2,24 @@
 
 shopt -s extdebug
 
-__bashrc__var__self="${BASH_SOURCE[0]}"
+. "${HOME}/.solos/src/log.sh" || exit 1
+. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/profile/rag.sh" || exit 1
+. "${HOME}/.solos/src/profile/bash-preexec.sh" || exit 1
+
+if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
+  cd "${HOME}/.solos" || exit 1
+fi
+
+__bashrc__fn__bash_completions() {
+  _custom_command_completions() {
+    local cur prev words cword
+    _init_completion || return
+    _command_offset 1
+  }
+  complete -F _custom_command_completions rag
+  complete -F _custom_command_completions host
+}
 
 __bashrc__fn__host() {
   local done_file="${HOME}/.solos/relay/done"
@@ -27,13 +44,6 @@ __bashrc__fn__host() {
   if [[ -n ${stderr} ]]; then
     echo "${stderr}" >&2
   fi
-}
-
-__bashrc__fn__source() {
-  . "${HOME}/.solos/src/log.sh" || exit 1
-  . "${HOME}/.solos/src/pkg/gum.sh" || exit 1
-  . "${HOME}/.solos/src/profile/rag.sh" || exit 1
-  . "${HOME}/.solos/src/profile/bash-preexec.sh" || exit 1
 }
 
 __bashrc__fn__print_commands() {
@@ -93,7 +103,7 @@ https://github.com/interbolt/solos
 EOF
 }
 
-__bashrc__fn__welcome_message() {
+__bashrc__fn__print_welcome_manual() {
   cat <<EOF
 
 Welcome to the SolOS Shell!
@@ -107,7 +117,8 @@ EOF
   echo ""
 }
 
-__bashrc__fn__setup_interactive_shell() {
+__bashrc__fn__ide_shell() {
+  PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   local warnings=()
   mkdir -p "${HOME}/.solos/secrets"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"
@@ -150,9 +161,31 @@ __bashrc__fn__setup_interactive_shell() {
       sleep .2
     done
   fi
+  __bashrc__fn__print_welcome_manual
+  # Bash completions and custom completions for prefix commands like "rag".
+  __bashrc__fn__bash_completions
 }
 
-__bashrc__fn__preeval() {
+__bashrc__fn__preeexec_app_context() {
+  local entry_pwd="${PWD}"
+  local first_arg="$1"
+  if [[ -f ${first_arg} ]]; then
+    cd "$(dirname "${first_arg}")" || exit 1
+    first_arg="$(basename "${first_arg}")"
+  fi
+  if [[ ${PWD} =~ ^${HOME}/\.solos/projects/([^/]*)/apps/([^/]*) ]]; then
+    local project_name="${BASH_REMATCH[1]}"
+    local app_name="${BASH_REMATCH[2]}"
+    local preexec_script="${HOME}/.solos/projects/${project_name}/apps/${app_name}/solos.preexec.sh"
+    if [[ -f ${preexec_script} ]]; then
+      "${preexec_script}"
+    fi
+  fi
+  cd "${entry_pwd}" || exit 1
+  return 0
+}
+
+__bashrc__fn__preexec_shell() {
   local cmd="${*}"
   if [[ ${cmd} = "exit" ]]; then
     return 0
@@ -186,7 +219,24 @@ __bashrc__fn__preeval() {
   return 1
 }
 
-# Public functions.
+__bashrc__fn__main() {
+  # Handle the case where this rcfile is sourced from an app context.
+  while [[ $# -gt 0 ]]; do
+    if [[ ${1} = "--with-app-context" ]]; then
+      preexec_functions+=("__bashrc__fn__preeexec_app_context")
+      exit 0
+    fi
+  done
+  # Do a bunch of setup stuff
+  __bashrc__fn__ide_shell
+  # Add preeval logic which will ensure that the stdout lines starting with [RAG] are captured.
+  # A few things like cd, exit, and host commands are ignored.
+  preexec_functions+=("__bashrc__fn__preexec_shell")
+}
+
+__bashrc__fn__main "$@"
+
+# Public stuff
 rag() {
   __rag__fn__main "$@"
 }
@@ -197,7 +247,11 @@ Usage: host ...<any command here>...
 
 Description:
 
-Any command that you run with 'host' will be executed on the host machine.
+Any command that you run with 'host' prefix will be executed on the host machine.
+
+Limitations:
+
+- Commands that
 
 Example:
 
@@ -257,57 +311,3 @@ man() {
   __bashrc__fn__print_man
   echo ""
 }
-
-__bashrc__fn__app_context_preeval() {
-  local entry_pwd="${PWD}"
-  local first_arg="$1"
-  if [[ -f ${first_arg} ]]; then
-    cd "$(dirname "${first_arg}")" || exit 1
-    first_arg="$(basename "${first_arg}")"
-  fi
-  if [[ ${PWD} =~ ^${HOME}/\.solos/projects/([^/]*)/apps/([^/]*) ]]; then
-    local project_name="${BASH_REMATCH[1]}"
-    local app_name="${BASH_REMATCH[2]}"
-    local preexec_script="${HOME}/.solos/projects/${project_name}/apps/${app_name}/solos.preexec.sh"
-    if [[ -f ${preexec_script} ]]; then
-      "${preexec_script}"
-    fi
-  fi
-  cd "${entry_pwd}" || exit 1
-  return 0
-}
-
-__bashrc__fn__main() {
-  local source_only=false
-  while [[ $# -gt 0 ]]; do
-    if [[ ${1} = "--source-only" ]]; then
-      source_only=true
-    fi
-    shift
-  done
-  if [[ ${source_only} = true ]]; then
-    return 0
-  fi
-
-  PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
-
-  __bashrc__fn__setup_interactive_shell
-  __bashrc__fn__welcome_message
-  preexec_functions+=("__bashrc__fn__preeval")
-}
-
-__bashrc__fn__source
-if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
-  cd "${HOME}/.solos" || exit 1
-fi
-preexec_functions+=("__bashrc__fn__app_context_preeval")
-__bashrc__fn__main "$@"
-
-# Custom completions.
-_custom_command_completions() {
-  local cur prev words cword
-  _init_completion || return
-  _command_offset 1
-}
-complete -F _custom_command_completions rag
-complete -F _custom_command_completions host

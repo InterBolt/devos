@@ -46,8 +46,8 @@ cmd.provision() {
 
   # Let's inject any global variables from this script into the launch files.
   log_info "${vPROJECT_NAME} - Building launch files."
-  local template_launch_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/src/bin/launch"
-  local launch_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/launch"
+  local template_launch_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/src/launchfiles"
+  local launch_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/launchfiles"
   local tmp_launch_dir="$(mktmp -d)"
   cp -a "${template_launch_dir}/." "${tmp_launch_dir}/"
   lib.utils.template_variables "${tmp_launch_dir}"

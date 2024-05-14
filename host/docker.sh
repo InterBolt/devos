@@ -2,32 +2,30 @@
 
 __docker__var__rag_dir="${HOME}/.solos/rag"
 __docker__var__rag_captured="${__docker__var__rag_dir}/captured"
-__docker__var__volume_root="${HOME}/.solos"
-__docker__var__repo_launch_dir="${__docker__var__volume_root}/src/bin/launch"
-__docker__var__symlinked_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/solos.sh")"
-if [[ -z ${__docker__var__symlinked_path} ]]; then
+__docker__var__repo_launch_dir="${HOME}/.solos/src/launchfiles"
+__docker__var__bin_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/solos.sh")"
+if [[ -z ${__docker__var__bin_path} ]]; then
   echo "Unexpected error: couldn't detect symbolic linking" >&2
   exit 1
 fi
-__docker__var__bin_dir="$(dirname "${__docker__var__symlinked_path}")"
-__docker__var__volume_config_hostfile="${__docker__var__volume_root}/store/users_home_dir"
+__docker__var__bin_dir="$(dirname "${__docker__var__bin_path}")"
+__docker__var__volume_config_hostfile="${HOME}/.solos/store/users_home_dir"
 __docker__var__volume_mounted="/root/.solos"
 __docker__var__installer_no_tty_flag=false
 __docker__var__next_args=()
 for entry_arg in "$@"; do
-  if [[ $entry_arg = "--installer-no-tty" ]]; then
+  if [[ ${entry_arg} = "--installer-no-tty" ]]; then
     __docker__var__installer_no_tty_flag=true
   else
-    __docker__var__next_args+=("$entry_arg")
+    __docker__var__next_args+=("${entry_arg}")
   fi
 done
 set -- "${__docker__var__next_args[@]}" || exit 1
 
-# Make sure we can use the gum cli utilities
-. "${HOME}/.solos/src/pkg/gum.sh"
+. "${HOME}/.solos/src/pkgs/gum.sh"
 
 __docker__fn__hash() {
-  git -C "${__docker__var__volume_root}/src" rev-parse --short HEAD | cut -c1-7 || echo ""
+  git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo ""
 }
 __docker__fn__destroy() {
   for image_name in $(docker ps -a --format '{{.Image}}'); do
@@ -81,9 +79,8 @@ __docker__fn__exec_command() {
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 __docker__fn__build_and_run() {
-  if [[ -f ${__docker__var__volume_root} ]]; then
-    echo "A file called .solos was detected in your home directory." >&2
-    echo "This namespace is required for solos. (SolOS creates a ~/.solos dir)" >&2
+  if [[ -f ${HOME}/.solos ]]; then
+    echo "Unhandled: a file called .solos was detected in your home directory." >&2
     exit 1
   fi
   mkdir -p "$(dirname "${__docker__var__volume_config_hostfile}")"
@@ -93,14 +90,15 @@ __docker__fn__build_and_run() {
     exit 1
   fi
   local shared_docker_run_args=(
-    --name "$(__docker__fn__hash)"
+    --name
+    "$(__docker__fn__hash)"
     -d
     --network
     host
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
-    "${__docker__var__volume_root}:${__docker__var__volume_mounted}"
+    "${HOME}/.solos:${__docker__var__volume_mounted}"
     "solos:$(__docker__fn__hash)"
   )
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then

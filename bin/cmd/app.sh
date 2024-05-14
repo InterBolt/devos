@@ -49,7 +49,7 @@ cmd.app._init() {
 #!/usr/bin/env bash
 
 # Type \`man\` in your SolOS shell to see a list of commands available to you.
-. "${HOME}/.solos/.bashrc" --source-only || exit 1
+. "${HOME}/.solos/.bashrc" --with-app-context || exit 1
 
 #########################################################################################################
 ## This script is executed prior to any command run in the SolOS's shell when in the context of this app.

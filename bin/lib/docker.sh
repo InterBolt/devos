@@ -42,7 +42,7 @@ SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 #   cd "${HOME}" || exit 1
 
 #   local host_solos_root="$(cat "${HOME}/.solos/${vSTATIC_SOLOS_HOST_REFERENCE_FILE}")"
-#   local launch_rel_dir="/src/bin/launch"
+#   local launch_rel_dir="/src/launchfiles"
 #   local both_rel_volume_path="$(basename "${HOME}/.solos/projects")/test"
 #   if ! docker build -t "solos:base" -f "${HOME}/.solos${launch_rel_dir}/Dockerfile.base" . >/dev/null; then
 #     log_error "Could not build the base image." >&2

@@ -3,7 +3,7 @@
 __log__var__filesize=0
 __log__var__logfile="${HOME}/.solos/logs/cli.log"
 
-. "${HOME}/.solos/src/pkg/gum.sh" || exit 1
+. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
 mkdir -p "$(dirname "${__log__var__logfile}")"
 if [[ ! -f ${__log__var__logfile} ]]; then

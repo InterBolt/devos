@@ -31,7 +31,7 @@ if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
 
-. "${HOME}/.solos/src/pkg/gum.sh"
+. "${HOME}/.solos/src/pkgs/gum.sh"
 . "${HOME}/.solos/src/log.sh"
 
 . "${HOME}/.solos/src/bin/cli/usage.sh"
