@@ -57,28 +57,28 @@ __rag__fn__prompt_tag() {
 __rag__fn__print_rag_help() {
   cat <<EOF
 
-Usage: rag [options] <command> | rag notes | rag captured
+USAGE: rag [options] <command> | rag notes | rag captured
 
-Description:
+DESCRIPTION:
 
-  Prompts the user to write a note. Any positional arguments supplied that are 
-  not valid options will be executed as a command. The output of the command is
-  recorded along with the note for future reference.
+Prompts the user to write a note. Any positional arguments supplied that are not \
+valid options will be executed as a command. The output of the command is recorded \
+along with the note for future reference.
 
-  The name "rag" was chosen because the notes we take along with the commands 
-  and their outputs will aid in a retrieval augmentation generation (RAG) system.
+The name "rag" was chosen because the notes we take along with the commands \
+and their outputs will aid in a retrieval augmentation generation (RAG) system.
 
-  See rag directory: ${__rag__var__RAG_DIR}
+See rag directory: ${__rag__var__RAG_DIR}
 
-Options:
+OPTIONS:
 
-  -f <match>       Find a specific note via a match string.
-  -n               Note only. Will not prompt for a tag.
-  -t               Tag only. Will not prompt for a note.
-  -c               Command only. Will not prompt for a note or a tag. Overrides -t and -n.
+-f <match>       Find a specific note via a match string.
+-n               Note only. Will not prompt for a tag.
+-t               Tag only. Will not prompt for a note.
+-c               Command only. Will not prompt for a note or a tag. Overrides -t and -n.
 
-  --captured-only  Only capture stdout lines beginning with [RAG].
-  --help           Print this help message.
+--captured-only  Only capture stdout lines beginning with [RAG].
+--help           Print this help message.
 
 EOF
 }

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 
-vSELF_CLI_USAGE_CMD_HEADER="Available commands:"
-vSELF_CLI_USAGE_OPTS_HEADER="Available options:"
+vSELF_CLI_USAGE_CMD_HEADER="COMMANDS:"
+vSELF_CLI_USAGE_OPTS_HEADER="OPTIONS:"
 vSELF_CLI_USAGE_ALLOWS_CMDS=()
 vSELF_CLI_USAGE_ALLOWS_OPTIONS=()
 
 cli.usage.help() {
   cat <<EOF
-Usage: solos command [--OPTS...]
+USAGE: solos command [--OPTS...]
+
+DESCRIPTION:
 
 A CLI to manage SolOS projects on your local machine or container.
 
@@ -32,9 +34,11 @@ EOF
 }
 cli.usage.command.checkout.help() {
   cat <<EOF
-Usage: solos checkout [--OPTS...]
+USAGE: solos checkout [--OPTS...]
 
-Creates a new project if one doesn't exist and then switches to it. The value 
+DESCRIPTION:
+
+Creates a new project if one doesn't exist and then switches to it. The value \
 provided to --project is cache and used as the default project for future commands.
 
 ${vSELF_CLI_USAGE_OPTS_HEADER}
@@ -45,16 +49,20 @@ EOF
 }
 cli.usage.command.app.help() {
   cat <<EOF
-Usage: solos app <app-name> [--OPTS...]
+USAGE: solos app <app-name> [--OPTS...]
 
-Initialize a new app within a project if the app doesn't already exist. If it does,
+DESCRIPTION:
+
+Initialize a new app within a project if the app doesn't already exist. If it does, \
 it will checkout and re-install env dependencies for the app.
 
 EOF
 }
 cli.usage.command.test.help() {
   cat <<EOF
-Usage: solos test [--OPTS...]
+USAGE: solos test [--OPTS...]
+
+DESCRIPTION:
 
 Undocumented.
 
@@ -67,17 +75,21 @@ EOF
 }
 cli.usage.command.provision.help() {
   cat <<EOF
-Usage: solos provision [--OPTS...]
+USAGE: solos provision [--OPTS...]
 
-Initializes a new project and prepares the remote server for deployment. When this 
-is run on a pre-existing project, it will try to init or update whatever the remote
+DESCRIPTION:
+
+Initializes a new project and prepares the remote server for deployment. When this \
+is run on a pre-existing project, it will try to init or update whatever the remote \
 deployment server specified in the project's config.
 
 EOF
 }
 cli.usage.command.teardown.help() {
   cat <<EOF
-Usage: solos teardown [--OPTS...]
+USAGE: solos teardown [--OPTS...]
+
+DESCRIPTION:
 
 Deprovision cloud resources.
 
@@ -85,7 +97,9 @@ EOF
 }
 cli.usage.command.backup.help() {
   cat <<EOF
-Usage: solos backup [--OPTS...]
+USAGE: solos backup [--OPTS...]
+
+DESCRIPTION:
 
 Backup all the things and rysnc them to a target
 
@@ -93,7 +107,9 @@ EOF
 }
 cli.usage.command.restore.help() {
   cat <<EOF
-Usage: solos restore [--OPTS...]
+USAGE: solos restore [--OPTS...]
+
+DESCRIPTION:
 
 Restore all the things from a remote rsync target.
 
@@ -101,7 +117,9 @@ EOF
 }
 cli.usage.command.health.help() {
   cat <<EOF
-Usage: solos health [--OPTS...]
+USAGE: solos health [--OPTS...]
+
+DESCRIPTION:
 
 Review health/status of provisioned resources.
 
@@ -109,7 +127,9 @@ EOF
 }
 cli.usage.command.try.help() {
   cat <<EOF
-Usage: solos try [--OPTS...]
+USAGE: solos try [--OPTS...]
+
+DESCRIPTION:
 
 Undocumented.
 

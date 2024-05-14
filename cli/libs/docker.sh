@@ -62,12 +62,12 @@ SELF_LIB_DOCKER_SOCKET_PATH="/var/run/docker.sock"
 
 #   # Make the proxy script executable if it isn't already.
 #   # We already did the chmod in the dockerfile where we mount this.
-#   if ! chmod +x "${HOME}/.solos"/src/bin/solos.sh; then
+#   if ! chmod +x "${HOME}/.solos"/src/cli/solos.sh; then
 #     log_error "Could not make the proxy script executable." >&2
 #     exit 1
 #   fi
 
-#   local cmd_symlink_bin="ln -sfv ${HOME}/.solos/src/bin/solos.sh /usr/local/bin/solos && chmod +x /usr/local/bin/solos"
+#   local cmd_symlink_bin="ln -sfv ${HOME}/.solos/src/cli/solos.sh /usr/local/bin/solos && chmod +x /usr/local/bin/solos"
 #   local cmd_launch_caprover='docker run \
 #     -p 80:80 -p 443:443 -p 3000:3000 \
 #     -e ACCEPTED_TERMS=true \

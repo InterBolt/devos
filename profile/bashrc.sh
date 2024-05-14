@@ -6,6 +6,7 @@ shopt -s extdebug
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 . "${HOME}/.solos/src/profile/rag.sh" || exit 1
 . "${HOME}/.solos/src/profile/bash-preexec.sh" || exit 1
+. "${HOME}/.solos/src/profile/table-outputs.sh" || exit 1
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
@@ -22,10 +23,10 @@ __bashrc__fn__bash_completions() {
 }
 
 __bashrc__fn__host() {
-  local done_file="${HOME}/.solos/relay/done"
-  local command_file="${HOME}/.solos/relay/command"
-  local stdout_file="${HOME}/.solos/relay/stdout"
-  local stderr_file="${HOME}/.solos/relay/stderr"
+  local done_file="${HOME}/.solos/.relay.done"
+  local command_file="${HOME}/.solos/.relay.command"
+  local stdout_file="${HOME}/.solos/.relay.stdout"
+  local stderr_file="${HOME}/.solos/.relay.stderr"
   local cmd=''"${*}"''
   rm -f "${stdout_file}"
   echo "" >"${done_file}"
@@ -46,60 +47,44 @@ __bashrc__fn__host() {
   fi
 }
 
-__bashrc__fn__print_commands() {
-  cat <<EOF
-- man:                        Print info about this shell.
-- rag \$@:                     Take notes and capture stdout lines starting with \`[RAG]*\`. See \`rag --help\`.
-- log_<level> \$@:             Log a message. Try: \`log_info "Hello, world!"\`.
-- host \$@:                    Evaluates args as a command on the host machine. Try: \`host --help\`.
-- solos \$@:                   A CLI utility for managing deployment servers. See \`solos --help\`.
-- dsolos \$@:                  A restricted version of \`solos\` for developers. See \`dsolos --help\`.
-- gh_token:                   Update the Github token.
-- gh_email:                   Update the Github email.
-- gh_name:                    Update the Github username.
-EOF
-}
-
-__bashrc__fn__print_about_shell() {
-  cat <<EOF
-- Shell:                       BASH
-- Working Dir:                 ${PWD}
-- Home Dir:                    ${HOME}
-- Bash Version:                ${BASH_VERSION}
-- OS Distro:                   $(lsb_release -d | cut -f2)
-EOF
-}
-
-__bashrc__fn__print_customizations() {
-  cat <<EOF
-- User managed rcfile:        ~/.solos/.bashrc
-- Internal rcfile:            ~/.solos/src/profile/bashrc.sh
-- Secrets:                    ~/.solos/secrets
-- Logs:                       ~/.solos/logs
-- Captured notes and stdout:  ~/.solos/rag
-- Host <=> Container relay:   ~/.solos/relay
-- Store:                      ~/.solos/store
-- SolOS's source code:        ~/.solos/src
-EOF
-}
-
 __bashrc__fn__print_man() {
   cat <<EOF
-Commands:
 $(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-$(__bashrc__fn__print_commands)
 
-Relevant paths:
-$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-$(__bashrc__fn__print_customizations)
-
-About containerized shell:
-$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-$(__bashrc__fn__print_about_shell)
-
-Source code:
-$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-https://github.com/interbolt/solos
+$(
+    __table_outputs__fn__format \
+      "COMMAND,DESCRIPTION" \
+      rag "$(rag --help | __table_outputs__fn__extract_help_description)" \
+      host "$(host --help | __table_outputs__fn__extract_help_description)" \
+      solos "$(solos --help | __table_outputs__fn__extract_help_description)" \
+      gh_token "$(gh_token --help | __table_outputs__fn__extract_help_description)" \
+      gh_email "$(gh_email --help | __table_outputs__fn__extract_help_description)" \
+      gh_name "$(gh_name --help | __table_outputs__fn__extract_help_description)"
+  )
+  
+$(
+    __table_outputs__fn__format \
+      "RESOURCE,PATH" \
+      'User managed rcfile' "~/.solos/.bashrc" \
+      'Internal rcfile' "~/.solos/src/profile/bashrc.sh" \
+      'Secrets' "~/.solos/secrets" \
+      'Logs' "~/.solos/logs" \
+      'Captured notes and stdout' "~/.solos/rag" \
+      'Host <=> Container relay' "~/.solos/relay" \
+      'Store' "~/.solos/store"
+  )
+  
+$(
+    __table_outputs__fn__format \
+      "ATTRIBUTE,VALUE" \
+      "Shell" "BASH" \
+      "Working Dir" "${PWD}" \
+      "Home Dir" "${HOME}" \
+      "Bash Version" "${BASH_VERSION}" \
+      "OS Distro" "$(lsb_release -d | cut -f2)"
+  )
+  
+Source code: https://github.com/interbolt/solos
 EOF
 }
 
@@ -234,8 +219,6 @@ __bashrc__fn__main() {
   preexec_functions+=("__bashrc__fn__preexec_shell")
 }
 
-__bashrc__fn__main "$@"
-
 # Public stuff
 rag() {
   __rag__fn__main "$@"
@@ -243,32 +226,37 @@ rag() {
 host() {
   if [[ "${1}" == "--help" ]]; then
     cat <<EOF
-Usage: host ...<any command here>...
 
-Description:
+USAGE: host ...<any command here>...
+
+DESCRIPTION:
 
 Any command that you run with 'host' prefix will be executed on the host machine.
 
-Limitations:
+Try running 'host uname' to see the output of the 'uname' command on your host machine.
 
-- Commands that
+The \`host\` command doesn't use unix pipes. Rather, the SolOS shell starts a background process upon launch \
+which periodically checks a txt file for a new command from the docker container. Once a command is found it \
+is executed on the host machine and the output is written to a couple different txt files within the mounted volume. \
+The SolOS shell then reads the output from the txt file and prints it as if it were the output of the command that was run.
 
-Example:
-
-If your host machine is not running Debian, try running 'host uname' to see the output of the 'uname' command on your host machine.
-
-How it works:
-
-It doesn't use unix pipes. Rather, the SolOS shell starts a background process upon launch which periodically checks a txt file for a
-new command from the docker container. Once a command is found it is executed on the host machine and the output is written
-to a couple different txt files within the mounted volume. The SolOS shell then reads the output from the txt file and prints
-it as if it were the output of the command that was run.
 EOF
     return 0
   fi
   __bashrc__fn__host "$@"
 }
 gh_token() {
+  if [[ "${1}" == "--help" ]]; then
+    cat <<EOF
+USAGE: gh_token
+
+DESCRIPTION:
+
+Update the Github token.
+
+EOF
+    return 0
+  fi
   local tmp_file="$(mktemp -q)"
   local gh_token_path="${HOME}/.solos/secrets/gh_token"
   gum_github_token >"${tmp_file}" || exit 1
@@ -281,6 +269,17 @@ gh_token() {
   fi
 }
 gh_email() {
+  if [[ "${1}" == "--help" ]]; then
+    cat <<EOF
+USAGE: gh_email
+
+DESCRIPTION:
+
+Update the Github email.
+
+EOF
+    return 0
+  fi
   local tmp_file="$(mktemp -q)"
   gum_github_email >"${tmp_file}" || exit 1
   local gh_email=$(cat "${tmp_file}")
@@ -288,6 +287,17 @@ gh_email() {
   host git config --global user.email "${gh_email}"
 }
 gh_name() {
+  if [[ "${1}" == "--help" ]]; then
+    cat <<EOF
+USAGE: gh_name
+
+DESCRIPTION:
+
+Update the Github username.
+
+EOF
+    return 0
+  fi
   local tmp_file="$(mktemp -q)"
   gum_github_name >"${tmp_file}" || exit 1
   local gh_name=$(cat "${tmp_file}")
@@ -295,19 +305,43 @@ gh_name() {
   host git config --global user.name "${gh_name}"
 }
 code() {
+  if [[ "${1}" == "--help" ]]; then
+    cat <<EOF
+USAGE: code <...vscode cli args...>
+
+DESCRIPTION:
+
+Opens the Visual Studio Code editor from the host machine.
+
+EOF
+    return 0
+  fi
   local bin_path="$(__bashrc__fn__host which code)"
   host "${bin_path}" "${*}"
 }
 solos() {
-  local executable_path="${HOME}/.solos/src/bin/solos.sh"
+  local executable_path="${HOME}/.solos/src/cli/solos.sh"
   bash "${executable_path}" "$@"
 }
 dsolos() {
-  local executable_path="${HOME}/.solos/src/bin/solos.sh"
+  local executable_path="${HOME}/.solos/src/cli/solos.sh"
   bash "${executable_path}" --restricted-developer "$@"
 }
 man() {
+  if [[ "${1}" == "--help" ]]; then
+    cat <<EOF
+USAGE: man
+
+DESCRIPTION:
+
+Print info about this shell.
+
+EOF
+    return 0
+  fi
   echo ""
   __bashrc__fn__print_man
   echo ""
 }
+
+__bashrc__fn__main "$@"

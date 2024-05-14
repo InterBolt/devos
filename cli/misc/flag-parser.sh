@@ -3,7 +3,7 @@
 # The parsing logic we use for the main CLI commands will need to handle more
 # types of use cases and provide stronger UX. As a result, it prone to grow in
 # complexity. This flag parser OTOH is used by devs only and doesn't need to be pretty.
-shared.flag_parser.run() {
+misc.flag_parser.run() {
   vPREV_RETURN=()
   local flag_names=()
   while [[ $# -gt 0 ]] && [[ $1 != "ARGS:" ]]; do

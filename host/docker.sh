@@ -3,7 +3,7 @@
 __docker__var__rag_dir="${HOME}/.solos/rag"
 __docker__var__rag_captured="${__docker__var__rag_dir}/captured"
 __docker__var__repo_launch_dir="${HOME}/.solos/src/launchfiles"
-__docker__var__bin_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/bin/solos.sh")"
+__docker__var__bin_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/cli/solos.sh")"
 if [[ -z ${__docker__var__bin_path} ]]; then
   echo "Unexpected error: couldn't detect symbolic linking" >&2
   exit 1
@@ -33,6 +33,16 @@ __docker__fn__destroy() {
       docker stop "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null 2>&1
       docker rm "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null 2>&1
       docker rmi "${image_name}" >/dev/null 2>&1
+    fi
+  done
+}
+__docker__fn__symlinks() {
+  __docker__fn__exec_command rm -rf /usr/local/bin/*_solos
+  for home_entry_file in "${HOME}/.solos/src/bins"/*; do
+    local container_entry_file="${home_entry_file/#$HOME//root}"
+    if [[ -f ${home_entry_file} ]]; then
+      chmod +x "${home_entry_file}"
+      __docker__fn__exec_command ln -sf "${container_entry_file}" "/usr/local/bin/$(basename "${container_entry_file}" | cut -d'.' -f1)_solos"
     fi
   done
 }
@@ -112,6 +122,7 @@ __docker__fn__build_and_run() {
 }
 __docker__fn__shell() {
   if __docker__fn__test; then
+    __docker__fn__symlinks
     __docker__fn__exec_shell
     return 0
   fi
@@ -120,10 +131,12 @@ __docker__fn__shell() {
     exit 1
   fi
   __docker__fn__build_and_run
+  __docker__fn__symlinks
   __docker__fn__exec_shell
 }
 __docker__fn__run() {
   if __docker__fn__test; then
+    __docker__fn__symlinks
     __docker__fn__exec_command "$@"
     return 0
   fi
@@ -132,5 +145,6 @@ __docker__fn__run() {
     exit 1
   fi
   __docker__fn__build_and_run
+  __docker__fn__symlinks
   __docker__fn__exec_command "$@"
 }

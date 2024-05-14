@@ -6,7 +6,7 @@ cmd.provision() {
 
   # Simply retrieves storage info if the provisioning already happened.
   log_info "${vPROJECT_NAME} - Provisioning S3-compatible ${vPROJECT_PROVIDER_NAME} storage"
-  provision."${vPROJECT_PROVIDER_NAME}".s3
+  provisioner."${vPROJECT_PROVIDER_NAME}".s3
   vPROJECT_S3_OBJECT_STORE="${vPREV_RETURN[0]}"
   vPROJECT_S3_ACCESS_KEY="${vPREV_RETURN[1]}"
   vPROJECT_S3_SECRET="${vPREV_RETURN[2]}"
@@ -25,13 +25,13 @@ cmd.provision() {
 
   # Figure out the ssh key id by either finding it or creating it.
   log_info "${vPROJECT_NAME} - Creating or finding the project's SSH keypair on Vultr."
-  provision."${vPROJECT_PROVIDER_NAME}".find_pubkey "${pubkey}"
+  provisioner."${vPROJECT_PROVIDER_NAME}".find_pubkey "${pubkey}"
   if [[ ${vPREV_RETURN[0]} = false ]]; then
-    provision.vultr.save_pubkey "${pubkey}"
+    provisioner.vultr.save_pubkey "${pubkey}"
   fi
 
   if [[ -z ${vPROJECT_IP} ]]; then
-    provision."${vPROJECT_PROVIDER_NAME}".create_server "${pubkey}"
+    provisioner."${vPROJECT_PROVIDER_NAME}".create_server "${pubkey}"
     local server_ip="${vPREV_RETURN[0]:-""}"
     if [[ -z ${server_ip} ]]; then
       log_error "Unexpected error: no provisioned IP was found."

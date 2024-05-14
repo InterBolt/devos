@@ -2,13 +2,13 @@
 
 vSELF_PROVISION_VULTR_API_ENDPOINT="https://api.lib.vultr.com/v2"
 
-provision.vultr._launch_instance() {
+provisioner.vultr._launch_instance() {
   local pubkey="$1"
   local label="solos-${vPROJECT_ID}"
   local plan="voc-c-2c-4gb-50s-amd"
   local region="ewr"
   local os_id="2136"
-  provision.vultr._get_pubkey_id "${pubkey}"
+  provisioner.vultr._get_pubkey_id "${pubkey}"
   local pubkey_id="${vPREV_RETURN[0]}"
   if [[ -z ${pubkey_id} ]]; then
     log_error "Unexpected error: no SSH public key found."
@@ -41,7 +41,7 @@ provision.vultr._launch_instance() {
   vPREV_RETURN+=("${instance_id}")
 }
 
-provision.vultr._wait_for_instance() {
+provisioner.vultr._wait_for_instance() {
   local instance_id="$1"
   local expected_status="active"
   local expected_server_status="ok"
@@ -65,7 +65,7 @@ provision.vultr._wait_for_instance() {
   done
 }
 
-provision.vultr._get_object_storage_id() {
+provisioner.vultr._get_object_storage_id() {
   local label="solos-${vPROJECT_ID}"
   local object_storage_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
@@ -87,7 +87,7 @@ provision.vultr._get_object_storage_id() {
   fi
 }
 
-provision.vultr._get_ewr_cluster_id() {
+provisioner.vultr._get_ewr_cluster_id() {
   local cluster_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage/clusters" \
     -X GET \
@@ -105,7 +105,7 @@ provision.vultr._get_ewr_cluster_id() {
   echo "$cluster_id"
 }
 
-provision.vultr._create_storage() {
+provisioner.vultr._create_storage() {
   local cluster_id="$1"
   local label="solos-${vPROJECT_ID}"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage" \
@@ -122,7 +122,7 @@ provision.vultr._create_storage() {
   echo "${object_storage_id}"
 }
 
-provision.vultr._get_pubkey_id() {
+provisioner.vultr._get_pubkey_id() {
   local pubkey="$1"
   local found_pubkey_id=""
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
@@ -142,7 +142,7 @@ provision.vultr._get_pubkey_id() {
   vPREV_RETURN=("${found_pubkey_id}")
 }
 
-provision.vultr.save_pubkey() {
+provisioner.vultr.save_pubkey() {
   local pubkey="$1"
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/ssh-keys" \
     -X POST \
@@ -162,10 +162,10 @@ provision.vultr.save_pubkey() {
   vPREV_RETURN=("${pubkey_id}")
 }
 
-provision.vultr.find_pubkey() {
+provisioner.vultr.find_pubkey() {
   local pubkey="$1"
   local exists=true
-  provision.vultr._get_pubkey_id "${pubkey}"
+  provisioner.vultr._get_pubkey_id "${pubkey}"
   local pubkey_id="${vPREV_RETURN[0]:-""}"
   if [[ -z ${pubkey_id} ]]; then
     exists=false
@@ -173,25 +173,25 @@ provision.vultr.find_pubkey() {
   vPREV_RETURN=("${exists}")
 }
 
-provision.vultr.create_server() {
+provisioner.vultr.create_server() {
   local pubkey="$1"
-  provision.vultr._launch_instance "${pubkey}"
+  provisioner.vultr._launch_instance "${pubkey}"
   next_ip="${vPREV_RETURN[0]}"
   instance_id="${vPREV_RETURN[1]}"
-  provision.vultr._wait_for_instance "${instance_id}"
+  provisioner.vultr._wait_for_instance "${instance_id}"
 
   vPREV_RETURN=("${next_ip}")
 }
 
-provision.vultr.s3() {
+provisioner.vultr.s3() {
   # See if we can skip the provisioning proccess for S3 if the object storage
   # with a matching label already exists.
-  provision.vultr._get_object_storage_id
+  provisioner.vultr._get_object_storage_id
   local object_storage_id="${vPREV_RETURN[0]}"
   if [[ -z ${object_storage_id} ]]; then
     # Create the storage is the EWR region (east I think?)
-    local ewr_cluster_id="$(provision.vultr._get_ewr_cluster_id)"
-    object_storage_id="$(provision.vultr._create_storage "${ewr_cluster_id}")"
+    local ewr_cluster_id="$(provisioner.vultr._get_ewr_cluster_id)"
+    object_storage_id="$(provisioner.vultr._create_storage "${ewr_cluster_id}")"
   fi
   lib.utils.curl "${vSELF_PROVISION_VULTR_API_ENDPOINT}/object-storage/${object_storage_id}" \
     -X GET \

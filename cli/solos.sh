@@ -18,9 +18,9 @@ vPREV_CURL_ERR_MESSAGE=""
 vPREV_RETURN=()
 vPREV_NEXT_ARGS=()
 
-. "${HOME}/.solos/src/bin/shared/flag-parser.sh"
+. "${HOME}/.solos/src/cli/misc/flag-parser.sh"
 
-shared.flag_parser.run \
+misc.flag_parser.run \
   --restricted-developer \
   --restricted-noop \
   "ARGS:" "$@"
@@ -34,20 +34,20 @@ fi
 . "${HOME}/.solos/src/pkgs/gum.sh"
 . "${HOME}/.solos/src/log.sh"
 
-. "${HOME}/.solos/src/bin/cli/usage.sh"
-. "${HOME}/.solos/src/bin/cli/parse.sh"
-. "${HOME}/.solos/src/bin/lib/docker.sh"
-. "${HOME}/.solos/src/bin/lib/store.sh"
-. "${HOME}/.solos/src/bin/lib/ssh.sh"
-. "${HOME}/.solos/src/bin/lib/utils.sh"
-. "${HOME}/.solos/src/bin/cmd/app.sh"
-. "${HOME}/.solos/src/bin/cmd/backup.sh"
-. "${HOME}/.solos/src/bin/cmd/checkout.sh"
-. "${HOME}/.solos/src/bin/cmd/health.sh"
-. "${HOME}/.solos/src/bin/cmd/provision.sh"
-. "${HOME}/.solos/src/bin/cmd/restore.sh"
-. "${HOME}/.solos/src/bin/cmd/teardown.sh"
-. "${HOME}/.solos/src/bin/cmd/try.sh"
+. "${HOME}/.solos/src/cli/cli/usage.sh"
+. "${HOME}/.solos/src/cli/cli/parse.sh"
+. "${HOME}/.solos/src/cli/provisioners/vultr.sh"
+. "${HOME}/.solos/src/cli/libs/docker.sh"
+. "${HOME}/.solos/src/cli/libs/store.sh"
+. "${HOME}/.solos/src/cli/libs/ssh.sh"
+. "${HOME}/.solos/src/cli/libs/utils.sh"
+. "${HOME}/.solos/src/cli/cmds/app.sh"
+. "${HOME}/.solos/src/cli/cmds/backup.sh"
+. "${HOME}/.solos/src/cli/cmds/checkout.sh"
+. "${HOME}/.solos/src/cli/cmds/health.sh"
+. "${HOME}/.solos/src/cli/cmds/restore.sh"
+. "${HOME}/.solos/src/cli/cmds/teardown.sh"
+. "${HOME}/.solos/src/cli/cmds/try.sh"
 
 # The directory path of the user's home directory.
 # Everything here runs in docker so this is the only way I
@@ -135,7 +135,7 @@ solos.prompts() {
   vPROJECT_SEED_SECRET="$(lib.store.project.set_on_empty "secret" "$(lib.utils.generate_secret)")"
   # Prompts
   vPROJECT_PROVIDER_NAME="$(lib.store.project.prompt "provider_name" 'Only "vultr" is supported at this time.')"
-  local path_to_provision_implementation="${vSOLOS_BIN_DIR}/provision/${vPROJECT_PROVIDER_NAME}.sh"
+  local path_to_provision_implementation="${vSOLOS_BIN_DIR}/provisioners/${vPROJECT_PROVIDER_NAME}.sh"
   if [[ ! -f ${path_to_provision_implementation} ]]; then
     log_error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
     lib.store.project.del "provider_name"
@@ -169,12 +169,6 @@ solos.use_checked_out_project() {
   fi
   vPROJECT_IP="$(lib.ssh.project_extract_project_ip)"
 }
-
-if [[ ${vRESTRICTED_MODE_DEVELOPER} = true ]]; then
-  lib.utils.validate_interfaces \
-    "${vSOLOS_BIN_DIR}/provision" \
-    __interface__.txt
-fi
 
 # Parses CLI arguments into simpler data structures and validates against
 # the usage strings in cli/usage.sh.
