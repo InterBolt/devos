@@ -19,20 +19,8 @@ __relay_cmd_server__fn__listen() {
       command="$(cat "${command_file}" | sed "s/\/root\//\$HOME\//g")"
     fi
     if [[ -n ${command} ]]; then
-      local profile="${HOME}/.bash_profile"
-      if [[ ! -f "${profile}" ]]; then
-        profile="${HOME}/.bashrc"
-        if {[ ! -f "${profile}" ]}; then
-          profile=""
-        fi
-      fi
-      if [ "${profile}" ]; then
-        eval "${command}" 1>"${stdout_file}" 2>"${stderr_file}"
-        echo "DONE" >"${done_file}"
-      else
-        eval "${command}" 1>"${stdout_file}" 2>"${stderr_file}"
-        echo "DONE" >"${done_file}"
-      fi
+      eval ''"${command}"'' 1>"${stdout_file}" 2>"${stderr_file}"
+      echo "DONE" >"${done_file}"
     fi
     sleep .2
   done

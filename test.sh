@@ -1,13 +1,7 @@
 #!/usr/bin/env bash
 
-cd /Users/colinlaptop/tmkmk/solos
-
-if [[ ! -e /etc/solos ]]; then
-  echo "YAY: NOT FOUND"
-fi
-if [[ -e test.sh ]]; then
-  echo "YAY: FOUND"
-fi
-if [[ -e bin/shared ]]; then
-  echo "YAY: FOUND"
-fi
+# # do something 10 times
+# for i in {1..10}; do
+#   echo "Hello, world! ${i}"
+#   sleep 1
+# done

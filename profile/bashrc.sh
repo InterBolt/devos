@@ -253,17 +253,20 @@ __bashrc__fn__preexec_shell() {
   if [[ ${cmd} = "cd" ]]; then
     return 0
   fi
-  if [[ ${cmd} = "rag captured" ]]; then
-    local line_count="$(wc -l <"${HOME}/.solos/rag/captured")"
-    code -g "${HOME}/.solos/rag/captured:${line_count}"
-    trap '__bashrc__fn__prevent_exec' DEBUG
+  if [[ ${cmd} = "clear" ]]; then
     return 0
   fi
+  if [[ ${cmd} = "rag captured" ]]; then
+    local line_count="$(wc -l <"${HOME}/.solos/rag/captured.log")"
+    code -g "${HOME}/.solos/rag/captured:${line_count}"
+    trap '__bashrc__fn__prevent_exec' DEBUG
+    return 1
+  fi
   if [[ ${cmd} = "rag notes" ]]; then
-    local line_count="$(wc -l <"${HOME}/.solos/rag/notes")"
+    local line_count="$(wc -l <"${HOME}/.solos/rag/notes.log")"
     code -g "${HOME}/.solos/rag/notes:${line_count}"
     trap '__bashrc__fn__prevent_exec' DEBUG
-    return 0
+    return 1
   fi
   if [[ ${cmd} = "code "* ]]; then
     return 0
@@ -289,10 +292,6 @@ __bashrc__fn__main() {
   # Add preeval logic which will ensure that the stdout lines starting with [RAG] are captured.
   # A few things like cd, exit, and host commands are ignored.
   preexec_functions+=("__bashrc__fn__preexec_shell")
-  precmd_functions+=("__bashrc__fn__precmd_shell")
-  # __bashrc__var__curr_trap=$(trap -p DEBUG)
-  trap -p DEBUG
-  # echo "__bashrc__var__curr_trap = ${__bashrc__var__curr_trap}"
 }
 
 # Public stuff

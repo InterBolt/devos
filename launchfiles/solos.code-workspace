@@ -20,7 +20,10 @@
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
         "args": []
       },
-      "bash": null,
+      "bash": {
+        "path": "/bin/bash",
+        "args": []
+      },
       "zsh": null,
       "fish": null,
       "tmux": null,
@@ -31,13 +34,20 @@
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
         "args": []
       },
-      "bash": null,
+      "bash": {
+        "path": "/bin/bash",
+        "args": []
+      },
       "zsh": null,
       "fish": null,
       "tmux": null,
       "pwsh": null
     },
+
     "[toml]": {
+      "editor.formatOnSave": false
+    },
+    "[json]": {
       "editor.formatOnSave": false
     },
     "typescript.format.enable": true,
