@@ -1,24 +1,5 @@
 #!/usr/bin/env bash
 
-__table_outputs__fn__extract_help_description() {
-  local help_output=$(cat)
-  if [[ -z ${help_output} ]]; then
-    echo "Unexpected error: empty help output." >&2
-    return 1
-  fi
-  local description_line_number=$(echo "${help_output}" | grep -n "^DESCRIPTION:" | cut -d: -f1)
-  if [[ -z ${description_line_number} ]]; then
-    echo "Unexpected error: invalid help output format. Could not find DESCRIPTION: line." >&2
-    return 1
-  fi
-  local first_description_line=$((description_line_number + 2))
-  if [[ -z $(echo "${help_output}" | sed -n "${first_description_line}p") ]]; then
-    echo "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:" >&2
-    return 1
-  fi
-  echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
-}
-
 __table_outputs__fn__format() {
   local headers="$1"
   shift

@@ -12,6 +12,25 @@ if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
 
+__bashrc__fn__extract_help_description() {
+  local help_output=$(cat)
+  if [[ -z ${help_output} ]]; then
+    echo "Unexpected error: empty help output." >&2
+    return 1
+  fi
+  local description_line_number=$(echo "${help_output}" | grep -n "^DESCRIPTION:" | cut -d: -f1)
+  if [[ -z ${description_line_number} ]]; then
+    echo "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`" >&2
+    return 1
+  fi
+  local first_description_line=$((description_line_number + 2))
+  if [[ -z $(echo "${help_output}" | sed -n "${first_description_line}p") ]]; then
+    echo "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:" >&2
+    return 1
+  fi
+  echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
+}
+
 __bashrc__fn__bash_completions() {
   _custom_command_completions() {
     local cur prev words cword
@@ -52,12 +71,12 @@ __bashrc__fn__print_man() {
 $(
     __table_outputs__fn__format \
       "COMMAND,DESCRIPTION" \
-      rag "$(rag --help | __table_outputs__fn__extract_help_description)" \
-      host "$(host --help | __table_outputs__fn__extract_help_description)" \
-      solos "$(solos --help | __table_outputs__fn__extract_help_description)" \
-      gh_token "$(gh_token --help | __table_outputs__fn__extract_help_description)" \
-      gh_email "$(gh_email --help | __table_outputs__fn__extract_help_description)" \
-      gh_name "$(gh_name --help | __table_outputs__fn__extract_help_description)"
+      rag "$(rag --help | __bashrc__fn__extract_help_description)" \
+      host "$(host --help | __bashrc__fn__extract_help_description)" \
+      solos "$(solos --help | __bashrc__fn__extract_help_description)" \
+      gh_token "$(gh_token --help | __bashrc__fn__extract_help_description)" \
+      gh_email "$(gh_email --help | __bashrc__fn__extract_help_description)" \
+      gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)"
   )
   
 $(
@@ -234,9 +253,9 @@ Any command that you run with 'host' prefix will be executed on the host machine
 Try running 'host uname' to see the output of the 'uname' command on your host machine.
 
 The \`host\` command doesn't use unix pipes. Rather, the SolOS shell starts a background process upon launch \
-which periodically checks a txt file for a new command from the docker container. Once a command is found it \
-is executed on the host machine and the output is written to a couple different txt files within the mounted volume. \
-The SolOS shell then reads the output from the txt file and prints it as if it were the output of the command that was run.
+which periodically checks a specific txt file for a new command from the docker container. Once the background process detects a new command \
+it executes it (on the host) and writes stdout and stderr to some more specific txt files. \
+The SolOS shell (in the container) then reads the stdout/err from those files and displays the output in the terminal.
 
 EOF
     return 0
