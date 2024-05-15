@@ -67,10 +67,22 @@ __bashrc__fn__host() {
 }
 
 __bashrc__fn__print_man() {
+  local solos_bin_cmds=()
+  while IFS= read -r -d $'\0' file; do
+    local cmd_name="$(basename "${file}" | cut -d. -f1)"
+    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __bashrc__fn__extract_help_description)")
+  done < <(find "${HOME}/.solos/src/bins/" -type f -print0)
+
   cat <<EOF
 $(
     __table_outputs__fn__format \
-      "COMMAND,DESCRIPTION" \
+      "PATH_COMMAND,DESCRIPTION" \
+      "${solos_bin_cmds[@]}"
+  )
+
+$(
+    __table_outputs__fn__format \
+      "RC_COMMAND,DESCRIPTION" \
       rag "$(rag --help | __bashrc__fn__extract_help_description)" \
       host "$(host --help | __bashrc__fn__extract_help_description)" \
       solos "$(solos --help | __bashrc__fn__extract_help_description)" \
@@ -93,28 +105,39 @@ $(
   
 $(
     __table_outputs__fn__format \
-      "ATTRIBUTE,VALUE" \
+      "ENV_PROPERTY,VALUE" \
       "Shell" "BASH" \
       "Working Dir" "${PWD}" \
       "Home Dir" "${HOME}" \
       "Bash Version" "${BASH_VERSION}" \
-      "OS Distro" "$(lsb_release -d | cut -f2)"
+      "OS Distro" "$(lsb_release -d | cut -f2)" \
+      "SolOS Source Code" "https://github.com/interbolt/solos"
   )
-  
-Source code: https://github.com/interbolt/solos
 EOF
 }
 
 __bashrc__fn__print_welcome_manual() {
+  # This should say "Welcome to SolOS" in ASCII art.
+  local asci_welcome_to_solos_art=$(
+    cat <<EOF
+    
+ .-.      . .--.  .-. 
+(   )     |:    :(   )
+ \`-.  .-. ||    | \`-. 
+(   )(   )|:    ;(   )
+ \`-'  \`-' \`-\`--'  \`-' 
+                      
+EOF
+  )
+
   cat <<EOF
-
-Welcome to the SolOS Shell!
-
+${asci_welcome_to_solos_art}
 $(__bashrc__fn__print_man)
 
 EOF
   local gh_status_line="$(gh auth status | grep "Logged in")"
   gh_status_line="${gh_status_line##*" "}"
+  echo ""
   echo -e "\033[0;32mLogged in to Github ${gh_status_line} \033[0m"
   echo ""
 }
@@ -187,7 +210,16 @@ __bashrc__fn__preeexec_app_context() {
   return 0
 }
 
+__bashrc__var__curr_trap="INIT"
+__bashrc__fn__prevent_exec() {
+  if [[ ${__bashrc__var__curr_trap} = "INIT" ]]; then
+    return 0
+  fi
+  eval "${__bashrc__var__curr_trap}"
+  return 1
+}
 __bashrc__fn__preexec_shell() {
+  __bashrc__var__curr_trap=$(trap -p DEBUG)
   local cmd="${*}"
   if [[ ${cmd} = "exit" ]]; then
     return 0
@@ -204,12 +236,14 @@ __bashrc__fn__preexec_shell() {
   if [[ ${cmd} = "rag captured" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/captured")"
     code -g "${HOME}/.solos/rag/captured:${line_count}"
-    return 1
+    trap '__bashrc__fn__prevent_exec' DEBUG
+    return 0
   fi
   if [[ ${cmd} = "rag notes" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/notes")"
     code -g "${HOME}/.solos/rag/notes:${line_count}"
-    return 1
+    trap '__bashrc__fn__prevent_exec' DEBUG
+    return 0
   fi
   if [[ ${cmd} = "code "* ]]; then
     return 0
@@ -218,6 +252,7 @@ __bashrc__fn__preexec_shell() {
     return 0
   fi
   rag --captured-only ''"${cmd}"''
+  trap '__bashrc__fn__prevent_exec' DEBUG
   return 1
 }
 
@@ -234,6 +269,10 @@ __bashrc__fn__main() {
   # Add preeval logic which will ensure that the stdout lines starting with [RAG] are captured.
   # A few things like cd, exit, and host commands are ignored.
   preexec_functions+=("__bashrc__fn__preexec_shell")
+  precmd_functions+=("__bashrc__fn__precmd_shell")
+  # __bashrc__var__curr_trap=$(trap -p DEBUG)
+  trap -p DEBUG
+  # echo "__bashrc__var__curr_trap = ${__bashrc__var__curr_trap}"
 }
 
 # Public stuff

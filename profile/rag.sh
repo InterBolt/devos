@@ -237,6 +237,6 @@ __rag__fn__main() {
     fi
   else
     eval "${cmd}" |
-      tee -a >(grep "^\[RAG\]" >>"${__rag__var__RAG_CAPTURED}")
+      tee >(grep "^\[RAG\]" >>"${__rag__var__RAG_CAPTURED}")
   fi
 }

@@ -38,11 +38,13 @@ __docker__fn__destroy() {
 }
 __docker__fn__symlinks() {
   __docker__fn__exec_command rm -rf /usr/local/bin/*_solos
-  for home_entry_file in "${HOME}/.solos/src/bins"/*; do
-    local container_entry_file="${home_entry_file/#$HOME//root}"
-    if [[ -f ${home_entry_file} ]]; then
-      chmod +x "${home_entry_file}"
-      __docker__fn__exec_command ln -sf "${container_entry_file}" "/usr/local/bin/$(basename "${container_entry_file}" | cut -d'.' -f1)_solos"
+  for solos_bin_file in "${HOME}/.solos/src/bins"/*; do
+    local container_usr_bin_local_file="${solos_bin_file/#$HOME//root}"
+    if [[ -f ${solos_bin_file} ]]; then
+      chmod +x "${solos_bin_file}"
+      __docker__fn__exec_command ln -sf \
+        "${container_usr_bin_local_file}" \
+        "/usr/local/bin/$(basename "${container_usr_bin_local_file}" | cut -d'.' -f1)_solos"
     fi
   done
 }

@@ -2,22 +2,22 @@
 
 vSELF_PKG_GUM_PKG_DIR="$(dirname "$0")"
 vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"
-vSELF_PKG_GUM_VERSION="0.13.0"
-vSELF_PKG_GUM_RELEASES_URL="https://github.com/charmbracelet/gum/releases/download"
 
 __gum__fn__get_release_file() {
+  local gum_version="0.13.0"
+  local gum_release_url="https://github.com/charmbracelet/gum/releases/download"
   local release=""
   if [[ $(uname) = 'Darwin' ]]; then
     if [[ $(uname -m) = 'arm64' ]]; then
-      release="${vSELF_PKG_GUM_RELEASES_URL}/v${vSELF_PKG_GUM_VERSION}/gum_${vSELF_PKG_GUM_VERSION}_Darwin_arm64.tar.gz"
+      release="${gum_release_url}/v${gum_version}/gum_${gum_version}_Darwin_arm64.tar.gz"
     else
-      release="${vSELF_PKG_GUM_RELEASES_URL}/v${vSELF_PKG_GUM_VERSION}/gum_${vSELF_PKG_GUM_VERSION}_Darwin_x86_64.tar.gz"
+      release="${gum_release_url}/v${gum_version}/gum_${gum_version}_Darwin_x86_64.tar.gz"
     fi
   else
     if [[ $(uname -m) = 'arm64' ]]; then
-      release="${vSELF_PKG_GUM_RELEASES_URL}/v${vSELF_PKG_GUM_VERSION}/gum_${vSELF_PKG_GUM_VERSION}_Linux_arm64.tar.gz"
+      release="${gum_release_url}/v${gum_version}/gum_${gum_version}_Linux_arm64.tar.gz"
     else
-      release="${vSELF_PKG_GUM_RELEASES_URL}/v${vSELF_PKG_GUM_VERSION}/gum_${vSELF_PKG_GUM_VERSION}_Linux_x86_64.tar.gz"
+      release="${gum_release_url}/v${gum_version}/gum_${gum_version}_Linux_x86_64.tar.gz"
     fi
   fi
   echo "${release}"
@@ -64,7 +64,6 @@ gum_confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
   if gum_bin confirm \
-    --prompt.align left \
     "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
     --affirmative="Yes" \
     --negative="No, exit without creating the app."; then
