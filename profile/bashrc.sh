@@ -12,6 +12,16 @@ if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
 
+__bashrc__fn__users_home_dir() {
+  local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
+  if [[ ! -f ${home_dir_saved_location} ]]; then
+    echo "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}." >&2
+    sleep 5
+    exit 1
+  fi
+  cat "${home_dir_saved_location}" 2>/dev/null | head -n1
+}
+
 __bashrc__fn__extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
@@ -71,9 +81,10 @@ __bashrc__fn__print_man() {
   while IFS= read -r -d $'\0' file; do
     local cmd_name="$(basename "${file}" | cut -d. -f1)"
     solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __bashrc__fn__extract_help_description)")
-  done < <(find "${HOME}/.solos/src/bins/" -type f -print0)
+  done < <(find "${HOME}/.solos/src/path-commands/" -type f -print0)
 
   cat <<EOF
+
 $(
     __table_outputs__fn__format \
       "PATH_COMMAND,DESCRIPTION" \
@@ -82,7 +93,7 @@ $(
 
 $(
     __table_outputs__fn__format \
-      "RC_COMMAND,DESCRIPTION" \
+      "SHELL_COMMAND,DESCRIPTION" \
       rag "$(rag --help | __bashrc__fn__extract_help_description)" \
       host "$(host --help | __bashrc__fn__extract_help_description)" \
       solos "$(solos --help | __bashrc__fn__extract_help_description)" \
@@ -94,24 +105,32 @@ $(
 $(
     __table_outputs__fn__format \
       "RESOURCE,PATH" \
-      'User managed rcfile' "~/.solos/.bashrc" \
-      'Internal rcfile' "~/.solos/src/profile/bashrc.sh" \
-      'Secrets' "~/.solos/secrets" \
-      'Logs' "~/.solos/logs" \
-      'Captured notes and stdout' "~/.solos/rag" \
-      'Host <=> Container relay' "~/.solos/relay" \
-      'Store' "~/.solos/store"
+      'User managed rcfile' "$(__bashrc__fn__users_home_dir)/.solos/.bashrc" \
+      'Internal rcfile' "$(__bashrc__fn__users_home_dir)/.solos/src/profile/bashrc.sh" \
+      'Secrets' "$(__bashrc__fn__users_home_dir)/.solos/secrets" \
+      'Logs' "$(__bashrc__fn__users_home_dir)/.solos/logs" \
+      'Captured notes and stdout' "$(__bashrc__fn__users_home_dir)/.solos/rag" \
+      'Host <=> Container relay' "$(__bashrc__fn__users_home_dir)/.solos/relay" \
+      'Store' "$(__bashrc__fn__users_home_dir)/.solos/store"
   )
   
 $(
     __table_outputs__fn__format \
-      "ENV_PROPERTY,VALUE" \
+      "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
-      "Working Dir" "${PWD}" \
-      "Home Dir" "${HOME}" \
+      "Working Dir" "${PWD/#${HOME}/$(__bashrc__fn__users_home_dir)}" \
       "Bash Version" "${BASH_VERSION}" \
-      "OS Distro" "$(lsb_release -d | cut -f2)" \
+      "Container OS" "$(lsb_release -d | cut -f2)" \
       "SolOS Source Code" "https://github.com/interbolt/solos"
+  )
+
+$(
+    __table_outputs__fn__format \
+      "LEGEND_KEY,LEGEND_DESCRIPTION" \
+      "PATH_COMMAND" "Commands that are available in the container's PATH (meaning any bash script can use them). All path commands end in '_solos' to avoid conflicts and are defined at \`~/.solos/src/path-commands\`." \
+      "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
+      "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
+      "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell."
   )
 EOF
 }
@@ -121,12 +140,13 @@ __bashrc__fn__print_welcome_manual() {
   local asci_welcome_to_solos_art=$(
     cat <<EOF
     
- .-.      . .--.  .-. 
-(   )     |:    :(   )
- \`-.  .-. ||    | \`-. 
-(   )(   )|:    ;(   )
- \`-'  \`-' \`-\`--'  \`-' 
-                      
+   _____       _  ____   _____ 
+  / ____|     | |/ __ \ / ____|
+ | (___   ___ | | |  | | (___  
+  \___ \ / _ \| | |  | |\___ \ 
+  ____) | (_) | | |__| |____) |
+ |_____/ \___/|_|\____/|_____/ 
+                               
 EOF
   )
 

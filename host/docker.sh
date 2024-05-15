@@ -38,7 +38,7 @@ __docker__fn__destroy() {
 }
 __docker__fn__symlinks() {
   __docker__fn__exec_command rm -rf /usr/local/bin/*_solos
-  for solos_bin_file in "${HOME}/.solos/src/bins"/*; do
+  for solos_bin_file in "${HOME}/.solos/src/path-commands"/*; do
     local container_usr_bin_local_file="${solos_bin_file/#$HOME//root}"
     if [[ -f ${solos_bin_file} ]]; then
       chmod +x "${solos_bin_file}"
