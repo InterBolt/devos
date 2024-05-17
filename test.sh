@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 
-# # do something 10 times
-# for i in {1..10}; do
-#   echo "Hello, world! ${i}"
-#   sleep 1
-# done
+tmp_stdout=$(mktemp)
+tmp_stderr=$(mktemp)
+
+{
+  exec > >(tee -a ${tmp_stdout}) 2> >(tee -a ${tmp_stderr} >&2)
+  eval 'echo "Hello, World!" >&2'
+} | cat
+
+echo "CATTING"
+cat ${tmp_stdout}
+echo "CATTING"
+cat ${tmp_stderr}

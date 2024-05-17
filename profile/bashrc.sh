@@ -99,7 +99,8 @@ $(
       solos "$(solos --help | __bashrc__fn__extract_help_description)" \
       gh_token "$(gh_token --help | __bashrc__fn__extract_help_description)" \
       gh_email "$(gh_email --help | __bashrc__fn__extract_help_description)" \
-      gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)"
+      gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)" \
+      '-' "Runs its arguments as a command and avoids all rag-related stdout tracking."
   )
   
 $(
@@ -230,60 +231,99 @@ __bashrc__fn__preeexec_app_context() {
   return 0
 }
 
-__bashrc__var__curr_trap="INIT"
-__bashrc__fn__prevent_exec() {
-  if [[ ${__bashrc__var__curr_trap} = "INIT" ]]; then
-    return 0
-  fi
-  eval "${__bashrc__var__curr_trap}"
-  return 1
+do_processing() {
+  local captured_stdout_file="${HOME}/.solos/rag/.captured_stdout"
+  local captured_stderr_file="${HOME}/.solos/rag/.captured_stderr"
+  local captured_cmd_file="${HOME}/.solos/rag/.captured_cmd"
+  local captured_rag_stdout_file="${HOME}/.solos/rag/.captured_rag_stdout"
+  local captured_rag_stderr_file="${HOME}/.solos/rag/.captured_rag_stderr"
+
+  echo "CATTING ${captured_stdout_file}"
+  cat "${captured_stdout_file}"
+  echo "CATTING ${captured_stderr_file}"
+  cat "${captured_stderr_file}"
+  echo "CATTING ${captured_cmd_file}"
+  cat "${captured_cmd_file}"
+  echo "CATTING ${captured_rag_stdout_file}"
+  cat "${captured_rag_stdout_file}"
+  echo "CATTING ${captured_rag_stderr_file}"
+  cat "${captured_rag_stderr_file}"
+  echo "DONE CATTING"
 }
+
 __bashrc__fn__preexec_shell() {
-  __bashrc__var__curr_trap=$(trap -p DEBUG)
   local cmd="${*}"
   if [[ ${cmd} = "exit" ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
   if [[ ${cmd} = "host "* ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
   if [[ ${cmd} = "cd "* ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
+  fi
+  if [[ ${cmd} = "- "* ]]; then
+    eval ''"${cmd/- /}"''
+    return $?
   fi
   if [[ ${cmd} = "cd" ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
   if [[ ${cmd} = "clear" ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
   if [[ ${cmd} = "rag captured" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/captured.log")"
     code -g "${HOME}/.solos/rag/captured:${line_count}"
-    trap '__bashrc__fn__prevent_exec' DEBUG
-    return 1
+    return $?
   fi
   if [[ ${cmd} = "rag notes" ]]; then
     local line_count="$(wc -l <"${HOME}/.solos/rag/notes.log")"
     code -g "${HOME}/.solos/rag/notes:${line_count}"
-    trap '__bashrc__fn__prevent_exec' DEBUG
-    return 1
+    return $?
   fi
   if [[ ${cmd} = "code "* ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
   if [[ ${cmd} = "rag "* ]]; then
-    return 0
+    eval "${cmd}"
+    return $?
   fi
-  rag --captured-only ''"${cmd}"''
-  trap '__bashrc__fn__prevent_exec' DEBUG
-  return 1
+  local return_code=0
+  {
+    local captured_stdout_file="${HOME}/.solos/rag/.captured_stdout"
+    local captured_stderr_file="${HOME}/.solos/rag/.captured_stderr"
+    local captured_cmd_file="${HOME}/.solos/rag/.captured_cmd"
+    local captured_rag_stdout_file="${HOME}/.solos/rag/.captured_rag_stdout"
+    local captured_rag_stderr_file="${HOME}/.solos/rag/.captured_rag_stderr"
+    rm -f \
+      "${captured_stdout_file}" \
+      "${captured_stderr_file}" \
+      "${captured_cmd_file}" \
+      "${captured_rag_stdout_file}" \
+      "${captured_rag_stderr_file}"
+    echo "${cmd}" >"${captured_cmd_file}"
+    exec \
+      > >(tee >(grep "^\[RAG\]" >>"${captured_rag_stdout_file}") "${captured_stdout_file}") \
+      2> >(tee >(grep "^\[RAG\]" >>"${captured_rag_stderr_file}") "${captured_stderr_file}" >&2)
+    eval "${cmd}"
+    return_code=$?
+  } | cat
+
+  return ${return_code}
 }
 
 __bashrc__fn__main() {
   # Handle the case where this rcfile is sourced from an app context.
   while [[ $# -gt 0 ]]; do
     if [[ ${1} = "--with-app-context" ]]; then
-      preexec_functions+=("__bashrc__fn__preeexec_app_context")
+      preexec=__bashrc__fn__preeexec_app_context
       exit 0
     fi
   done
@@ -291,7 +331,8 @@ __bashrc__fn__main() {
   __bashrc__fn__ide_shell
   # Add preeval logic which will ensure that the stdout lines starting with [RAG] are captured.
   # A few things like cd, exit, and host commands are ignored.
-  preexec_functions+=("__bashrc__fn__preexec_shell")
+  preexec=__bashrc__fn__preexec_shell
+  __bash_preexec__fn__main
 }
 
 # Public stuff
@@ -420,3 +461,8 @@ EOF
 }
 
 __bashrc__fn__main "$@"
+
+# read and intercept every command before it is executed
+
+# set -x
+# set -v

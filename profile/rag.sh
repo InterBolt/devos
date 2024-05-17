@@ -249,12 +249,10 @@ __rag__fn__main() {
     mv "${jq_output_file}.tmp" "${jq_output_file}"
     jq '.cmd_stderr = '"$(cat "${tmp_stderr_file}" | jq -R -s '.')"'' "${jq_output_file}" >"${jq_output_file}.tmp"
     mv "${jq_output_file}.tmp" "${jq_output_file}"
-    if [[ ${opt_captured_only} = false ]]; then
-      local note_post="$(gum_bin input --placeholder "Post-run note:" || echo "${__rag__var__sigexit}")"
-      if [[ ${note_post} != "${__rag__var__sigexit}" ]]; then
-        jq '.note_post = '"$(echo "${note_post}" | jq -R -s '.')"'' "${jq_output_file}" >"${jq_output_file}.tmp"
-        mv "${jq_output_file}.tmp" "${jq_output_file}"
-      fi
+    local note_post="$(gum_bin input --placeholder "Post-run note:" || echo "${__rag__var__sigexit}")"
+    if [[ ${note_post} != "${__rag__var__sigexit}" ]]; then
+      jq '.note_post = '"$(echo "${note_post}" | jq -R -s '.')"'' "${jq_output_file}" >"${jq_output_file}.tmp"
+      mv "${jq_output_file}.tmp" "${jq_output_file}"
     fi
   fi
   if [[ -z ${__rag__var__prev_exit_trap} ]]; then
