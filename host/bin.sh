@@ -26,11 +26,9 @@ __bin__fn__main() {
     fi
   done
   if [[ $# -eq 0 ]]; then
-    if [[ -z ${curr_project} ]]; then
-      echo "No project is currently checked out."
-      exit 1
+    if [[ -n ${curr_project} ]]; then
+      __bin__fn__run checkout "${restricted_flags[@]}" --project="${curr_project}"
     fi
-    __bin__fn__run checkout "${restricted_flags[@]}" --project="${curr_project}"
   else
     local next_project="$(
       head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
