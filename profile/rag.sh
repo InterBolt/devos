@@ -53,7 +53,6 @@ __rag__fn__init_fs() {
 
 __rag__fn__save_output() {
   local tmp_jq_output_file="$1"
-  mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
   jq -c '.' <"${tmp_jq_output_file}" >>"${__rag__var__logs_dir}/commands.log"
   rm -f "${tmp_jq_output_file}"
   rm -rf "${__rag__var__tmp_dir}"
