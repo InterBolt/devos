@@ -9,17 +9,6 @@ cmd.checkout() {
     mkdir -p "${HOME}/.solos/projects"
     log_info "No projects found. Creating ~/.solos/projects directory."
   fi
-  local install_file="${HOME}/.solos/projects/${vPROJECT_NAME}/install.sh"
-  if [[ -f ${install_file} ]]; then
-    chmod +x ${install_file}
-    "${install_file}"
-  else
-    cat <<EOF >"${install_file}"
-#!/usr/bin/env bash
-EOF
-    log_info "${vPROJECT_NAME} - Created the project's install.sh file: ${install_file//${HOME}/\~}"
-  fi
-  log_info "${vPROJECT_NAME} - Installed project."
   # If the project dir exists, let's assume it was setup ok.
   # We'll use a tmp dir to build up the files so that unexpected errors
   # won't result in a partial project dir.
