@@ -58,6 +58,54 @@ __rag__fn__save_output() {
   rm -rf "${__rag__var__tmp_dir}"
 }
 
+# Rules:
+# - return 1 = execute the command while capturing everything
+# - return 0 = execute the command without capturing anything
+# - return 150 = we ran the command as is
+# - return 151 = the preexec script failed before we could run the command
+__rag__fn__preexec() {
+  local prompt="${1}"
+
+  # When the '- ' prefix is supplied in the SolOS shell prompt,
+  # it means we want to avoid any and all preexec logic and run the thing as is
+  # TODO: fix - doesn't this mask the true error code of the command?
+  if [[ ${prompt} = "- "* ]]; then
+    prompt="$(echo "${prompt}" | xargs | cut -d' ' -f2-)"
+    eval "${prompt}"
+    return 150
+  fi
+
+  # We have a list of commands (might need to add lots more idk) that we know
+  # should never be captured, tracked, logged, you name it. Run them as is.
+  # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
+  # Important: if a pipe operator exists, all bets are off and we assume that we
+  # want to capture the output.
+  for opt_out in "${__bashrc__var__preexec_dont_track_or_fuck_with_these[@]}"; do
+    if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
+      if [[ ${prompt} = *"|"* ]]; then
+        break
+      fi
+      return 0
+    fi
+  done
+
+  local preexec_scripts=()
+  local next_dir="${PWD}"
+  while [[ ${next_dir} != "${HOME}/.solos" ]]; do
+    if [[ -f "${next_dir}/solos.exec.sh" ]]; then
+      preexec_scripts=("${next_dir}/solos.exec.sh" "${preexec_scripts[@]}")
+    fi
+    next_dir="$(dirname "${next_dir}")"
+  done
+  for preexec_script in "${preexec_scripts[@]}"; do
+    if ! "${preexec_script}"; then
+      return 151
+    fi
+  done
+
+  return 1
+}
+
 __rag__fn__digest() {
   local user_note="${1:-""}"
   local user_tag="${2:-""}"
@@ -171,13 +219,25 @@ __rag__fn__trap() {
     # Reminder: in the vast majority of cases, we expect already_returned_code to be
     # empty and the prompt to be run by rag.
     local already_returned_code=""
-    if preexec "${prompt}"; then
+    local preexecs=()
+    if [[ ! -z "${user_preexecs:-}" ]]; then
+      preexecs=("${user_preexecs[@]}")
+    fi
+    if [[ -n ${preexecs[@]} ]]; then
+      for preexec_fn in "${preexecs[@]}"; do
+        if ! "${preexec_fn}" "${prompt}"; then
+          already_returned_code="1"
+          break
+        fi
+      done
+    fi
+    if __rag__fn__preexec "${prompt}"; then
       eval "${prompt}"
       already_returned_code="${?}"
     else
       local preexec_return="${?}"
       if [[ ${preexec_return} = "151" ]]; then
-        echo "Aborting command execution due to failed preexec(s)" >&2
+        echo "Aborting command execution due to failed internal preexec" >&2
         already_returned_code="1"
       elif [[ ${preexec_return} = "150" ]]; then
         already_returned_code="0"

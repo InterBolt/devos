@@ -129,6 +129,9 @@ $(
       gh_token "$(gh_token --help | __bashrc__fn__extract_help_description)" \
       gh_email "$(gh_email --help | __bashrc__fn__extract_help_description)" \
       gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)" \
+      preexec_list "$(preexec_list --help | __bashrc__fn__extract_help_description)" \
+      preexec_add "$(preexec_add --help | __bashrc__fn__extract_help_description)" \
+      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking."
   )
   
@@ -242,6 +245,8 @@ __bashrc__fn__install() {
 }
 
 # Public stuff
+user_preexecs=()
+
 rag() {
   __rag__fn__main "$@"
 }
@@ -366,56 +371,69 @@ EOF
   echo ""
 }
 
-# Rules:
-# - return 1 = execute the command while capturing everything
-# - return 0 = execute the command without capturing anything
-# - return 150 = we ran the command as is
-# - return 151 = the preexec script failed before we could run the command
-preexec() {
-  local prompt="${1}"
-  local entry_pwd="${PWD}"
+preexec_list() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: preexec_list
 
-  # When the '- ' prefix is supplied in the SolOS shell prompt,
-  # it means we want to avoid any and all preexec logic and run the thing as is
-  # TODO: fix - doesn't this mask the true error code of the command?
-  if [[ ${prompt} = "- "* ]]; then
-    prompt="$(echo "${prompt}" | xargs | cut -d' ' -f2-)"
-    eval "${prompt}"
-    return 150
+DESCRIPTION:
+
+List all user-defined preexec functions.
+
+EOF
+    return 0
   fi
-
-  # We have a list of commands (might need to add lots more idk) that we know
-  # should never be captured, tracked, logged, you name it. Run them as is.
-  # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
-  # Important: if a pipe operator exists, all bets are off and we assume that we
-  # want to capture the output.
-  for opt_out in "${__bashrc__var__preexec_dont_track_or_fuck_with_these[@]}"; do
-    if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
-      if [[ ${prompt} = *"|"* ]]; then
-        break
-      fi
-      return 0
-    fi
-  done
-
-  # It doesn't really makes sense to run preexec scripts for commands in which
-  # we also know we never want to capture stuff with.
-  local preexec_scripts=()
-  local next_dir="${PWD}"
-  while [[ ${next_dir} != "${HOME}/.solos" ]]; do
-    if [[ -f "${next_dir}/solos.exec.sh" ]]; then
-      preexec_scripts=("${next_dir}/solos.exec.sh" "${preexec_scripts[@]}")
-    fi
-    next_dir="$(dirname "${next_dir}")"
-  done
-  for preexec_script in "${preexec_scripts[@]}"; do
-    if ! "${preexec_script}"; then
-      return 151
-    fi
-  done
-
-  return 1
+  echo "${user_preexecs[@]}"
 }
 
-__bashrc__fn__install
-__rag__fn__install
+preexec_add() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: preexec_add <function_name>
+
+DESCRIPTION:
+
+Add a user-defined preexec function.
+EOF
+    return 0
+  fi
+  local fn="${1}"
+  if [[ -z ${fn} ]]; then
+    echo "preexec: missing function name" >&2
+    return 1
+  fi
+  if ! declare -f "${fn}" >/dev/null; then
+    echo "preexec: function '${fn}' not found" >&2
+    return 1
+  fi
+  if [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+    echo "preexec: function '${fn}' already exists in user_preexecs" >&2
+    return 1
+  fi
+  user_preexecs+=("${fn}")
+}
+
+preexec_remove() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: preexec_remove <function_name>
+
+DESCRIPTION:
+
+Remove a user-defined preexec function.
+
+EOF
+    return 0
+  fi
+  local fn="${1}"
+  if [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+    echo "Invalid usage: preexec: function '${fn}' not found in user_preexecs" >&2
+    return 1
+  fi
+  user_preexecs=("${user_preexecs[@]/${fn}/}")
+}
+
+install_solos() {
+  __bashrc__fn__install
+  __rag__fn__install
+}

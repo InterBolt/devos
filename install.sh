@@ -45,6 +45,9 @@ __fn__init_fs() {
 
 # Add your customizations to the SolOS shell:
 # Tip: type \`man\` in the shell to see what functions and aliases are available.
+
+# Enable SolOS:
+install_solos
 EOF
   fi
   if [[ "${src_dir}" != "${HOME}/"*"/"* ]]; then

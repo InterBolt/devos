@@ -143,19 +143,104 @@ shopt -s extdebug
 
 # printf "\x00\x01\x02\x03\x04" >/root/.solos/binary_file.bin
 
-preexec() {
-  return "${1}"
-}
+# preexec() {
+#   return "${1}"
+# }
 
-some_fn() {
-  local prompt="${1}"
-  if [[ ${prompt} = *"|"* ]]; then
-    echo "pipe"
-  else
-    echo "no pipe"
-  fi
-}
+# some_fn() {
+#   local prompt="${1}"
+#   if [[ ${prompt} = *"|"* ]]; then
+#     echo "pipe"
+#   else
+#     echo "no pipe"
+#   fi
+# }
 
-some_fn "hello"
-some_fn "- hello"
-some_fn "- hello | alskdjf"
+# some_fn "hello"
+# some_fn "- hello"
+# some_fn "- hello | alskdjf"
+
+# preexec_list() {
+#   echo "${user_preexecs[@]}"
+# }
+
+# preexec_add() {
+#   local fn="${1}"
+#   if [[ -z ${fn} ]]; then
+#     echo "preexec: missing function name" >&2
+#     return 1
+#   fi
+#   if ! declare -f "${fn}" >/dev/null; then
+#     echo "preexec: function '${fn}' not found" >&2
+#     return 1
+#   fi
+#   if [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+#     echo "preexec: function '${fn}' already exists in user_preexecs" >&2
+#     return 1
+#   fi
+#   user_preexecs+=("${fn}")
+# }
+
+# preexec_remove() {
+#   local fn="${1}"
+#   if [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+#     echo "Invalid usage: preexec: function '${fn}' not found in user_preexecs" >&2
+#     return 1
+#   fi
+#   user_preexecs=("${user_preexecs[@]/${fn}/}")
+# }
+
+# some_fn() {
+#   echo "some_fn"
+# }
+
+# another_fn() {
+#   echo "another_fn"
+# }
+# set -x
+# # test various cases
+# user_preexecs=()
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_add 'some_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_add 'another_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_remove 'some_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_remove 'another_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_add 'some_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_add 'another_fn'
+# sleep .2
+# preexec_list
+# sleep .2
+# preexec_remove 'some_fn'
+# sleep .2
+# preexec_add 'another_fn'
+
+set -x
+
+nonexistentarr=('HEY_MAN')
+
+if [[ -z "${nonexistentarr:-}" ]]; then
+  preexecs=()
+else
+  preexecs=("${nonexistentarr[@]}")
+fi
+
+for fn_name in "${preexecs[@]}"; do
+  echo "fn_name - ${fn_name}"
+done
