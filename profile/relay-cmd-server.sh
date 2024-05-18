@@ -16,7 +16,7 @@ __relay_cmd_server__fn__listen() {
   while true; do
     local command=""
     if [[ -f "${command_file}" ]]; then
-      command="$(cat "${command_file}" | sed "s/\/root\//\$HOME\//g")"
+      command="$(cat "${command_file}" 2>/dev/null || echo "" | sed "s/\/root\//\$HOME\//g")"
     fi
     if [[ -n ${command} ]]; then
       eval ''"${command}"'' 1>"${stdout_file}" 2>"${stderr_file}"

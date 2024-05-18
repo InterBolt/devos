@@ -70,7 +70,7 @@ __rag__fn__preexec() {
   # it means we want to avoid any and all preexec logic and run the thing as is
   # TODO: fix - doesn't this mask the true error code of the command?
   if [[ ${prompt} = "- "* ]]; then
-    prompt="$(echo "${prompt}" | xargs | cut -d' ' -f2-)"
+    prompt="$(echo "${prompt}" | tr -s ' ' | cut -d' ' -f2-)"
     eval "${prompt}"
     return 150
   fi
@@ -88,12 +88,11 @@ __rag__fn__preexec() {
       return 0
     fi
   done
-
   local preexec_scripts=()
   local next_dir="${PWD}"
   while [[ ${next_dir} != "${HOME}/.solos" ]]; do
-    if [[ -f "${next_dir}/solos.exec.sh" ]]; then
-      preexec_scripts=("${next_dir}/solos.exec.sh" "${preexec_scripts[@]}")
+    if [[ -f "${next_dir}/solos.preexec.sh" ]]; then
+      preexec_scripts=("${next_dir}/solos.preexec.sh" "${preexec_scripts[@]}")
     fi
     next_dir="$(dirname "${next_dir}")"
   done
@@ -202,13 +201,39 @@ __rag__fn__run() {
 }
 
 __rag__fn__trap() {
-  if [[ "${BASH_COMMAND}" = "__rag__var__detected_grouped_commands=true" ]]; then
+  # We use the PROMPT_COMMAND to set a variable which will gate the trap logic for compound commands.
+  # Ie. cmd1 | cmd2 should not get captured for each command, but rather as a single command.
+  # We'll use the history command to determine the full prompt and then we'll eval it.
+  if [[ ${BASH_COMMAND} = "__rag__var__trap_gate_open=t" ]]; then
     return 0
   fi
-  if [[ -n "${__rag__var__detected_grouped_commands+set}" ]]; then
-    unset __rag__var__detected_grouped_commands
-    trap - DEBUG
-    local prompt="$(history 1 | xargs | cut -d' ' -f2-)"
+  # Ensure no recursive funkyness.
+  trap - DEBUG
+  # If the COMP_LINE is set, then we know that the user is in the middle of typing a command.
+  if [[ -n "${COMP_LINE}" ]]; then
+    trap '__rag__fn__trap' DEBUG
+    return 0
+  fi
+  # Will include the entire string we submitted to the shell prompt.
+  # Pipes, operators, and all.
+  local submitted_cmd_prompt="$(history 1 | tr -s " " | cut -d" " -f3-)"
+  # Anything that we prefix with '- ' should skip all the RAG logic.
+  if [[ ${submitted_cmd_prompt} = "- "* ]]; then
+    unset __rag__var__trap_gate_open
+    eval "$(echo "${submitted_cmd_prompt}" | tr -s ' ' | cut -d' ' -f2-)"
+    trap '__rag__fn__trap' DEBUG
+    return 1
+  fi
+  # When the gate is set, we proceed. We do this because when we enter a prompt like this:
+  # ls | grep "foo" | less, we would normally hit this trap function 3 times, one for each command.
+  # But what we really want is to hit the trap once for all the piped commands and execute them all
+  # at once so that we can intelligently capture the output of the total command.
+  if [[ -n "${__rag__var__trap_gate_open+set}" ]]; then
+    # So using the example above, when we issue the command `ls | grep "foo" | less`, the "ls"
+    # command will hit this first. By immediately setting the gate to false, we ensure that when the
+    # grep and less commands hit this trap function, we'll skip them.
+    unset __rag__var__trap_gate_open
+
     # The rules for the preexec return code:
     # 0: the rag trap will immediately eval the prompt as is and avoid all tracking/capture logic.
     # 1: pass the prompt to the rag function for execution and output capturing.
@@ -218,6 +243,8 @@ __rag__fn__trap() {
     #
     # Reminder: in the vast majority of cases, we expect already_returned_code to be
     # empty and the prompt to be run by rag.
+
+    # Perform any preexec functions that the user has defined.
     local already_returned_code=""
     local preexecs=()
     if [[ ! -z "${user_preexecs:-}" ]]; then
@@ -225,14 +252,18 @@ __rag__fn__trap() {
     fi
     if [[ -n ${preexecs[@]} ]]; then
       for preexec_fn in "${preexecs[@]}"; do
-        if ! "${preexec_fn}" "${prompt}"; then
+        if ! "${preexec_fn}" "${submitted_cmd_prompt}"; then
           already_returned_code="1"
           break
         fi
       done
     fi
-    if __rag__fn__preexec "${prompt}"; then
-      eval "${prompt}"
+
+    # Perform the internal preexec logic which walks up the directory tree starting at
+    # the PWD and looks for a `solos.preexec.sh` file. It will then run each script from
+    # the highest directory to the lowest.
+    if __rag__fn__preexec "${submitted_cmd_prompt}"; then
+      eval "${submitted_cmd_prompt}"
       already_returned_code="${?}"
     else
       local preexec_return="${?}"
@@ -246,17 +277,24 @@ __rag__fn__trap() {
         already_returned_code="1"
       fi
     fi
+
+    # If we set already_returned_code to any value that's our way of saying, "hey something happened
+    # so don't actually run the command." Think pre-exec failures, commands that opt-out of tracking,
+    # etc.
     if [[ -z "${already_returned_code}" ]]; then
-      __rag__fn__run "${prompt}"
+      __rag__fn__run "${submitted_cmd_prompt}"
     fi
-    trap '__rag__fn__trap' DEBUG
   fi
+
+  # Finally reset the trap since we're all done and make sure the original command
+  # that was trapped is skipped.
+  trap '__rag__fn__trap' DEBUG
   return 1
 }
 
 __rag__fn__install() {
   __rag__fn__init_fs
-  PROMPT_COMMAND='__rag__var__detected_grouped_commands=true'
+  PROMPT_COMMAND='__rag__var__trap_gate_open=t'
   trap '__rag__fn__trap' DEBUG
 }
 

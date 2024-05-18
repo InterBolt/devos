@@ -77,6 +77,7 @@ __bashrc__fn__bash_completions() {
   }
   complete -F _custom_command_completions rag
   complete -F _custom_command_completions host
+  complete -F _custom_command_completions '-'
 }
 
 __bashrc__fn__host() {
@@ -122,6 +123,7 @@ $(
 $(
     __table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
+      '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
       rag "$(rag --help | __bashrc__fn__extract_help_description)" \
       host "$(host --help | __bashrc__fn__extract_help_description)" \
       solos "$(solos --help | __bashrc__fn__extract_help_description)" \
@@ -130,8 +132,7 @@ $(
       gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)" \
       preexec_list "$(preexec_list --help | __bashrc__fn__extract_help_description)" \
       preexec_add "$(preexec_add --help | __bashrc__fn__extract_help_description)" \
-      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)" \
-      '-' "Runs its arguments as a command and avoids all rag-related stdout tracking."
+      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)"
   )
   
 $(
@@ -238,7 +239,6 @@ __bashrc__fn__install() {
     done
   fi
   __bashrc__fn__print_welcome_manual
-  # Bash completions and custom completions for prefix commands like "rag".
   __bashrc__fn__bash_completions
 }
 
