@@ -5,7 +5,6 @@ shopt -s extdebug
 . "${HOME}/.solos/src/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 . "${HOME}/.solos/src/profile/rag.sh" || exit 1
-. "${HOME}/.solos/src/profile/bash-preexec.sh" || exit 1
 . "${HOME}/.solos/src/profile/table-outputs.sh" || exit 1
 
 # READ BEFORE EDITING:
@@ -143,7 +142,6 @@ $(
       'Secrets' "$(__bashrc__fn__users_home_dir)/.solos/secrets" \
       'Logs' "$(__bashrc__fn__users_home_dir)/.solos/logs" \
       'Captured notes and stdout' "$(__bashrc__fn__users_home_dir)/.solos/rag" \
-      'Host <=> Container relay' "$(__bashrc__fn__users_home_dir)/.solos/relay" \
       'Store' "$(__bashrc__fn__users_home_dir)/.solos/store"
   )
   
@@ -370,7 +368,6 @@ EOF
   __bashrc__fn__print_man
   echo ""
 }
-
 preexec_list() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
@@ -385,7 +382,6 @@ EOF
   fi
   echo "${user_preexecs[@]}"
 }
-
 preexec_add() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
@@ -412,7 +408,6 @@ EOF
   fi
   user_preexecs+=("${fn}")
 }
-
 preexec_remove() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
@@ -432,7 +427,6 @@ EOF
   fi
   user_preexecs=("${user_preexecs[@]/${fn}/}")
 }
-
 install_solos() {
   __bashrc__fn__install
   __rag__fn__install
