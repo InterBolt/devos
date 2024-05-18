@@ -21,8 +21,7 @@ RUN apt-get update \
   wget \
   openssh-server \
   sudo \
-  tree \
-  strace
+  tree
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \

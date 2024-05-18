@@ -48,9 +48,6 @@ cmd.app._init() {
   cat <<EOF >"${tmp_app_dir}/solos.preexec.sh"
 #!/usr/bin/env bash
 
-# Type \`man\` in your SolOS shell to see a list of commands available to you.
-. "${HOME}/.solos/.bashrc" --with-app-context || exit 1
-
 #########################################################################################################
 ## This script is executed prior to any command run in the SolOS's shell when in the context of this app.
 ## Do things like check for dependencies, set environment variables, etc.
