@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+shopt -s extdebug
+
 __rag__var__sigexit='SOLOS:EXIT:1'
 __rag__var__dir="${HOME}/.solos/rag"
 __rag__var__config_dir="${__rag__var__dir}/config"

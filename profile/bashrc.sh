@@ -372,7 +372,6 @@ EOF
 # - return 150 = we ran the command as is
 # - return 151 = the preexec script failed before we could run the command
 preexec() {
-  # set -x
   local prompt="${1}"
   local entry_pwd="${PWD}"
 
