@@ -46,7 +46,7 @@ EOF
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"
-  cp launch/solos.code-workspace "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
+  cp launchfiles/solos.code-workspace "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
   if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
     cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
     log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
