@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-vSELF_PKG_GUM_PKG_DIR="$(dirname "$0")"
+vSELF_PKG_GUM_PKG_DIR="${HOME}/.solos/src/pkgs/gum"
 vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"
 
 __gum__fn__get_release_file() {

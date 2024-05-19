@@ -1,5 +1,0 @@
-trap - DEBUG;
-__rag__var__trap_gate_open=t
-unset __rag__var__history_count_from_prompt_command
-__rag__var__history_count_from_prompt_command="$(history 1 | tr -s " " | cut -d" " -f2)"
-trap __rag__fn__trap DEBUG

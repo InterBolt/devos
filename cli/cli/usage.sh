@@ -7,7 +7,7 @@ vSELF_CLI_USAGE_ALLOWS_OPTIONS=()
 
 cli.usage.help() {
   cat <<EOF
-USAGE: solos command [--OPTS...]
+USAGE: solos <command> <args..> [--OPTS...]
 
 DESCRIPTION:
 
@@ -34,16 +34,12 @@ EOF
 }
 cli.usage.command.checkout.help() {
   cat <<EOF
-USAGE: solos checkout [--OPTS...]
+USAGE: solos checkout <project> [--OPTS...]
 
 DESCRIPTION:
 
-Creates a new project if one doesn't exist and then switches to it. The value \
-provided to --project is cache and used as the default project for future commands.
-
-${vSELF_CLI_USAGE_OPTS_HEADER}
-
---project           - The name of of your project. Will result in a new project at ~/.solos/projects/<project>.
+Creates a new project if one doesn't exist and then switches to it. The project name \
+is cached in the CLI so that all future commands operate against it. Think git checkout.
 
 EOF
 }

@@ -37,7 +37,6 @@ fi
 . "${HOME}/.solos/src/cli/cli/usage.sh"
 . "${HOME}/.solos/src/cli/cli/parse.sh"
 . "${HOME}/.solos/src/cli/provisioners/vultr.sh"
-. "${HOME}/.solos/src/cli/libs/docker.sh"
 . "${HOME}/.solos/src/cli/libs/store.sh"
 . "${HOME}/.solos/src/cli/libs/ssh.sh"
 . "${HOME}/.solos/src/cli/libs/utils.sh"
@@ -78,21 +77,9 @@ solos.ingest_main_options() {
   for i in "${!vCLI_OPTIONS[@]}"; do
     case "${vCLI_OPTIONS[$i]}" in
     argv1=*)
-      if [[ ${vCLI_CMD} = "app" ]]; then
+      if [[ ${vCLI_CMD} = "app" ]] || [[ ${vCLI_CMD} = "checkout" ]]; then
         vPROJECT_APP="${vCLI_OPTIONS[$i]#*=}"
       fi
-      ;;
-    project=*)
-      if [[ ${vCLI_CMD} != "checkout" ]]; then
-        log_error "The --project flag is only valid for the 'checkout' command."
-        exit 1
-      fi
-      val="${vCLI_OPTIONS[$i]#*=}"
-      if [[ ! "${val}" =~ ^[a-z_-]*$ ]]; then
-        log_error 'Invalid project name: '"${val}"'. Can only contain lowercase letters, underscores, and hyphens.'
-        exit 1
-      fi
-      vPROJECT_NAME="${val}"
       ;;
     esac
   done

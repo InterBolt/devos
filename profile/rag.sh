@@ -2,6 +2,8 @@
 
 shopt -s extdebug
 
+trap 'trap "__rag__fn__trap" DEBUG' SIGINT
+
 __rag__var__sigexit='SOLOS:EXIT:1'
 __rag__var__dir="${HOME}/.solos/rag"
 __rag__var__config_dir="${__rag__var__dir}/config"
@@ -188,12 +190,14 @@ __rag__fn__run() {
       "${stderr_captured_file}"
     echo "${return_code}" >"${exit_code_file}"
     echo "${cmd}" >"${cmd_file}"
+    exec 3>&1 4>&2
     exec \
       > >(tee >(grep "^\[RAG\]" >>"${stdout_captured_file}") "${stdout_file}") \
       2> >(tee >(grep "^\[RAG\]" >>"${stderr_captured_file}") "${stderr_file}" >&2)
-    eval "${1}"
+    eval "${cmd}" >&3 2>&4
     return_code="${?}"
     echo "${return_code}" >"${exit_code_file}"
+    exec 3>&- 4>&-
   } | cat
   shift
   __rag__fn__digest "$@"
@@ -201,6 +205,7 @@ __rag__fn__run() {
 }
 
 __rag__fn__trap() {
+  # when the user spams control-c make sure we reset the trap
   # We use the PROMPT_COMMAND to set a variable which will gate the trap logic for compound commands.
   # Ie. cmd1 | cmd2 should not get captured for each command, but rather as a single command.
   # We'll use the history command to determine the full prompt and then we'll eval it.
