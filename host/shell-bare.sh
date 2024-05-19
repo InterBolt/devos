@@ -2,4 +2,4 @@
 
 . "${HOME}/.solos/src/host/docker.sh"
 
-__docker__fn__shell "${HOME}/.solos/.bashrc"
+__docker__fn__shell

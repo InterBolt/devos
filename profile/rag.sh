@@ -111,8 +111,9 @@ __rag__fn__preexec() {
 }
 
 __rag__fn__digest() {
-  local user_note="${1:-""}"
-  local user_tag="${2:-""}"
+  local rag_id="${1:-""}"
+  local user_note="${2:-""}"
+  local user_tag="${3:-""}"
   local should_collect_post_note="${3:-false}"
 
   local stdout_file="${__rag__var__tmp_dir}/.stdout"
@@ -123,7 +124,6 @@ __rag__fn__digest() {
   local stderr_captured_file="${__rag__var__tmp_dir}/.stderr_captured"
 
   local tmp_jq_output_file="$(mktemp)"
-  local rag_id="$(date +%s%N)"
   echo '{
     "id": "'"${rag_id}"'",
     "date": "'"$(date)"'"
@@ -178,8 +178,10 @@ __rag__fn__run() {
   local exit_code_file="${__rag__var__tmp_dir}/.exit_code"
   local stdout_captured_file="${__rag__var__tmp_dir}/.stdout_captured"
   local stderr_captured_file="${__rag__var__tmp_dir}/.stderr_captured"
+  local rag_id="$(date +%s%N)"
   local return_code=1
   {
+    local tty_descriptor="$(tty)"
     rm -f \
       "${stdout_file}" \
       "${stderr_file}" \
@@ -193,17 +195,17 @@ __rag__fn__run() {
       "${stderr_captured_file}"
     echo "${return_code}" >"${exit_code_file}"
     echo "${cmd}" >"${cmd_file}"
-    exec 3>&1 4>&2
     exec \
-      > >(tee >(grep "^\[RAG\]" >>"${stdout_captured_file}") "${stdout_file}") \
-      2> >(tee >(grep "^\[RAG\]" >>"${stderr_captured_file}") "${stderr_file}" >&2)
-    eval "${cmd}" >&3 2>&4
+      > >(tee >(grep "^\[RAG\]" >>"${stdout_captured_file}" >/dev/null) "${stdout_file}") \
+      2> >(tee >(grep "^\[RAG\]" >>"${stderr_captured_file}" >/dev/null) "${stderr_file}" >&2)
+    # Bind the command to the tty descriptor so that we can read from it.
+    # Important for commands that require user input.
+    eval "${cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
     return_code="${?}"
     echo "${return_code}" >"${exit_code_file}"
-    exec 3>&- 4>&-
   } | cat
   shift
-  __rag__fn__digest "$@"
+  __rag__fn__digest "${rag_id}" "$@"
   return ${return_code}
 }
 
@@ -270,20 +272,19 @@ __rag__fn__trap() {
     # Perform the internal preexec logic which walks up the directory tree starting at
     # the PWD and looks for a `solos.preexec.sh` file. It will then run each script from
     # the highest directory to the lowest.
-    if __rag__fn__preexec "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null; then
+    __rag__fn__preexec "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null
+    preexec_return="${PIPESTATUS[0]}"
+    if [[ ${preexec_return} -eq 0 ]]; then
       eval "${submitted_cmd_prompt}"
       already_returned_code="${?}"
-    else
-      local preexec_return="${?}"
-      if [[ ${preexec_return} = "151" ]]; then
-        echo "Aborting command execution due to failed internal preexec" >&2
-        already_returned_code="1"
-      elif [[ ${preexec_return} = "150" ]]; then
-        already_returned_code="0"
-      elif [[ ${preexec_return} != "1" ]]; then
-        echo "Unexpected error: preexec returned an unhandled code: ${preexec_return}" >&2
-        already_returned_code="1"
-      fi
+    elif [[ ${preexec_return} -eq 151 ]]; then
+      echo "Aborting command execution due to failed internal preexec" >&2
+      already_returned_code="1"
+    elif [[ ${preexec_return} -eq 150 ]]; then
+      already_returned_code="0"
+    elif [[ ${preexec_return} -ne 1 ]]; then
+      echo "Unexpected error: preexec returned an unhandled code: ${preexec_return}" >&2
+      already_returned_code="${preexec_return}"
     fi
 
     # If we set already_returned_code to any value that's our way of saying, "hey something happened

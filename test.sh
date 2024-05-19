@@ -1,52 +1,41 @@
 #!/usr/bin/env bash
 
-shopt -s extdebug
+# shopt -s extdebug
 
-gum_path="/root/.solos/src/pkgs/.installs/gum_0.13.0_Linux_x86_64/gum"
+# gum_path="/root/.solos/src/pkgs/.installs/gum_0.13.0_Linux_x86_64/gum"
 
-intercept_fn() {
-  trap - DEBUG
-  local stdout_captured_file="/tmp/stdout_captured_file"
-  local stderr_captured_file="/tmp/stderr_captured_file"
-  local stdout_file="/tmp/stdout_file"
-  local stderr_file="/tmp/stderr_file"
-  # despite the fact that we're running our command through a subshell, it should still be interactive and print correctly, including colors
-  {
-    exec \
-      > >(tee >(grep "^\[RAG\]" >>"${stdout_captured_file}") "${stdout_file}") \
-      2> >(tee >(grep "^\[RAG\]" >>"${stderr_captured_file}") "${stderr_file}" >&2)
-    eval "${BASH_COMMAND}"
-  }
-  trap 'intercept_fn' DEBUG
-  return 1
-}
+# another_func() {
+#   "${gum_path}" --help
+# }
 
-sleep 1
+# stdout_file="/tmp/stdout"
+# stderr_file="/tmp/stderr"
 
-gum_confirm_new_app() {
-  local project_name="$1"
-  local project_app="$2"
-  if "${gum_path}" confirm \
-    "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
-    --affirmative="Yes" \
-    --negative="No, exit without creating the app."; then
-    echo "true"
-  else
-    echo "false"
-  fi
-}
+# func() {
+#   local tty_descriptor="$(tty)"
+#   local cmd="${*}"
+#   # send tty output to stdout/err
+#   # exec 3<>"${tty_descriptor}" 4<>"${tty_descriptor}"
+#   {
 
-stdout_captured_file="/tmp/stdout_captured_file"
-stderr_captured_file="/tmp/stderr_captured_file"
-stdout_file="/tmp/stdout_file"
-stderr_file="/tmp/stderr_file"
-exit_code_file="/tmp/exit_code_file"
+#     # pass the output of tty_descriptor to stdout and stderr
 
-exec 3>&1 4>&2
-exec \
-  > >(tee "${stdout_file}") \
-  2> >(tee "${stderr_file}" >&2)
-"${gum_path}" confirm \
-  "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
-  --affirmative="Yes" \
-  --negative="No, exit without creating the app." >&3 2>&4
+#     # exec 1<>3 3<>"${tty_descriptor}" 2<>4 4<>"${tty_descriptor}"
+#     # exec > >(tee >(grep "^\[RAG\]" >/dev/null) "${stdout_file}") 2> >(tee >(grep "^\[RAG\]" >/dev/null) "${stderr_file}" >&2)
+#     exec \
+#       > >(tee "${stdout_file}") \
+#       2> >(tee "${stderr_file}" >&2)
+#     # we need the command to use the tty descriptor redirection and also send it's output to stdout/erro
+
+#     # read from tty_descriptor
+#     eval "${cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+#     # \
+#     #   > >(tee >(grep "^\[RAG\]" >/dev/null) "${stdout_file}" >&3) \
+#     #   2> >(tee >(grep "^\[RAG\]" >/dev/null) "${stderr_file}" >&4)
+
+#   } | cat
+# }
+
+# func 'another_func | grep "A tool"'
+
+# cat "${stdout_file}"

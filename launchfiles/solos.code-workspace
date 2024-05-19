@@ -1,6 +1,11 @@
 {
   "folders": [
     {
+      "name": "Source Code",
+      "uri": "__vUSERS_HOME_DIR__/.solos/src",
+      "profile": "minimal"
+    },
+    {
       "name": "__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
       "profile": "solos"
@@ -20,8 +25,8 @@
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
         "args": []
       },
-      "bash": {
-        "path": "/bin/bash",
+      "minimal": {
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell-bare.sh",
         "args": []
       },
       "zsh": null,

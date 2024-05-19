@@ -62,6 +62,7 @@ __docker__fn__test() {
   return 0
 }
 __docker__fn__exec_shell() {
+  local bashrc_file="${1:-""}"
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${__docker__var__installer_no_tty_flag} = true ]]; then
@@ -69,13 +70,22 @@ __docker__fn__exec_shell() {
   else
     args=(-it -w "${container_ctx}" "$(__docker__fn__hash)")
   fi
+  local bash_args=()
+  if [[ -n ${bashrc_file} ]]; then
+    if [[ ! -f ${bashrc_file} ]]; then
+      echo "The supplied bashrc file at ${bashrc_file} does not exist." >&2
+      sleep 10
+      exit 1
+    fi
+    local relative_bashrc_file="${bashrc_file/#$HOME/~}"
+    bash_args=(--rcfile "${relative_bashrc_file}")
+  fi
+
   local entry_dir="${PWD}"
-  local bashrc_path="${HOME}/.solos/.bashrc"
-  local relative_bashrc_path="${bashrc_path/#$HOME/~}"
   cd "${HOME}/.solos/src" || exit 1
   ./profile/relay-cmd-server.sh || exit 1
   cd "${entry_dir}" || exit 1
-  docker exec "${args[@]}" /bin/bash --rcfile "${relative_bashrc_path}" -i
+  docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
 __docker__fn__exec_command() {
   local container_ctx="${PWD/#$HOME//root}"
@@ -125,7 +135,7 @@ __docker__fn__build_and_run() {
 __docker__fn__shell() {
   if __docker__fn__test; then
     __docker__fn__symlinks
-    __docker__fn__exec_shell
+    __docker__fn__exec_shell "$@"
     return 0
   fi
   if ! __docker__fn__destroy; then
@@ -134,7 +144,7 @@ __docker__fn__shell() {
   fi
   __docker__fn__build_and_run
   __docker__fn__symlinks
-  __docker__fn__exec_shell
+  __docker__fn__exec_shell "$@"
 }
 __docker__fn__run() {
   if __docker__fn__test; then
