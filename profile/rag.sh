@@ -98,17 +98,14 @@ __rag__fn__preexec() {
     fi
     next_dir="$(dirname "${next_dir}")"
   done
-  exec 3>&1
-  exec 3>/dev/null
   for preexec_script in "${preexec_scripts[@]}"; do
-    # We want to display the preexec output, but we never want to include it
-    # in the final stdout/err streams because that could lead to unexpected ouutputs for
-    # other commands.
-    if ! "${preexec_script}" 2>&1 | tee >/dev/tty | cat - 1>&3; then
+    # Use tee to send stdout to the terminal and then process/supress the tee output
+    # using cat. The result is a visible output that does not affect stdout or stdout in
+    # unexpected ways.
+    if ! "${preexec_script}"; then
       return 151
     fi
   done
-  exec 3>&-
 
   return 1
 }
@@ -263,7 +260,7 @@ __rag__fn__trap() {
     fi
     if [[ -n ${preexecs[@]} ]]; then
       for preexec_fn in "${preexecs[@]}"; do
-        if ! "${preexec_fn}" "${submitted_cmd_prompt}"; then
+        if ! "${preexec_fn}" "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null; then
           already_returned_code="1"
           break
         fi
@@ -273,7 +270,7 @@ __rag__fn__trap() {
     # Perform the internal preexec logic which walks up the directory tree starting at
     # the PWD and looks for a `solos.preexec.sh` file. It will then run each script from
     # the highest directory to the lowest.
-    if __rag__fn__preexec "${submitted_cmd_prompt}"; then
+    if __rag__fn__preexec "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null; then
       eval "${submitted_cmd_prompt}"
       already_returned_code="${?}"
     else
