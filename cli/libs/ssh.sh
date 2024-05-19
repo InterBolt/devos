@@ -4,7 +4,13 @@ lib.ssh.project_command() {
   local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
   local cmd="$1"
   shift
-  ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null "$@" root@"${vPROJECT_IP}" "${cmd}"
+  ssh \
+    -i "${project_dir}/.ssh/id_rsa" \
+    -o StrictHostKeyChecking=no \
+    -o LogLevel=ERROR \
+    -o UserKnownHostsFile=/dev/null \
+    "$@" root@"${vPROJECT_IP}" \
+    "${cmd}"
 }
 
 lib.ssh.project_rsync_up() {
@@ -13,7 +19,15 @@ lib.ssh.project_rsync_up() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i ${project_dir}/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" "${source}" root@"${vPROJECT_IP}":"${target}"
+  rsync --checksum \
+    -a \
+    -e "ssh \
+    -i ${project_dir}/.ssh/id_rsa \
+    -o StrictHostKeyChecking=no \
+    -o LogLevel=ERROR \
+    -o UserKnownHostsFile=/dev/null" \
+    "$@" \
+    "${source}" root@"${vPROJECT_IP}":"${target}"
 }
 
 lib.ssh.project_rsync_down() {
@@ -22,7 +36,12 @@ lib.ssh.project_rsync_down() {
   shift
   local target="$2"
   shift
-  rsync --checksum -a -e "ssh -i ${project_dir}/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" "$@" root@"${vPROJECT_IP}":"${target}" "${source}"
+  rsync \
+    --checksum \
+    -a \
+    -e "ssh -i ${project_dir}/.ssh/id_rsa -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null" \
+    "$@" \
+    root@"${vPROJECT_IP}":"${target}" "${source}"
 }
 
 lib.ssh.project_cat_pubkey() {
@@ -117,9 +136,4 @@ lib.ssh.project_extract_project_ip() {
   else
     echo ""
   fi
-}
-
-lib.ssh.project_load_docker_image() {
-  local project_dir="${1:-"${HOME}/.solos/projects/${vPROJECT_NAME}"}"
-  ssh -i "${project_dir}/.ssh/id_rsa" -o StrictHostKeyChecking=no -o LogLevel=ERROR -o UserKnownHostsFile=/dev/null -C root@"${vPROJECT_IP}" 'docker load'
 }

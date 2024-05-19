@@ -98,11 +98,17 @@ __rag__fn__preexec() {
     fi
     next_dir="$(dirname "${next_dir}")"
   done
+  exec 3>&1
+  exec 3>/dev/null
   for preexec_script in "${preexec_scripts[@]}"; do
-    if ! "${preexec_script}"; then
+    # We want to display the preexec output, but we never want to include it
+    # in the final stdout/err streams because that could lead to unexpected ouutputs for
+    # other commands.
+    if ! "${preexec_script}" 2>&1 | tee >/dev/tty | cat - 1>&3; then
       return 151
     fi
   done
+  exec 3>&-
 
   return 1
 }

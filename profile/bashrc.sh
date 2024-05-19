@@ -348,10 +348,6 @@ solos() {
   local executable_path="${HOME}/.solos/src/cli/solos.sh"
   bash "${executable_path}" "$@"
 }
-dsolos() {
-  local executable_path="${HOME}/.solos/src/cli/solos.sh"
-  bash "${executable_path}" --restricted-developer "$@"
-}
 man() {
   if [[ "${1}" == "--help" ]]; then
     cat <<EOF

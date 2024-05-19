@@ -21,12 +21,10 @@ vPREV_NEXT_ARGS=()
 . "${HOME}/.solos/src/cli/misc/flag-parser.sh"
 
 misc.flag_parser.run \
-  --restricted-developer \
   --restricted-noop \
   "ARGS:" "$@"
 set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
-vRESTRICTED_MODE_DEVELOPER=${vPREV_RETURN[0]:-false}
-vRESTRICTED_MODE_NOOP=${vPREV_RETURN[1]:-false}
+vRESTRICTED_MODE_NOOP=${vPREV_RETURN[0]:-false}
 if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
   exit 0
 fi
@@ -73,7 +71,7 @@ vPROJECT_S3_ACCESS_KEY=""
 vPROJECT_S3_SECRET=""
 
 # The main user-facing options should get implemented here.
-solos.ingest_main_options() {
+solos.ingest_opts() {
   for i in "${!vCLI_OPTIONS[@]}"; do
     case "${vCLI_OPTIONS[$i]}" in
     argv1=*)
@@ -172,13 +170,7 @@ if ! command -v "cmd.${vCLI_CMD}" &>/dev/null; then
   exit 1
 fi
 
-# Assign the cli flag options to some of our global variables.
-# Seperate "main" from "test" options to not overwhelm the user
-# facing implementation.
-solos.ingest_main_options
-if [[ ${vCLI_CMD} = "test" ]]; then
-  solos.ingest_test_options
-fi
+solos.ingest_opts
 
 "cmd.${vCLI_CMD}" || true
 if [[ -n ${vPROJECT_NAME} ]]; then

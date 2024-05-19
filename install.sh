@@ -1,41 +1,32 @@
 #!/usr/bin/env bash
 
-__var__entry_dir="${PWD}"
-trap 'cd '"${__var__entry_dir}"'' EXIT
+ENTRY_DIR="${PWD}"
+trap 'cd '"${ENTRY_DIR}"'' EXIT
 
-__var__target_bin_path="/usr/local/bin/solos"
-__var__bin_suffix=""
-__var__cmd_prefix=""
-if [[ $1 = "--dev" ]]; then
-  __var__bin_suffix="-dev"
-  __var__cmd_prefix="d"
-  shift
-fi
-__var__solos_dir="${HOME}/.solos"
-__var__solos_src_dir="${__var__solos_dir}/src"
-__var__solos_vscode_bashrc_file="${__var__solos_dir}/.bashrc"
-__var__prev_return=()
+BIN_PATH="/usr/local/bin/solos"
+SOLOS_HOME_DIR="${HOME}/.solos"
+PREV_RETURN=()
 
-__fn__clone() {
+fn_clone() {
   local tmp_source_root="$(mktemp -d 2>/dev/null)/src"
   local repo_url="https://github.com/InterBolt/solos.git"
   if ! git clone "${repo_url}" "${tmp_source_root}" >/dev/null 2>&1; then
     echo "Failed to clone ${repo_url} to ${tmp_source_root}" >&2
     exit 1
   fi
-  if [[ ! -f "${tmp_source_root}/host/bin${__var__bin_suffix}.sh" ]]; then
-    echo "${tmp_source_root}/host/bin${__var__bin_suffix}.sh not found." >&2
+  if [[ ! -f "${tmp_source_root}/host/bin.sh" ]]; then
+    echo "${tmp_source_root}/host/bin.sh not found." >&2
     exit 1
   fi
-  __var__prev_return=("${tmp_source_root}")
+  PREV_RETURN=("${tmp_source_root}")
 }
-__fn__init_fs() {
+fn_init_fs() {
   local tmp_src_dir="${1}"
-  local solos_dir="${HOME}/.solos"
-  local solos_bashrc="${solos_dir}/.bashrc"
-  local src_dir="${solos_dir}/src"
+  local SOLOS_HOME_DIR="${HOME}/.solos"
+  local solos_bashrc="${SOLOS_HOME_DIR}/.bashrc"
+  local src_dir="${SOLOS_HOME_DIR}/src"
 
-  mkdir -p "${solos_dir}" || exit 1
+  mkdir -p "${SOLOS_HOME_DIR}" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"
@@ -43,9 +34,11 @@ __fn__init_fs() {
 
 . "\${HOME}/.solos/src/profile/bashrc.sh" "\$@"
 
-# Add your customizations to the SolOS shell:
+# Add your customizations to the SolOS shell.
 # Tip: type \`man\` in the shell to see what functions and aliases are available.
 
+# WARNING: Define any custom functions or alias ABOVE the call to \`install_solos\`
+# unless you really know what you're doing.
 # Enable SolOS:
 install_solos
 EOF
@@ -59,20 +52,20 @@ EOF
     cp -r "${tmp_src_dir}/." "${src_dir}" || exit 1
   fi
 }
-__fn__link_bin() {
-  local src_bin_path="${HOME}/.solos/src/host/bin${__var__bin_suffix}.sh"
-  local target_bin_path="/usr/local/bin/${__var__cmd_prefix}solos"
-  if ! ln -sfv "${src_bin_path}" "${target_bin_path}" >/dev/null; then
-    echo "Failed to link ${src_bin_path} to ${target_bin_path}" >&2
+fn_link_bin() {
+  local src_bin_path="${HOME}/.solos/src/host/bin.sh"
+  local BIN_PATH="/usr/local/bin/solos"
+  if ! ln -sfv "${src_bin_path}" "${BIN_PATH}" >/dev/null; then
+    echo "Failed to link ${src_bin_path} to ${BIN_PATH}" >&2
     exit 1
   fi
-  if ! chmod +x "${target_bin_path}"; then
-    echo "Failed to make ${target_bin_path} executable." >&2
+  if ! chmod +x "${BIN_PATH}"; then
+    echo "Failed to make ${BIN_PATH} executable." >&2
     exit 1
   fi
 }
-__fn__main() {
-  local target_bin_path="/usr/local/bin/${__var__cmd_prefix}solos"
+fn_main() {
+  local BIN_PATH="/usr/local/bin/solos"
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
     return 1
@@ -81,25 +74,25 @@ __fn__main() {
     echo "Git is required to install SolOS on this system." >&2
     return 1
   fi
-  if ! __fn__clone; then
+  if ! fn_clone; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __fn__init_fs "${__var__prev_return[0]}"; then
+  if ! fn_init_fs "${PREV_RETURN[0]}"; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! __fn__link_bin; then
+  if ! fn_link_bin; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  if ! "${target_bin_path}" --installer-no-tty --restricted-noop; then
+  if ! "${BIN_PATH}" --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     return 1
   fi
-  echo "Run \`${__var__cmd_prefix}solos --help\` to get started."
+  echo "Run \`solos --help\` to get started."
 }
 
-if ! __fn__main; then
+if ! fn_main; then
   exit 1
 fi
