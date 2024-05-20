@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-lib.utils.echo_line() {
-  terminal_width=$(tput cols)
-  line=$(printf "%${terminal_width}s" | tr " " "-")
-  echo "$line"
-}
 lib.utils.generate_secret() {
   openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
 }
@@ -63,9 +58,6 @@ lib.utils.template_variables() {
     exit 1
   fi
 }
-lib.utils.full_date() {
-  date +"%Y-%m-%d %H:%M:%S"
-}
 lib.utils.curl() {
   vPREV_CURL_ERR_STATUS_CODE=""
   vPREV_CURL_ERR_MESSAGE=""
@@ -113,97 +105,5 @@ lib.utils.curl.allows_error_status_codes() {
     exit 1
   else
     log_warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
-  fi
-}
-lib.utils.validate_fs() {
-  local errors=()
-  local return_code=0
-  local parent_dir="$1"
-  shift
-  local children=("$@")
-  for child in "${children[@]}"; do
-    local type="${child%%:*}"
-    local name="${child#*:}"
-    local path="${parent_dir}/${name}"
-    if [[ "${type}" == "dir" ]]; then
-      if [[ ! -d "${path}" ]]; then
-        errors+=("${path} is not a directory")
-        return_code=1
-      fi
-    elif [[ "${type}" == "file" ]]; then
-      if [[ ! -f "${path}" ]]; then
-        errors+=("${path} is not a file")
-        return_code=1
-      fi
-    else
-      errors+=("unknown type: ${type}")
-      return_code=1
-    fi
-  done
-  for error in "${errors[@]}"; do
-    log_error "${error}"
-  done
-  return ${return_code}
-}
-lib.utils.validate_interfaces() {
-  local target_dir="$1"
-  local interface_file="$1/$2"
-  if [[ ! -d ${target_dir} ]]; then
-    log_error "Unexpected error: ${target_dir} is not a directory. Failed to validate interfaces."
-    exit 1
-  fi
-  if [[ ! -f "${interface_file}" ]]; then
-    log_error "Unexpected error: ${interface_file} was not found. Failed to validate interfaces."
-    exit 1
-  fi
-
-  # Collect the files in the target dir.
-  local filenames=()
-  for file in "${target_dir}"/*; do
-    if [[ ! -f ${file} ]]; then
-      continue
-    fi
-    local filename=$(basename "${file}")
-    # All "special" files in SolOS follow the pattern __<name>__.<ext>
-    # So we skip those since they live outside of our interface assumptions.
-    if [[ ${filename} = "__"* ]]; then
-      continue
-    fi
-    filenames+=("${filename}")
-  done
-
-  # Collect the expected methods from the interface file.
-  local expected_methods=()
-  while IFS= read -r line; do
-    expected_methods+=("${line}")
-  done <"${interface_file}"
-
-  # Determine which files are invalid, if any, and log which methods
-  # in particular are either invalid or missing
-  local invalid_files=()
-  for filename in "${filenames[@]}"; do
-    local is_invalid=false
-    local name="${filename%.*}"
-    name="${name//-/_}"
-    local prefix="$(basename "${target_dir}").${name}"
-    local cmds=("${@:2}")
-    for cmd in "${expected_methods[@]}"; do
-      if ! declare -f "${prefix}.${cmd}" >/dev/null; then
-        log_error "${prefix}.${cmd} doesn't exist."
-        is_invalid=true
-      fi
-    done
-    if [[ ${is_invalid} = true ]]; then
-      invalid_files+=("${filename}")
-    fi
-  done
-  for invalid_file in "${invalid_files[@]}"; do
-    log_error "${invalid_file} does not implement the interface."
-  done
-
-  local invalid_file_count="${#invalid_files[@]}"
-  if [[ ${invalid_file_count} -gt 0 ]]; then
-    log_error "Found ${invalid_file_count} invalid files."
-    exit 1
   fi
 }

@@ -1,8 +1,0 @@
-
-:443 {
-  @root host www.__vPROJECT_ROOT_DOMAIN__ __vPROJECT_ROOT_DOMAIN__
-  @helloworld host helloworld.__vPROJECT_ROOT_DOMAIN__
-
-  reverse_proxy @root localhost:3000
-  reverse_proxy @helloworld localhost:3001
-}

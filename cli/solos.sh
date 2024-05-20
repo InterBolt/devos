@@ -2,10 +2,7 @@
 
 set -o errexit
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
-
-vSOLOS_RUNTIME=1
-vSOLOS_BIN_DIR="$(pwd)"
+cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 # Will include dotfiles in globbing.
 shopt -s dotglob
@@ -32,10 +29,11 @@ fi
 . "${HOME}/.solos/src/pkgs/gum.sh"
 . "${HOME}/.solos/src/log.sh"
 
-. "${HOME}/.solos/src/cli/cli/usage.sh"
-. "${HOME}/.solos/src/cli/cli/parse.sh"
+. "${HOME}/.solos/src/cli/args/usage.sh"
+. "${HOME}/.solos/src/cli/args/parse.sh"
 . "${HOME}/.solos/src/cli/provisioners/vultr.sh"
 . "${HOME}/.solos/src/cli/libs/store.sh"
+. "${HOME}/.solos/src/cli/libs/secrets.sh"
 . "${HOME}/.solos/src/cli/libs/ssh.sh"
 . "${HOME}/.solos/src/cli/libs/utils.sh"
 . "${HOME}/.solos/src/cli/cmds/app.sh"
@@ -55,20 +53,11 @@ vUSERS_HOME_DIR="$(lib.store.global.get "users_home_dir" "/root")"
 # Populated by the CLI parsing functions.
 vCLI_CMD=""
 vCLI_OPTIONS=()
-# Everything we need to operate our "project"
-vPROJECT_OPENAI_API_KEY=""
-vPROJECT_PROVIDER_API_KEY=""
-vPROJECT_PROVIDER_NAME=""
-vPROJECT_ROOT_DOMAIN=""
-vPROJECT_SEED_SECRET=""
-vPROJECT_IP=""
+# Basic project info.
+# Most other things are stored in the project's secrets or store.
 vPROJECT_NAME=""
 vPROJECT_APP=""
 vPROJECT_ID=""
-vPROJECT_S3_HOST=""
-vPROJECT_S3_OBJECT_STORE=""
-vPROJECT_S3_ACCESS_KEY=""
-vPROJECT_S3_SECRET=""
 
 # The main user-facing options should get implemented here.
 solos.ingest_opts() {
@@ -115,31 +104,6 @@ solos.prune_nonexistent_apps() {
   log_info "Removed nonexistent apps from the code workspace file."
   return 0
 }
-solos.prompts() {
-  # Automatically generate a secret if one doesn't exist.
-  vPROJECT_SEED_SECRET="$(lib.store.project.set_on_empty "secret" "$(lib.utils.generate_secret)")"
-  # Prompts
-  vPROJECT_PROVIDER_NAME="$(lib.store.project.prompt "provider_name" 'Only "vultr" is supported at this time.')"
-  local path_to_provision_implementation="${vSOLOS_BIN_DIR}/provisioners/${vPROJECT_PROVIDER_NAME}.sh"
-  if [[ ! -f ${path_to_provision_implementation} ]]; then
-    log_error "Unknown provider: ${path_to_provision_implementation}. See the 'provision' directory for supported providers."
-    lib.store.project.del "provider_name"
-    solos.prompts
-  fi
-  vPROJECT_ROOT_DOMAIN="$(lib.store.project.prompt "root_domain")"
-  if [[ ! "${vPROJECT_ROOT_DOMAIN}" =~ \.[a-z]+$ ]]; then
-    log_error "Invalid root domain: ${vPROJECT_ROOT_DOMAIN}."
-    lib.store.project.del "root_domain"
-    solos.prompts
-  fi
-  vPROJECT_PROVIDER_API_KEY="$(lib.store.project.prompt "provider_api_key" 'Use your provider dashboard to create an API key.')"
-  vPROJECT_OPENAI_API_KEY="$(lib.store.project.prompt "openai_api_key" 'Use the OpenAI dashboard to create an API key.')"
-  # Try to grab things from project store
-  vPROJECT_S3_OBJECT_STORE="$(lib.store.project.get "s3_object_store")"
-  vPROJECT_S3_ACCESS_KEY="$(lib.store.project.get "s3_access_key")"
-  vPROJECT_S3_SECRET="$(lib.store.project.get "s3_secret")"
-  vPROJECT_S3_HOST="$(lib.store.project.get "s3_host")"
-}
 # Ensure the user doesn't have to supply the --project flag every time.
 solos.use_checked_out_project() {
   vPROJECT_NAME="$(lib.store.global.get "checked_out_project")"
@@ -152,11 +116,32 @@ solos.use_checked_out_project() {
     log_error "Unexpected error: no project ID found for ${vPROJECT_NAME}."
     exit 1
   fi
-  vPROJECT_IP="$(lib.ssh.project_extract_project_ip)"
+}
+solos.require_provisioned_s3() {
+  local s3_object_store="$(lib.secrets.get "s3_object_store")"
+  local s3_access_key="$(lib.secrets.get "s3_access_key")"
+  local s3_secret="$(lib.secrets.get "s3_secret")"
+  local s3_host="$(lib.secrets.get "s3_host")"
+  if [[ -z ${s3_object_store} ]]; then
+    log_error "No s3_object_store found. Please provision s3 storage. See \`solos --help\` for more information."
+    exit 1
+  fi
+  if [[ -z ${s3_access_key} ]]; then
+    log_error "No s3_access_key found. Please provision s3 storage. See \`solos --help\` for more information."
+    exit 1
+  fi
+  if [[ -z ${s3_secret} ]]; then
+    log_error "No s3_secret found. Please provision s3 storage. See \`solos --help\` for more information."
+    exit 1
+  fi
+  if [[ -z ${s3_host} ]]; then
+    log_error "No s3_host found. Please provision s3 storage. See \`solos --help\` for more information."
+    exit 1
+  fi
 }
 
 # Parses CLI arguments into simpler data structures and validates against
-# the usage strings in cli/usage.sh.
+# the usage strings in args/usage.sh.
 cli.parse.requirements
 cli.parse.cmd "$@"
 cli.parse.validate_opts
@@ -164,14 +149,11 @@ cli.parse.validate_opts
 if [[ -z ${vCLI_CMD} ]]; then
   exit 1
 fi
-
 if ! command -v "cmd.${vCLI_CMD}" &>/dev/null; then
   log_error "No implementation for ${vCLI_CMD} exists."
   exit 1
 fi
-
 solos.ingest_opts
-
 "cmd.${vCLI_CMD}" || true
 if [[ -n ${vPROJECT_NAME} ]]; then
   if ! solos.prune_nonexistent_apps; then

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-vSELF_PKG_GUM_PKG_DIR="${HOME}/.solos/src/pkgs/gum"
+vSELF_PKG_GUM_PKG_DIR="${HOME}/.solos/src/pkgs"
 vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"
 
 __gum__fn__get_release_file() {
@@ -71,6 +71,29 @@ gum_confirm_new_app() {
   else
     echo "false"
   fi
+}
+
+gum_s3_provider_api_key() {
+  gum_bin input --password --placeholder "Enter an API key associated with your s3 provider:"
+}
+
+gum_s3_provider() {
+  local choice_file=""
+  local newline=$'\n'
+  local idx=0
+  for s3_provider in "${HOME}/.solos/src/cli/s3-providers"/*; do
+    if [[ -f ${s3_provider} ]]; then
+      local s3_provider_name="$(basename "${s3_provider}" | sed 's/.sh//')"
+      if [[ ${idx} -eq 0 ]]; then
+        choice_file="${s3_provider_name}"
+      else
+        choice_file="${choice_file}${newline}${s3_provider_name}"
+      fi
+    fi
+    idx=$((idx + 1))
+  done
+  local s3_provider_choice="$(echo "${choice_file}" | gum_bin choose --limit 1)"
+  echo "${s3_provider_choice}"
 }
 
 gum_danger_box() {

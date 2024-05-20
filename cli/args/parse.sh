@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. cli/usage.sh
+. "${HOME}/.solos/src/cli/args/usage.sh"
 
 cli.parse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
