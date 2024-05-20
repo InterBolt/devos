@@ -60,11 +60,12 @@ __rag__fn__save_output() {
   rm -rf "${__rag__var__tmp_dir}"
 }
 
-# Rules:
-# - return 1 = execute the command while capturing everything
-# - return 0 = execute the command without capturing anything
-# - return 150 = we ran the command as is
-# - return 151 = the preexec script failed before we could run the command
+# How the trap function handles each return code:
+# - return 1   - trap fn should execute the command and capture the output
+# - return 0   - execute the command without any tracking or capture
+# - return 150 - the trap fn should do nothing and return 0 because it was run here.
+# - return 151 - the trap fn might handle this in different ways going forward, but
+#                for now it means that the preexec functions or scripts failed.
 __rag__fn__preexec() {
   local prompt="${1}"
 
@@ -224,13 +225,14 @@ __rag__fn__trap() {
     trap '__rag__fn__trap' DEBUG
     return 0
   fi
+  local tty_descriptor="$(tty)"
   # Will include the entire string we submitted to the shell prompt.
   # Pipes, operators, and all.
   local submitted_cmd_prompt="$(history 1 | tr -s " " | cut -d" " -f3-)"
   # Anything that we prefix with '- ' should skip all the RAG logic.
   if [[ ${submitted_cmd_prompt} = "- "* ]]; then
     unset __rag__var__trap_gate_open
-    eval "$(echo "${submitted_cmd_prompt}" | tr -s ' ' | cut -d' ' -f2-)"
+    eval "$(echo "${submitted_cmd_prompt}" | tr -s ' ' | cut -d' ' -f2-)" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
     trap '__rag__fn__trap' DEBUG
     return 1
   fi
@@ -275,7 +277,7 @@ __rag__fn__trap() {
     __rag__fn__preexec "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null
     preexec_return="${PIPESTATUS[0]}"
     if [[ ${preexec_return} -eq 0 ]]; then
-      eval "${submitted_cmd_prompt}"
+      eval "${submitted_cmd_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
       already_returned_code="${?}"
     elif [[ ${preexec_return} -eq 151 ]]; then
       echo "Aborting command execution due to failed internal preexec" >&2
