@@ -293,6 +293,15 @@ __rag__fn__trap() {
     if [[ -z "${already_returned_code}" ]]; then
       __rag__fn__run "${submitted_cmd_prompt}"
     fi
+    local postexecs=()
+    if [[ ! -z "${user_postexecs:-}" ]]; then
+      postexecs=("${user_postexecs[@]}")
+    fi
+    if [[ -n ${postexecs[@]} ]]; then
+      for postexec_fn in "${postexecs[@]}"; do
+        "${postexec_fn}" "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null || true
+      done
+    fi
   fi
 
   # Finally reset the trap since we're all done and make sure the original command
