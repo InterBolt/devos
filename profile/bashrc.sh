@@ -134,7 +134,10 @@ $(
       gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)" \
       preexec_list "$(preexec_list --help | __bashrc__fn__extract_help_description)" \
       preexec_add "$(preexec_add --help | __bashrc__fn__extract_help_description)" \
-      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)"
+      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)" \
+      postexec_list "$(postexec_list --help | __bashrc__fn__extract_help_description)" \
+      postexec_add "$(postexec_add --help | __bashrc__fn__extract_help_description)" \
+      postexec_remove "$(postexec_remove --help | __bashrc__fn__extract_help_description)"
   )
   
 $(
@@ -142,20 +145,22 @@ $(
       "RESOURCE,PATH" \
       'User managed rcfile' "$(__bashrc__fn__users_home_dir)/.solos/.bashrc" \
       'Internal rcfile' "$(__bashrc__fn__users_home_dir)/.solos/src/profile/bashrc.sh" \
-      'Secrets' "$(__bashrc__fn__users_home_dir)/.solos/secrets" \
       'Logs' "$(__bashrc__fn__users_home_dir)/.solos/logs" \
       'Captured notes and stdout' "$(__bashrc__fn__users_home_dir)/.solos/rag" \
-      'Store' "$(__bashrc__fn__users_home_dir)/.solos/store"
+      'Global Store' "$(__bashrc__fn__users_home_dir)/.solos/store" \
+      'Project Stores' "$(__bashrc__fn__users_home_dir)/.solos/projects/<project>/store" \
+      'Global Secrets' "$(__bashrc__fn__users_home_dir)/.solos/secrets" \
+      'Project Secrets' "$(__bashrc__fn__users_home_dir)/.solos/projects/<project>/secrets"
   )
   
 $(
     __table_outputs__fn__format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
-      "Working Dir" "${PWD/#${HOME}/$(__bashrc__fn__users_home_dir)}" \
+      "Mounted Volume" "$(__bashrc__fn__users_home_dir)/.solos" \
       "Bash Version" "${BASH_VERSION}" \
       "Container OS" "$(lsb_release -d | cut -f2)" \
-      "SolOS Source Code" "https://github.com/interbolt/solos"
+      "SolOS Repo" "https://github.com/interbolt/solos"
   )
 
 $(
@@ -246,6 +251,7 @@ __bashrc__fn__install() {
 
 # Public stuff
 user_preexecs=()
+user_postexecs=()
 
 rag() {
   __rag__fn__main "$@"
@@ -424,6 +430,66 @@ EOF
     return 1
   fi
   user_preexecs=("${user_preexecs[@]/${fn}/}")
+}
+
+postexec_list() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: postexec_list
+
+DESCRIPTION:
+
+List all user-defined postexec functions.
+
+EOF
+    return 0
+  fi
+  echo "${user_postexecs[@]}"
+}
+postexec_add() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: postexec_add <function_name>
+
+DESCRIPTION:
+
+Add a user-defined postexec function.
+EOF
+    return 0
+  fi
+  local fn="${1}"
+  if [[ -z ${fn} ]]; then
+    echo "postexec: missing function name" >&2
+    return 1
+  fi
+  if ! declare -f "${fn}" >/dev/null; then
+    echo "postexec: function '${fn}' not found" >&2
+    return 1
+  fi
+  if [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
+    echo "postexec: function '${fn}' already exists in user_postexecs" >&2
+    return 1
+  fi
+  user_postexecs+=("${fn}")
+}
+postexec_remove() {
+  if [[ ${1} = "--help" ]]; then
+    cat <<EOF
+USAGE: postexec_remove <function_name>
+
+DESCRIPTION:
+
+Remove a user-defined postexec function.
+
+EOF
+    return 0
+  fi
+  local fn="${1}"
+  if [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
+    echo "Invalid usage: postexec: function '${fn}' not found in user_postexecs" >&2
+    return 1
+  fi
+  user_postexecs=("${user_postexecs[@]/${fn}/}")
 }
 install_solos() {
   __bashrc__fn__install

@@ -31,17 +31,14 @@ fi
 
 . "${HOME}/.solos/src/cli/args/usage.sh"
 . "${HOME}/.solos/src/cli/args/parse.sh"
-. "${HOME}/.solos/src/cli/provisioners/vultr.sh"
-. "${HOME}/.solos/src/cli/libs/store.sh"
-. "${HOME}/.solos/src/cli/libs/secrets.sh"
+. "${HOME}/.solos/src/cli/s3-providers/vultr.sh"
+. "${HOME}/.solos/src/cli/libs/project_store.sh"
+. "${HOME}/.solos/src/cli/libs/global_store.sh"
+. "${HOME}/.solos/src/cli/libs/project_secrets.sh"
 . "${HOME}/.solos/src/cli/libs/ssh.sh"
 . "${HOME}/.solos/src/cli/libs/utils.sh"
 . "${HOME}/.solos/src/cli/cmds/app.sh"
-. "${HOME}/.solos/src/cli/cmds/backup.sh"
 . "${HOME}/.solos/src/cli/cmds/checkout.sh"
-. "${HOME}/.solos/src/cli/cmds/health.sh"
-. "${HOME}/.solos/src/cli/cmds/restore.sh"
-. "${HOME}/.solos/src/cli/cmds/teardown.sh"
 . "${HOME}/.solos/src/cli/cmds/try.sh"
 
 # The directory path of the user's home directory.
