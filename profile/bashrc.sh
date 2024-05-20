@@ -91,9 +91,10 @@ __bashrc__fn__host() {
   echo "" >"${stderr_file}"
   echo "" >"${stdout_file}"
   echo ''"${cmd}"'' >"${command_file}"
-  while [[ $(cat "${done_file}") != "DONE" ]]; do
+  while [[ $(cat "${done_file}") != "DONE:"* ]]; do
     sleep 0.1
   done
+  local return_code=$(cat "${done_file}" | cut -d: -f2)
   stdout="$(cat "${stdout_file}")"
   stderr="$(cat "${stderr_file}")"
   rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
@@ -103,6 +104,7 @@ __bashrc__fn__host() {
   if [[ -n ${stderr} ]]; then
     echo "${stderr}" >&2
   fi
+  return ${return_code}
 }
 
 __bashrc__fn__print_man() {
