@@ -31,7 +31,7 @@ cmd.checkout() {
   # We should be able to re-run the checkout command and pick up where we left
   # off if we didn't supply all the variables the first time.
   solos.prompts
-  lib.store.global.set "checked_out_project" "${vPROJECT_NAME}"
+  lib.global_store.set "checked_out_project" "${vPROJECT_NAME}"
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"

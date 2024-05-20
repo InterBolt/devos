@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-lib.secrets.del() {
+lib.project_secrets.del() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
     exit 1
@@ -13,7 +13,7 @@ lib.secrets.del() {
   rm -f "${secrets_dir}/$1"
 }
 
-lib.secrets.get() {
+lib.project_secrets.get() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
     exit 1
@@ -31,7 +31,7 @@ lib.secrets.get() {
   fi
 }
 
-lib.secrets.set() {
+lib.project_secrets.set() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
     exit 1

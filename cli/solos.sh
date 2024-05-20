@@ -49,7 +49,7 @@ fi
 # know to get the user's home directory.
 # TODO: is there a more standard way to get the user's home directory within
 # TODO[c]: a docker container?
-vUSERS_HOME_DIR="$(lib.store.global.get "users_home_dir" "/root")"
+vUSERS_HOME_DIR="$(lib.global_store.get "users_home_dir" "/root")"
 # Populated by the CLI parsing functions.
 vCLI_CMD=""
 vCLI_OPTIONS=()
@@ -106,7 +106,7 @@ solos.prune_nonexistent_apps() {
 }
 # Ensure the user doesn't have to supply the --project flag every time.
 solos.use_checked_out_project() {
-  vPROJECT_NAME="$(lib.store.global.get "checked_out_project")"
+  vPROJECT_NAME="$(lib.global_store.get "checked_out_project")"
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "No project currently checked out."
     exit 1
@@ -118,10 +118,10 @@ solos.use_checked_out_project() {
   fi
 }
 solos.require_provisioned_s3() {
-  local s3_object_store="$(lib.secrets.get "s3_object_store")"
-  local s3_access_key="$(lib.secrets.get "s3_access_key")"
-  local s3_secret="$(lib.secrets.get "s3_secret")"
-  local s3_host="$(lib.secrets.get "s3_host")"
+  local s3_object_store="$(lib.project_secrets.get "s3_object_store")"
+  local s3_access_key="$(lib.project_secrets.get "s3_access_key")"
+  local s3_secret="$(lib.project_secrets.get "s3_secret")"
+  local s3_host="$(lib.project_secrets.get "s3_host")"
   if [[ -z ${s3_object_store} ]]; then
     log_error "No s3_object_store found. Please provision s3 storage. See \`solos --help\` for more information."
     exit 1
