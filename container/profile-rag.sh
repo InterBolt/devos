@@ -87,7 +87,7 @@ __profile_rag__fn__preexec() {
   # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
   # Important: if a pipe operator exists, all bets are off and we assume that we
   # want to capture the output.
-  for opt_out in "${__bashrc__preexec_dont_track_or_fuck_with_these[@]}"; do
+  for opt_out in "${__profile_bashrc__preexec_dont_track_or_fuck_with_these[@]}"; do
     if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
       if [[ ${prompt} = *"|"* ]]; then
         break

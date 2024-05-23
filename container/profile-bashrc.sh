@@ -93,7 +93,7 @@ __profile_bashrc__fn__host() {
   while [[ $(cat "${done_file}" 2>/dev/null || echo "") != "DONE:"* ]]; do
     sleep 0.1
   done
-  local return_code=$(cat "${done_file}" 2>/dev/null || echo "DONE:1" | cut -d: -f2)
+  local return_code=$(cat "${done_file}" 2>/dev/null | cut -d: -f2)
   stdout="$(cat "${stdout_file}" 2>/dev/null || echo "")"
   stderr="$(cat "${stderr_file}" 2>/dev/null || echo "")"
   rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
