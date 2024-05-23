@@ -32,7 +32,7 @@ fn_init_fs() {
     cat <<EOF >"${solos_bashrc}"
 #!/usr/bin/env bash
 
-. "\${HOME}/.solos/src/profile/bashrc.sh" "\$@"
+. "\${HOME}/.solos/src/container/profile-bashrc.sh" "\$@"
 
 # Add your customizations to the SolOS shell.
 # Tip: type \`man\` in the shell to see what functions and aliases are available.

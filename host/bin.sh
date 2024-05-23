@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-. "${HOME}"/.solos/src/host/docker.sh || exit 1
-. "${HOME}"/.solos/src/host/bin-post-hook.sh || exit 1
+. "${HOME}"/.solos/src/host/shell.sh || exit 1
+. "${HOME}"/.solos/src/host/bin-posthook.sh || exit 1
 
 __bin__fn__run() {
-  local post_behavior="$(__bin_post_hook__fn__determine_command "$@")"
-  if __docker__fn__run /root/.solos/src/cli/solos.sh "$@"; then
+  local post_behavior="$(__bin_posthook__fn__determine_command "$@")"
+  if __bridge__fn__cmd /root/.solos/src/container/cli.sh "$@"; then
     if [[ -n ${post_behavior} ]]; then
-      "__bin_post_hook__fn__${post_behavior}" "$@"
+      "__bin_posthook__fn__${post_behavior}" "$@"
     fi
   fi
 }
@@ -34,7 +34,7 @@ __bin__fn__main() {
       head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
     )"
     if [[ ${curr_project} != "${next_project}" ]]; then
-      __docker__fn__destroy
+      __bridge__fn__destroy
     fi
     __bin__fn__run "${restricted_flags[@]}" "$@"
   fi

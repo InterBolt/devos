@@ -1,9 +1,0 @@
-#!/usr/bin/bpftrace
-
-tracepoint:syscalls:sys_enter_write
-/comm != "bpftrace"/
-{ 
-  // print the process name and the file descriptor
-  // Then spawn a process using the system() command that will listen from the file descriptor
-}
-  

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-__table_outputs__fn__format() {
+__profile_table_outputs__fn__format() {
   local headers="$1"
   shift
   local newline=$'\n'

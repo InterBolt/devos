@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 # A utility function. There is not command called `determine_host_post_fn`
-__bin_post_hook__fn__determine_command() {
+__bin_posthook__fn__determine_command() {
   while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
     shift
   done
   local host_post_fn=""
-  if declare -f "__bin_post_hook__fn__${1}" >/dev/null; then
+  if declare -f "__bin_posthook__fn__${1}" >/dev/null; then
     host_post_fn="$1"
   fi
   echo "${host_post_fn}"
@@ -14,14 +14,14 @@ __bin_post_hook__fn__determine_command() {
 
 # Every function below defines some behavior associated with the success of a particular command.
 # Examples:
-# `solos dev` => __bin_post_hook__fn__dev
-# `solos test` => __bin_post_hook__fn__test
+# `solos dev` => __bin_posthook__fn__dev
+# `solos test` => __bin_posthook__fn__test
 # ...etc, etc
 #
 # Note: these are necessary because there are some things that are always better to do on
 # the host machine, but ONLY after the command makes any necessary changes to the container,
 # the FS, etc.
-__bin_post_hook__fn__checkout() {
+__bin_posthook__fn__checkout() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi
@@ -53,7 +53,7 @@ __bin_post_hook__fn__checkout() {
   code "${code_workspace_file}"
 }
 
-__bin_post_hook__fn__app() {
+__bin_posthook__fn__app() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi

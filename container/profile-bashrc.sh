@@ -2,15 +2,15 @@
 
 shopt -s extdebug
 
-. "${HOME}/.solos/src/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/profile/rag.sh" || exit 1
-. "${HOME}/.solos/src/profile/table-outputs.sh" || exit 1
+. "${HOME}/.solos/src/tools/log.sh" || exit 1
+. "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-rag.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
-# READ BEFORE EDITING:
-# don't ever include the following commands:
-# 1) `echo` - its too annoying to test functionality without.
-__bashrc__var__preexec_dont_track_or_fuck_with_these=(
+# A list of commands that, when used on their own, will bypass trapping, tracking, and preexecs.
+# If they are combined with other commands via pipes, they will be tracked.
+# Warning: leave out echo because its too convenient for confirming things.
+__profile_bashrc__preexec_dont_track_or_fuck_with_these=(
   "source"
   "."
   "exit"
@@ -19,7 +19,6 @@ __bashrc__var__preexec_dont_track_or_fuck_with_these=(
   "cd"
   "clear"
   "code"
-  "rag"
   "cp"
   "rm"
   "mv"
@@ -40,7 +39,7 @@ if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
 
-__bashrc__fn__users_home_dir() {
+__profile_bashrc__fn__users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
     echo "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}." >&2
@@ -50,7 +49,7 @@ __bashrc__fn__users_home_dir() {
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
 }
 
-__bashrc__fn__extract_help_description() {
+__profile_bashrc__fn__extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
     echo "Unexpected error: empty help output." >&2
@@ -69,7 +68,7 @@ __bashrc__fn__extract_help_description() {
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
 }
 
-__bashrc__fn__bash_completions() {
+__profile_bashrc__fn__bash_completions() {
   _custom_command_completions() {
     local cur prev words cword
     _init_completion || return
@@ -80,7 +79,7 @@ __bashrc__fn__bash_completions() {
   complete -F _custom_command_completions '-'
 }
 
-__bashrc__fn__host() {
+__profile_bashrc__fn__host() {
   local done_file="${HOME}/.solos/.relay.done"
   local command_file="${HOME}/.solos/.relay.command"
   local stdout_file="${HOME}/.solos/.relay.stdout"
@@ -91,12 +90,12 @@ __bashrc__fn__host() {
   echo "" >"${stderr_file}"
   echo "" >"${stdout_file}"
   echo ''"${cmd}"'' >"${command_file}"
-  while [[ $(cat "${done_file}") != "DONE:"* ]]; do
+  while [[ $(cat "${done_file}" 2>/dev/null || echo "") != "DONE:"* ]]; do
     sleep 0.1
   done
-  local return_code=$(cat "${done_file}" | cut -d: -f2)
-  stdout="$(cat "${stdout_file}")"
-  stderr="$(cat "${stderr_file}")"
+  local return_code=$(cat "${done_file}" 2>/dev/null || echo "DONE:1" | cut -d: -f2)
+  stdout="$(cat "${stdout_file}" 2>/dev/null || echo "")"
+  stderr="$(cat "${stderr_file}" 2>/dev/null || echo "")"
   rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
   if [[ -n ${stdout} ]]; then
     echo "${stdout}"
@@ -107,66 +106,66 @@ __bashrc__fn__host() {
   return ${return_code}
 }
 
-__bashrc__fn__print_man() {
+__profile_bashrc__fn__print_man() {
   local solos_bin_cmds=()
   while IFS= read -r -d $'\0' file; do
     local cmd_name="$(basename "${file}" | cut -d. -f1)"
-    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __bashrc__fn__extract_help_description)")
-  done < <(find "${HOME}/.solos/src/path-commands/" -type f -print0)
+    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __profile_bashrc__fn__extract_help_description)")
+  done < <(find "${HOME}/.solos/src/tools/cmds/" -type f -print0)
 
   cat <<EOF
 
 $(
-    __table_outputs__fn__format \
+    __profile_table_outputs__fn__format \
       "PATH_COMMAND,DESCRIPTION" \
       "${solos_bin_cmds[@]}"
   )
 
 $(
-    __table_outputs__fn__format \
+    __profile_table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
-      rag "$(rag --help | __bashrc__fn__extract_help_description)" \
-      host "$(host --help | __bashrc__fn__extract_help_description)" \
-      solos "$(solos --help | __bashrc__fn__extract_help_description)" \
-      gh_token "$(gh_token --help | __bashrc__fn__extract_help_description)" \
-      gh_email "$(gh_email --help | __bashrc__fn__extract_help_description)" \
-      gh_name "$(gh_name --help | __bashrc__fn__extract_help_description)" \
-      preexec_list "$(preexec_list --help | __bashrc__fn__extract_help_description)" \
-      preexec_add "$(preexec_add --help | __bashrc__fn__extract_help_description)" \
-      preexec_remove "$(preexec_remove --help | __bashrc__fn__extract_help_description)" \
-      postexec_list "$(postexec_list --help | __bashrc__fn__extract_help_description)" \
-      postexec_add "$(postexec_add --help | __bashrc__fn__extract_help_description)" \
-      postexec_remove "$(postexec_remove --help | __bashrc__fn__extract_help_description)"
+      rag "$(rag --help | __profile_bashrc__fn__extract_help_description)" \
+      host "$(host --help | __profile_bashrc__fn__extract_help_description)" \
+      solos "$(solos --help | __profile_bashrc__fn__extract_help_description)" \
+      gh_token "$(gh_token --help | __profile_bashrc__fn__extract_help_description)" \
+      gh_email "$(gh_email --help | __profile_bashrc__fn__extract_help_description)" \
+      gh_name "$(gh_name --help | __profile_bashrc__fn__extract_help_description)" \
+      preexec_list "$(preexec_list --help | __profile_bashrc__fn__extract_help_description)" \
+      preexec_add "$(preexec_add --help | __profile_bashrc__fn__extract_help_description)" \
+      preexec_remove "$(preexec_remove --help | __profile_bashrc__fn__extract_help_description)" \
+      postexec_list "$(postexec_list --help | __profile_bashrc__fn__extract_help_description)" \
+      postexec_add "$(postexec_add --help | __profile_bashrc__fn__extract_help_description)" \
+      postexec_remove "$(postexec_remove --help | __profile_bashrc__fn__extract_help_description)"
   )
   
 $(
-    __table_outputs__fn__format \
+    __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
-      'User managed rcfile' "$(__bashrc__fn__users_home_dir)/.solos/.bashrc" \
-      'Internal rcfile' "$(__bashrc__fn__users_home_dir)/.solos/src/profile/bashrc.sh" \
-      'Logs' "$(__bashrc__fn__users_home_dir)/.solos/logs" \
-      'Captured notes and stdout' "$(__bashrc__fn__users_home_dir)/.solos/rag" \
-      'Global Store' "$(__bashrc__fn__users_home_dir)/.solos/store" \
-      'Project Stores' "$(__bashrc__fn__users_home_dir)/.solos/projects/<project>/store" \
-      'Global Secrets' "$(__bashrc__fn__users_home_dir)/.solos/secrets" \
-      'Project Secrets' "$(__bashrc__fn__users_home_dir)/.solos/projects/<project>/secrets"
+      'User managed rcfile' "$(__profile_bashrc__fn__users_home_dir)/.solos/.bashrc" \
+      'Internal rcfile' "$(__profile_bashrc__fn__users_home_dir)/.solos/src/container/profile-bashrc.sh" \
+      'Logs' "$(__profile_bashrc__fn__users_home_dir)/.solos/logs" \
+      'Captured notes and stdout' "$(__profile_bashrc__fn__users_home_dir)/.solos/rag" \
+      'Global Store' "$(__profile_bashrc__fn__users_home_dir)/.solos/store" \
+      'Project Stores' "$(__profile_bashrc__fn__users_home_dir)/.solos/projects/<project>/store" \
+      'Global Secrets' "$(__profile_bashrc__fn__users_home_dir)/.solos/secrets" \
+      'Project Secrets' "$(__profile_bashrc__fn__users_home_dir)/.solos/projects/<project>/secrets"
   )
   
 $(
-    __table_outputs__fn__format \
+    __profile_table_outputs__fn__format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
-      "Mounted Volume" "$(__bashrc__fn__users_home_dir)/.solos" \
+      "Mounted Volume" "$(__profile_bashrc__fn__users_home_dir)/.solos" \
       "Bash Version" "${BASH_VERSION}" \
       "Container OS" "$(lsb_release -d | cut -f2)" \
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
 
 $(
-    __table_outputs__fn__format \
+    __profile_table_outputs__fn__format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
-      "PATH_COMMAND" "Commands that are available in the container's PATH (meaning any bash script can use them). All path commands end in '_solos' to avoid conflicts and are defined at \`~/.solos/src/path-commands\`." \
+      "PATH_COMMAND" "Commands that are available in the container's PATH (meaning any bash script can use them). All path commands end in '_solos' to avoid conflicts and are defined at \`~/.solos/src/tools/cmds\`." \
       "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
       "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
       "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell."
@@ -174,7 +173,7 @@ $(
 EOF
 }
 
-__bashrc__fn__print_welcome_manual() {
+__profile_bashrc__fn__print_welcome_manual() {
   # This should say "Welcome to SolOS" in ASCII art.
   local asci_welcome_to_solos_art=$(
     cat <<EOF
@@ -191,7 +190,7 @@ EOF
 
   cat <<EOF
 ${asci_welcome_to_solos_art}
-$(__bashrc__fn__print_man)
+$(__profile_bashrc__fn__print_man)
 
 EOF
   local gh_status_line="$(gh auth status | grep "Logged in")"
@@ -201,7 +200,7 @@ EOF
   echo ""
 }
 
-__bashrc__fn__install() {
+__profile_bashrc__fn__install() {
   PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   local warnings=()
   mkdir -p "${HOME}/.solos/secrets"
@@ -227,8 +226,8 @@ __bashrc__fn__install() {
   else
     warnings+=("/etc/bash_completion not found. Bash completions will not be available.")
   fi
-  local gh_email="$(__bashrc__fn__host git config --global user.email)"
-  local gh_user="$(__bashrc__fn__host git config --global user.name)"
+  local gh_email="$(__profile_bashrc__fn__host git config --global user.email)"
+  local gh_user="$(__profile_bashrc__fn__host git config --global user.name)"
   if [[ -n ${gh_email} ]]; then
     git config --global user.email "${gh_email}"
   else
@@ -245,8 +244,8 @@ __bashrc__fn__install() {
       sleep .2
     done
   fi
-  __bashrc__fn__print_welcome_manual
-  __bashrc__fn__bash_completions
+  __profile_bashrc__fn__print_welcome_manual
+  __profile_bashrc__fn__bash_completions
 }
 
 # Public stuff
@@ -254,7 +253,11 @@ user_preexecs=()
 user_postexecs=()
 
 rag() {
-  __rag__fn__main "$@"
+  if [[ "${1}" == "--help" ]]; then
+    __profile_rag__fn__main "$@"
+    return "$?"
+  fi
+  __profile_rag__fn__main "$@" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null
 }
 host() {
   if [[ "${1}" == "--help" ]]; then
@@ -276,7 +279,7 @@ The SolOS shell (in the container) then reads the stdout/err from those files an
 EOF
     return 0
   fi
-  __bashrc__fn__host "$@"
+  __profile_bashrc__fn__host "$@"
 }
 gh_token() {
   if [[ "${1}" == "--help" ]]; then
@@ -349,11 +352,11 @@ Opens the Visual Studio Code editor from the host machine.
 EOF
     return 0
   fi
-  local bin_path="$(__bashrc__fn__host which code)"
+  local bin_path="$(__profile_bashrc__fn__host which code)"
   host "${bin_path}" "${*}"
 }
 solos() {
-  local executable_path="${HOME}/.solos/src/cli/solos.sh"
+  local executable_path="${HOME}/.solos/src/container/cli.sh"
   bash "${executable_path}" "$@"
 }
 man() {
@@ -369,7 +372,7 @@ EOF
     return 0
   fi
   echo ""
-  __bashrc__fn__print_man
+  __profile_bashrc__fn__print_man
   echo ""
 }
 preexec_list() {
@@ -492,6 +495,6 @@ EOF
   user_postexecs=("${user_postexecs[@]/${fn}/}")
 }
 install_solos() {
-  __bashrc__fn__install
-  __rag__fn__install
+  __profile_bashrc__fn__install
+  __profile_rag__fn__install
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-__relay_cmd_server__fn__listen() {
+__backgound__fn__relay() {
   local command=".solos/.relay.command"
   local stdout=".solos/.relay.stdout"
   local stderr=".solos/.relay.stderr"
@@ -29,4 +29,4 @@ __relay_cmd_server__fn__listen() {
   done
 }
 
-__relay_cmd_server__fn__listen &
+__backgound__fn__relay &

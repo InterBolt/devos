@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 
-__log__var__filesize=0
-__log__var__logfile="${HOME}/.solos/logs/cli.log"
+__log__filesize=0
+__log__logfile="${HOME}/.solos/logs/cli.log"
 
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
 
-mkdir -p "$(dirname "${__log__var__logfile}")"
-if [[ ! -f ${__log__var__logfile} ]]; then
-  touch "${__log__var__logfile}"
+mkdir -p "$(dirname "${__log__logfile}")"
+if [[ ! -f ${__log__logfile} ]]; then
+  touch "${__log__logfile}"
 fi
 
-__log__var__filesize="$(du -k "${__log__var__logfile}" | cut -f 1 || echo "")"
-if [[ ${__log__var__filesize} -gt 5000 ]]; then
-  echo "LOG FILE IS GROWING LARGE: ${__log__var__filesize}Kb"
+__log__filesize="$(du -k "${__log__logfile}" | cut -f 1 || echo "")"
+if [[ ${__log__filesize} -gt 5000 ]]; then
+  echo "LOG FILE IS GROWING LARGE: ${__log__filesize}Kb"
 fi
 
 log._to_host_filename() {
@@ -51,9 +51,9 @@ log._get_level_color() {
   esac
 }
 __log__fn__base() {
-  if [[ ! -f ${__log__var__logfile} ]]; then
-    if ! touch "${__log__var__logfile}" &>/dev/null; then
-      echo "Failed to create log file: ${__log__var__logfile}"
+  if [[ ! -f ${__log__logfile} ]]; then
+    if ! touch "${__log__logfile}" &>/dev/null; then
+      echo "Failed to create log file: ${__log__logfile}"
       exit 1
     fi
   fi
@@ -87,7 +87,7 @@ __log__fn__base() {
 
   gum_bin log \
     --level.foreground "$(log._get_level_color "${level}")" \
-    --file "${__log__var__logfile}" \
+    --file "${__log__logfile}" \
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" "${date_args[@]}"
 

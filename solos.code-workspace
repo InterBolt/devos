@@ -22,12 +22,12 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "solos": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
-        "args": []
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "args": ["--session"]
       },
       "minimal": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell-bare.sh",
-        "args": []
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "args": ["--session", "--minimal"]
       },
       "zsh": null,
       "fish": null,
@@ -36,12 +36,12 @@
     },
     "terminal.integrated.profiles.linux": {
       "solos": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/shell.sh",
-        "args": []
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "args": ["--session"]
       },
-      "bash": {
-        "path": "/bin/bash",
-        "args": []
+      "minimal": {
+        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "args": ["--session", "--minimal"]
       },
       "zsh": null,
       "fish": null,

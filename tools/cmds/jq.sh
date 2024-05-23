@@ -24,7 +24,7 @@ __bins_jq__fn__main() {
     echo "jq_solos is a proxy for jq, but jq is not installed. Please install jq first." >&2
     exit 1
   fi
-  local modules="$(find /root/.solos/src/jq -type f -name "*.jq" -exec basename {} \; | sed 's/,$//' | sed 's/.jq//g')"
+  local modules="$(find /root/.solos/src/tools/jq -type f -name "*.jq" -exec basename {} \; | sed 's/,$//' | sed 's/.jq//g')"
   local include_statements=""
   for module in ${modules}; do
     include_statements="${include_statements}include \"${module}\"; "
@@ -41,7 +41,7 @@ __bins_jq__fn__main() {
       positional+=("${arg}")
     fi
   done
-  "${jq_bin_path}" "${options[@]}" -L/root/.solos/src/jq "${include_statements[*]} ${positional[@]}"
+  "${jq_bin_path}" "${options[@]}" -L/root/.solos/src/tools/jq "${include_statements[*]} ${positional[@]}"
 }
 
 __bins_jq__fn__main "$@"
