@@ -18,6 +18,7 @@ node_modules/
 secret.*
 .archive.*
 .secret*
+.nohup.*
 test.*
 test.experiments/
 reference.txt

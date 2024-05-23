@@ -2,6 +2,10 @@
 
 shopt -s extdebug
 
+# when the user spams control-c make sure we reset the trap
+# We use the PROMPT_COMMAND to set a variable which will gate the trap logic for compound commands.
+# Ie. cmd1 | cmd2 should not get captured for each command, but rather as a single command.
+# We'll use the history command to determine the full prompt and then we'll eval it.
 trap 'trap "__rag__fn__trap" DEBUG' SIGINT
 
 __rag__var__sigexit='SOLOS:EXIT:1'
@@ -201,8 +205,9 @@ __rag__fn__run() {
       2> >(tee >(grep "^\[RAG\]" >>"${stderr_captured_file}" >/dev/null) "${stderr_file}" >&2)
     # Bind the command to the tty descriptor so that we can read from it.
     # Important for commands that require user input.
-    eval "${cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
-    return_code="${?}"
+    if eval "${cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"; then
+      return_code="${?}"
+    fi
     echo "${return_code}" >"${exit_code_file}"
   } | cat
   shift
@@ -211,10 +216,6 @@ __rag__fn__run() {
 }
 
 __rag__fn__trap() {
-  # when the user spams control-c make sure we reset the trap
-  # We use the PROMPT_COMMAND to set a variable which will gate the trap logic for compound commands.
-  # Ie. cmd1 | cmd2 should not get captured for each command, but rather as a single command.
-  # We'll use the history command to determine the full prompt and then we'll eval it.
   if [[ ${BASH_COMMAND} = "__rag__var__trap_gate_open=t" ]]; then
     return 0
   fi

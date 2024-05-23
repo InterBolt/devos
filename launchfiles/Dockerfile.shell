@@ -8,21 +8,19 @@ RUN apt-get update \
   git-all \
   coreutils \
   awscli \
-  ufw \
   moreutils \
   rsync \
-  postgresql-client \
-  lsb-release \
   bash-completion \
   ca-certificates \
   man-db \
   curl \
   jq \
   wget \
-  openssh-server \
   sudo \
-  tree \
-  socat
+  build-essential \
+  manpages-dev \
+  bpftrace \
+  procps
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
