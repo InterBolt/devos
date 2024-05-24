@@ -4,7 +4,6 @@ ENTRY_DIR="${PWD}"
 trap 'cd '"${ENTRY_DIR}"'' EXIT
 
 BIN_PATH="/usr/local/bin/solos"
-SOLOS_HOME_DIR="${HOME}/.solos"
 PREV_RETURN=()
 
 fn_clone() {
@@ -22,11 +21,11 @@ fn_clone() {
 }
 fn_init_fs() {
   local tmp_src_dir="${1}"
-  local SOLOS_HOME_DIR="${HOME}/.solos"
-  local solos_bashrc="${SOLOS_HOME_DIR}/.bashrc"
-  local src_dir="${SOLOS_HOME_DIR}/src"
+  local solos_home_dir="${HOME}/.solos"
+  local solos_bashrc="${solos_home_dir}/.bashrc"
+  local src_dir="${solos_home_dir}/src"
 
-  mkdir -p "${SOLOS_HOME_DIR}" || exit 1
+  mkdir -p "${solos_home_dir}" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"

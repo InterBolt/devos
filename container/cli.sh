@@ -805,7 +805,7 @@ cmd.checkout() {
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d)"
-  cp "${HOME}/.solos/src/container/launchfiles/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
+  cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
   if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
     cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
     log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
@@ -820,7 +820,7 @@ cmd.try() {
   log_warn "TODO: implementation needed"
 }
 # The main user-facing options should get implemented here.
-solos.ingest_opts() {
+solos.ingest_argparsed() {
   for i in "${!vOPTIONS[@]}"; do
     case "${vOPTIONS[$i]}" in
     argv1=*)
@@ -913,7 +913,7 @@ if ! command -v "cmd.${vCMD}" &>/dev/null; then
   log_error "No implementation for ${vCMD} exists."
   exit 1
 fi
-solos.ingest_opts
+solos.ingest_argparsed
 "cmd.${vCMD}" || true
 if [[ -n ${vPROJECT_NAME} ]]; then
   if ! solos.prune_nonexistent_apps; then
