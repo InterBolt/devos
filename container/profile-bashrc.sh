@@ -253,11 +253,7 @@ user_preexecs=()
 user_postexecs=()
 
 rag() {
-  if [[ "${1}" == "--help" ]]; then
-    __profile_rag__fn__main "$@"
-    return "$?"
-  fi
-  __profile_rag__fn__main "$@" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null
+  __profile_rag__fn__main "$@"
 }
 host() {
   if [[ "${1}" == "--help" ]]; then

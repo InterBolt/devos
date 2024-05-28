@@ -1,5 +1,14 @@
 #!/usr/bin/env bash
 
+if ! command -v git >/dev/null 2>&1; then
+  echo "Please install git and docker before running this script." >&2
+  exit 1
+fi
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Please install docker before running this script." >&2
+  exit 1
+fi
+
 __bridge__rag_dir="${HOME}/.solos/rag"
 __bridge__rag_captured="${__bridge__rag_dir}/captured"
 __bridge__repo_dir="${HOME}/.solos/src"
