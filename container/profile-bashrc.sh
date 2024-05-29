@@ -151,7 +151,6 @@ EOF
 }
 
 __profile_bashrc__fn__print_welcome_manual() {
-  # This should say "Welcome to SolOS" in ASCII art.
   local asci_welcome_to_solos_art=$(
     cat <<EOF
     
@@ -544,5 +543,6 @@ pub_install_solos() {
 __profile_bashrc__pub_fns="$(declare -F | grep -o "pub_[a-zA-Z_]*" | xargs)"
 for func in ${__profile_bashrc__pub_fns}; do
   new_func_name="${func#pub_}"
+  # Ensure that each pub_* function is available without the pub_ prefix.
   eval "${new_func_name}() { ${func} \"\$@\"; return \"\$?\"; }"
 done

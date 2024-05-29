@@ -2,14 +2,8 @@
 
 shopt -s extdebug
 
-# When gum input commands fail as a result of SIGINT, our trap is bypassed meaning we don't
-# exit and reset as we'd expect. It's annoying to determine if the user used control-c or
-# if they supplied an empty input. These cases need different treatment.
-# To fix, we assign the return of `gum_cmd || echo "${__profile_rag__gum_sigexit}"`
-# to a variable and then check it to determine exactly what happened.
 __profile_rag__gum_sigexit='SOLOS:EXIT:1'
-# Rag logs don't need their own directory, place them in the shared logs folder for
-# simpler processing.
+# Rag logs don't need their own directory, place them in the shared logs folder for simpler processing.
 __profile_rag__logs_dir="${HOME}/.solos/logs"
 # Store state that is specific to RAG.
 __profile_rag__rag_dir="${HOME}/.solos/rag"
@@ -17,8 +11,7 @@ __profile_rag__rag_config_dir="${__profile_rag__rag_dir}/config"
 __profile_rag__rag_std_dir="${__profile_rag__rag_dir}/std"
 __profile_rag__rag_tmp_dir="${__profile_rag__rag_dir}/tmp"
 
-# Make sure that when we cancel a command with control-c that we reset the trap
-# so that we don't get stuck in a loop.
+# Make sure that control-c will cancel the running command while also reseting the trap.
 trap 'trap "__profile_rag__fn__trap" DEBUG; exit 1;' SIGINT
 
 __profile_rag__get_blacklist() {
@@ -159,10 +152,8 @@ __profile_rag__fn__digest() {
     mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
     jq '.return_code = '"$(cat "${return_code_file}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
     mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
-    # Important: we have no control over what bytes are sent to stdout/stderr, so we must
+    # We have no control over what bytes are sent to stdout/stderr, so we must
     # assume that binary content is in play and avoid piping to jq's encoder directly.
-    # Instead, we simply rename the tmp stdout/err files to include the rag_id in their name, so that
-    # we can associated them later when doing post processing, and move them to their final destination.
     # Ex: some image processing tools will output binary data to stdout/stderr.
     mv "${stdout_file}" "${__profile_rag__rag_std_dir}/${rag_id}.out"
     mv "${stderr_file}" "${__profile_rag__rag_std_dir}/${rag_id}.err"
@@ -210,14 +201,9 @@ __profile_rag__fn__trap_eval() {
 __profile_rag__fn__trap_preexec_scripts() {
   local prompt="${1}"
 
-  # convert a string of space separated words into an array
+  # Avoid rag/tracking stuff for blacklisted commands.
+  # Ex: all pub_* functions in the bashrc will be blacklisted.
   local blacklist="$(__profile_rag__get_blacklist | xargs)"
-
-  # We have a list of commands (might need to add lots more idk) that we know
-  # should never be captured, tracked, logged, you name it. Run them as is.
-  # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
-  # Important: if a pipe operator exists, all bets are off and we assume that we
-  # want to capture the output.
   for opt_out in ${blacklist}; do
     if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
       if [[ ${prompt} = *"|"* ]]; then
@@ -243,49 +229,46 @@ __profile_rag__fn__trap_preexec_scripts() {
   return 1
 }
 __profile_rag__fn__trap() {
-  # Prevent the trap from applying to the initial trap gate open command
-  # in our PROMPT_COMMAND string/script.
+  # Prevent the trap from applying to the PROMPT_COMMAND script.
   if [[ ${BASH_COMMAND} = "__profile_rag__trap_gate_open=t" ]]; then
     return 0
   fi
 
-  # Ensure no recursive funkyness.
+  # Prevent recursive bugs.
   trap - DEBUG
 
-  # The existence of the COMP_LINE variable implies that the a bash completion is
-  # taking place. Let it pass through.
+  # The existence of the COMP_LINE variable implies that a bash completion is taking place.
   if [[ -n "${COMP_LINE}" ]]; then
     trap '__profile_rag__fn__trap' DEBUG
     return 0
   fi
 
-  # Consider `ls | grep "foo" | less`:
-  # This trap will fire three times, once per each piped command: ls, grep, and less.
+  # Consider the prompt: `ls | grep "foo" | less`:
+  # In a normal DEBUG trap, this prompt would trigger three trap invocations, one per - ls, grep, and less.
   # But what we really want is to hit the trap one time for the *entire* set of commands.
-  # To do this, we unset a variable on the first trap in the set of piped commands, aka the 'ls'
-  # command, and then block the trap from firing on the subsequent piped commands (grep and less) by
-  # checking for the existence of that variable.
-  # This variable will remain unset until the next issued prompt from the CLI.
+  # To do this, we unset some arbitrary variable on the first trapped command, ie - our 'ls'
+  # command, so that all other piped commands will not execute until the arbitrary variable is set again.
+  # And since the arbitrary variable will not get reset until the next prompt is submitted, we can be sure
+  # that the trap will only be hit once per prompt.
   if [[ -n "${__profile_rag__trap_gate_open+set}" ]]; then
-    # Pull that ladder up for the remaining commands in the issued prompt.
     unset __profile_rag__trap_gate_open
 
-    # Will use to ensure that eval'd cmds have access to the tty and for commands
-    # that should display their stdout/err's but not include them in the final output.
+    # Pretty sure eval'd commands don't get a tty so we have to manually attach it.
     local tty_descriptor="$(tty)"
 
     # Remember: $BASH_COMMAND is only going to be the first command in any set of piped commands.
-    # So we must use the history to retrieve the full prompt, pipes, operators, and all.
-    local submitted_cmd="$(history 1 | tr -s " " | cut -d" " -f3-)"
+    # So instead of using $BASH_COMMAND, we'll use the history command to get the entire prompt.
+    local submitted_prompt="$(history 1 | tr -s " " | cut -d" " -f3-)"
 
-    # Using the "-" prefix tells our shell to run the command without tracking.
-    if [[ ${submitted_cmd} = "- "* ]]; then
-      eval "$(echo "${submitted_cmd}" | tr -s ' ' | cut -d' ' -f2-)"
+    # Using the "-" prefix tells our shell to skip the trap logic below and run as is. Useful if
+    # something goes awry and we need to quickly determine whether or not the trap logic is the issue.
+    if [[ ${submitted_prompt} = "- "* ]]; then
+      eval "$(echo "${submitted_prompt}" | tr -s ' ' | cut -d' ' -f2-)" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
       trap '__profile_rag__fn__trap' DEBUG
       return 1
     fi
 
-    # Run the user defined preexec functions and if any of them fail, return with the exit code
+    # Run user defined preexec functions. If any of them fail, return with the exit code
     # and skip the rest of the trap logic, including the remaining preexec functions.
     local preexecs=()
     if [[ ! -z "${user_preexecs:-}" ]]; then
@@ -294,7 +277,7 @@ __profile_rag__fn__trap() {
     if [[ -n ${preexecs[@]} ]]; then
       for preexec_fn in "${preexecs[@]}"; do
         # Fail early since the submitted cmd could depend on setup stuff in preexecs.
-        if ! "${preexec_fn}" "${submitted_cmd}" >"${tty_descriptor}" 2>&1; then
+        if ! "${preexec_fn}" "${submitted_prompt}" >"${tty_descriptor}" 2>&1; then
           local failed_return_code="${?}"
           trap '__profile_rag__fn__trap' DEBUG
           return "${failed_return_code}"
@@ -305,20 +288,17 @@ __profile_rag__fn__trap() {
     # Execute the preexec scripts associated with the user's working directory.
     # These scripts run in the order of their directory structures, where parents
     # are executed first and children are executed last.
-    __profile_rag__fn__trap_preexec_scripts "${submitted_cmd}" >"${tty_descriptor}" 2>&1
+    __profile_rag__fn__trap_preexec_scripts "${submitted_prompt}" >"${tty_descriptor}" 2>&1
     local preexec_return="${PIPESTATUS[0]}"
     local should_skip_rag=false
-    # 0 - we should eval the command immediately and skip rag tracking.
-    # Think simple commands like "cd", "ls", "pwd", etc.
+    # 0 - implies that we are running a blacklisted command and should skip the rag tracking.
     if [[ ${preexec_return} -eq 0 ]]; then
-      eval "${submitted_cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+      eval "${submitted_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
       should_skip_rag=true
-    # 151 - we failed in the preexec scripts (not user functions!) and will want to
-    # skip the rag tracking.
+    # 151 - implies that one of the preexec scripts failed.
     elif [[ ${preexec_return} -eq 151 ]]; then
       should_skip_rag=true
-    # everything else - we don't know what happened; implies an internal implementation
-    # error in the preexec scripts.
+    # Internal error so we should not proceed.
     elif [[ ${preexec_return} -ne 1 ]]; then
       echo "Unexpected error: preexec returned an unhandled code: ${preexec_return}" >&2
       trap '__profile_rag__fn__trap' DEBUG
@@ -329,31 +309,33 @@ __profile_rag__fn__trap() {
     if [[ ${should_skip_rag} = false ]]; then
       local rag_id="$(date +%s%N)"
       __profile_rag__fn__create_tmp_files
-      __profile_rag__fn__trap_eval "${rag_id}" "${submitted_cmd}"
+      __profile_rag__fn__trap_eval "${rag_id}" "${submitted_prompt}"
       __profile_rag__fn__digest "${rag_id}"
     fi
 
     # User defined postexec functions. If one of them fails, do not execute the rest.
-    # But don't allow a failure to affect the final return code.
+    # But don't allow a failure to revise the final return code.
     local postexecs=()
     if [[ ! -z "${user_postexecs:-}" ]]; then
       postexecs=("${user_postexecs[@]}")
     fi
     if [[ -n ${postexecs[@]} ]]; then
       for postexec_fn in "${postexecs[@]}"; do
-        if ! "${postexec_fn}" "${submitted_cmd}" >"${tty_descriptor}" 2>&1; then
+        if ! "${postexec_fn}" "${submitted_prompt}" >"${tty_descriptor}" 2>&1; then
           break
         fi
       done
     fi
   fi
 
-  # Finally reset the trap since we're all done and make sure the original command
-  # that was trapped is skipped.
+  # All done, reset the trap and ensure $BASH_COMMAND does not execute.
   trap '__profile_rag__fn__trap' DEBUG
   return 1
 }
 __profile_rag__fn__install() {
+  # Make sure that if the user messes with the PROMPT_COMMAND or debug trap that we
+  # fail in an obvious way. If they need these things, the best path forward is to
+  # not install the SolOS shell. Not great, but it's the best we can do.
   if [[ -n "${PROMPT_COMMAND}" ]]; then
     echo "PROMPT_COMMAND is already set. Will not track command outputs." >&2
     return 1
@@ -396,6 +378,7 @@ __profile_rag__fn__apply_tag() {
     echo "${tag_choice}"
   fi
 }
+# This is the "rag" function implementation.
 __profile_rag__fn__main() {
   local no_more_opts=false
   local opt_command_only=false

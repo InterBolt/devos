@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Fixes aligment and word wrapping issues with the built-in table command.
 __profile_table_outputs__fn__format() {
   local headers="$1"
   shift
