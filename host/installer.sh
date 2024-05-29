@@ -25,10 +25,6 @@ __installer__fn__clone() {
     echo "Failed to clone ${vGITHUB_REPO_URL} to ${vTMP_DIR}/src" >&2
     exit 1
   fi
-  if [[ ! -f "${vTMP_DIR}/src/host/bin.sh" ]]; then
-    echo "${vTMP_DIR}/src/host/bin.sh not found." >&2
-    exit 1
-  fi
 }
 __installer__fn__init_fs() {
   local solos_bashrc="${vSOLOS_HOME_DIR}/.bashrc"
