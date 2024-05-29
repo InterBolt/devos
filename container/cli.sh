@@ -1,20 +1,38 @@
 #!/usr/bin/env bash
 
+#                                     /\             /\
+#                                    |`\\_,--="=--,_//`|
+#                                    \ ."  :'. .':  ". /
+#                                   ==)  _ :  '  : _  (==
+#                                     |>/O\   _   /O\<|
+#                                     | \-"~` _ `~"-/ |   jgs
+#                                    >|`===. \_/ .===`|<
+#                              .-"-.   \==='  |  '===/   .-"-.
+# .---------------------------{'. '`}---\,  .-'-.  ,/---{.'. '}---------------------------.
+#  )                          `"---"`     `~-===-~`     `"---"`                          (
+# (  Welcome to the SolOS CLI.                                                            )
+#  ) This script is intended to run in a Debian 12 docker container.                     (
+# (  It is not POSIX compliant and assumes that the container has Bash >= 5.0 installed.  )
+#  )                                                                                     (
+# '---------------------------------------------------------------------------------------'
+
 set -o errexit
 
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
-# Will include dotfiles in globbing.
 shopt -s dotglob
-
-# Slots to store returns/responses. Bash don't allow rich return
-# types, so we do dis hack shite instead.
-vPREV_CURL_RESPONSE=""
-vPREV_CURL_ERR_STATUS_CODE=""
-vPREV_CURL_ERR_MESSAGE=""
-vPREV_RETURN=()
-vPREV_NEXT_ARGS=()
-
+#-------------------------------------------------------------------
+# This is useful to confirm that our script is executable and the
+# symlink worked on installation.
+#-------------------------------------------------------------------
+for arg in "$@"; do
+  if [[ ${arg} = "--restricted-noop" ]]; then
+    exit 0
+  fi
+done
+#-------------------------------------------
+# LIB:GLOBAL: Info Shared between Projects
+#-------------------------------------------
 global_store.del() {
   local store_dir="${HOME}/.solos/store"
   mkdir -p "${store_dir}"
@@ -36,82 +54,27 @@ global_store.set() {
   fi
   echo "$2" >"${storage_file}"
 }
-
-# The directory path of the user's home directory.
-# Everything here runs in docker so this is the only way I
-# know to get the user's home directory.
-# TODO: is there a more standard way to get the user's home directory within
-# TODO[c]: a docker container?
+#-------------------------------------------------------------------
+# vUSERS_HOME_DIR: The user's home directory on their host machine
+# vCMD: The command to run. Populated in the argparse functions.
+# vOPTIONS: An array of the options passed to the CLI.
+# vPROJECT_NAME: The name of the project being worked on.
+#-------------------------------------------------------------------
 vUSERS_HOME_DIR="$(global_store.get "users_home_dir" "/root")"
-# Populated by the CLI parsing functions.
 vCMD=""
 vOPTIONS=()
-# Basic project info.
-# Most other things are stored in the project's secrets or store.
 vPROJECT_NAME=""
 vPROJECT_APP=""
-vPROJECT_ID=""
-
-# The parsing logic we use for the main CLI commands will need to handle more
-# types of use cases and provide stronger UX. As a result, it prone to grow in
-# complexity. This flag parser OTOH is used by devs only and doesn't need to be pretty.
-misc.flag_parser() {
-  vPREV_RETURN=()
-  local flag_names=()
-  while [[ $# -gt 0 ]] && [[ $1 != "ARGS:" ]]; do
-    flag_names+=("$1")
-    shift
-  done
-  if [[ $1 != "ARGS:" ]]; then
-    echo "Unexpected error: no 'ARGS:' separator found." >&2
-    exit 1
-  fi
-  shift
-  local flag_values=()
-  for flag_name in "${flag_names[@]}"; do
-    for arg in "$@"; do
-      if [[ ${arg} = ${flag_name} ]] || [[ ${arg} = "${flag_name}="* ]]; then
-        if [[ ${arg} = *'='* ]]; then
-          flag_values+=("${arg#*=}")
-        else
-          flag_values+=("true")
-        fi
-        set -- "${@/''"${arg}"''/}"
-      else
-        flag_values+=("")
-      fi
-    done
-  done
-
-  # Now remove the flags we already parsed.
-  local nonempty_args=()
-  for arg in "$@"; do
-    if [ -n ${arg} ]; then
-      nonempty_args+=("${arg}")
-    fi
-  done
-  set -- "${nonempty_args[@]}" || exit 1
-  vPREV_NEXT_ARGS=("$@")
-  vPREV_RETURN=("${flag_values[@]}")
-}
-
-misc.flag_parser \
-  --restricted-noop \
-  "ARGS:" "$@"
-set -- "${vPREV_NEXT_ARGS[@]}" || exit 1
-vRESTRICTED_MODE_NOOP=${vPREV_RETURN[0]:-false}
-if [[ ${vRESTRICTED_MODE_NOOP} = true ]]; then
-  exit 0
-fi
-
+#-------------------------------------------------------------------
+# Source any dependencies that are required for the CLI to function.
+# These are placed below the definition of vUSERS_HOME_DIR because
+# they rely on it.
+#-------------------------------------------------------------------
 . "${HOME}/.solos/src/tools/pkgs/gum.sh"
 . "${HOME}/.solos/src/tools/log.sh"
-
-vUSAGE_CMD_HEADER="COMMANDS:"
-vUSAGE_OPTS_HEADER="OPTIONS:"
-vUSAGE_ALLOWS_CMDS=()
-vUSAGE_ALLOWS_OPTIONS=()
-
+#---------------------------------
+# LIB:USAGE: CLI Help Information
+#---------------------------------
 usage.help() {
   cat <<EOF
 USAGE: solos <command> <args..> [--OPTS...]
@@ -120,7 +83,7 @@ DESCRIPTION:
 
 A CLI to manage SolOS projects on your local machine or container.
 
-${vUSAGE_CMD_HEADER}
+COMMANDS:
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
 app                      - Initializes or checks out a project app.
@@ -128,7 +91,7 @@ shell                    - Start a SolOS shell session with ~/.solos/.bashrc sou
 shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/.bashrc.
 try                      - (DEV ONLY) Undocumented.
 
-${vUSAGE_OPTS_HEADER}
+OPTIONS:
 
 --assume-yes        - Assume yes for all prompts.
 
@@ -187,6 +150,9 @@ Undocumented.
 
 EOF
 }
+#-------------------------------
+# LIB:ARGPARSE: Parse CLI Args
+#-------------------------------
 argparse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     echo "true"
@@ -302,7 +268,20 @@ argparse.validate_opts() {
     done
   fi
 }
-
+argparse.ingest() {
+  for i in "${!vOPTIONS[@]}"; do
+    case "${vOPTIONS[$i]}" in
+    argv1=*)
+      if [[ ${vCMD} = "app" ]] || [[ ${vCMD} = "checkout" ]]; then
+        vPROJECT_APP="${vOPTIONS[$i]#*=}"
+      fi
+      ;;
+    esac
+  done
+}
+#--------------------------------------------
+# LIB:PROJECT_STORE: Information per project
+#--------------------------------------------
 project_store.del() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
@@ -348,6 +327,9 @@ project_store.set() {
   fi
   echo "$2" >"${project_store_file}"
 }
+#-------------------------------------------------
+# LIB:PROJECT_SECRETS: Record secrets per project
+#-------------------------------------------------
 project_secrets.del() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
@@ -393,6 +375,9 @@ project_secrets.set() {
   fi
   echo "$2" >"${secrets_file}"
 }
+#-------------------------------
+# LIB:SSH: SSH helper functions
+#-------------------------------
 ssh._validate() {
   local key_name="$1"
   local ip="$2"
@@ -487,23 +472,9 @@ ssh.create() {
   fi
   cd "${entry_dir}" || exit 1
 }
-utils.generate_secret() {
-  openssl rand -base64 32 | tr -dc 'a-z0-9' | head -c 32
-}
-# Must generate a unique string, 10 characters that is URL safe.
-utils.generate_project_id() {
-  date +%H:%M:%S:%N | sha256sum | base64 | tr '[:upper:]' '[:lower:]' | head -c 16
-}
-utils.get_project_id() {
-  local project_id_file="${HOME}/.solos/projects/${vPROJECT_NAME}/id"
-  if [[ -f ${project_id_file} ]]; then
-    cat "${project_id_file}"
-  else
-    echo ""
-  fi
-}
-# Any variable that is set in this shell will automatically replace any text matching:
-# __<VARIABLE_NAME>__ in any file that is passed to this function.
+#-----------------------------------------
+# LIB:UTILS: Uncategorized helper methods
+#-----------------------------------------
 utils.template_variables() {
   local dir_or_file="$1"
   local eligible_files=()
@@ -545,56 +516,9 @@ utils.template_variables() {
     exit 1
   fi
 }
-utils.curl() {
-  vPREV_CURL_ERR_STATUS_CODE=""
-  vPREV_CURL_ERR_MESSAGE=""
-  vPREV_CURL_RESPONSE=$(
-    curl --silent --show-error "$@"
-  )
-  local error_message="$(jq -r '.error' <<<"${vPREV_CURL_RESPONSE}")"
-  if [[ ${error_message} = "null" ]]; then
-    echo ""
-    return
-  fi
-  vPREV_CURL_ERR_MESSAGE="${error_message}"
-  vPREV_CURL_ERR_STATUS_CODE="$(jq -r '.status' <<<"${vPREV_CURL_RESPONSE}")"
-}
-utils.allow_error_status_code() {
-  # A note on the "none" argument:
-  # The benefit of forcing the caller to "say" their intention rather
-  # than just leaving the arg list empty is purely for readability.
-  if [[ -z $1 ]]; then
-    log_error "Missing \`none\` or a list of allowed status codes."
-    exit 1
-  fi
-  local error_message="${vPREV_CURL_ERR_MESSAGE} with status code: ${vPREV_CURL_ERR_STATUS_CODE}"
-  local allowed="true"
-  if [[ -z ${vPREV_CURL_ERR_STATUS_CODE} ]]; then
-    log_info "no error status code found for curl request"
-    return
-  fi
-  if [[ $1 = "none" ]]; then
-    allowed=""
-    shift
-  fi
-  local allowed_status_codes=()
-  if [[ $# -gt 0 ]]; then
-    allowed_status_codes=("$@")
-  fi
-  for allowed_status_code in "${allowed_status_codes[@]}"; do
-    if [[ ${vPREV_CURL_ERR_STATUS_CODE} = "${allowed_status_code}" ]]; then
-      allowed="true"
-      log_info "set allowed to true for status code: ${allowed_status_code}"
-    fi
-  done
-  if [[ -z ${allowed} ]]; then
-    log_error "${error_message}"
-    exit 1
-  else
-    log_warn "Allowing error status code: ${vPREV_CURL_ERR_STATUS_CODE} with message: ${vPREV_CURL_ERR_MESSAGE}"
-  fi
-}
-
+#-----------------------------------
+# LIB:CMD: Command implementations
+#-----------------------------------
 cmd.app._remove_app_from_code_workspace() {
   local tmp_vscode_workspace_file="$1"
   jq 'del(.folders[] | select(.name == "App.'"${vPROJECT_APP}"'"))' "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
@@ -604,13 +528,11 @@ cmd.app._remove_app_from_code_workspace() {
   fi
   mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
 }
-
 cmd.app._get_path_to_app() {
   local path_to_apps="${HOME}/.solos/projects/${vPROJECT_NAME}/apps"
   mkdir -p "${path_to_apps}"
   echo "${path_to_apps}/${vPROJECT_APP}"
 }
-
 cmd.app._init() {
   if [[ ! ${vPROJECT_APP} =~ ^[a-z_-]*$ ]]; then
     log_error "Invalid app name. App names must be lowercase and can only contain letters, hyphens, and underscores."
@@ -687,9 +609,8 @@ EOF
   rm -rf "${tmp_misc_dir}"
   log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Initialized the app."
 }
-
 cmd.app() {
-  solos.use_checked_out_project
+  project.checkout
   if [[ -z "${vPROJECT_APP}" ]]; then
     log_error "No app name was supplied."
     exit 1
@@ -716,7 +637,6 @@ cmd.checkout() {
   # We'll use a tmp dir to build up the files so that unexpected errors
   # won't result in a partial project dir.
   if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    local project_id="$(lib.utils.generate_project_id)"
     local tmp_project_ssh_dir="$(mktemp -d -q)"
     if [[ ! -d ${tmp_project_ssh_dir} ]]; then
       log_error "Unexpected error: no tmp dir was created."
@@ -728,7 +648,6 @@ cmd.checkout() {
     log_info "${vPROJECT_NAME} - Set permissions on keypair for project"
     mkdir -p "${HOME}/.solos/projects/${vPROJECT_NAME}"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
-    echo "${project_id}" >"${HOME}/.solos/projects/${vPROJECT_NAME}/id"
     log_info "${vPROJECT_NAME} - Established project directory"
   fi
   # We should be able to re-run the checkout command and pick up where we left
@@ -749,22 +668,13 @@ cmd.checkout() {
   log_info "${vPROJECT_NAME} - Checkout out."
 }
 cmd.try() {
-  solos.use_checked_out_project
+  project.checkout
   log_warn "TODO: implementation needed"
 }
-# The main user-facing options should get implemented here.
-solos.ingest_argparsed() {
-  for i in "${!vOPTIONS[@]}"; do
-    case "${vOPTIONS[$i]}" in
-    argv1=*)
-      if [[ ${vCMD} = "app" ]] || [[ ${vCMD} = "checkout" ]]; then
-        vPROJECT_APP="${vOPTIONS[$i]#*=}"
-      fi
-      ;;
-    esac
-  done
-}
-solos.prune_nonexistent_apps() {
+#---------------------------------------------
+# LIB:PROJECT: Project related helper methods
+#---------------------------------------------
+project.prune() {
   local tmp_dir="$(mktemp -d -q)"
   local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
@@ -797,59 +707,35 @@ solos.prune_nonexistent_apps() {
   log_info "Removed nonexistent apps from the code workspace file."
   return 0
 }
-# Ensure the user doesn't have to supply the --project flag every time.
-solos.use_checked_out_project() {
+project.checkout() {
   vPROJECT_NAME="$(global_store.get "checked_out_project")"
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "No project currently checked out."
     exit 1
   fi
-  vPROJECT_ID="$(utils.get_project_id)"
-  if [[ -z ${vPROJECT_ID} ]]; then
-    log_error "Unexpected error: no project ID found for ${vPROJECT_NAME}."
-    exit 1
-  fi
 }
-solos.require_provisioned_s3() {
-  local s3_object_store="$(project_secrets.get "s3_object_store")"
-  local s3_access_key="$(project_secrets.get "s3_access_key")"
-  local s3_secret="$(project_secrets.get "s3_secret")"
-  local s3_host="$(project_secrets.get "s3_host")"
-  if [[ -z ${s3_object_store} ]]; then
-    log_error "No s3_object_store found. Please provision s3 storage. See \`solos --help\` for more information."
+#---------------------------------------------------------------------------
+#                            RUN THE CLI
+#---------------------------------------------------------------------------
+__MAIN__() {
+  argparse.requirements
+  argparse.cmd "$@"
+  argparse.validate_opts
+
+  if [[ -z ${vCMD} ]]; then
     exit 1
   fi
-  if [[ -z ${s3_access_key} ]]; then
-    log_error "No s3_access_key found. Please provision s3 storage. See \`solos --help\` for more information."
+  if ! command -v "cmd.${vCMD}" &>/dev/null; then
+    log_error "No implementation for ${vCMD} exists."
     exit 1
   fi
-  if [[ -z ${s3_secret} ]]; then
-    log_error "No s3_secret found. Please provision s3 storage. See \`solos --help\` for more information."
-    exit 1
-  fi
-  if [[ -z ${s3_host} ]]; then
-    log_error "No s3_host found. Please provision s3 storage. See \`solos --help\` for more information."
-    exit 1
+  argparse.ingest
+  "cmd.${vCMD}" || true
+  if [[ -n ${vPROJECT_NAME} ]]; then
+    if ! project.prune; then
+      log_error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
+    fi
   fi
 }
 
-# Parses CLI arguments into simpler data structures and validates against
-# the usage strings in args/usage.sh.
-argparse.requirements
-argparse.cmd "$@"
-argparse.validate_opts
-
-if [[ -z ${vCMD} ]]; then
-  exit 1
-fi
-if ! command -v "cmd.${vCMD}" &>/dev/null; then
-  log_error "No implementation for ${vCMD} exists."
-  exit 1
-fi
-solos.ingest_argparsed
-"cmd.${vCMD}" || true
-if [[ -n ${vPROJECT_NAME} ]]; then
-  if ! solos.prune_nonexistent_apps; then
-    log_error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
-  fi
-fi
+__MAIN__ "$@"
