@@ -8,6 +8,7 @@ shopt -s extdebug
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
 __profile_bashrc__relay_dir="${HOME}/.solos/.relay"
+__bashrc__loaded_project=""
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
@@ -17,7 +18,8 @@ __profile_bashrc__fn__users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
     echo "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}." >&2
-    sleep 5
+    echo "Press enter to exit the shell."
+    read -r || exit 1
     exit 1
   fi
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
@@ -51,6 +53,31 @@ __profile_bashrc__fn__bash_completions() {
   complete -F _custom_command_completions rag
   complete -F _custom_command_completions host
   complete -F _custom_command_completions '-'
+}
+
+__profile_bashrc__fn__run_checked_out_project_script() {
+  local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+  if [[ -z ${checked_out_project} ]]; then
+    return 0
+  fi
+  local projects_dir="${HOME}/.solos/projects"
+  local project_dir="${projects_dir}/${checked_out_project}"
+  if [[ ! ${PWD} =~ ^${project_dir} ]] && [[ ${PWD} != ${projects_dir} ]] && [[ ${PWD} =~ ^${projects_dir} ]]; then
+    local pwd_project="$(basename "${PWD}")"
+    echo "The checked out project does not match the project of your terminal's working directory." >&2
+    echo "Run \`solos checkout ${pwd_project}\` in your host terminal to ensure VSCode can load the correct container when launching the SolOS shell." >&2
+    echo "Press enter to exit..." >&2
+    read -r || exit 1
+    exit 1
+  fi
+  if [[ ${PWD} =~ ^${project_dir} ]]; then
+    local project_script="${HOME}/.solos/projects/${checked_out_project}/solos.checkout.sh"
+    if [[ -f ${project_script} ]]; then
+      . "${project_script}"
+      __bashrc__loaded_project="${checked_out_project}"
+      echo -e "\033[0;32mChecked out project: ${__bashrc__loaded_project} \033[0m"
+    fi
+  fi
 }
 
 __profile_bashrc__fn__host() {
@@ -220,6 +247,7 @@ __profile_bashrc__fn__install() {
   fi
   __profile_bashrc__fn__print_welcome_manual
   __profile_bashrc__fn__bash_completions
+  __profile_bashrc__fn__run_checked_out_project_script
 }
 
 __profile_bashrc__fn__reserved_fn_protection() {

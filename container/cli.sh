@@ -532,7 +532,7 @@ utils.template_variables() {
 #-----------------------------------
 cmd.app._remove_app_from_code_workspace() {
   local workspace_file="$1"
-  jq 'del(.folders[] | select(.name == "App.'"${vPROJECT_APP}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
+  jq 'del(.folders[] | select(.name == "'"${vPROJECT_NAME}"'.'"${vPROJECT_APP}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
   if ! jq . "${workspace_file}.tmp" >/dev/null; then
     log_error "Failed to validate the updated code workspace file: ${workspace_file}.tmp"
     exit 1
@@ -635,7 +635,7 @@ cmd.app() {
   local app_dir="$(cmd.app._get_path_to_app)"
   if [[ ! -d ${app_dir} ]]; then
     cmd.app._init
-  else 
+  else
     log_info "${vPROJECT_NAME}:${vPROJECT_APP} - App already exists."
   fi
 }
@@ -675,7 +675,31 @@ cmd.checkout() {
     log_error "${vPROJECT_NAME} - Failed to build the code workspace file."
     exit 1
   fi
-  log_info "${vPROJECT_NAME} - Checkout out."
+  local checkout_script="${HOME}/.solos/projects/${vPROJECT_NAME}/solos.checkout.sh"
+  if [[ -f ${checkout_script} ]]; then
+    chmod +x "${checkout_script}"
+    if ! "${checkout_script}"; then
+      log_warn "${vPROJECT_NAME} - Failed to run the checkout script."
+    else
+      log_info "${vPROJECT_NAME} - Checkout out."
+    fi
+  else
+    cat <<EOF >"${checkout_script}"
+#!/usr/bin/env bash
+
+###########################################################################################################
+## This script is executed once when a project is checked out. Use it to install resources that are unique
+## to the project. When a project is checked out, the docker container gets rebuilt, which means this will
+## always run in a fresh environment.
+###########################################################################################################
+
+# Write your code below:
+echo "Hello from the checkout script for project: ${vPROJECT_NAME}"
+
+EOF
+    chmod +x "${checkout_script}"
+    log_info "${vPROJECT_NAME} - Created the checkout script."
+  fi
 }
 cmd.try() {
   project.checkout

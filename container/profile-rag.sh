@@ -253,6 +253,16 @@ __profile_rag__fn__trap() {
   if [[ -n "${__profile_rag__trap_gate_open+set}" ]]; then
     unset __profile_rag__trap_gate_open
 
+    if [[ -n "${__bashrc__loaded_project}" ]]; then
+      local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+      if [[ "${__bashrc__loaded_project}" != "${checked_out_project}" ]]; then
+        echo "You have changed projects (${__bashrc__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
+        echo "Please exit and re-open your terminal." >&2
+        trap '__profile_rag__fn__trap' DEBUG
+        return 1
+      fi
+    fi
+
     # Pretty sure eval'd commands don't get a tty so we have to manually attach it.
     local tty_descriptor="$(tty)"
 

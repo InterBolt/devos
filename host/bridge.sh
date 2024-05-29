@@ -50,6 +50,11 @@ set -- "${__bridge__next_args[@]}" || exit 1
 
 export DOCKER_CLI_HINTS=false
 
+__bridge__fn__error_press_enter() {
+  echo "Press enter to exit..."
+  read -r || exit 1
+  exit 1
+}
 __bridge__fn__hash() {
   git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo ""
 }
@@ -100,8 +105,7 @@ __bridge__fn__exec_shell() {
   if [[ -n ${bashrc_file} ]]; then
     if [[ ! -f ${bashrc_file} ]]; then
       echo "The supplied bashrc file at ${bashrc_file} does not exist." >&2
-      sleep 10
-      exit 1
+      __bridge__fn__error_press_enter
     fi
     local relative_bashrc_file="${bashrc_file/#$HOME/~}"
     bash_args=(--rcfile "${relative_bashrc_file}")
@@ -135,8 +139,7 @@ __bridge__fn__build_and_run() {
   echo "${HOME}" >"${__bridge__volume_config_hostfile}"
   if ! docker build -t "solos:$(__bridge__fn__hash)" -f "${__bridge__repo_dir}/Dockerfile" .; then
     echo "Unexpected error: failed to build the docker image." >&2
-    read -r -p "Press enter to exit..."
-    exit 1
+    __bridge__fn__error_press_enter
   fi
   local shared_docker_run_args=(
     --name
@@ -161,30 +164,50 @@ __bridge__fn__build_and_run() {
 }
 __bridge__fn__shell() {
   if __bridge__fn__test; then
-    __bridge__fn__symlinks
+    if ! __bridge__fn__symlinks; then
+      echo "" >&2
+      __bridge__fn__error_press_enter
+    fi
     __bridge__fn__exec_shell "$@"
     return 0
   fi
   if ! __bridge__fn__destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
-    exit 1
+    __bridge__fn__error_press_enter
   fi
-  __bridge__fn__build_and_run
-  __bridge__fn__symlinks
+  if ! __bridge__fn__build_and_run; then
+    echo "Unexpected error: failed to build and run the container." >&2
+    __bridge__fn__error_press_enter
+  fi
+  if ! __bridge__fn__symlinks; then
+    echo "Unexpected error: failed to create symbolic links." >&2
+    __bridge__fn__error_press_enter
+  fi
   __bridge__fn__exec_shell "$@"
 }
 __bridge__fn__cmd() {
   if __bridge__fn__test; then
-    __bridge__fn__symlinks
+    if ! __bridge__fn__symlinks; then
+      echo "" >&2
+      echo "Press enter to exit..."
+      read -r || exit 1
+      exit 1
+    fi
     __bridge__fn__exec_command "$@"
     return 0
   fi
   if ! __bridge__fn__destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
-    exit 1
+    __bridge__fn__error_press_enter
   fi
-  __bridge__fn__build_and_run
-  __bridge__fn__symlinks
+  if ! __bridge__fn__build_and_run; then
+    echo "Unexpected error: failed to build and run the container." >&2
+    __bridge__fn__error_press_enter
+  fi
+  if ! __bridge__fn__symlinks; then
+    echo "Unexpected error: failed to create symbolic links." >&2
+    __bridge__fn__error_press_enter
+  fi
   __bridge__fn__exec_command "$@"
 }
 
@@ -195,7 +218,7 @@ __bridge__fn__exec_cli() {
       if [[ "$*" == *" --help"* ]] || [[ "$*" == *" help"* ]]; then
         return 0
       fi
-      # The first arg is the command, which is already known. 
+      # The first arg is the command, which is already known.
       # So shift and run the posthook.
       shift
       "__cli_posthooks__fn__${post_behavior}" "$@"
@@ -207,28 +230,16 @@ __bridge__fn__cli() {
   local curr_project="$(
     head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
   )"
-  local restricted_flags=()
-  while [[ $# -gt 0 ]]; do
-    if [[ ${1} = --restricted-* ]]; then
-      restricted_flags+=("${1}")
-      shift
-    else
-      break
-    fi
-  done
-  if [[ $# -eq 0 ]]; then
-    if [[ -n ${curr_project} ]]; then
-      __bridge__fn__exec_cli checkout "${restricted_flags[@]}" --project="${curr_project}"
-    fi
-  else
-    local next_project="$(
-      head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
-    )"
-    if [[ ${curr_project} != "${next_project}" ]]; then
-      __bridge__fn__destroy
-    fi
-    __bridge__fn__exec_cli "${restricted_flags[@]}" "$@"
+  local args=("$@")
+  # If the user simply types "solos", we should check out the last project again.
+  if [[ $# -eq 0 ]] && [[ -n ${curr_project} ]]; then
+    args=("checkout" "${curr_project}")
   fi
+  # Any use of the checkout command should clean the environment.
+  if [[ ${args[0]} = "checkout" ]]; then
+    __bridge__fn__destroy
+  fi
+  __bridge__fn__exec_cli "${args[@]}"
 }
 
 __bridge__fn__main() {

@@ -6,12 +6,12 @@
       "profile": "shell"
     },
     {
-      "name": ".solos",
+      "name": "root",
       "uri": "__vUSERS_HOME_DIR__/.solos",
       "profile": "shell"
     },
     {
-      "name": "Source Code",
+      "name": "dev.source",
       "uri": "__vUSERS_HOME_DIR__/.solos/src",
       "profile": "shell-minimal"
     }
