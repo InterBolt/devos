@@ -19,7 +19,8 @@ RUN apt-get update \
   sudo \
   build-essential \
   manpages-dev \
-  procps
+  procps \
+  keychain
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \

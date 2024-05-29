@@ -24,22 +24,7 @@ __cli_posthooks__fn__checkout() {
     echo "Unexpected error: no project specified." >&2
     exit 1
   fi
-  local project=""
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-    --project=*)
-      project="${1#*=}"
-      shift
-      ;;
-    *)
-      shift
-      ;;
-    esac
-  done
-  if [[ -z "${project}" ]]; then
-    echo "Unexpected error: no project specified." >&2
-    exit 1
-  fi
+  local project="${1}"
   local code_workspace_file="${HOME}/.solos/projects/${project}/.vscode/solos-${project}.code-workspace"
   if [[ ! -f "${code_workspace_file}" ]]; then
     echo "Unexpected error: no code workspace file found for project ${project}." >&2
@@ -53,37 +38,25 @@ __cli_posthooks__fn__app() {
     return 0
   fi
   if [[ -z "${1}" ]]; then
-    echo "Unexpected error: no project specified." >&2
+    echo "Unexpected error: no app specified." >&2
     exit 1
   fi
+  local app="${1}"
   local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
   local project_dir="${HOME}/.solos/projects/${project}"
   if [[ ! -d "${HOME}/.solos/projects/${project}" ]]; then
     echo "Unexpected error: no project specified." >&2
     exit 1
   fi
-  local cmd=""
-  local app=""
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-    --*)
-      shift
-      ;;
-    *)
-      if [[ -z "${cmd}" ]]; then
-        cmd="$1"
-      else
-        app="$1"
-        break
-      fi
-      shift
-      ;;
-    esac
-  done
-  local app_dir="${HOME}/.solos/projects/${project}/apps/${app}"
+  local app_dir="${project_dir}/apps/${app}"
   if [[ ! -d "${app_dir}" ]]; then
     echo "Unexpected error: couldn't find - ${app_dir}" >&2
     exit 1
   fi
-  code -r "${app_dir}/solos.preexec.sh"
+  local app_dir_preexec_script="${app_dir}/solos.preexec.sh"
+  if [[ ! -f ${app_dir_preexec_script} ]]; then
+    echo "No preexec script found for app ${app}." >&2
+    exit 1
+  fi
+  code -r "${app_dir_preexec_script}"
 }

@@ -62,6 +62,7 @@ global_store.set() {
 #-------------------------------------------------------------------
 vUSERS_HOME_DIR="$(global_store.get "users_home_dir" "/root")"
 vCMD=""
+vALLOWED_OPTIONS=()
 vOPTIONS=()
 vPROJECT_NAME=""
 vPROJECT_APP=""
@@ -77,7 +78,7 @@ vPROJECT_APP=""
 #---------------------------------
 usage.help() {
   cat <<EOF
-USAGE: solos <command> <args..> [--OPTS...]
+USAGE: solos <command> <args..>
 
 DESCRIPTION:
 
@@ -91,16 +92,12 @@ shell                    - Start a SolOS shell session with ~/.solos/.bashrc sou
 shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/.bashrc.
 try                      - (DEV ONLY) Undocumented.
 
-OPTIONS:
-
---assume-yes        - Assume yes for all prompts.
-
 Source: https://github.com/InterBolt/solos
 EOF
 }
 usage.cmd.checkout.help() {
   cat <<EOF
-USAGE: solos checkout <project> [--OPTS...]
+USAGE: solos checkout <project>
 
 DESCRIPTION:
 
@@ -111,7 +108,7 @@ EOF
 }
 usage.cmd.app.help() {
   cat <<EOF
-USAGE: solos app <app-name> [--OPTS...]
+USAGE: solos app <app_name>
 
 DESCRIPTION:
 
@@ -122,7 +119,7 @@ EOF
 }
 usage.cmd.shell.help() {
   cat <<EOF
-USAGE: solos shell [--OPTS...]
+USAGE: solos shell
 
 DESCRIPTION:
 
@@ -132,7 +129,7 @@ EOF
 }
 usage.cmd.shell_minimal.help() {
   cat <<EOF
-USAGE: solos shell-minimal [--OPTS...]
+USAGE: solos shell-minimal
 
 DESCRIPTION:
 
@@ -142,7 +139,7 @@ EOF
 }
 usage.cmd.try.help() {
   cat <<EOF
-USAGE: solos try [--OPTS...]
+USAGE: solos try
 
 DESCRIPTION:
 
@@ -155,25 +152,33 @@ EOF
 #-------------------------------
 argparse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
-    echo "true"
+    return 0
   else
-    echo "false"
+    return 1
   fi
 }
+argparse._allowed_cmds() {
+  local allowed_cmds=()
+  for cmd in $(compgen -A function | grep "usage.cmd.*.help"); do
+    allowed_cmds+=("$(echo "${cmd}" | awk -F '.' '{print $3}' | tr '_' '-')")
+  done
+  echo "${allowed_cmds[@]}"
+}
 argparse.cmd() {
+  local allowed_cmds=($(argparse._allowed_cmds))
   if [[ -z "$1" ]]; then
     log_error "No command supplied."
     usage.help
     exit 0
   fi
-  if [[ $(argparse._is_valid_help_command "$1") = true ]]; then
+  if argparse._is_valid_help_command "$1"; then
     usage.help
     exit 0
   fi
   local post_command_arg_index=0
   while [[ "$#" -gt 0 ]]; do
-    if [[ $(argparse._is_valid_help_command "$1") = true ]]; then
-      if [[ -z "${vCMD}" ]]; then
+    if argparse._is_valid_help_command "$1"; then
+      if [[ -z ${vCMD} ]]; then
         log_error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
@@ -197,7 +202,7 @@ argparse.cmd() {
       fi
       local cmd_name=$(echo "$1" | tr '-' '_')
       local is_allowed=false
-      for allowed_cmd_name in "${vSELF_USAGE_ALLOWS_CMDS[@]}"; do
+      for allowed_cmd_name in "${allowed_cmds[@]}"; do
         if [[ ${cmd_name} = ${allowed_cmd_name} ]]; then
           is_allowed=true
         fi
@@ -213,19 +218,21 @@ argparse.cmd() {
   done
 }
 argparse.requirements() {
+  local allowed_cmds=($(argparse._allowed_cmds))
   for cmd_name in $(
     usage.help |
-      grep -A 1000 "${vSELF_USAGE_CMD_HEADER}" |
-      grep -v "${vSELF_USAGE_CMD_HEADER}" |
+      grep -A 1000 "COMMANDS:" |
+      grep -v "COMMANDS:" |
       grep -E "^[a-z]" |
       awk '{print $1}'
   ); do
     cmd_name=$(echo "${cmd_name}" | tr '-' '_')
     if [[ "${cmd_name}" != "help" ]]; then
-      vSELF_USAGE_ALLOWS_CMDS+=("${cmd_name}")
+      allowed_cmds+=("${cmd_name}")
     fi
   done
-  for cmd in "${vSELF_USAGE_ALLOWS_CMDS[@]}"; do
+  for cmd in "${allowed_cmds[@]}"; do
+    cmd="$(echo "${cmd}" | tr '-' '_')"
     opts="${cmd}("
     first=true
     for cmd_option in $(usage.cmd."${cmd}".help | grep -E "^--" | awk '{print $1}'); do
@@ -237,13 +244,13 @@ argparse.requirements() {
       fi
       first=false
     done
-    vSELF_USAGE_ALLOWS_OPTIONS+=("${opts})")
+    vALLOWED_OPTIONS+=("${opts})")
   done
 }
 argparse.validate_opts() {
   if [[ -n ${vOPTIONS[0]} ]]; then
     for cmd_option in "${vOPTIONS[@]}"; do
-      for allowed_cmd_option in "${vSELF_USAGE_ALLOWS_OPTIONS[@]}"; do
+      for allowed_cmd_option in "${vALLOWED_OPTIONS[@]}"; do
         cmd_name=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $1}')
         cmd_options=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
         if [[ ${cmd_name} = ${vCMD} ]]; then
@@ -272,8 +279,11 @@ argparse.ingest() {
   for i in "${!vOPTIONS[@]}"; do
     case "${vOPTIONS[$i]}" in
     argv1=*)
-      if [[ ${vCMD} = "app" ]] || [[ ${vCMD} = "checkout" ]]; then
+      if [[ ${vCMD} = "app" ]]; then
         vPROJECT_APP="${vOPTIONS[$i]#*=}"
+      fi
+      if [[ ${vCMD} = "checkout" ]]; then
+        vPROJECT_NAME="${vOPTIONS[$i]#*=}"
       fi
       ;;
     esac
@@ -445,7 +455,7 @@ ssh.pubkey() {
 }
 ssh.create() {
   local key_name="$1"
-  local ssh_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
+  local ssh_dir="${2}"
   mkdir -p "${ssh_dir}"
   local privkey_path="${ssh_dir}/${key_name}.priv"
   local pubkey_path="${ssh_dir}/${key_name}.pub"
@@ -465,6 +475,7 @@ ssh.create() {
   cd "${ssh_dir}" || exit 1
   if ! ssh-keygen -t rsa -q -f "${privkey_path}" -N "" >/dev/null; then
     log_error "Could not create SSH keypair."
+    exit 1
   else
     mv "${privkey_path}.pub" "${pubkey_path}"
     chmod 644 "${pubkey_path}"
@@ -520,13 +531,13 @@ utils.template_variables() {
 # LIB:CMD: Command implementations
 #-----------------------------------
 cmd.app._remove_app_from_code_workspace() {
-  local tmp_vscode_workspace_file="$1"
-  jq 'del(.folders[] | select(.name == "App.'"${vPROJECT_APP}"'"))' "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
-  if ! jq . "${tmp_vscode_workspace_file}.tmp" >/dev/null; then
-    log_error "Failed to validate the updated code workspace file: ${tmp_vscode_workspace_file}.tmp"
+  local workspace_file="$1"
+  jq 'del(.folders[] | select(.name == "App.'"${vPROJECT_APP}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
+  if ! jq . "${workspace_file}.tmp" >/dev/null; then
+    log_error "Failed to validate the updated code workspace file: ${workspace_file}.tmp"
     exit 1
   fi
-  mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
+  mv "${workspace_file}.tmp" "${workspace_file}"
 }
 cmd.app._get_path_to_app() {
   local path_to_apps="${HOME}/.solos/projects/${vPROJECT_NAME}/apps"
@@ -566,13 +577,15 @@ cmd.app._init() {
 #!/usr/bin/env bash
 
 #########################################################################################################
-## This script is executed prior to any command run in the SolOS's shell when in the context of this app.
+## This script is executed prior to any command run in the SolOS's shell when the working directory is a 
+## the parent directory or a subdirectory of the app's directory. The output of this script is not
+## included in your command's stdout/err but is visible in the terminal.
 ## Do things like check for dependencies, set environment variables, etc.
 ##
 ## Example logic: if an app requires a specific version of Node.js, you could check for it here 
 ## and then use nvm to switch to it.
 ##
-## Important note: idempotency is YOUR responsibility.
+## Important note: Idempotency is YOUR responsibility.
 #########################################################################################################
 
 # Write your code below:
@@ -588,11 +601,11 @@ EOF
   fi
   cp -f "${vscode_workspace_file}" "${tmp_vscode_workspace_file}"
   # The goal is to remove the app and then add it back to the beginning of the folders array.
-  # This gives the best UX in VS Code since a new terminal will automatically assume the app's context.
+  # This gives the best UX in VS Code since a new terminal will automatically assume the app's dir context.
   cmd.app._remove_app_from_code_workspace "${tmp_vscode_workspace_file}"
   jq \
     --arg app_name "${vPROJECT_APP}" \
-    '.folders |= [{ "name": "App.'"${vPROJECT_APP}"'", "uri": "'"${vUSERS_HOME_DIR}"'/.solos/projects/'"${vPROJECT_NAME}"'/apps/'"${vPROJECT_APP}"'", "profile": "solos" }] + .' \
+    '.folders |= [{ "name": "App.'"${vPROJECT_APP}"'", "uri": "'"${vUSERS_HOME_DIR}"'/.solos/projects/'"${vPROJECT_NAME}"'/apps/'"${vPROJECT_APP}"'", "profile": "shell" }] + .' \
     "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
   mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
   if ! jq . "${tmp_vscode_workspace_file}" >/dev/null; then
@@ -622,6 +635,8 @@ cmd.app() {
   local app_dir="$(cmd.app._get_path_to_app)"
   if [[ ! -d ${app_dir} ]]; then
     cmd.app._init
+  else 
+    log_info "${vPROJECT_NAME}:${vPROJECT_APP} - App already exists."
   fi
 }
 cmd.checkout() {
@@ -642,23 +657,18 @@ cmd.checkout() {
       log_error "Unexpected error: no tmp dir was created."
       exit 1
     fi
-    lib.ssh.project_build_keypair "${tmp_project_ssh_dir}" || exit 1
+    ssh.create "default" "${tmp_project_ssh_dir}" || exit 1
     log_info "${vPROJECT_NAME} - Created keypair for project"
-    lib.ssh.project_give_keyfiles_permissions "${tmp_project_ssh_dir}" || exit 1
-    log_info "${vPROJECT_NAME} - Set permissions on keypair for project"
     mkdir -p "${HOME}/.solos/projects/${vPROJECT_NAME}"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
     log_info "${vPROJECT_NAME} - Established project directory"
   fi
-  # We should be able to re-run the checkout command and pick up where we left
-  # off if we didn't supply all the variables the first time.
-  solos.prompts
-  lib.global_store.set "checked_out_project" "${vPROJECT_NAME}"
+  global_store.set "checked_out_project" "${vPROJECT_NAME}"
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
   local tmp_dir="$(mktemp -d -q)"
   cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
-  if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
+  if utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
     cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
     log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
   else
@@ -686,6 +696,9 @@ project.prune() {
   local apps="$(jq '.folders[] | select(.name | startswith("App."))' "${tmp_vscode_workspace_file}" | grep -Po '"name": "\K[^"]*' | cut -d'.' -f2)"
   local nonexistent_apps=()
   while read -r app; do
+    if [[ -z ${app} ]]; then
+      continue
+    fi
     local app_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/apps/${app}"
     if [[ ! -d ${app_dir} ]]; then
       nonexistent_apps+=("${app}")
@@ -714,14 +727,14 @@ project.checkout() {
     exit 1
   fi
 }
-#---------------------------------------------------------------------------
-#                            RUN THE CLI
-#---------------------------------------------------------------------------
+#--------------------------------------------------------------------
+#                            RUN IT
+#--------------------------------------------------------------------
 __MAIN__() {
   argparse.requirements
   argparse.cmd "$@"
   argparse.validate_opts
-
+  argparse.ingest
   if [[ -z ${vCMD} ]]; then
     exit 1
   fi
@@ -729,7 +742,6 @@ __MAIN__() {
     log_error "No implementation for ${vCMD} exists."
     exit 1
   fi
-  argparse.ingest
   "cmd.${vCMD}" || true
   if [[ -n ${vPROJECT_NAME} ]]; then
     if ! project.prune; then

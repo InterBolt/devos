@@ -192,6 +192,12 @@ __bridge__fn__exec_cli() {
   local post_behavior="$(__cli_posthooks__fn__determine_command "$@")"
   if __bridge__fn__cmd /root/.solos/src/container/cli.sh "$@"; then
     if [[ -n ${post_behavior} ]]; then
+      if [[ "$*" == *" --help"* ]] || [[ "$*" == *" help"* ]]; then
+        return 0
+      fi
+      # The first arg is the command, which is already known. 
+      # So shift and run the posthook.
+      shift
       "__cli_posthooks__fn__${post_behavior}" "$@"
     fi
   fi
