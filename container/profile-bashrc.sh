@@ -61,13 +61,11 @@ __profile_bashrc__fn__host() {
   local stdout_file="${__profile_bashrc__relay_dir}/stdout"
   local stderr_file="${__profile_bashrc__relay_dir}/stderr"
   local cmd=''"${*}"''
-  rm -f "${stdout_file}"
-  echo "" >"${done_file}"
-  echo "" >"${stderr_file}"
-  echo "" >"${stdout_file}"
+  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
+  touch "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
   echo ''"${cmd}"'' >"${command_file}"
-  while [[ $(cat "${done_file}" 2>/dev/null || echo "") != "DONE:"* ]]; do
-    sleep 0.1
+  while [[ ! -f "${done_file}" ]] || [[ ! $(cat "${done_file}" 2>/dev/null) =~ ^DONE: ]]; do
+    sleep .1
   done
   local return_code=$(cat "${done_file}" 2>/dev/null | cut -d: -f2)
   stdout="$(cat "${stdout_file}" 2>/dev/null || echo "")"
@@ -535,7 +533,6 @@ pub_install_solos() {
     read -r || exit 1
     exit 1
   fi
-
   __profile_bashrc__fn__install
   __profile_rag__fn__install
 }
