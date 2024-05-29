@@ -10,8 +10,8 @@ trap 'trap "__profile_rag__fn__trap" DEBUG; exit 1;' SIGINT
 
 __profile_rag__sigexit='SOLOS:EXIT:1'
 __profile_rag__dir="${HOME}/.solos/rag"
+__profile_rag__logs_dir="${HOME}/.solos/logs"
 __profile_rag__config_dir="${__profile_rag__dir}/config"
-__profile_rag__logs_dir="${__profile_rag__dir}/logs"
 __profile_rag__std_dir="${__profile_rag__dir}/std"
 __profile_rag__tmp_dir="${__profile_rag__dir}/tmp"
 
@@ -58,7 +58,7 @@ __profile_rag__fn__init_fs() {
 
 __profile_rag__fn__save_output() {
   local tmp_jq_output_file="$1"
-  jq -c '.' <"${tmp_jq_output_file}" >>"${__profile_rag__logs_dir}/commands.log"
+  jq -c '.' <"${tmp_jq_output_file}" >>"${__profile_rag__logs_dir}/rag.log"
   rm -f "${tmp_jq_output_file}"
 }
 
@@ -66,12 +66,12 @@ __profile_rag__fn__init_tmp_files() {
   rm -rf "${__profile_rag__tmp_dir}"
   mkdir -p "${__profile_rag__tmp_dir}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/.stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/.stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/.cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/.return_code"
-  local stderr_rag_file="${__profile_rag__tmp_dir}/.stderr_rag"
-  local stdout_rag_file="${__profile_rag__tmp_dir}/.stdout_rag"
+  local stdout_file="${__profile_rag__tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__tmp_dir}/return_code"
+  local stderr_rag_file="${__profile_rag__tmp_dir}/stderr_rag"
+  local stdout_rag_file="${__profile_rag__tmp_dir}/stdout_rag"
 
   rm -f \
     "${stdout_file}" \
@@ -141,10 +141,10 @@ __profile_rag__fn__digest() {
   local user_tag="${3:-""}"
   local should_collect_post_note="${3:-false}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/.stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/.stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/.cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/.return_code"
+  local stdout_file="${__profile_rag__tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__tmp_dir}/return_code"
 
   local tmp_jq_output_file="$(mktemp)"
   echo '{
@@ -192,10 +192,10 @@ __profile_rag__fn__eval() {
   local rag_id="${1}"
   local cmd="${2}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/.stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/.stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/.cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/.return_code"
+  local stdout_file="${__profile_rag__tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__tmp_dir}/return_code"
   local return_code=1
   {
     local tty_descriptor="$(tty)"

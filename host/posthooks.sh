@@ -1,27 +1,22 @@
 #!/usr/bin/env bash
 
-# A utility function. There is not command called `determine_host_post_fn`
-__bin_posthook__fn__determine_command() {
+# This script defines some behavior associated with the *success* of various CLI commands when run on the host.
+# Ex: when we run `solos app <app_name>`, we want to invoke the `code` command on the host.
+
+# A utility function. There is not command called `determine_command`
+__posthooks__fn__determine_command() {
   while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
     shift
   done
   local host_post_fn=""
-  if declare -f "__bin_posthook__fn__${1}" >/dev/null; then
+  if declare -f "__posthooks__fn__${1}" >/dev/null; then
     host_post_fn="$1"
   fi
   echo "${host_post_fn}"
 }
 
-# Every function below defines some behavior associated with the success of a particular command.
-# Examples:
-# `solos dev` => __bin_posthook__fn__dev
-# `solos test` => __bin_posthook__fn__test
-# ...etc, etc
-#
-# Note: these are necessary because there are some things that are always better to do on
-# the host machine, but ONLY after the command makes any necessary changes to the container,
-# the FS, etc.
-__bin_posthook__fn__checkout() {
+# Every function below defines some behavior associated with the *success* of a particular command.
+__posthooks__fn__checkout() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi
@@ -53,7 +48,7 @@ __bin_posthook__fn__checkout() {
   code "${code_workspace_file}"
 }
 
-__bin_posthook__fn__app() {
+__posthooks__fn__app() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi

@@ -124,7 +124,8 @@ ${vUSAGE_CMD_HEADER}
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
 app                      - Initializes or checks out a project app.
-provision                - Provision resources for a project (eg. storage, databases, cloud instances, etc).
+shell                    - Start a SolOS shell session with ~/.solos/.bashrc sourced.
+shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/.bashrc.
 try                      - (DEV ONLY) Undocumented.
 
 ${vUSAGE_OPTS_HEADER}
@@ -156,13 +157,23 @@ it will checkout and re-install env dependencies for the app.
 
 EOF
 }
-usage.cmd.provision.help() {
+usage.cmd.shell.help() {
   cat <<EOF
-USAGE: solos provision [--OPTS...]
+USAGE: solos shell [--OPTS...]
 
 DESCRIPTION:
 
-Creates the required S3 buckets against your preferred S3-compatible object store.
+Loads a interactive bash shell with the RC file at ~/.solos/.bashrc sourced.
+
+EOF
+}
+usage.cmd.shell_minimal.help() {
+  cat <<EOF
+USAGE: solos shell-minimal [--OPTS...]
+
+DESCRIPTION:
+
+Loads a interactive bash shell without a RC file.
 
 EOF
 }
@@ -292,84 +303,6 @@ argparse.validate_opts() {
   fi
 }
 
-vS3_API_ENDPOINT="https://api.vultr.com/v2"
-vS3_API_TOKEN=""
-vS3_CURL_RESPONSE=""
-
-s3._get_object_storage_id() {
-  local label="solos-${vPROJECT_ID}"
-  local object_storage_id=""
-  utils.curl "${vS3_API_ENDPOINT}/object-storage" \
-    -X GET \
-    -H "Authorization: Bearer ${vS3_API_TOKEN}"
-  utils.allow_error_status_code "none"
-  local object_storage_labels=$(jq -r '.object_storages[].label' <<<"${vS3_CURL_RESPONSE}")
-  local object_storage_ids=$(jq -r '.object_storages[].id' <<<"${vS3_CURL_RESPONSE}")
-  for i in "${!object_storage_labels[@]}"; do
-    if [[ ${object_storage_labels[$i]} = ${label} ]]; then
-      object_storage_id="${object_storage_ids[$i]}"
-      break
-    fi
-  done
-  if [[ -n ${object_storage_id} ]]; then
-    echo "${object_storage_id}"
-  else
-    echo ""
-  fi
-}
-s3._get_ewr_cluster_id() {
-  local cluster_id=""
-  utils.curl "${vS3_API_ENDPOINT}/object-storage/clusters" \
-    -X GET \
-    -H "Authorization: Bearer ${vS3_API_TOKEN}"
-  utils.allow_error_status_code "none"
-  local cluster_ids=$(jq -r '.clusters[].id' <<<"${vS3_CURL_RESPONSE}")
-  local cluster_regions=$(jq -r '.clusters[].region' <<<"${vS3_CURL_RESPONSE}")
-  for i in "${!cluster_regions[@]}"; do
-    if [[ ${cluster_regions[$i]} = "ewr" ]]; then
-      cluster_id="${cluster_ids[$i]}"
-      break
-    fi
-  done
-  echo "${cluster_id}"
-}
-s3._create_storage() {
-  local cluster_id="$1"
-  local label="solos-${vPROJECT_ID}"
-  utils.curl "${vS3_API_ENDPOINT}/object-storage" \
-    -X POST \
-    -H "Authorization: Bearer ${vS3_API_TOKEN}" \
-    -H "Content-Type: application/json" \
-    --data '{
-        "label" : "'"${label}"'",
-        "cluster_id" : '"${cluster_id}"'
-      }'
-  utils.allow_error_status_code "none"
-  local object_storage_id=$(jq -r '.object_storage.id' <<<"${vS3_CURL_RESPONSE}")
-  echo "${object_storage_id}"
-}
-s3.init() {
-  local api_key="${1}"
-  if [[ -z ${api_key} ]]; then
-    log_error "No API key provided."
-    exit 1
-  fi
-  vS3_API_TOKEN="${api_key}"
-  local object_storage_id="$(s3._get_object_storage_id)"
-  if [[ -z ${object_storage_id} ]]; then
-    # Create the storage is the EWR region (east I think?)
-    local ewr_cluster_id="$(s3._get_ewr_cluster_id)"
-    object_storage_id="$(s3._create_storage "${ewr_cluster_id}")"
-  fi
-  utils.curl "${vS3_API_ENDPOINT}/object-storage/${object_storage_id}" \
-    -X GET \
-    -H "Authorization: Bearer ${vS3_API_TOKEN}"
-  utils.allow_error_status_code "none"
-  jq -r '.object_storage.s3_hostname' <<<"${vS3_CURL_RESPONSE}"
-  jq -r '.object_storage.s3_access_key' <<<"${vS3_CURL_RESPONSE}"
-  jq -r '.object_storage.s3_secret_key' <<<"${vS3_CURL_RESPONSE}"
-  jq -r '.object_storage.label' <<<"${vS3_CURL_RESPONSE}"
-}
 project_store.del() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."

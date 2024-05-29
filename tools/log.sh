@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 __log__filesize=0
-__log__logfile="${HOME}/.solos/logs/cli.log"
+__log__logfile="${HOME}/.solos/logs/logger.log"
 
 . "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
 
@@ -69,10 +69,7 @@ __log__fn__base() {
   shift
   local args=()
 
-  # The thinking is that if the source is NULL, we're almost certainly running
-  # the script via piping a curled script to bash. We can limit debugging info
-  # in the log line because their's likely no file to reference on the local
-  # machine.
+  # Don't bother displaying the script source if it's null.
   local date_args=(date "${formatted_date}")
   local source_args=(source "[${source}]")
   if [[ ${source} == "NULL"* ]]; then
@@ -96,6 +93,9 @@ __log__fn__base() {
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" "${date_args[@]}"
 }
+
+# PUBLIC FUNCTIONS:
+
 log_rag() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"

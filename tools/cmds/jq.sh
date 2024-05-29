@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Reminder: all scripts in the cmds directory are added to the PATH and can be executed from anywhere.
+# This script is a proxy for jq that automatically loads our custom jq modules from tools/jq.
+
 if [[ $1 = "--help" ]]; then
   cat <<EOF
 

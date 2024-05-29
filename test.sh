@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-fn_append_script() {
+TMP_SRC="$(mktemp -d -asdkjflaksdjf 2>/dev/null)"
 
-}
-
-fn_list_scripts() {
-  local dir="${1}"
-}
+echo "${TMP_SRC}"

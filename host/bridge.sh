@@ -9,6 +9,8 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
+. "${HOME}"/.solos/src/host/posthooks.sh || exit 1
+
 __bridge__rag_dir="${HOME}/.solos/rag"
 __bridge__rag_captured="${__bridge__rag_dir}/captured"
 __bridge__repo_dir="${HOME}/.solos/src"
@@ -20,17 +22,24 @@ fi
 __bridge__volume_config_hostfile="${HOME}/.solos/store/users_home_dir"
 __bridge__volume_mounted="/root/.solos"
 __bridge__installer_no_tty_flag=false
-__bridge__minimal_flag=false
-__bridge__session_flag=false
+__bridge__shell_minimal_flag=false
+__bridge__shell_full_flag=false
+__bridge__cli_flag=true
 __bridge__next_args=()
 
 for entry_arg in "$@"; do
   if [[ ${entry_arg} = "--installer-no-tty" ]]; then
     __bridge__installer_no_tty_flag=true
-  elif [[ ${entry_arg} = "--minimal" ]]; then
-    __bridge__minimal_flag=true
-  elif [[ ${entry_arg} = "--session" ]]; then
-    __bridge__session_flag=true
+  elif [[ ${entry_arg} = "shell-minimal" ]]; then
+    __bridge__shell_minimal_flag=true
+    __bridge__shell_full_flag=false
+    __bridge__cli_flag=false
+  elif [[ ${entry_arg} = "shell" ]]; then
+    __bridge__shell_full_flag=true
+    __bridge__shell_minimal_flag=false
+    __bridge__cli_flag=false
+  elif [[ ${entry_arg} = "--cli" ]]; then
+    __bridge__cli_flag=true
   else
     __bridge__next_args+=("${entry_arg}")
   fi
@@ -148,7 +157,7 @@ __bridge__fn__build_and_run() {
     sleep .2
   done
 }
-__bridge__fn__session() {
+__bridge__fn__shell() {
   if __bridge__fn__test; then
     __bridge__fn__symlinks
     __bridge__fn__exec_shell "$@"
@@ -177,10 +186,63 @@ __bridge__fn__cmd() {
   __bridge__fn__exec_command "$@"
 }
 
-if [[ ${__bridge__session_flag} = true ]]; then
-  if [[ ${__bridge__minimal_flag} = true ]]; then
-    __bridge__fn__session
-  else
-    __bridge__fn__session "${HOME}/.solos/.bashrc"
+__bridge__fn__exec_cli() {
+  local post_behavior="$(__posthooks__fn__determine_command "$@")"
+  if __bridge__fn__cmd /root/.solos/src/container/cli.sh "$@"; then
+    if [[ -n ${post_behavior} ]]; then
+      "__posthooks__fn__${post_behavior}" "$@"
+    fi
   fi
-fi
+}
+
+__bridge__fn__cli() {
+  local curr_project="$(
+    head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
+  )"
+  local restricted_flags=()
+  while [[ $# -gt 0 ]]; do
+    if [[ ${1} = --restricted-* ]]; then
+      restricted_flags+=("${1}")
+      shift
+    else
+      break
+    fi
+  done
+  if [[ $# -eq 0 ]]; then
+    if [[ -n ${curr_project} ]]; then
+      __bridge__fn__exec_cli checkout "${restricted_flags[@]}" --project="${curr_project}"
+    fi
+  else
+    local next_project="$(
+      head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
+    )"
+    if [[ ${curr_project} != "${next_project}" ]]; then
+      __bridge__fn__destroy
+    fi
+    __bridge__fn__exec_cli "${restricted_flags[@]}" "$@"
+  fi
+}
+
+__bridge__fn__main() {
+  if [[ ${__bridge__cli_flag} = true ]]; then
+    local cli_args=()
+    for entry_arg in "$@"; do
+      if [[ ${entry_arg} != shell ]] && [[ ${entry_arg} != shell-* ]]; then
+        cli_args+=("${entry_arg}")
+      fi
+    done
+    __bridge__fn__cli "${cli_args[@]}"
+    exit $?
+  elif [[ ${__bridge__shell_minimal_flag} = true ]]; then
+    __bridge__fn__shell
+    exit $?
+  elif [[ ${__bridge__shell_full_flag} = true ]]; then
+    __bridge__fn__shell "${HOME}/.solos/.bashrc"
+    exit $?
+  else
+    echo "Unexpected error: invalid, incorrect, or missing flags." >&2
+    exit 1
+  fi
+}
+
+__bridge__fn__main "$@"

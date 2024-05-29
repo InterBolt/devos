@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-vSELF_PKG_GUM_PKG_DIR="${HOME}/.solos/src/pkgs"
-vSELF_PKG_GUM_RELEASES_DIRNAME=".installs"
+__gum__self_pwd="${HOME}/.solos/src/tools/pkgs"
+__gum__self_dirname=".installs"
 
 __gum__fn__get_release_file() {
   local gum_version="0.13.0"
@@ -23,17 +23,18 @@ __gum__fn__get_release_file() {
   echo "${release}"
 }
 
+# PUBLIC FUNCTIONS:
+
 gum_install() {
   local release="$(__gum__fn__get_release_file)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
-  local location_dir="${vSELF_PKG_GUM_PKG_DIR}/${vSELF_PKG_GUM_RELEASES_DIRNAME}/${release_download_dirname}"
+  local location_dir="${__gum__self_pwd}/${__gum__self_dirname}/${release_download_dirname}"
   mkdir -p "${location_dir}"
   if [[ ! -f ${location_dir}/gum ]]; then
     curl -L --silent --show-error "${release}" | tar -xz -C "${location_dir}"
   fi
   echo "${location_dir}/gum"
 }
-
 gum_bin() {
   local executable_path="$(gum_install)"
   if [[ -f ${executable_path} ]]; then
@@ -43,23 +44,18 @@ gum_bin() {
     exit 1
   fi
 }
-
 gum_github_token() {
   gum_bin input --password --placeholder "Enter Github access token:"
 }
-
 gum_github_email() {
   gum_bin input --placeholder "Enter Github email:"
 }
-
 gum_github_name() {
   gum_bin input --placeholder "Enter Github username:"
 }
-
 gum_repo_url() {
   gum_bin input --placeholder "Provide a github repo url:"
 }
-
 gum_confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
@@ -72,11 +68,9 @@ gum_confirm_new_app() {
     echo "false"
   fi
 }
-
 gum_s3_provider_api_key() {
   gum_bin input --password --placeholder "Enter an API key associated with your s3 provider:"
 }
-
 gum_s3_provider() {
   local choice_file=""
   local newline=$'\n'
@@ -95,7 +89,6 @@ gum_s3_provider() {
   local s3_provider_choice="$(echo "${choice_file}" | gum_bin choose --limit 1)"
   echo "${s3_provider_choice}"
 }
-
 gum_danger_box() {
   local terminal_width=$(tput cols)
   gum_bin style \
@@ -103,7 +96,6 @@ gum_danger_box() {
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
 }
-
 gum_success_box() {
   local terminal_width=$(tput cols)
   gum_bin style \

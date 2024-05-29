@@ -19,7 +19,6 @@ RUN apt-get update \
   sudo \
   build-essential \
   manpages-dev \
-  bpftrace \
   procps
 
 # Install GitHub CLI

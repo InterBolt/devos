@@ -35,6 +35,8 @@ __profile_bashrc__preexec_dont_track_or_fuck_with_these=(
   "uname"
 )
 
+__profile_bashrc__relay_dir="${HOME}/.solos/.relay"
+
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
@@ -80,10 +82,12 @@ __profile_bashrc__fn__bash_completions() {
 }
 
 __profile_bashrc__fn__host() {
-  local done_file="${HOME}/.solos/.relay.done"
-  local command_file="${HOME}/.solos/.relay.command"
-  local stdout_file="${HOME}/.solos/.relay.stdout"
-  local stderr_file="${HOME}/.solos/.relay.stderr"
+  mkdir -p "${__profile_bashrc__relay_dir}"
+
+  local done_file="${__profile_bashrc__relay_dir}/done"
+  local command_file="${__profile_bashrc__relay_dir}/command"
+  local stdout_file="${__profile_bashrc__relay_dir}/stdout"
+  local stderr_file="${__profile_bashrc__relay_dir}/stderr"
   local cmd=''"${*}"''
   rm -f "${stdout_file}"
   echo "" >"${done_file}"
@@ -275,7 +279,17 @@ The SolOS shell (in the container) then reads the stdout/err from those files an
 EOF
     return 0
   fi
-  __profile_bashrc__fn__host "$@"
+  local return_code=0
+  if ! __profile_bashrc__fn__host "$@"; then
+    return_code="$?"
+  fi
+  rm -f \
+    "${__profile_bashrc__relay_dir}/done" \
+    "${__profile_bashrc__relay_dir}/command" \
+    "${__profile_bashrc__relay_dir}/stdout" \
+    "${__profile_bashrc__relay_dir}/stderr" 2>/dev/null
+  rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
+  return ${return_code}
 }
 gh_token() {
   if [[ "${1}" == "--help" ]]; then

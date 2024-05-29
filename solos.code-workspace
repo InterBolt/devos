@@ -3,31 +3,31 @@
     {
       "name": "Source Code",
       "uri": "__vUSERS_HOME_DIR__/.solos/src",
-      "profile": "minimal"
+      "profile": "shell-minimal"
     },
     {
       "name": "__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
-      "profile": "solos"
+      "profile": "shell"
     },
     {
       "name": ".solos",
       "uri": "__vUSERS_HOME_DIR__/.solos",
-      "profile": "solos"
+      "profile": "shell"
     }
   ],
   "settings": {
-    "terminal.integrated.defaultProfile.osx": "solos",
-    "terminal.integrated.defaultProfile.linux": "solos",
+    "terminal.integrated.defaultProfile.osx": "shell",
+    "terminal.integrated.defaultProfile.linux": "shell",
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "solos": {
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
-        "args": ["--session"]
+        "args": ["shell"]
       },
       "minimal": {
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
-        "args": ["--session", "--minimal"]
+        "args": ["shell-minimal"]
       },
       "zsh": null,
       "fish": null,
@@ -37,11 +37,11 @@
     "terminal.integrated.profiles.linux": {
       "solos": {
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
-        "args": ["--session"]
+        "args": ["shell"]
       },
       "minimal": {
         "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
-        "args": ["--session", "--minimal"]
+        "args": ["shell-minimal"]
       },
       "zsh": null,
       "fish": null,
