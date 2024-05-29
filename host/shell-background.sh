@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 
-__backgound__fn__relay() {
+# This script is responsible for spawning background processes that our shell depends on.
+# Feel free to define and start more by running `your_fn &`.
+
+__shell_backgound__fn__host_command_relay() {
   local relay_dir="${HOME}/.solos/.relay"
   mkdir -p "${relay_dir}"
 
@@ -26,4 +29,4 @@ __backgound__fn__relay() {
   done
 }
 
-__backgound__fn__relay &
+__shell_backgound__fn__host_command_relay &

@@ -623,9 +623,9 @@ cmd.app._init() {
     log_error "${vPROJECT_NAME}:${vPROJECT_APP} - Aborted."
     exit 1
   fi
-  local tmp_app_dir="$(mktemp -d)"
-  local tmp_misc_dir="$(mktemp -d)"
-  local tmp_file="$(mktemp -d)/repo"
+  local tmp_app_dir="$(mktemp -d -q)"
+  local tmp_misc_dir="$(mktemp -d -q)"
+  local tmp_file="$(mktemp -d -q)/repo"
   if ! gum_repo_url >"${tmp_file}"; then
     log_error "${vPROJECT_NAME}:${vPROJECT_APP} - Aborted."
     exit 1
@@ -717,7 +717,7 @@ cmd.checkout() {
   # won't result in a partial project dir.
   if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
     local project_id="$(lib.utils.generate_project_id)"
-    local tmp_project_ssh_dir="$(mktemp -d)"
+    local tmp_project_ssh_dir="$(mktemp -d -q)"
     if [[ ! -d ${tmp_project_ssh_dir} ]]; then
       log_error "Unexpected error: no tmp dir was created."
       exit 1
@@ -737,7 +737,7 @@ cmd.checkout() {
   lib.global_store.set "checked_out_project" "${vPROJECT_NAME}"
   local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
   mkdir -p "${vscode_dir}"
-  local tmp_dir="$(mktemp -d)"
+  local tmp_dir="$(mktemp -d -q)"
   cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
   if lib.utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
     cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
@@ -765,7 +765,7 @@ solos.ingest_argparsed() {
   done
 }
 solos.prune_nonexistent_apps() {
-  local tmp_dir="$(mktemp -d)"
+  local tmp_dir="$(mktemp -d -q)"
   local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
     log_error "Unexpected error: no code workspace file: ${vscode_workspace_file}"

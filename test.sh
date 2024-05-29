@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
-TMP_SRC="$(mktemp -d -asdkjflaksdjf 2>/dev/null)"
+shopt -s extdebug
 
-echo "${TMP_SRC}"
+__profile_bashrc__enforce_restricted_fn_names() {
+  echo "$BASH_COMMAND"
+  return 0
+}
+
+trap '__profile_bashrc__enforce_restricted_fn_names' DEBUG
+
+defining_a_fn() {
+  echo "This is a function"
+}
+
+defining_a_fn

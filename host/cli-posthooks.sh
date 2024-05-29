@@ -4,19 +4,19 @@
 # Ex: when we run `solos app <app_name>`, we want to invoke the `code` command on the host.
 
 # A utility function. There is not command called `determine_command`
-__posthooks__fn__determine_command() {
+__cli_posthooks__fn__determine_command() {
   while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
     shift
   done
   local host_post_fn=""
-  if declare -f "__posthooks__fn__${1}" >/dev/null; then
+  if declare -f "__cli_posthooks__fn__${1}" >/dev/null; then
     host_post_fn="$1"
   fi
   echo "${host_post_fn}"
 }
 
 # Every function below defines some behavior associated with the *success* of a particular command.
-__posthooks__fn__checkout() {
+__cli_posthooks__fn__checkout() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi
@@ -48,7 +48,7 @@ __posthooks__fn__checkout() {
   code "${code_workspace_file}"
 }
 
-__posthooks__fn__app() {
+__cli_posthooks__fn__app() {
   if [[ -e /etc/solos ]]; then
     return 0
   fi

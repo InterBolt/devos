@@ -2,20 +2,56 @@
 
 shopt -s extdebug
 
-# when the user spams control-c make sure we reset the trap
-# We use the PROMPT_COMMAND to set a variable which will gate the trap logic for compound commands.
-# Ie. cmd1 | cmd2 should not get captured for each command, but rather as a single command.
-# We'll use the history command to determine the full prompt and then we'll eval it.
+# When gum input commands fail as a result of SIGINT, our trap is bypassed meaning we don't
+# exit and reset as we'd expect. It's annoying to determine if the user used control-c or
+# if they supplied an empty input. These cases need different treatment.
+# To fix, we assign the return of `gum_cmd || echo "${__profile_rag__gum_sigexit}"`
+# to a variable and then check it to determine exactly what happened.
+__profile_rag__gum_sigexit='SOLOS:EXIT:1'
+# Rag logs don't need their own directory, place them in the shared logs folder for
+# simpler processing.
+__profile_rag__logs_dir="${HOME}/.solos/logs"
+# Store state that is specific to RAG.
+__profile_rag__rag_dir="${HOME}/.solos/rag"
+__profile_rag__rag_config_dir="${__profile_rag__rag_dir}/config"
+__profile_rag__rag_std_dir="${__profile_rag__rag_dir}/std"
+__profile_rag__rag_tmp_dir="${__profile_rag__rag_dir}/tmp"
+
+# Make sure that when we cancel a command with control-c that we reset the trap
+# so that we don't get stuck in a loop.
 trap 'trap "__profile_rag__fn__trap" DEBUG; exit 1;' SIGINT
 
-__profile_rag__sigexit='SOLOS:EXIT:1'
-__profile_rag__dir="${HOME}/.solos/rag"
-__profile_rag__logs_dir="${HOME}/.solos/logs"
-__profile_rag__config_dir="${__profile_rag__dir}/config"
-__profile_rag__std_dir="${__profile_rag__dir}/std"
-__profile_rag__tmp_dir="${__profile_rag__dir}/tmp"
+__profile_rag__get_blacklist() {
+  local blacklist=(
+    "source"
+    "."
+    "exit"
+    "logout"
+    "cd"
+    "clear"
+    "code"
+    "cp"
+    "rm"
+    "mv"
+    "touch"
+    "mktemp"
+    "mkdir"
+    "rmdir"
+    "ls"
+    "pwd"
+    "cat"
+    "man"
+    "help"
+    "sleep"
+    "uname"
+  )
+  for cmd in ${__profile_bashrc__pub_fns}; do
+    blacklist+=("${cmd}")
+  done
+  echo "${blacklist[*]}"
+}
 
-__profile_rag__fn__print_rag_help() {
+__profile_rag__fn__print_help() {
   cat <<EOF
 
 USAGE: rag [options] <command> | rag logs
@@ -29,9 +65,9 @@ along with the note for future reference.
 The name "rag" was chosen because the notes we take along with the commands \
 and their output will aid in a retrieval augmentation generation (RAG) system.
 
-config: ${__profile_rag__config_dir}
+config: ${__profile_rag__rag_config_dir}
 logs: ${__profile_rag__logs_dir}
-output: ${__profile_rag__tmp_dir}
+output: ${__profile_rag__rag_tmp_dir}
 
 OPTIONS:
 
@@ -45,33 +81,33 @@ EOF
 }
 
 __profile_rag__fn__init_fs() {
-  mkdir -p "${__profile_rag__config_dir}"
+  mkdir -p "${__profile_rag__rag_config_dir}"
   mkdir -p "${__profile_rag__logs_dir}"
-  mkdir -p "${__profile_rag__std_dir}"
-  if [[ ! -f "${__profile_rag__config_dir}/tags" ]]; then
+  mkdir -p "${__profile_rag__rag_std_dir}"
+  if [[ ! -f "${__profile_rag__rag_config_dir}/tags" ]]; then
     {
       echo "<none>"
       echo "<create>"
-    } >"${__profile_rag__config_dir}/tags"
+    } >"${__profile_rag__rag_config_dir}/tags"
   fi
 }
 
-__profile_rag__fn__save_output() {
+__profile_rag__fn__disgest_save() {
   local tmp_jq_output_file="$1"
   jq -c '.' <"${tmp_jq_output_file}" >>"${__profile_rag__logs_dir}/rag.log"
   rm -f "${tmp_jq_output_file}"
 }
 
-__profile_rag__fn__init_tmp_files() {
-  rm -rf "${__profile_rag__tmp_dir}"
-  mkdir -p "${__profile_rag__tmp_dir}"
+__profile_rag__fn__create_tmp_files() {
+  rm -rf "${__profile_rag__rag_tmp_dir}"
+  mkdir -p "${__profile_rag__rag_tmp_dir}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/return_code"
-  local stderr_rag_file="${__profile_rag__tmp_dir}/stderr_rag"
-  local stdout_rag_file="${__profile_rag__tmp_dir}/stdout_rag"
+  local stdout_file="${__profile_rag__rag_tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__rag_tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__rag_tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__rag_tmp_dir}/return_code"
+  local stderr_rag_file="${__profile_rag__rag_tmp_dir}/stderr_rag"
+  local stdout_rag_file="${__profile_rag__rag_tmp_dir}/stdout_rag"
 
   rm -f \
     "${stdout_file}" \
@@ -90,61 +126,16 @@ __profile_rag__fn__init_tmp_files() {
     "${stderr_rag_file}"
 }
 
-# User defined pre-exec functions and solos.preexec.sh scripts
-__profile_rag__fn__preexec() {
-  local prompt="${1}"
-
-  # When the '- ' prefix is supplied in the SolOS shell prompt,
-  # it means we want to avoid any and all preexec logic and run the thing as is
-  if [[ ${prompt} = "- "* ]]; then
-    prompt="$(echo "${prompt}" | tr -s ' ' | cut -d' ' -f2-)"
-    eval "${prompt}"
-    return 150
-  fi
-
-  # We have a list of commands (might need to add lots more idk) that we know
-  # should never be captured, tracked, logged, you name it. Run them as is.
-  # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
-  # Important: if a pipe operator exists, all bets are off and we assume that we
-  # want to capture the output.
-  for opt_out in "${__profile_bashrc__preexec_dont_track_or_fuck_with_these[@]}"; do
-    if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
-      if [[ ${prompt} = *"|"* ]]; then
-        break
-      fi
-      return 0
-    fi
-  done
-  local preexec_scripts=()
-  local next_dir="${PWD}"
-  while [[ ${next_dir} != "${HOME}/.solos" ]]; do
-    if [[ -f "${next_dir}/solos.preexec.sh" ]]; then
-      preexec_scripts=("${next_dir}/solos.preexec.sh" "${preexec_scripts[@]}")
-    fi
-    next_dir="$(dirname "${next_dir}")"
-  done
-  for preexec_script in "${preexec_scripts[@]}"; do
-    # Use tee to send stdout to the terminal and then process/supress the tee output
-    # using cat. The result is a visible output that does not affect stdout or stdout in
-    # unexpected ways.
-    if ! "${preexec_script}"; then
-      return 151
-    fi
-  done
-
-  return 1
-}
-
 __profile_rag__fn__digest() {
   local rag_id="${1:-""}"
   local user_note="${2:-""}"
   local user_tag="${3:-""}"
   local should_collect_post_note="${3:-false}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/return_code"
+  local stdout_file="${__profile_rag__rag_tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__rag_tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__rag_tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__rag_tmp_dir}/return_code"
 
   local tmp_jq_output_file="$(mktemp)"
   echo '{
@@ -169,34 +160,33 @@ __profile_rag__fn__digest() {
     jq '.return_code = '"$(cat "${return_code_file}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
     mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
     # Important: we have no control over what bytes are sent to stdout/stderr, so we must
-    # assume that binary content is in play and avoid piping to jq's encoder directly. Hence the mv operation.
-    # Remember, that no matter what happens we'll save at least the exit code, command, and id which means
-    # even if this rag command fails after we move the files, we'll have a record with an id that
-    # points to the stdout/stderr files.
-    # It's up to post-processing tools to make sense of whether or not the stdout/stderr files contain binary
-    # content. But that's pretty easy to do by simply inspecting the command that was run.
-    mv "${stdout_file}" "${__profile_rag__std_dir}/${rag_id}.out"
-    mv "${stderr_file}" "${__profile_rag__std_dir}/${rag_id}.err"
+    # assume that binary content is in play and avoid piping to jq's encoder directly.
+    # Instead, we simply rename the tmp stdout/err files to include the rag_id in their name, so that
+    # we can associated them later when doing post processing, and move them to their final destination.
+    # Ex: some image processing tools will output binary data to stdout/stderr.
+    mv "${stdout_file}" "${__profile_rag__rag_std_dir}/${rag_id}.out"
+    mv "${stderr_file}" "${__profile_rag__rag_std_dir}/${rag_id}.err"
     if [[ ${should_collect_post_note} = true ]]; then
-      local user_post_note="$(gum_bin input --placeholder "Post-run note:" || echo "${__profile_rag__sigexit}")"
-      if [[ ${user_post_note} != "${__profile_rag__sigexit}" ]]; then
+      local user_post_note="$(gum_bin input --placeholder "Post-run note:" || echo "${__profile_rag__gum_sigexit}")"
+      if [[ ${user_post_note} != "${__profile_rag__gum_sigexit}" ]]; then
         jq '.user_post_note = '"$(echo "${user_post_note}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
         mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
       fi
     fi
   fi
-  __profile_rag__fn__save_output "${tmp_jq_output_file}"
+  __profile_rag__fn__disgest_save "${tmp_jq_output_file}"
 }
 
-__profile_rag__fn__eval() {
+__profile_rag__fn__trap_eval() {
   local rag_id="${1}"
   local cmd="${2}"
 
-  local stdout_file="${__profile_rag__tmp_dir}/stdout"
-  local stderr_file="${__profile_rag__tmp_dir}/stderr"
-  local cmd_file="${__profile_rag__tmp_dir}/cmd"
-  local return_code_file="${__profile_rag__tmp_dir}/return_code"
+  local stdout_file="${__profile_rag__rag_tmp_dir}/stdout"
+  local stderr_file="${__profile_rag__rag_tmp_dir}/stderr"
+  local cmd_file="${__profile_rag__rag_tmp_dir}/cmd"
+  local return_code_file="${__profile_rag__rag_tmp_dir}/return_code"
   local return_code=1
+  echo "${return_code}" >"${return_code_file}"
   {
     local tty_descriptor="$(tty)"
     touch \
@@ -206,13 +196,9 @@ __profile_rag__fn__eval() {
     if [[ -n ${cmd} ]]; then
       echo "${cmd}" >"${cmd_file}"
     fi
-    # `tee` is necessary to ensure we capture stdout/err while also making sure
-    # the output is visible to the user.
     exec \
       > >(tee "${stdout_file}") \
       2> >(tee "${stderr_file}" >&2)
-    # Bind the command to the tty descriptor so that we can read from it.
-    # Important for commands that require user input.
     if eval ''"${cmd}"'' <>"${tty_descriptor}" 2<>"${tty_descriptor}"; then
       return_code="${?}"
     fi
@@ -221,108 +207,143 @@ __profile_rag__fn__eval() {
   return ${return_code}
 }
 
+__profile_rag__fn__trap_preexec_scripts() {
+  local prompt="${1}"
+
+  # convert a string of space separated words into an array
+  local blacklist="$(__profile_rag__get_blacklist | xargs)"
+
+  # We have a list of commands (might need to add lots more idk) that we know
+  # should never be captured, tracked, logged, you name it. Run them as is.
+  # Think `clear`, working dir changes like cd, `exit`, that kind of thing.
+  # Important: if a pipe operator exists, all bets are off and we assume that we
+  # want to capture the output.
+  for opt_out in ${blacklist}; do
+    if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
+      if [[ ${prompt} = *"|"* ]]; then
+        break
+      fi
+      return 0
+    fi
+  done
+  local preexec_scripts=()
+  local next_dir="${PWD}"
+  while [[ ${next_dir} != "${HOME}/.solos" ]]; do
+    if [[ -f "${next_dir}/solos.preexec.sh" ]]; then
+      preexec_scripts=("${next_dir}/solos.preexec.sh" "${preexec_scripts[@]}")
+    fi
+    next_dir="$(dirname "${next_dir}")"
+  done
+  for preexec_script in "${preexec_scripts[@]}"; do
+    if ! "${preexec_script}" >"${tty_descriptor}" 2>&1; then
+      return 151
+    fi
+  done
+
+  return 1
+}
 __profile_rag__fn__trap() {
+  # Prevent the trap from applying to the initial trap gate open command
+  # in our PROMPT_COMMAND string/script.
   if [[ ${BASH_COMMAND} = "__profile_rag__trap_gate_open=t" ]]; then
     return 0
   fi
+
   # Ensure no recursive funkyness.
   trap - DEBUG
-  # If the COMP_LINE is set, then we know that the user is in the middle of typing a command.
+
+  # The existence of the COMP_LINE variable implies that the a bash completion is
+  # taking place. Let it pass through.
   if [[ -n "${COMP_LINE}" ]]; then
     trap '__profile_rag__fn__trap' DEBUG
     return 0
   fi
-  # When the gate is set, we proceed. We do this because when we enter a prompt like this:
-  # ls | grep "foo" | less, we would normally hit this trap function 3 times, one for each command.
-  # But what we really want is to hit the trap once for all the piped commands and execute them all
-  # at once so that we can intelligently capture the output of the total command.
+
+  # Consider `ls | grep "foo" | less`:
+  # This trap will fire three times, once per each piped command: ls, grep, and less.
+  # But what we really want is to hit the trap one time for the *entire* set of commands.
+  # To do this, we unset a variable on the first trap in the set of piped commands, aka the 'ls'
+  # command, and then block the trap from firing on the subsequent piped commands (grep and less) by
+  # checking for the existence of that variable.
+  # This variable will remain unset until the next issued prompt from the CLI.
   if [[ -n "${__profile_rag__trap_gate_open+set}" ]]; then
-    # So using the example above, when we issue the command `ls | grep "foo" | less`, the "ls"
-    # command will hit this first. By immediately setting the gate to false, we ensure that when the
-    # grep and less commands hit this trap function, we'll skip them.
+    # Pull that ladder up for the remaining commands in the issued prompt.
     unset __profile_rag__trap_gate_open
 
+    # Will use to ensure that eval'd cmds have access to the tty and for commands
+    # that should display their stdout/err's but not include them in the final output.
     local tty_descriptor="$(tty)"
-    # Will include the entire string we submitted to the shell prompt.
-    # Pipes, operators, and all.
-    local submitted_cmd_prompt="$(history 1 | tr -s " " | cut -d" " -f3-)"
 
-    if [[ ${submitted_cmd_prompt} = "rag" ]]; then
-      rag <>"${tty_descriptor}" 2<>"${tty_descriptor}"
-      trap '__profile_rag__fn__trap' DEBUG
-      return 1
-    fi
-    if [[ ${submitted_cmd_prompt} = "rag "* ]]; then
-      submitted_cmd_prompt=''"$(echo "${submitted_cmd_prompt}" | tr -s ' ' | cut -d' ' -f2-)"''
-      rag ''"${submitted_cmd_prompt}"'' <>"${tty_descriptor}" 2<>"${tty_descriptor}"
-      trap '__profile_rag__fn__trap' DEBUG
-      return 1
-    fi
-    if [[ ${submitted_cmd_prompt} = "- "* ]]; then
-      eval "$(echo "${submitted_cmd_prompt}" | tr -s ' ' | cut -d' ' -f2-)" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+    # Remember: $BASH_COMMAND is only going to be the first command in any set of piped commands.
+    # So we must use the history to retrieve the full prompt, pipes, operators, and all.
+    local submitted_cmd="$(history 1 | tr -s " " | cut -d" " -f3-)"
+
+    # Using the "-" prefix tells our shell to run the command without tracking.
+    if [[ ${submitted_cmd} = "- "* ]]; then
+      eval "$(echo "${submitted_cmd}" | tr -s ' ' | cut -d' ' -f2-)"
       trap '__profile_rag__fn__trap' DEBUG
       return 1
     fi
 
-    # The rules for the preexec return code:
-    # 0: the rag trap will immediately eval the prompt as is and avoid all tracking/capture logic.
-    # 1: pass the prompt to the rag function for execution and output capturing.
-    # 150: the prompt was already evaluated successfully in `preexec`
-    # 151: the preexec script failed for the working directory that the command was run in
-    # all other codes: unexpected error, fail and don't run rag logic
-    #
-    # Reminder: in the vast majority of cases, we expect already_returned_code to be
-    # empty and the prompt to be run by rag.
-
-    # Perform any preexec functions that the user has defined.
-    local already_returned_code=""
+    # Run the user defined preexec functions and if any of them fail, return with the exit code
+    # and skip the rest of the trap logic, including the remaining preexec functions.
     local preexecs=()
     if [[ ! -z "${user_preexecs:-}" ]]; then
       preexecs=("${user_preexecs[@]}")
     fi
     if [[ -n ${preexecs[@]} ]]; then
       for preexec_fn in "${preexecs[@]}"; do
-        if ! "${preexec_fn}" "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null; then
-          already_returned_code="1"
-          break
+        # Fail early since the submitted cmd could depend on setup stuff in preexecs.
+        if ! "${preexec_fn}" "${submitted_cmd}" >"${tty_descriptor}" 2>&1; then
+          local failed_return_code="${?}"
+          trap '__profile_rag__fn__trap' DEBUG
+          return "${failed_return_code}"
         fi
       done
     fi
 
-    # Perform the internal preexec logic which walks up the directory tree starting at
-    # the PWD and looks for a `solos.preexec.sh` file. It will then run each script from
-    # the highest directory to the lowest.
-    __profile_rag__fn__preexec "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null
-    preexec_return="${PIPESTATUS[0]}"
+    # Execute the preexec scripts associated with the user's working directory.
+    # These scripts run in the order of their directory structures, where parents
+    # are executed first and children are executed last.
+    __profile_rag__fn__trap_preexec_scripts "${submitted_cmd}" >"${tty_descriptor}" 2>&1
+    local preexec_return="${PIPESTATUS[0]}"
+    local should_skip_rag=false
+    # 0 - we should eval the command immediately and skip rag tracking.
+    # Think simple commands like "cd", "ls", "pwd", etc.
     if [[ ${preexec_return} -eq 0 ]]; then
-      eval "${submitted_cmd_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
-      already_returned_code="${?}"
+      eval "${submitted_cmd}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+      should_skip_rag=true
+    # 151 - we failed in the preexec scripts (not user functions!) and will want to
+    # skip the rag tracking.
     elif [[ ${preexec_return} -eq 151 ]]; then
-      echo "Aborting command execution due to failed internal preexec" >&2
-      already_returned_code="1"
-    elif [[ ${preexec_return} -eq 150 ]]; then
-      already_returned_code="0"
+      should_skip_rag=true
+    # everything else - we don't know what happened; implies an internal implementation
+    # error in the preexec scripts.
     elif [[ ${preexec_return} -ne 1 ]]; then
       echo "Unexpected error: preexec returned an unhandled code: ${preexec_return}" >&2
-      already_returned_code="${preexec_return}"
+      trap '__profile_rag__fn__trap' DEBUG
+      return "${preexec_return}"
     fi
 
-    # If we set already_returned_code to any value that's our way of saying, "hey something happened
-    # so don't actually run the command." Think pre-exec failures, commands that opt-out of tracking,
-    # etc.
-    if [[ -z ${already_returned_code} ]]; then
+    # Initialize the tmp files, evaluate the submitted command, and digest the results.
+    if [[ ${should_skip_rag} = false ]]; then
       local rag_id="$(date +%s%N)"
-      __profile_rag__fn__init_tmp_files
-      __profile_rag__fn__eval "${rag_id}" "${submitted_cmd_prompt}"
+      __profile_rag__fn__create_tmp_files
+      __profile_rag__fn__trap_eval "${rag_id}" "${submitted_cmd}"
       __profile_rag__fn__digest "${rag_id}"
     fi
+
+    # User defined postexec functions. If one of them fails, do not execute the rest.
+    # But don't allow a failure to affect the final return code.
     local postexecs=()
     if [[ ! -z "${user_postexecs:-}" ]]; then
       postexecs=("${user_postexecs[@]}")
     fi
     if [[ -n ${postexecs[@]} ]]; then
       for postexec_fn in "${postexecs[@]}"; do
-        "${postexec_fn}" "${submitted_cmd_prompt}" 2>&1 | tee >/dev/tty | cat - 1>/dev/null 2>/dev/null || true
+        if ! "${postexec_fn}" "${submitted_cmd}" >"${tty_descriptor}" 2>&1; then
+          break
+        fi
       done
     fi
   fi
@@ -332,16 +353,22 @@ __profile_rag__fn__trap() {
   trap '__profile_rag__fn__trap' DEBUG
   return 1
 }
-
 __profile_rag__fn__install() {
+  if [[ -n "${PROMPT_COMMAND}" ]]; then
+    echo "PROMPT_COMMAND is already set. Will not track command outputs." >&2
+    return 1
+  fi
+  if [[ "$(trap -p DEBUG)" != "" ]]; then
+    echo "DEBUG trap is already set. Will not track command outputs." >&2
+    return 1
+  fi
   __profile_rag__fn__init_fs
   PROMPT_COMMAND='__profile_rag__trap_gate_open=t'
   trap '__profile_rag__fn__trap' DEBUG
 }
-
-__profile_rag__fn__prompt_tag() {
+__profile_rag__fn__apply_tag() {
   local newline=$'\n'
-  local tags="$(cat "${__profile_rag__config_dir}/tags")"
+  local tags="$(cat "${__profile_rag__rag_config_dir}/tags")"
   local tags_file=""
   local i=0
   while IFS= read -r line; do
@@ -354,16 +381,16 @@ __profile_rag__fn__prompt_tag() {
       i=$((i + 1))
     fi
   done <<<"${tags}"
-  local tag_choice="$(echo "${tags_file}" | gum_bin choose --limit 1 || echo "${__profile_rag__sigexit}")"
+  local tag_choice="$(echo "${tags_file}" | gum_bin choose --limit 1 || echo "${__profile_rag__gum_sigexit}")"
   if [[ ${tag_choice} = "<none>" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
   elif [[ ${tag_choice} = "<create>" ]]; then
     local new_tag="$(gum_bin input --placeholder "Type new tag" || echo "")"
     if [[ -n "${new_tag}" ]]; then
-      sed -i '1s/^/'"${new_tag}"'\n/' "${__profile_rag__config_dir}/tags"
+      sed -i '1s/^/'"${new_tag}"'\n/' "${__profile_rag__rag_config_dir}/tags"
       echo "${new_tag}"
     else
-      __profile_rag__fn__prompt_tag
+      __profile_rag__fn__apply_tag
     fi
   else
     echo "${tag_choice}"
@@ -377,7 +404,7 @@ __profile_rag__fn__main() {
   while [[ ${no_more_opts} = false ]]; do
     case $1 in
     --help)
-      __profile_rag__fn__print_rag_help
+      __profile_rag__fn__print_help
       return 0
       ;;
     -c)
@@ -408,15 +435,15 @@ __profile_rag__fn__main() {
   fi
   local user_pre_note=""
   if [[ ${opt_tag_only} = false ]]; then
-    user_pre_note="$(gum_bin input --placeholder "Type note" || echo "${__profile_rag__sigexit}")"
-    if [[ ${user_pre_note} = "${__profile_rag__sigexit}" ]]; then
+    user_pre_note="$(gum_bin input --placeholder "Type note" || echo "${__profile_rag__gum_sigexit}")"
+    if [[ ${user_pre_note} = "${__profile_rag__gum_sigexit}" ]]; then
       return 1
     fi
   fi
   local user_tag=""
   if [[ ${opt_note_only} = false ]]; then
-    user_tag="$(__profile_rag__fn__prompt_tag)"
-    if [[ ${user_tag} = "${__profile_rag__sigexit}" ]]; then
+    user_tag="$(__profile_rag__fn__apply_tag)"
+    if [[ ${user_tag} = "${__profile_rag__gum_sigexit}" ]]; then
       return 1
     fi
   fi
@@ -425,10 +452,10 @@ __profile_rag__fn__main() {
     "${user_tag}"
     true # tells the digest function to collect a post note
   )
-  __profile_rag__fn__init_tmp_files
+  __profile_rag__fn__create_tmp_files
   local rag_id="$(date +%s%N)"
   if [[ -n "${cmd}" ]]; then
-    __profile_rag__fn__eval "${rag_id}" "${cmd}"
+    __profile_rag__fn__trap_eval "${rag_id}" "${cmd}"
   fi
   __profile_rag__fn__digest "${rag_id}" "${digest_args[@]}"
 }

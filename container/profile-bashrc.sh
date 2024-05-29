@@ -7,34 +7,6 @@ shopt -s extdebug
 . "${HOME}/.solos/src/container/profile-rag.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
-# A list of commands that, when used on their own, will bypass trapping, tracking, and preexecs.
-# If they are combined with other commands via pipes, they will be tracked.
-# Warning: leave out echo because its too convenient for confirming things.
-__profile_bashrc__preexec_dont_track_or_fuck_with_these=(
-  "source"
-  "."
-  "exit"
-  "logout"
-  "host"
-  "cd"
-  "clear"
-  "code"
-  "cp"
-  "rm"
-  "mv"
-  "touch"
-  "mktemp"
-  "mkdir"
-  "rmdir"
-  "ls"
-  "pwd"
-  "cat"
-  "man"
-  "help"
-  "sleep"
-  "uname"
-)
-
 __profile_bashrc__relay_dir="${HOME}/.solos/.relay"
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
@@ -110,7 +82,7 @@ __profile_bashrc__fn__host() {
   return ${return_code}
 }
 
-__profile_bashrc__fn__print_man() {
+__profile_bashrc__fn__print_info() {
   local solos_bin_cmds=()
   while IFS= read -r -d $'\0' file; do
     local cmd_name="$(basename "${file}" | cut -d. -f1)"
@@ -129,6 +101,7 @@ $(
     __profile_table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
+      info "Print info about this shell." \
       rag "$(rag --help | __profile_bashrc__fn__extract_help_description)" \
       host "$(host --help | __profile_bashrc__fn__extract_help_description)" \
       solos "$(solos --help | __profile_bashrc__fn__extract_help_description)" \
@@ -194,7 +167,7 @@ EOF
 
   cat <<EOF
 ${asci_welcome_to_solos_art}
-$(__profile_bashrc__fn__print_man)
+$(__profile_bashrc__fn__print_info)
 
 EOF
   local gh_status_line="$(gh auth status | grep "Logged in")"
@@ -252,15 +225,26 @@ __profile_bashrc__fn__install() {
   __profile_bashrc__fn__bash_completions
 }
 
-# Public stuff
+__profile_bashrc__fn__reserved_fn_protection() {
+  if [[ ${1} = "--solos-reserved" ]]; then
+    return 1
+  fi
+}
+
+# PUBLIC FUNCTIONS:
+
 user_preexecs=()
 user_postexecs=()
 
-rag() {
+pub_rag() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   __profile_rag__fn__main "$@"
 }
-host() {
-  if [[ "${1}" == "--help" ]]; then
+pub_host() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
+  if [[ ${1} == "--help" ]]; then
     cat <<EOF
 
 USAGE: host ...<any command here>...
@@ -291,8 +275,10 @@ EOF
   rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
   return ${return_code}
 }
-gh_token() {
-  if [[ "${1}" == "--help" ]]; then
+pub_gh_token() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
+  if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_token
 
@@ -314,8 +300,9 @@ EOF
     gh auth status
   fi
 }
-gh_email() {
-  if [[ "${1}" == "--help" ]]; then
+pub_gh_email() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+  if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_email
 
@@ -332,8 +319,10 @@ EOF
   git config --global user.email "${gh_email}"
   host git config --global user.email "${gh_email}"
 }
-gh_name() {
-  if [[ "${1}" == "--help" ]]; then
+pub_gh_name() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
+  if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_name
 
@@ -350,8 +339,9 @@ EOF
   git config --global user.name "${gh_name}"
   host git config --global user.name "${gh_name}"
 }
-code() {
-  if [[ "${1}" == "--help" ]]; then
+pub_code() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+  if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: code <...vscode cli args...>
 
@@ -365,14 +355,18 @@ EOF
   local bin_path="$(__profile_bashrc__fn__host which code)"
   host "${bin_path}" "${*}"
 }
-solos() {
+pub_solos() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   local executable_path="${HOME}/.solos/src/container/cli.sh"
   bash "${executable_path}" "$@"
 }
-man() {
+pub_info() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   if [[ "${1}" == "--help" ]]; then
     cat <<EOF
-USAGE: man
+USAGE: info
 
 DESCRIPTION:
 
@@ -382,10 +376,11 @@ EOF
     return 0
   fi
   echo ""
-  __profile_bashrc__fn__print_man
+  __profile_bashrc__fn__print_info
   echo ""
 }
-preexec_list() {
+pub_preexec_list() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_list
@@ -399,7 +394,9 @@ EOF
   fi
   echo "${user_preexecs[@]}"
 }
-preexec_add() {
+pub_preexec_add() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_add <function_name>
@@ -425,7 +422,9 @@ EOF
   fi
   user_preexecs+=("${fn}")
 }
-preexec_remove() {
+pub_preexec_remove() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_remove <function_name>
@@ -444,8 +443,9 @@ EOF
   fi
   user_preexecs=("${user_preexecs[@]/${fn}/}")
 }
+pub_postexec_list() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
 
-postexec_list() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_list
@@ -459,7 +459,9 @@ EOF
   fi
   echo "${user_postexecs[@]}"
 }
-postexec_add() {
+pub_postexec_add() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_add <function_name>
@@ -485,7 +487,9 @@ EOF
   fi
   user_postexecs+=("${fn}")
 }
-postexec_remove() {
+pub_postexec_remove() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_remove <function_name>
@@ -504,7 +508,41 @@ EOF
   fi
   user_postexecs=("${user_postexecs[@]/${fn}/}")
 }
-install_solos() {
+pub_install_solos() {
+  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+  # Prevent a user from defining their own versions of the built-in public functions defined in this script.
+  # Each public function will return 151 when the --solos-reserved flag is passed, which allows us to quickly test whether
+  # or not a function was defined here or in the user's script. This depends on the assumption that the user will not implement
+  # support for --solos-reserved and the 151 return code in their own functions. But that's a safe assumption and if they do
+  # then we should assume they know what they're doing.
+  # Note: since we do this in the installation command, the user is free to overwrite public functions if they don't plan
+  # to install the SolOS shell.
+  local overwritten_fns=()
+  for func in ${__profile_bashrc__pub_fns}; do
+    new_func_name="${func#pub_}"
+    solos_overwrite_return_code_check="$(eval ''"${new_func_name}"' --solos-reserved' >/dev/null 2>&1 && echo "$?" || echo "$?")"
+    if [[ ${solos_overwrite_return_code_check} -ne 151 ]]; then
+      overwritten_fns+=("${new_func_name}")
+    fi
+  done
+
+  if [[ ${overwritten_fns} ]]; then
+    local newline=$'\n'
+    local message="The following functions are reserved in the SolOS shell:"
+    local message_length=${#message}
+    gum_danger_box "${message}${newline}$(printf '%*s\n' "${message_length}" '' | tr ' ' -)${newline}${overwritten_fns[@]}"
+    trap 'exit 1;' SIGINT
+    echo "Press enter to exit the shell."
+    read -r || exit 1
+    exit 1
+  fi
+
   __profile_bashrc__fn__install
   __profile_rag__fn__install
 }
+
+__profile_bashrc__pub_fns="$(declare -F | grep -o "pub_[a-zA-Z_]*" | xargs)"
+for func in ${__profile_bashrc__pub_fns}; do
+  new_func_name="${func#pub_}"
+  eval "${new_func_name}() { ${func} \"\$@\"; return \"\$?\"; }"
+done

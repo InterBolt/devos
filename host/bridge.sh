@@ -9,7 +9,7 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-. "${HOME}"/.solos/src/host/posthooks.sh || exit 1
+. "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
 __bridge__rag_dir="${HOME}/.solos/rag"
 __bridge__rag_captured="${__bridge__rag_dir}/captured"
@@ -47,6 +47,8 @@ done
 set -- "${__bridge__next_args[@]}" || exit 1
 
 . "${HOME}/.solos/src/tools/pkgs/gum.sh"
+
+export DOCKER_CLI_HINTS=false
 
 __bridge__fn__hash() {
   git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo ""
@@ -107,7 +109,7 @@ __bridge__fn__exec_shell() {
 
   local entry_dir="${PWD}"
   cd "${HOME}/.solos/src" || exit 1
-  ./host/background.sh || exit 1
+  ./host/shell-background.sh || exit 1
   cd "${entry_dir}" || exit 1
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
@@ -187,10 +189,10 @@ __bridge__fn__cmd() {
 }
 
 __bridge__fn__exec_cli() {
-  local post_behavior="$(__posthooks__fn__determine_command "$@")"
+  local post_behavior="$(__cli_posthooks__fn__determine_command "$@")"
   if __bridge__fn__cmd /root/.solos/src/container/cli.sh "$@"; then
     if [[ -n ${post_behavior} ]]; then
-      "__posthooks__fn__${post_behavior}" "$@"
+      "__cli_posthooks__fn__${post_behavior}" "$@"
     fi
   fi
 }
