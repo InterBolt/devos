@@ -55,7 +55,6 @@ __profile_bashrc__fn__bash_completions() {
 
 __profile_bashrc__fn__host() {
   mkdir -p "${__profile_bashrc__relay_dir}"
-
   local done_file="${__profile_bashrc__relay_dir}/done"
   local command_file="${__profile_bashrc__relay_dir}/command"
   local stdout_file="${__profile_bashrc__relay_dir}/stdout"
@@ -70,13 +69,14 @@ __profile_bashrc__fn__host() {
   local return_code=$(cat "${done_file}" 2>/dev/null | cut -d: -f2)
   stdout="$(cat "${stdout_file}" 2>/dev/null || echo "")"
   stderr="$(cat "${stderr_file}" 2>/dev/null || echo "")"
-  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
   if [[ -n ${stdout} ]]; then
     echo "${stdout}"
   fi
   if [[ -n ${stderr} ]]; then
     echo "${stderr}" >&2
   fi
+  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
+  rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
   return ${return_code}
 }
 
