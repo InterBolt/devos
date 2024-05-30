@@ -103,10 +103,6 @@ __bridge__fn__exec_shell() {
     bash_args=(--rcfile "${relative_bashrc_file}")
   fi
 
-  local entry_dir="${PWD}"
-  cd "${HOME}/.solos/src" || exit 1
-  ./host/shell-background.sh || exit 1
-  cd "${entry_dir}" || exit 1
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
 __bridge__fn__exec_command() {
