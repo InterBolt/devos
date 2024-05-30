@@ -1,19 +1,39 @@
 {
   "folders": [
     {
+      "name": ".solos.logs",
+      "uri": "__vUSERS_HOME_DIR__/.solos/logs",
+      "profile": "shell"
+    },
+    {
+      "name": ".solos.rag",
+      "uri": "__vUSERS_HOME_DIR__/.solos/rag",
+      "profile": "shell"
+    },
+    {
+      "name": ".solos.secrets",
+      "uri": "__vUSERS_HOME_DIR__/.solos/secrets",
+      "profile": "shell"
+    },
+    {
+      "name": ".solos.store",
+      "uri": "__vUSERS_HOME_DIR__/.solos/store",
+      "profile": "shell"
+    },
+    {
+      "name": ".solos.bashrc",
+      "uri": "__vUSERS_HOME_DIR__/.solos/.bashrc",
+      "profile": "shell"
+    },
+    {
+      "name": ".solos.source-code",
+      "uri": "__vUSERS_HOME_DIR__/.solos/src",
+      "profile": "shell-minimal"
+    },
+    {
       "name": "project.__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
       "profile": "shell"
-    },
-    {
-      "name": "~/.solos",
-      "uri": "__vUSERS_HOME_DIR__/.solos",
-      "profile": "shell"
-    },
-    {
-      "name": "source.code",
-      "uri": "__vUSERS_HOME_DIR__/.solos/src",
-      "profile": "shell-minimal"
     }
   ],
   "settings": {

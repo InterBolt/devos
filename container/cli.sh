@@ -12,7 +12,7 @@
 #  )                          `"---"`     `~-===-~`     `"---"`                          (
 # (  Welcome to the SolOS CLI.                                                            )
 #  ) This script is intended to run in a Debian 12 docker container.                     (
-# (  It is not POSIX compliant and assumes that the container has Bash >= 5.0 installed.  )
+# (  It is not POSIX compliant and must be run with Bash version >= 5.0                   )
 #  )                                                                                     (
 # '---------------------------------------------------------------------------------------'
 
@@ -671,9 +671,9 @@ EOF
 
   chmod +x "${tmp_app_dir}/solos.preexec.sh"
   chmod +x "${tmp_app_dir}/solos.postexec.sh"
-  log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Made the pre-exec script executable."
+  log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Made the lifecycle scripts executable."
 
-  # MUST BE DONE LAST SO FAILURES ALONG THE WAY DON'T RESULT IN A PARTIAL APP DIR
+  # Do last to prevent partial app setup.
   mv "${tmp_app_dir}" "${app_dir}"
   cp -f "${tmp_vscode_workspace_file}" "${vscode_workspace_file}"
   rm -rf "${tmp_misc_dir}"
