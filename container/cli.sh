@@ -633,6 +633,20 @@ cmd.app._init() {
 # Write your code below:
 echo "Hello from the pre-exec script for app: ${vPROJECT_APP}"
 EOF
+  cat <<EOF >"${tmp_app_dir}/solos.postexec.sh"
+#!/usr/bin/env bash
+
+#########################################################################################################
+## This script is executed after any command run in the SolOS's shell when the working directory is a 
+## the parent directory or a subdirectory of the app's directory. The output of this script is not
+## included in your command's stdout/err but is visible in the terminal.
+##
+## Important note: Idempotency is YOUR responsibility.
+#########################################################################################################
+
+# Write your code below:
+echo "Hello from the post-exec script for app: ${vPROJECT_APP}"
+EOF
   log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Created the pre-exec script."
   local app_dir="$(cmd.app._get_path_to_app)"
   local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
@@ -656,6 +670,7 @@ EOF
   fi
 
   chmod +x "${tmp_app_dir}/solos.preexec.sh"
+  chmod +x "${tmp_app_dir}/solos.postexec.sh"
   log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Made the pre-exec script executable."
 
   # MUST BE DONE LAST SO FAILURES ALONG THE WAY DON'T RESULT IN A PARTIAL APP DIR

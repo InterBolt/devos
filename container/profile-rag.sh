@@ -197,9 +197,9 @@ __profile_rag__fn__trap_eval() {
   } | cat
   return ${return_code}
 }
-
-__profile_rag__fn__trap_preexec_scripts() {
-  local prompt="${1}"
+__profile_rag__fn__trap_lifeycle_scripts() {
+  local lifecycle="${1}"
+  local prompt="${2}"
 
   # Avoid rag/tracking stuff for blacklisted commands.
   # Ex: all pub_* functions in the bashrc will be blacklisted.
@@ -212,16 +212,16 @@ __profile_rag__fn__trap_preexec_scripts() {
       return 0
     fi
   done
-  local preexec_scripts=()
+  local lifecycle_scripts=()
   local next_dir="${PWD}"
   while [[ ${next_dir} != "${HOME}/.solos" ]]; do
-    if [[ -f "${next_dir}/solos.preexec.sh" ]]; then
-      preexec_scripts=("${next_dir}/solos.preexec.sh" "${preexec_scripts[@]}")
+    if [[ -f "${next_dir}/solos."${lifecycle}".sh" ]]; then
+      lifecycle_scripts=("${next_dir}/solos."${lifecycle}".sh" "${lifecycle_scripts[@]}")
     fi
     next_dir="$(dirname "${next_dir}")"
   done
-  for preexec_script in "${preexec_scripts[@]}"; do
-    if ! "${preexec_script}" >"${tty_descriptor}" 2>&1; then
+  for lifecycle_script in "${lifecycle_scripts[@]}"; do
+    if ! "${lifecycle_script}" >"${tty_descriptor}" 2>&1; then
       return 151
     fi
   done
@@ -298,7 +298,7 @@ __profile_rag__fn__trap() {
     # Execute the preexec scripts associated with the user's working directory.
     # These scripts run in the order of their directory structures, where parents
     # are executed first and children are executed last.
-    __profile_rag__fn__trap_preexec_scripts "${submitted_prompt}" >"${tty_descriptor}" 2>&1
+    __profile_rag__fn__trap_lifeycle_scripts "preexec" "${submitted_prompt}"
     local preexec_return="${PIPESTATUS[0]}"
     local should_skip_rag=false
     # 0 - implies that we are running a blacklisted command and should skip the rag tracking.
@@ -336,6 +336,7 @@ __profile_rag__fn__trap() {
         fi
       done
     fi
+    __profile_rag__fn__trap_lifeycle_scripts "postexec" "${submitted_prompt}"
   fi
 
   # All done, reset the trap and ensure $BASH_COMMAND does not execute.
