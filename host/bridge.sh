@@ -188,10 +188,7 @@ __bridge__fn__shell() {
 __bridge__fn__cmd() {
   if __bridge__fn__test; then
     if ! __bridge__fn__symlinks; then
-      echo "" >&2
-      echo "Press enter to exit..."
-      read -r || exit 1
-      exit 1
+      __bridge__fn__error_press_enter
     fi
     __bridge__fn__exec_command "$@"
     return 0

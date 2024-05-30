@@ -8,19 +8,23 @@ shopt -s extdebug
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
 __profile_bashrc__relay_dir="${HOME}/.solos/.relay"
-__bashrc__loaded_project=""
+__profile_bashrc__loaded_project=""
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
 
+__profile_bashrc__fn__error_press_enter() {
+  echo "Press enter to exit..."
+  read -r || exit 1
+  exit 1
+}
+
 __profile_bashrc__fn__users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
     echo "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}." >&2
-    echo "Press enter to exit the shell."
-    read -r || exit 1
-    exit 1
+    __profile_bashrc__fn__error_press_enter
   fi
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
 }
@@ -66,16 +70,14 @@ __profile_bashrc__fn__run_checked_out_project_script() {
     local pwd_project="$(basename "${PWD}")"
     echo "The checked out project does not match the project of your terminal's working directory." >&2
     echo "Run \`solos checkout ${pwd_project}\` in your host terminal to ensure VSCode can load the correct container when launching the SolOS shell." >&2
-    echo "Press enter to exit..." >&2
-    read -r || exit 1
-    exit 1
+    __profile_bashrc__fn__error_press_enter
   fi
   if [[ ${PWD} =~ ^${project_dir} ]]; then
     local project_script="${HOME}/.solos/projects/${checked_out_project}/solos.checkout.sh"
     if [[ -f ${project_script} ]]; then
       . "${project_script}"
-      __bashrc__loaded_project="${checked_out_project}"
-      echo -e "\033[0;32mChecked out project: ${__bashrc__loaded_project} \033[0m"
+      __profile_bashrc__loaded_project="${checked_out_project}"
+      echo -e "\033[0;32mChecked out project: ${__profile_bashrc__loaded_project} \033[0m"
     fi
   fi
 }
@@ -263,12 +265,10 @@ user_postexecs=()
 
 pub_rag() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   __profile_rag__fn__main "$@"
 }
 pub_host() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 
@@ -295,6 +295,7 @@ EOF
   rm -f \
     "${__profile_bashrc__relay_dir}/done" \
     "${__profile_bashrc__relay_dir}/command" \
+    "${__profile_bashrc__relay_dir}/pwd" \
     "${__profile_bashrc__relay_dir}/stdout" \
     "${__profile_bashrc__relay_dir}/stderr" 2>/dev/null
   rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
@@ -302,7 +303,6 @@ EOF
 }
 pub_gh_token() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_token
@@ -346,7 +346,6 @@ EOF
 }
 pub_gh_name() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_name
@@ -382,13 +381,11 @@ EOF
 }
 pub_solos() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   local executable_path="${HOME}/.solos/src/container/cli.sh"
   bash "${executable_path}" "$@"
 }
 pub_info() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ "${1}" == "--help" ]]; then
     cat <<EOF
 USAGE: info
@@ -421,7 +418,6 @@ EOF
 }
 pub_preexec_add() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_add <function_name>
@@ -449,7 +445,6 @@ EOF
 }
 pub_preexec_remove() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_remove <function_name>
@@ -470,7 +465,6 @@ EOF
 }
 pub_postexec_list() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_list
@@ -486,7 +480,6 @@ EOF
 }
 pub_postexec_add() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_add <function_name>
@@ -514,7 +507,6 @@ EOF
 }
 pub_postexec_remove() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_remove <function_name>
@@ -557,9 +549,7 @@ pub_install_solos() {
     local message_length=${#message}
     gum_danger_box "${message}${newline}$(printf '%*s\n' "${message_length}" '' | tr ' ' -)${newline}${overwritten_fns[@]}"
     trap 'exit 1;' SIGINT
-    echo "Press enter to exit the shell."
-    read -r || exit 1
-    exit 1
+    __profile_bashrc__fn__error_press_enter
   fi
   __profile_bashrc__fn__install
   __profile_rag__fn__install

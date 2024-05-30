@@ -9,19 +9,24 @@ __shell_backgound__fn__host_command_relay() {
   local stdout_file="${relay_dir}/stdout"
   local stderr_file="${relay_dir}/stderr"
   local command_file="${relay_dir}/command"
+  local pwd_file="${relay_dir}/pwd"
   local done_file="${relay_dir}/done"
   while true; do
     local command=""
-    if [[ -f "${command_file}" ]]; then
+    if [[ -f ${command_file} ]]; then
       command="$(cat "${command_file}" 2>/dev/null || echo "" | sed "s/\/root\//\$HOME\//g")"
     fi
     if [[ -n ${command} ]]; then
       local return_code=0
       rm -f "${stdout_file}" "${stderr_file}"
+      local shell_pwd="$(cat "${pwd_file}" 2>/dev/null || echo "${HOME}/.solos")"
+      shell_pwd="${shell_pwd/#\/root/\$HOME}"
+      cd "${shell_pwd}" || exit 1
       eval ''"${command}"'' >"${stdout_file}" 2>"${stderr_file}"
       return_code=$?
       rm -f "${command_file}"
       echo "DONE:${return_code}" >"${done_file}"
+      cd "${HOME}/.solos" || exit 1
     fi
     sleep .1
   done

@@ -253,10 +253,10 @@ __profile_rag__fn__trap() {
   if [[ -n "${__profile_rag__trap_gate_open+set}" ]]; then
     unset __profile_rag__trap_gate_open
 
-    if [[ -n "${__bashrc__loaded_project}" ]]; then
+    if [[ -n "${__profile_bashrc__loaded_project}" ]]; then
       local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-      if [[ "${__bashrc__loaded_project}" != "${checked_out_project}" ]]; then
-        echo "You have changed projects (${__bashrc__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
+      if [[ "${__profile_bashrc__loaded_project}" != "${checked_out_project}" ]]; then
+        echo "You have changed projects (${__profile_bashrc__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
         echo "Please exit and re-open your terminal." >&2
         trap '__profile_rag__fn__trap' DEBUG
         return 1

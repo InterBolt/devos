@@ -605,7 +605,7 @@ EOF
   cmd.app._remove_app_from_code_workspace "${tmp_vscode_workspace_file}"
   jq \
     --arg app_name "${vPROJECT_APP}" \
-    '.folders |= [{ "name": "App.'"${vPROJECT_APP}"'", "uri": "'"${vUSERS_HOME_DIR}"'/.solos/projects/'"${vPROJECT_NAME}"'/apps/'"${vPROJECT_APP}"'", "profile": "shell" }] + .' \
+    '.folders |= [{ "name": "app.'"${vPROJECT_APP}"'", "uri": "'"${vUSERS_HOME_DIR}"'/.solos/projects/'"${vPROJECT_NAME}"'/apps/'"${vPROJECT_APP}"'", "profile": "shell" }] + .' \
     "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
   mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
   if ! jq . "${tmp_vscode_workspace_file}" >/dev/null; then
@@ -687,11 +687,14 @@ cmd.checkout() {
     cat <<EOF >"${checkout_script}"
 #!/usr/bin/env bash
 
-###########################################################################################################
-## This script is executed once when a project is checked out. Use it to install resources that are unique
-## to the project. When a project is checked out, the docker container gets rebuilt, which means this will
-## always run in a fresh environment.
-###########################################################################################################
+######################################################################################################################
+## This script runs at two different possible points in time:
+## 1) When the \`solos checkout\` command is run from your host machine (checkout is not allowed in the SolOS shell).
+## 2) When the shell launches and a project is checked out.
+
+# We can't guarantee that it only runs when the container is initialized but we can safely assume it will never run
+# in another project's container.
+######################################################################################################################
 
 # Write your code below:
 echo "Hello from the checkout script for project: ${vPROJECT_NAME}"
@@ -717,7 +720,7 @@ project.prune() {
   fi
   local tmp_vscode_workspace_file="${tmp_dir}/$(basename ${vscode_workspace_file})"
   cp -f "${vscode_workspace_file}" "${tmp_vscode_workspace_file}"
-  local apps="$(jq '.folders[] | select(.name | startswith("App."))' "${tmp_vscode_workspace_file}" | grep -Po '"name": "\K[^"]*' | cut -d'.' -f2)"
+  local apps="$(jq '.folders[] | select(.name | startswith("app."))' "${tmp_vscode_workspace_file}" | grep -Po '"name": "\K[^"]*' | cut -d'.' -f2)"
   local nonexistent_apps=()
   while read -r app; do
     if [[ -z ${app} ]]; then
