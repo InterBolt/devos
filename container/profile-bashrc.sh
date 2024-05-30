@@ -23,7 +23,7 @@ __profile_bashrc__fn__error_press_enter() {
 __profile_bashrc__fn__users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
-    echo "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}." >&2
+    log_error "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}."
     __profile_bashrc__fn__error_press_enter
   fi
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
@@ -32,17 +32,17 @@ __profile_bashrc__fn__users_home_dir() {
 __profile_bashrc__fn__extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
-    echo "Unexpected error: empty help output." >&2
+    log_error "Unexpected error: empty help output."
     return 1
   fi
   local description_line_number=$(echo "${help_output}" | grep -n "^DESCRIPTION:" | cut -d: -f1)
   if [[ -z ${description_line_number} ]]; then
-    echo "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`" >&2
+    log_error "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`"
     return 1
   fi
   local first_description_line=$((description_line_number + 2))
   if [[ -z $(echo "${help_output}" | sed -n "${first_description_line}p") ]]; then
-    echo "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:" >&2
+    log_error "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:"
     return 1
   fi
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
@@ -382,7 +382,7 @@ EOF
 pub_solos() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
   local executable_path="${HOME}/.solos/src/container/cli.sh"
-  bash "${executable_path}" "$@"
+  "${executable_path}" --restricted-shell "$@"
 }
 pub_info() {
   __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
@@ -430,15 +430,15 @@ EOF
   fi
   local fn="${1}"
   if [[ -z ${fn} ]]; then
-    echo "preexec: missing function name" >&2
+    log_error "preexec: missing function name"
     return 1
   fi
   if ! declare -f "${fn}" >/dev/null; then
-    echo "preexec: function '${fn}' not found" >&2
+    log_error "preexec: function '${fn}' not found"
     return 1
   fi
   if [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    echo "preexec: function '${fn}' already exists in user_preexecs" >&2
+    log_error "preexec: function '${fn}' already exists in user_preexecs"
     return 1
   fi
   user_preexecs+=("${fn}")
@@ -458,7 +458,7 @@ EOF
   fi
   local fn="${1}"
   if [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    echo "Invalid usage: preexec: function '${fn}' not found in user_preexecs" >&2
+    log_error "Invalid usage: preexec: function '${fn}' not found in user_preexecs"
     return 1
   fi
   user_preexecs=("${user_preexecs[@]/${fn}/}")

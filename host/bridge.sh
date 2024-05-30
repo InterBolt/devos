@@ -227,13 +227,14 @@ __bridge__fn__cli() {
   local curr_project="$(
     head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
   )"
+  local solos_cmd=""
   local args=("$@")
-  # If the user simply types "solos", we should check out the last project again.
-  if [[ $# -eq 0 ]] && [[ -n ${curr_project} ]]; then
-    args=("checkout" "${curr_project}")
-  fi
-  # Any use of the checkout command should clean the environment.
-  if [[ ${args[0]} = "checkout" ]]; then
+  for arg in "${args[@]}"; do
+    if [[ ${arg} != --* ]]; then
+      solos_cmd="${arg}"
+    fi
+  done
+  if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
     __bridge__fn__destroy
   fi
   __bridge__fn__exec_cli "${args[@]}"

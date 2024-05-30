@@ -1,17 +1,17 @@
 {
   "folders": [
     {
-      "name": "__vPROJECT_NAME__",
+      "name": "project.__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
       "profile": "shell"
     },
     {
-      "name": "root",
+      "name": "~/.solos",
       "uri": "__vUSERS_HOME_DIR__/.solos",
       "profile": "shell"
     },
     {
-      "name": "dev.source",
+      "name": "source.code",
       "uri": "__vUSERS_HOME_DIR__/.solos/src",
       "profile": "shell-minimal"
     }

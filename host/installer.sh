@@ -39,7 +39,7 @@ __installer__fn__init_fs() {
 . "\${HOME}/.solos/src/container/profile-bashrc.sh" "\$@"
 
 # Add your customizations to the SolOS shell.
-# Tip: type \`man\` in the shell to see what functions and aliases are available.
+# Tip: type \`info\` in the shell to see what functions and aliases are available.
 
 # WARNING: Define any custom functions or alias ABOVE the call to \`install_solos\`
 # unless you really know what you're doing.

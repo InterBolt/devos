@@ -21,6 +21,7 @@ set -o errexit
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 shopt -s dotglob
+
 #-------------------------------------------------------------------
 # This is useful to confirm that our script is executable and the
 # symlink worked on installation.
@@ -30,6 +31,20 @@ for arg in "$@"; do
     exit 0
   fi
 done
+vRUN_FROM_SHELL=false
+for arg in "$@"; do
+  if [[ ${arg} = "--restricted-shell" ]]; then
+    vRUN_FROM_SHELL=true
+  fi
+done
+vUSERS_ARGS=()
+while [[ $# -gt 0 ]]; do
+  if [[ ${1} != --restricted-* ]]; then
+    vUSERS_ARGS+=("${1}")
+  fi
+  shift
+done
+set -- "${vUSERS_ARGS[@]}"
 #-------------------------------------------
 # LIB:GLOBAL: Info Shared between Projects
 #-------------------------------------------
@@ -60,6 +75,12 @@ global_store.set() {
 # vOPTIONS: An array of the options passed to the CLI.
 # vPROJECT_NAME: The name of the project being worked on.
 #-------------------------------------------------------------------
+vUSERS_ARGS=()
+for arg in "$@"; do
+  if [[ ${arg} != --restricted-* ]]; then
+    vUSERS_ARGS+=("${arg}")
+  fi
+done
 vUSERS_HOME_DIR="$(global_store.get "users_home_dir" "/root")"
 vCMD=""
 vALLOWED_OPTIONS=()
@@ -276,6 +297,14 @@ argparse.validate_opts() {
   fi
 }
 argparse.ingest() {
+  local checked_out_project="$(global_store.get "checked_out_project")"
+  if [[ ${vCMD} = "checkout" ]] && [[ ${#vOPTIONS[@]} -eq 0 ]]; then
+    if [[ -z ${checked_out_project} ]]; then
+      log_error "No project currently checked out."
+      return 1
+    fi
+    vOPTIONS=("argv1=${checked_out_project}")
+  fi
   for i in "${!vOPTIONS[@]}"; do
     case "${vOPTIONS[$i]}" in
     argv1=*)
@@ -284,6 +313,19 @@ argparse.ingest() {
       fi
       if [[ ${vCMD} = "checkout" ]]; then
         vPROJECT_NAME="${vOPTIONS[$i]#*=}"
+        # If we're running from the SolOS shell, prevent checking out a different project.
+        # This is not the best solution but one that will prevent hair-pulling bugs/inconsistencies
+        # while we work on a better solution.
+        if [[ ${vRUN_FROM_SHELL} = true ]]; then
+          if [[ -n ${vPROJECT_NAME} ]] && [[ ${checked_out_project} != "${vPROJECT_NAME}" ]]; then
+            log_error \
+              "You cannot checkout a different project within a dockerized SolOS shell. Run on your host machine instead."
+            return 1
+          fi
+          if [[ -n ${checked_out_project} ]]; then
+            vPROJECT_NAME="${checked_out_project}"
+          fi
+        fi
       fi
       ;;
     esac
@@ -761,7 +803,9 @@ __MAIN__() {
   argparse.requirements
   argparse.cmd "$@"
   argparse.validate_opts
-  argparse.ingest
+  if ! argparse.ingest; then
+    exit 1
+  fi
   if [[ -z ${vCMD} ]]; then
     exit 1
   fi
