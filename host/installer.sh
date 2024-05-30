@@ -27,16 +27,17 @@ __installer__fn__clone() {
   fi
 }
 __installer__fn__init_fs() {
-  local solos_bashrc="${vSOLOS_HOME_DIR}/.bashrc"
+  local solos_bashrc="${vSOLOS_HOME_DIR}/profile/.bashrc"
   local src_dir="${vSOLOS_HOME_DIR}/src"
 
   mkdir -p "${vSOLOS_HOME_DIR}" || exit 1
+  mkdir -p "${vSOLOS_HOME_DIR}/profile" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"
 #!/usr/bin/env bash
 
-. "\${HOME}/.solos/src/container/profile-bashrc.sh" "\$@"
+. "\${HOME}/.solos/src/container/profile.sh" "\$@"
 
 # Add your customizations to the SolOS shell.
 # Tip: type \`info\` in the shell to see what functions and aliases are available.

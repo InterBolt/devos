@@ -38,7 +38,7 @@ __profile_rag__get_blacklist() {
     "sleep"
     "uname"
   )
-  for cmd in ${__profile_bashrc__pub_fns}; do
+  for cmd in ${__profile__pub_fns}; do
     blacklist+=("${cmd}")
   done
   echo "${blacklist[*]}"
@@ -201,17 +201,6 @@ __profile_rag__fn__trap_lifeycle_scripts() {
   local lifecycle="${1}"
   local prompt="${2}"
 
-  # Avoid rag/tracking stuff for blacklisted commands.
-  # Ex: all pub_* functions in the bashrc will be blacklisted.
-  local blacklist="$(__profile_rag__get_blacklist | xargs)"
-  for opt_out in ${blacklist}; do
-    if [[ ${prompt} = "${opt_out} "* ]] || [[ ${prompt} = "${opt_out}" ]]; then
-      if [[ ${prompt} = *"|"* ]]; then
-        break
-      fi
-      return 0
-    fi
-  done
   local lifecycle_scripts=()
   local next_dir="${PWD}"
   while [[ ${next_dir} != "${HOME}/.solos" ]]; do
@@ -246,17 +235,17 @@ __profile_rag__fn__trap() {
   # Consider the prompt: `ls | grep "foo" | less`:
   # In a normal DEBUG trap, this prompt would trigger three trap invocations, one per - ls, grep, and less.
   # But what we really want is to hit the trap one time for the *entire* set of commands.
-  # To do this, we unset some arbitrary variable on the first trapped command, ie - our 'ls'
-  # command, so that all other piped commands will not execute until the arbitrary variable is set again.
-  # And since the arbitrary variable will not get reset until the next prompt is submitted, we can be sure
-  # that the trap will only be hit once per prompt.
+  # To do this, we unset some arbitrary variable (ie __profile_rag__trap_gate_open) on the first trapped command, ls,
+  # so that all other piped commands will not execute.
+  # Then, instead of actually executing the ls command, we execute the last line of our prompt history, which will
+  # contain the entire prompt, including all piped commands, operators, etc.
   if [[ -n "${__profile_rag__trap_gate_open+set}" ]]; then
     unset __profile_rag__trap_gate_open
 
-    if [[ -n "${__profile_bashrc__loaded_project}" ]]; then
+    if [[ -n "${__profile__loaded_project}" ]]; then
       local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-      if [[ "${__profile_bashrc__loaded_project}" != "${checked_out_project}" ]]; then
-        echo "You have changed projects (${__profile_bashrc__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
+      if [[ "${__profile__loaded_project}" != "${checked_out_project}" ]]; then
+        echo "You have changed projects (${__profile__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
         echo "Please exit and re-open your terminal." >&2
         trap '__profile_rag__fn__trap' DEBUG
         return 1
@@ -277,6 +266,20 @@ __profile_rag__fn__trap() {
       trap '__profile_rag__fn__trap' DEBUG
       return 1
     fi
+
+    # Avoid rag/tracking stuff for blacklisted commands.
+    # Ex: all pub_* functions in the bashrc will be blacklisted.
+    local blacklist="$(__profile_rag__get_blacklist | xargs)"
+    for opt_out in ${blacklist}; do
+      if [[ ${submitted_prompt} = "${opt_out} "* ]] || [[ ${submitted_prompt} = "${opt_out}" ]]; then
+        if [[ ${submitted_prompt} = *"|"* ]]; then
+          break
+        fi
+        eval "${submitted_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+        trap '__profile_rag__fn__trap' DEBUG
+        return 1
+      fi
+    done
 
     # Run user defined preexec functions. If any of them fail, return with the exit code
     # and skip the rest of the trap logic, including the remaining preexec functions.

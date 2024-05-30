@@ -21,8 +21,8 @@
       "profile": "shell"
     },
     {
-      "name": "solos.bashrc",
-      "uri": "__vUSERS_HOME_DIR__/.solos/.bashrc",
+      "name": "solos.profile",
+      "uri": "__vUSERS_HOME_DIR__/.solos/profile",
       "profile": "shell"
     },
     {
@@ -33,6 +33,11 @@
     {
       "name": "project.__vPROJECT_NAME__",
       "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
+      "profile": "shell"
+    },
+    {
+      "name": "root",
+      "uri": "__vUSERS_HOME_DIR__/.solos",
       "profile": "shell"
     }
   ],

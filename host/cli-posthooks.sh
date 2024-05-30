@@ -14,7 +14,6 @@ __cli_posthooks__fn__determine_command() {
   fi
   echo "${host_post_fn}"
 }
-
 # Every function below defines some behavior associated with the *success* of a particular command.
 __cli_posthooks__fn__checkout() {
   if [[ -e /etc/solos ]]; then
@@ -32,7 +31,6 @@ __cli_posthooks__fn__checkout() {
   fi
   code "${code_workspace_file}"
 }
-
 __cli_posthooks__fn__app() {
   if [[ -e /etc/solos ]]; then
     return 0

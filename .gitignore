@@ -25,6 +25,7 @@ reference.txt
 *.test
 !.gitkeep
 sandbox.sh
+test.sh
 
 .DS_Store
 !__test__.*

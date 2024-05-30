@@ -2,34 +2,44 @@
 
 shopt -s extdebug
 
+# When the shell exits, append to the history file instead of overwriting it.
+shopt -s histappend
+# Avoid duplicate entries.
+HISTCONTROL=ignoredups:erasedups
+# Load this history file.
+history -r
+
 . "${HOME}/.solos/src/tools/log.sh" || exit 1
 . "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-rag.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
-__profile_bashrc__relay_dir="${HOME}/.solos/.relay"
-__profile_bashrc__loaded_project=""
+__profile__pub_fns=""
+__profile__relay_dir="${HOME}/.solos/.relay"
+__profile__loaded_project=""
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
 fi
 
-__profile_bashrc__fn__error_press_enter() {
+export PARENT_SHELL_PID="${PARENT_SHELL_PID:-"$$"}"
+
+__profile__fn__error_press_enter() {
   echo "Press enter to exit..."
   read -r || exit 1
   exit 1
 }
 
-__profile_bashrc__fn__users_home_dir() {
+__profile__fn__users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
     log_error "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}."
-    __profile_bashrc__fn__error_press_enter
+    __profile__fn__error_press_enter
   fi
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
 }
 
-__profile_bashrc__fn__extract_help_description() {
+__profile__fn__extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
     log_error "Unexpected error: empty help output."
@@ -48,7 +58,7 @@ __profile_bashrc__fn__extract_help_description() {
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
 }
 
-__profile_bashrc__fn__bash_completions() {
+__profile__fn__bash_completions() {
   _custom_command_completions() {
     local cur prev words cword
     _init_completion || return
@@ -59,7 +69,7 @@ __profile_bashrc__fn__bash_completions() {
   complete -F _custom_command_completions '-'
 }
 
-__profile_bashrc__fn__run_checked_out_project_script() {
+__profile__fn__run_checked_out_project_script() {
   local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
   if [[ -z ${checked_out_project} ]]; then
     return 0
@@ -70,50 +80,22 @@ __profile_bashrc__fn__run_checked_out_project_script() {
     local pwd_project="$(basename "${PWD}")"
     echo "The checked out project does not match the project of your terminal's working directory." >&2
     echo "Run \`solos checkout ${pwd_project}\` in your host terminal to ensure VSCode can load the correct container when launching the SolOS shell." >&2
-    __profile_bashrc__fn__error_press_enter
+    __profile__fn__error_press_enter
   fi
   if [[ ${PWD} =~ ^${project_dir} ]]; then
     local project_script="${HOME}/.solos/projects/${checked_out_project}/solos.checkout.sh"
     if [[ -f ${project_script} ]]; then
       . "${project_script}"
-      __profile_bashrc__loaded_project="${checked_out_project}"
-      echo -e "\033[0;32mChecked out project: ${__profile_bashrc__loaded_project} \033[0m"
+      __profile__loaded_project="${checked_out_project}"
+      echo -e "\033[0;32mChecked out project: ${__profile__loaded_project} \033[0m"
     fi
   fi
 }
-
-__profile_bashrc__fn__host() {
-  mkdir -p "${__profile_bashrc__relay_dir}"
-  local done_file="${__profile_bashrc__relay_dir}/done"
-  local command_file="${__profile_bashrc__relay_dir}/command"
-  local stdout_file="${__profile_bashrc__relay_dir}/stdout"
-  local stderr_file="${__profile_bashrc__relay_dir}/stderr"
-  local cmd=''"${*}"''
-  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
-  touch "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
-  echo ''"${cmd}"'' >"${command_file}"
-  while [[ ! -f "${done_file}" ]] || [[ ! $(cat "${done_file}" 2>/dev/null) =~ ^DONE: ]]; do
-    sleep .1
-  done
-  local return_code=$(cat "${done_file}" 2>/dev/null | cut -d: -f2)
-  stdout="$(cat "${stdout_file}" 2>/dev/null || echo "")"
-  stderr="$(cat "${stderr_file}" 2>/dev/null || echo "")"
-  if [[ -n ${stdout} ]]; then
-    echo "${stdout}"
-  fi
-  if [[ -n ${stderr} ]]; then
-    echo "${stderr}" >&2
-  fi
-  rm -f "${done_file}" "${command_file}" "${stdout_file}" "${stderr_file}"
-  rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
-  return ${return_code}
-}
-
-__profile_bashrc__fn__print_info() {
+__profile__fn__print_info() {
   local solos_bin_cmds=()
   while IFS= read -r -d $'\0' file; do
     local cmd_name="$(basename "${file}" | cut -d. -f1)"
-    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __profile_bashrc__fn__extract_help_description)")
+    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __profile__fn__extract_help_description)")
   done < <(find "${HOME}/.solos/src/tools/cmds/" -type f -print0)
 
   cat <<EOF
@@ -129,38 +111,38 @@ $(
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
       info "Print info about this shell." \
-      rag "$(rag --help | __profile_bashrc__fn__extract_help_description)" \
-      host "$(host --help | __profile_bashrc__fn__extract_help_description)" \
-      solos "$(solos --help | __profile_bashrc__fn__extract_help_description)" \
-      gh_token "$(gh_token --help | __profile_bashrc__fn__extract_help_description)" \
-      gh_email "$(gh_email --help | __profile_bashrc__fn__extract_help_description)" \
-      gh_name "$(gh_name --help | __profile_bashrc__fn__extract_help_description)" \
-      preexec_list "$(preexec_list --help | __profile_bashrc__fn__extract_help_description)" \
-      preexec_add "$(preexec_add --help | __profile_bashrc__fn__extract_help_description)" \
-      preexec_remove "$(preexec_remove --help | __profile_bashrc__fn__extract_help_description)" \
-      postexec_list "$(postexec_list --help | __profile_bashrc__fn__extract_help_description)" \
-      postexec_add "$(postexec_add --help | __profile_bashrc__fn__extract_help_description)" \
-      postexec_remove "$(postexec_remove --help | __profile_bashrc__fn__extract_help_description)"
+      reload "$(reload --help | __profile__fn__extract_help_description)" \
+      rag "$(rag --help | __profile__fn__extract_help_description)" \
+      solos "$(solos --help | __profile__fn__extract_help_description)" \
+      gh_token "$(gh_token --help | __profile__fn__extract_help_description)" \
+      gh_email "$(gh_email --help | __profile__fn__extract_help_description)" \
+      gh_name "$(gh_name --help | __profile__fn__extract_help_description)" \
+      preexec_list "$(preexec_list --help | __profile__fn__extract_help_description)" \
+      preexec_add "$(preexec_add --help | __profile__fn__extract_help_description)" \
+      preexec_remove "$(preexec_remove --help | __profile__fn__extract_help_description)" \
+      postexec_list "$(postexec_list --help | __profile__fn__extract_help_description)" \
+      postexec_add "$(postexec_add --help | __profile__fn__extract_help_description)" \
+      postexec_remove "$(postexec_remove --help | __profile__fn__extract_help_description)"
   )
   
 $(
     __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
-      'User managed rcfile' "$(__profile_bashrc__fn__users_home_dir)/.solos/.bashrc" \
-      'Internal rcfile' "$(__profile_bashrc__fn__users_home_dir)/.solos/src/container/profile-bashrc.sh" \
-      'Logs' "$(__profile_bashrc__fn__users_home_dir)/.solos/logs" \
-      'Captured notes and stdout' "$(__profile_bashrc__fn__users_home_dir)/.solos/rag" \
-      'Global Store' "$(__profile_bashrc__fn__users_home_dir)/.solos/store" \
-      'Project Stores' "$(__profile_bashrc__fn__users_home_dir)/.solos/projects/<project>/store" \
-      'Global Secrets' "$(__profile_bashrc__fn__users_home_dir)/.solos/secrets" \
-      'Project Secrets' "$(__profile_bashrc__fn__users_home_dir)/.solos/projects/<project>/secrets"
+      'User managed rcfile' "$(__profile__fn__users_home_dir)/.solos/profile/.bashrc" \
+      'Internal rcfile' "$(__profile__fn__users_home_dir)/.solos/src/container/profile.sh" \
+      'Logs' "$(__profile__fn__users_home_dir)/.solos/logs" \
+      'Captured notes and stdout' "$(__profile__fn__users_home_dir)/.solos/rag" \
+      'Global Store' "$(__profile__fn__users_home_dir)/.solos/store" \
+      'Project Stores' "$(__profile__fn__users_home_dir)/.solos/projects/<project>/store" \
+      'Global Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets" \
+      'Project Secrets' "$(__profile__fn__users_home_dir)/.solos/projects/<project>/secrets"
   )
   
 $(
     __profile_table_outputs__fn__format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
-      "Mounted Volume" "$(__profile_bashrc__fn__users_home_dir)/.solos" \
+      "Mounted Volume" "$(__profile__fn__users_home_dir)/.solos" \
       "Bash Version" "${BASH_VERSION}" \
       "Container OS" "$(lsb_release -d | cut -f2)" \
       "SolOS Repo" "https://github.com/interbolt/solos"
@@ -177,7 +159,7 @@ $(
 EOF
 }
 
-__profile_bashrc__fn__print_welcome_manual() {
+__profile__fn__print_welcome_manual() {
   local asci_welcome_to_solos_art=$(
     cat <<EOF
     
@@ -193,7 +175,7 @@ EOF
 
   cat <<EOF
 ${asci_welcome_to_solos_art}
-$(__profile_bashrc__fn__print_info)
+$(__profile__fn__print_info)
 
 EOF
   local gh_status_line="$(gh auth status | grep "Logged in")"
@@ -203,7 +185,7 @@ EOF
   echo ""
 }
 
-__profile_bashrc__fn__install() {
+__profile__fn__install() {
   PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   local warnings=()
   mkdir -p "${HOME}/.solos/secrets"
@@ -211,6 +193,16 @@ __profile_bashrc__fn__install() {
   if [[ ! -f ${gh_token_path} ]]; then
     gum_github_token >"${gh_token_path}"
   fi
+  local gh_name_path="${HOME}/.solos/store/gh_name"
+  if [[ ! -f ${gh_name_path} ]]; then
+    gum_github_name >"${gh_name_path}"
+  fi
+  git config --global user.name "$(cat "${gh_name_path}")"
+  local gh_email_path="${HOME}/.solos/store/gh_email"
+  if [[ ! -f ${gh_email_path} ]]; then
+    gum_github_email >"${gh_email_path}"
+  fi
+  git config --global user.email "$(cat "${gh_email_path}")"
   local gh_cmd_available=false
   if command -v gh >/dev/null 2>&1; then
     gh_cmd_available=true
@@ -229,33 +221,30 @@ __profile_bashrc__fn__install() {
   else
     warnings+=("/etc/bash_completion not found. Bash completions will not be available.")
   fi
-  local gh_email="$(__profile_bashrc__fn__host git config --global user.email)"
-  local gh_user="$(__profile_bashrc__fn__host git config --global user.name)"
-  if [[ -n ${gh_email} ]]; then
-    git config --global user.email "${gh_email}"
-  else
-    warnings+=("No email found in Git configuration.")
-  fi
-  if [[ -n ${gh_user} ]]; then
-    git config --global user.name "${gh_user}"
-  else
-    warnings+=("No username found in Git configuration.")
-  fi
   if [[ ${warnings} ]]; then
     for warning in "${warnings[@]}"; do
       echo -e "\033[0;31mWARNING:\033[0m ${warning}"
       sleep .2
     done
   fi
-  __profile_bashrc__fn__print_welcome_manual
-  __profile_bashrc__fn__bash_completions
-  __profile_bashrc__fn__run_checked_out_project_script
+  __profile__fn__print_welcome_manual
+  __profile__fn__bash_completions
+  __profile__fn__run_checked_out_project_script
 }
-
-__profile_bashrc__fn__reserved_fn_protection() {
-  if [[ ${1} = "--solos-reserved" ]]; then
-    return 1
-  fi
+# Rename, export, and make readonly for all user-accessible pub functions.
+# Ex: user should use `rag` rather than `__profile__fn__public_rag`.
+__profile__fn__export_and_readonly() {
+  __profile__pub_fns=""
+  local pub_fns="$(declare -F | grep -o "__profile__fn__public_[a-z_]*" | xargs)"
+  local internal_fns="$(compgen -A function | grep -o "__[a-z_]*__[a-z_]*" | xargs)"
+  local internal_vars="$(compgen -v | grep -o "__[a-z_]*__[a-z_]*" | xargs)"
+  for pub_func in ${pub_fns}; do
+    pub_func_renamed="${pub_func#"__profile__fn__public_"}"
+    eval "${pub_func_renamed}() { ${pub_func} \"\$@\"; }"
+    eval "declare -g -r -f ${pub_func_renamed}"
+    eval "export -f ${pub_func_renamed}"
+    __profile__pub_fns="${pub_func_renamed} ${__profile__pub_fns}"
+  done
 }
 
 # PUBLIC FUNCTIONS:
@@ -263,46 +252,34 @@ __profile_bashrc__fn__reserved_fn_protection() {
 user_preexecs=()
 user_postexecs=()
 
-pub_rag() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-  __profile_rag__fn__main "$@"
-}
-pub_host() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_reload() {
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 
-USAGE: host ...<any command here>...
+USAGE: reload
 
 DESCRIPTION:
 
-Any command that you run with 'host' prefix will be executed on the host machine.
-
-Try running 'host uname' to see the output of the 'uname' command on your host machine.
-
-The \`host\` command doesn't use unix pipes. Rather, the SolOS shell starts a background process upon launch \
-which periodically checks a specific txt file for a new command from the docker container. Once the background process detects a new command \
-it executes it (on the host) and writes stdout and stderr to some more specific txt files. \
-The SolOS shell (in the container) then reads the stdout/err from those files and displays the output in the terminal.
+Reload the current shell session.
 
 EOF
     return 0
   fi
-  local return_code=0
-  if ! __profile_bashrc__fn__host "$@"; then
-    return_code="$?"
+  trap - DEBUG
+  trap - SIGINT
+  if [[ -f "${HOME}/.solos/profile/.bashrc" ]]; then
+    history -a
+    bash --rcfile "${HOME}/.solos/profile/.bashrc" -i
+  else
+    log_info "No rcfile found at ${HOME}/.solos/profile/.bashrc. Skipping reload."
+    trap 'exit 1;' SIGINT
+    trap '__profile_rag__fn__trap' DEBUG
   fi
-  rm -f \
-    "${__profile_bashrc__relay_dir}/done" \
-    "${__profile_bashrc__relay_dir}/command" \
-    "${__profile_bashrc__relay_dir}/pwd" \
-    "${__profile_bashrc__relay_dir}/stdout" \
-    "${__profile_bashrc__relay_dir}/stderr" 2>/dev/null
-  rm -d "${__profile_bashrc__relay_dir}" 2>/dev/null
-  return ${return_code}
 }
-pub_gh_token() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_rag() {
+  __profile_rag__fn__main "$@"
+}
+__profile__fn__public_gh_token() {
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_token
@@ -325,8 +302,7 @@ EOF
     gh auth status
   fi
 }
-pub_gh_email() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_gh_email() {
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_email
@@ -338,14 +314,13 @@ Update the Github email.
 EOF
     return 0
   fi
-  local tmp_file="$(mktemp -q)"
-  gum_github_email >"${tmp_file}" || exit 1
-  local gh_email=$(cat "${tmp_file}")
-  git config --global user.email "${gh_email}"
-  host git config --global user.email "${gh_email}"
+
+  local gh_email_path="${HOME}/.solos/store/gh_email"
+  gum_github_email >"${gh_email_path}" || exit 1
+  local gh_email=$(cat "${gh_email_path}")
+  git config --global user.name "${gh_email}"
 }
-pub_gh_name() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_gh_name() {
   if [[ ${1} == "--help" ]]; then
     cat <<EOF
 USAGE: gh_name
@@ -357,35 +332,17 @@ Update the Github username.
 EOF
     return 0
   fi
-  local tmp_file="$(mktemp -q)"
-  gum_github_name >"${tmp_file}" || exit 1
-  local gh_name=$(cat "${tmp_file}")
+
+  local gh_name_path="${HOME}/.solos/store/gh_name"
+  gum_github_name >"${gh_name_path}" || exit 1
+  local gh_name=$(cat "${gh_name_path}")
   git config --global user.name "${gh_name}"
-  host git config --global user.name "${gh_name}"
 }
-pub_code() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-  if [[ ${1} == "--help" ]]; then
-    cat <<EOF
-USAGE: code <...vscode cli args...>
-
-DESCRIPTION:
-
-Opens the Visual Studio Code editor from the host machine.
-
-EOF
-    return 0
-  fi
-  local bin_path="$(__profile_bashrc__fn__host which code)"
-  host "${bin_path}" "${*}"
-}
-pub_solos() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_solos() {
   local executable_path="${HOME}/.solos/src/container/cli.sh"
   "${executable_path}" --restricted-shell "$@"
 }
-pub_info() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_info() {
   if [[ "${1}" == "--help" ]]; then
     cat <<EOF
 USAGE: info
@@ -398,11 +355,10 @@ EOF
     return 0
   fi
   echo ""
-  __profile_bashrc__fn__print_info
+  __profile__fn__print_info
   echo ""
 }
-pub_preexec_list() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_preexec_list() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_list
@@ -416,8 +372,7 @@ EOF
   fi
   echo "${user_preexecs[@]}"
 }
-pub_preexec_add() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_preexec_add() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_add <function_name>
@@ -443,8 +398,7 @@ EOF
   fi
   user_preexecs+=("${fn}")
 }
-pub_preexec_remove() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_preexec_remove() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: preexec_remove <function_name>
@@ -463,8 +417,7 @@ EOF
   fi
   user_preexecs=("${user_preexecs[@]/${fn}/}")
 }
-pub_postexec_list() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_postexec_list() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_list
@@ -478,8 +431,7 @@ EOF
   fi
   echo "${user_postexecs[@]}"
 }
-pub_postexec_add() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_postexec_add() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_add <function_name>
@@ -505,8 +457,7 @@ EOF
   fi
   user_postexecs+=("${fn}")
 }
-pub_postexec_remove() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
+__profile__fn__public_postexec_remove() {
   if [[ ${1} = "--help" ]]; then
     cat <<EOF
 USAGE: postexec_remove <function_name>
@@ -525,39 +476,18 @@ EOF
   fi
   user_postexecs=("${user_postexecs[@]/${fn}/}")
 }
-pub_install_solos() {
-  __profile_bashrc__fn__reserved_fn_protection "$@" || return 151
-  # Prevent a user from defining their own versions of the built-in public functions defined in this script.
-  # Each public function will return 151 when the --solos-reserved flag is passed, which allows us to quickly test whether
-  # or not a function was defined here or in the user's script. This depends on the assumption that the user will not implement
-  # support for --solos-reserved and the 151 return code in their own functions. But that's a safe assumption and if they do
-  # then we should assume they know what they're doing.
-  # Note: since we do this in the installation command, the user is free to overwrite public functions if they don't plan
-  # to install the SolOS shell.
-  local overwritten_fns=()
-  for func in ${__profile_bashrc__pub_fns}; do
-    new_func_name="${func#pub_}"
-    solos_overwrite_return_code_check="$(eval ''"${new_func_name}"' --solos-reserved' >/dev/null 2>&1 && echo "$?" || echo "$?")"
-    if [[ ${solos_overwrite_return_code_check} -ne 151 ]]; then
-      overwritten_fns+=("${new_func_name}")
-    fi
-  done
-
+__profile__fn__public_install_solos() {
+  trap - ERR
   if [[ ${overwritten_fns} ]]; then
     local newline=$'\n'
     local message="The following functions are reserved in the SolOS shell:"
     local message_length=${#message}
     gum_danger_box "${message}${newline}$(printf '%*s\n' "${message_length}" '' | tr ' ' -)${newline}${overwritten_fns[@]}"
     trap 'exit 1;' SIGINT
-    __profile_bashrc__fn__error_press_enter
+    __profile__fn__error_press_enter
   fi
-  __profile_bashrc__fn__install
+  __profile__fn__install
   __profile_rag__fn__install
 }
 
-__profile_bashrc__pub_fns="$(declare -F | grep -o "pub_[a-zA-Z_]*" | xargs)"
-for func in ${__profile_bashrc__pub_fns}; do
-  new_func_name="${func#pub_}"
-  # Ensure that each pub_* function is available without the pub_ prefix.
-  eval "${new_func_name}() { ${func} \"\$@\"; return \"\$?\"; }"
-done
+__profile__fn__export_and_readonly

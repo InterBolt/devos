@@ -109,8 +109,8 @@ COMMANDS:
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
 app                      - Initializes or checks out a project app.
-shell                    - Start a SolOS shell session with ~/.solos/.bashrc sourced.
-shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/.bashrc.
+shell                    - Start a SolOS shell session with ~/.solos/profile/.bashrc sourced.
+shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/profile/.bashrc.
 try                      - (DEV ONLY) Undocumented.
 
 Source: https://github.com/InterBolt/solos
@@ -144,7 +144,7 @@ USAGE: solos shell
 
 DESCRIPTION:
 
-Loads a interactive bash shell with the RC file at ~/.solos/.bashrc sourced.
+Loads a interactive bash shell with the RC file at ~/.solos/profile/.bashrc sourced.
 
 EOF
 }

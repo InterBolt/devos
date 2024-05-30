@@ -4,7 +4,7 @@
 # Always execute all logic in a main function to prevent partial execution of the script.
 # Important: must be posix compliant up to the `curl url | bash` line.
 
-generate_url() {
+get_install_script_url() {
   date_seconds=$(date +%s)
   echo "https://raw.githubusercontent.com/InterBolt/solos/main/host/installer.sh?token=${date_seconds}"
 }
@@ -27,7 +27,7 @@ main() {
     exit 1
   fi
 
-  installer_script_url="$(generate_url)"
+  installer_script_url="$(get_install_script_url)"
   curl -s "${installer_script_url}" | bash
 }
 

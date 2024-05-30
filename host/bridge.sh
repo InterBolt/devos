@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
 
-if ! command -v git >/dev/null 2>&1; then
-  echo "Please install git and docker before running this script." >&2
-  exit 1
-fi
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Please install docker before running this script." >&2
-  exit 1
-fi
-
 . "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
 __bridge__rag_dir="${HOME}/.solos/rag"
@@ -27,6 +18,7 @@ __bridge__shell_full_flag=false
 __bridge__cli_flag=true
 __bridge__next_args=()
 
+# Map the flags to the relevant values and remove them from the args.
 for entry_arg in "$@"; do
   if [[ ${entry_arg} = "--installer-no-tty" ]]; then
     __bridge__installer_no_tty_flag=true
@@ -162,15 +154,7 @@ __bridge__fn__build_and_run() {
     sleep .2
   done
 }
-__bridge__fn__shell() {
-  if __bridge__fn__test; then
-    if ! __bridge__fn__symlinks; then
-      echo "" >&2
-      __bridge__fn__error_press_enter
-    fi
-    __bridge__fn__exec_shell "$@"
-    return 0
-  fi
+__bridge__fn__rebuild() {
   if ! __bridge__fn__destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     __bridge__fn__error_press_enter
@@ -183,6 +167,17 @@ __bridge__fn__shell() {
     echo "Unexpected error: failed to create symbolic links." >&2
     __bridge__fn__error_press_enter
   fi
+}
+__bridge__fn__shell() {
+  if __bridge__fn__test; then
+    if ! __bridge__fn__symlinks; then
+      echo "" >&2
+      __bridge__fn__error_press_enter
+    fi
+    __bridge__fn__exec_shell "$@"
+    return 0
+  fi
+  __bridge__fn__rebuild
   __bridge__fn__exec_shell "$@"
 }
 __bridge__fn__cmd() {
@@ -193,21 +188,9 @@ __bridge__fn__cmd() {
     __bridge__fn__exec_command "$@"
     return 0
   fi
-  if ! __bridge__fn__destroy; then
-    echo "Unexpected error: failed to cleanup old containers." >&2
-    __bridge__fn__error_press_enter
-  fi
-  if ! __bridge__fn__build_and_run; then
-    echo "Unexpected error: failed to build and run the container." >&2
-    __bridge__fn__error_press_enter
-  fi
-  if ! __bridge__fn__symlinks; then
-    echo "Unexpected error: failed to create symbolic links." >&2
-    __bridge__fn__error_press_enter
-  fi
+  __bridge__fn__rebuild
   __bridge__fn__exec_command "$@"
 }
-
 __bridge__fn__exec_cli() {
   local post_behavior="$(__cli_posthooks__fn__determine_command "$@")"
   if __bridge__fn__cmd /root/.solos/src/container/cli.sh "$@"; then
@@ -215,14 +198,12 @@ __bridge__fn__exec_cli() {
       if [[ "$*" == *" --help"* ]] || [[ "$*" == *" help"* ]]; then
         return 0
       fi
-      # The first arg is the command, which is already known.
-      # So shift and run the posthook.
+      # The first arg is the command.
       shift
       "__cli_posthooks__fn__${post_behavior}" "$@"
     fi
   fi
 }
-
 __bridge__fn__cli() {
   local curr_project="$(
     head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
@@ -239,7 +220,6 @@ __bridge__fn__cli() {
   fi
   __bridge__fn__exec_cli "${args[@]}"
 }
-
 __bridge__fn__main() {
   if [[ ${__bridge__cli_flag} = true ]]; then
     local cli_args=()
@@ -254,7 +234,7 @@ __bridge__fn__main() {
     __bridge__fn__shell
     exit $?
   elif [[ ${__bridge__shell_full_flag} = true ]]; then
-    __bridge__fn__shell "${HOME}/.solos/.bashrc"
+    __bridge__fn__shell "${HOME}/.solos/profile/.bashrc"
     exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2

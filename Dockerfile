@@ -2,7 +2,6 @@ FROM debian:latest
 
 SHELL ["/bin/bash", "-c"]
 
-# TODO: research whether or not all of these packages are necessary
 RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes --no-install-recommends \
   git-all \
