@@ -210,9 +210,10 @@ __profile__fn__install_gh() {
   fi
   git config --global user.name "$(cat "${gh_name_path}")" || __profile__fn__error_press_enter
   git config --global user.email "$(cat "${gh_email_path}")" || __profile__fn__error_press_enter
-  export GH_TOKEN=$(cat "${gh_token_path}" 2>/dev/null || echo "")
-  if [[ -z ${GH_TOKEN} ]]; then
-    log_error "A Github token was not found in ${gh_token_path}. You probably need to run \`solos setup\`."
+  if gh auth login --with-token <"${gh_token_path}"; then
+    echo -e "\033[0;32mGithub CLI authenticated successfully.\033[0m"
+  else
+    log_error "Github CLI failed to authenticate."
     __profile__fn__error_press_enter
   fi
 }
