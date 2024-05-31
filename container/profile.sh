@@ -210,15 +210,11 @@ __profile__fn__install_gh() {
   fi
   git config --global user.name "$(cat "${gh_name_path}")" || __profile__fn__error_press_enter
   git config --global user.email "$(cat "${gh_email_path}")" || __profile__fn__error_press_enter
-  if gh auth login --with-token <"${gh_token_path}"; then
-    echo -e "\033[0;32mGithub CLI authenticated successfully.\033[0m"
-  else
+  if ! gh auth login --with-token <"${gh_token_path}"; then
     log_error "Github CLI failed to authenticate."
     __profile__fn__error_press_enter
   fi
-  if gh auth setup-git; then
-    echo -e "\033[0;32mGithub CLI setup successfully.\033[0m"
-  else
+  if ! gh auth setup-git; then
     log_error "Github CLI failed to setup."
     __profile__fn__error_press_enter
   fi
