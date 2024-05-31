@@ -714,7 +714,11 @@ EOF
   log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Initialized the app."
 }
 cmd.app() {
-  project.checkout
+  vPROJECT_NAME="$(global_store.get "checked_out_project")"
+  if [[ -z ${vPROJECT_NAME} ]]; then
+    log_error "No project currently checked out."
+    exit 1
+  fi
   if [[ -z "${vPROJECT_APP}" ]]; then
     log_error "No app name was supplied."
     exit 1
@@ -1004,13 +1008,6 @@ project.prune() {
   log_info "Removed nonexistent apps from the code workspace file."
   return 0
 }
-project.checkout() {
-  vPROJECT_NAME="$(global_store.get "checked_out_project")"
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "No project currently checked out."
-    exit 1
-  fi
-}
 #--------------------------------------------------------------------
 #                            RUN IT
 #--------------------------------------------------------------------
@@ -1025,7 +1022,7 @@ __MAIN__() {
     exit 1
   fi
   if ! command -v "cmd.${vCMD}" &>/dev/null; then
-    log_error "No implementation for ${vCMD} exists."
+    log_error "Unexpected error: no implementation for cmd.${vCMD} exists."
     exit 1
   fi
   "cmd.${vCMD}" || true
