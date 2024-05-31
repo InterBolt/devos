@@ -1,15 +1,9 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-# This script simply verifies the existence of dependencies and downloads/runs the the installer script.
-# Always execute all logic in a main function to prevent partial execution of the script.
-# Important: must be posix compliant up to the `curl url | bash` line.
+exec </dev/tty >/dev/tty 2>/dev/tty
 
-get_install_script_url() {
-  date_seconds=$(date +%s)
-  echo "https://raw.githubusercontent.com/InterBolt/solos/main/host/installer.sh?token=${date_seconds}"
-}
-
-main() {
+main 
+{
   if ! command -v bash >/dev/null 2>&1; then
   echo "Bash is required to install SolOS on this system." >&2
   exit 1
@@ -27,7 +21,7 @@ main() {
     exit 1
   fi
 
-  tmp_dir="$(mktemp -d -q)"
+  tmp_dir="$(mktemp -d 2>/dev/null)"
   git clone "https://github.com/InterBolt/solos.git" "${tmp_dir}" >/dev/null 
   find "${tmp_dir}" -type f -exec chmod +x {} \;
   bash "${tmp_dir}/host/installer.sh"
