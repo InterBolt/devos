@@ -813,8 +813,11 @@ cmd.setup._print_curr_setup() {
 }
 cmd.setup._gh_token() {
   local tmp_file="$1"
-  gum_github_token >"${tmp_file}" || exit 1
-  gh_token=$(cat "${tmp_file}")
+  local gh_token="$(gum_github_token)"
+  if [[ -z ${gh_token} ]]; then
+    exit 1
+  fi
+  echo "${gh_token}" >"${tmp_file}"
   if gh auth login --with-token <"${tmp_file}" >/dev/null; then
     log_info "Updated Github token."
   else
@@ -831,8 +834,11 @@ cmd.setup._gh_token() {
 }
 cmd.setup._gh_email() {
   local tmp_file="$1"
-  gum_github_email >"${tmp_file}" || exit 1
-  local github_email=$(cat "${tmp_file}")
+  local github_email="$(gum_github_email)"
+  if [[ -z ${github_email} ]]; then
+    exit 1
+  fi
+  echo "${github_email}" >"${tmp_file}"
   if git config --global user.email "${github_email}"; then
     log_info "Updated git email."
   else
@@ -849,8 +855,11 @@ cmd.setup._gh_email() {
 }
 cmd.setup._gh_name() {
   local tmp_file="$1"
-  gum_github_name >"${tmp_file}" || exit 1
-  local github_name=$(cat "${tmp_file}")
+  local github_name="$(gum_github_name)"
+  if [[ -z ${github_name} ]]; then
+    exit 1
+  fi
+  echo "${github_name}" >"${tmp_file}"
   if git config --global user.name "${github_name}"; then
     log_info "Updated git name."
   else
