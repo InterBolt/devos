@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-exec </dev/tty >/dev/tty 2>/dev/tty
+exec </dev/tty
 
 main() {
   if ! command -v bash >/dev/null 2>&1; then
