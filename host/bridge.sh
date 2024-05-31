@@ -38,8 +38,6 @@ for entry_arg in "$@"; do
 done
 set -- "${__bridge__next_args[@]}" || exit 1
 
-. "${HOME}/.solos/src/tools/pkgs/gum.sh"
-
 export DOCKER_CLI_HINTS=false
 
 __bridge__fn__error_press_enter() {
@@ -102,9 +100,6 @@ __bridge__fn__exec_shell() {
     local relative_bashrc_file="${bashrc_file/#$HOME/~}"
     bash_args=(--rcfile "${relative_bashrc_file}")
   fi
-
-  local curr_time="$(date +%s)"
-  local time_diff="$((curr_time - ____debug__start))"
 
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }

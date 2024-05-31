@@ -22,14 +22,6 @@ __gum__fn__get_release_file() {
   fi
   echo "${release}"
 }
-__gum__level_colors=(
-  ["info"]="#3B78FF"
-  ["rag"]="#0F0"
-  ["debug"]="#A0A"
-  ["error"]="#F02"
-  ["fatal"]="#F02"
-  ["warn"]="#FA0"
-)
 
 # PUBLIC FUNCTIONS:
 
@@ -85,19 +77,19 @@ gum_shell_log() {
   local level="$2"
   local msg="$3"
   local source="$4"
+  declare -A log_level_colors=(["info"]="#3B78FF" ["rag"]="#0F0" ["debug"]="#A0A" ["error"]="#F02" ["fatal"]="#F02" ["warn"]="#FA0")
   local date="$(date "+%F %T")"
   local source_args=()
   if [[ -n ${source} ]]; then
     source_args=(source "[${source}]")
   fi
   gum_bin log \
-    --level.foreground "${__gum__level_colors["${level}"]}" \
+    --level.foreground "${log_level_colors["${level}"]}" \
     --file "${log_file}" \
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
   gum_bin log \
-    --level.foreground "${__gum__level_colors["${level}"]}" \
-    --file "${log_file}" \
+    --level.foreground "${log_level_colors["${level}"]}" \
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
 }
