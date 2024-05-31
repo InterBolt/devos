@@ -30,7 +30,7 @@ main() {
   tmp_dir="$(mktemp -d -q)"
   git clone "https://github.com/InterBolt/solos.git" "${tmp_dir}" >/dev/null 
   find "${tmp_dir}" -type f -exec chmod +x {} \;
-  bash "./${tmp_dir}/host/installer.sh"
+  bash "${tmp_dir}/host/installer.sh"
 }
 
 main
