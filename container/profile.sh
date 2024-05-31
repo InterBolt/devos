@@ -216,6 +216,12 @@ __profile__fn__install_gh() {
     log_error "Github CLI failed to authenticate."
     __profile__fn__error_press_enter
   fi
+  if gh auth setup-git; then
+    echo -e "\033[0;32mGithub CLI setup successfully.\033[0m"
+  else
+    log_error "Github CLI failed to setup."
+    __profile__fn__error_press_enter
+  fi
 }
 
 __profile__fn__install() {
