@@ -1,9 +1,9 @@
 #!/usr/bin/env sh
 
-exec </dev/tty >/dev/tty 2>/dev/tty
+tty_descriptor="$(tty)"
+exec <"${tty_descriptor}" >"${tty_descriptor}" 2>"${tty_descriptor}"
 
-main 
-{
+main() {
   if ! command -v bash >/dev/null 2>&1; then
   echo "Bash is required to install SolOS on this system." >&2
   exit 1
