@@ -88,7 +88,7 @@ __installer__fn__install() {
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  echo "Run \`solos --help\` to view CLI instructions."
+  bash -ic "solos setup"
 }
 
 __installer__fn__main() {

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# Skip command if we get an unsuccessful return code in the debug trap.
 shopt -s extdebug
 
 # When the shell exits, append to the history file instead of overwriting it.
@@ -92,6 +93,7 @@ __profile__fn__run_checked_out_project_script() {
   fi
 }
 __profile__fn__print_info() {
+  local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
   local solos_bin_cmds=()
   while IFS= read -r -d $'\0' file; do
     local cmd_name="$(basename "${file}" | cut -d. -f1)"
@@ -114,9 +116,6 @@ $(
       reload "$(reload --help | __profile__fn__extract_help_description)" \
       rag "$(rag --help | __profile__fn__extract_help_description)" \
       solos "$(solos --help | __profile__fn__extract_help_description)" \
-      gh_token "$(gh_token --help | __profile__fn__extract_help_description)" \
-      gh_email "$(gh_email --help | __profile__fn__extract_help_description)" \
-      gh_name "$(gh_name --help | __profile__fn__extract_help_description)" \
       preexec_list "$(preexec_list --help | __profile__fn__extract_help_description)" \
       preexec_add "$(preexec_add --help | __profile__fn__extract_help_description)" \
       preexec_remove "$(preexec_remove --help | __profile__fn__extract_help_description)" \
@@ -130,12 +129,9 @@ $(
       "RESOURCE,PATH" \
       'User managed rcfile' "$(__profile__fn__users_home_dir)/.solos/profile/.bashrc" \
       'Internal rcfile' "$(__profile__fn__users_home_dir)/.solos/src/container/profile.sh" \
-      'Logs' "$(__profile__fn__users_home_dir)/.solos/logs" \
-      'Captured notes and stdout' "$(__profile__fn__users_home_dir)/.solos/rag" \
-      'Global Store' "$(__profile__fn__users_home_dir)/.solos/store" \
-      'Project Stores' "$(__profile__fn__users_home_dir)/.solos/projects/<project>/store" \
-      'Global Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets" \
-      'Project Secrets' "$(__profile__fn__users_home_dir)/.solos/projects/<project>/secrets"
+      'Config' "$(__profile__fn__users_home_dir)/.solos/config" \
+      'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets" \
+      'Project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}"
   )
   
 $(
@@ -185,48 +181,50 @@ EOF
   echo ""
 }
 
+__profile__fn__install_gh() {
+  local secrets_path="${HOME}/.solos/secrets"
+  local config_path="${HOME}/.solos/config"
+  if [[ ! -d ${secrets_path} ]]; then
+    log_error "No secrets directory found at ${secrets_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+  if [[ ! -d ${config_path} ]]; then
+    log_error "No config directory found at ${config_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+
+  local gh_token_path="${secrets_path}/gh_token"
+  local gh_name_path="${config_path}/gh_name"
+  local gh_email_path="${config_path}/gh_email"
+  if [[ ! -f ${gh_token_path} ]]; then
+    log_error "No Github token found at ${gh_token_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+  if [[ ! -f ${gh_name_path} ]]; then
+    log_error "No Github name found at ${gh_name_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+  if [[ ! -f ${gh_email_path} ]]; then
+    log_error "No Github email found at ${gh_email_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+  git config --global user.name "$(cat "${gh_name_path}")" || __profile__fn__error_press_enter
+  git config --global user.email "$(cat "${gh_email_path}")" || __profile__fn__error_press_enter
+  export GH_TOKEN=$(cat "${gh_token_path}" 2>/dev/null || echo "")
+  if [[ -z ${GH_TOKEN} ]]; then
+    log_error "A Github token was not found in ${gh_token_path}. You probably need to run \`solos setup\`."
+    __profile__fn__error_press_enter
+  fi
+}
+
 __profile__fn__install() {
   PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
-  local warnings=()
-  mkdir -p "${HOME}/.solos/secrets"
-  local gh_token_path="${HOME}/.solos/secrets/gh_token"
-  if [[ ! -f ${gh_token_path} ]]; then
-    gum_github_token >"${gh_token_path}"
-  fi
-  local gh_name_path="${HOME}/.solos/store/gh_name"
-  if [[ ! -f ${gh_name_path} ]]; then
-    gum_github_name >"${gh_name_path}"
-  fi
-  git config --global user.name "$(cat "${gh_name_path}")"
-  local gh_email_path="${HOME}/.solos/store/gh_email"
-  if [[ ! -f ${gh_email_path} ]]; then
-    gum_github_email >"${gh_email_path}"
-  fi
-  git config --global user.email "$(cat "${gh_email_path}")"
-  local gh_cmd_available=false
-  if command -v gh >/dev/null 2>&1; then
-    gh_cmd_available=true
-  fi
-  if [[ ${gh_cmd_available} = false ]]; then
-    warnings+=("The 'gh' command is not available. This shell is not authenticated with Git.")
-  elif [[ ! -f ${gh_token_path} ]]; then
-    warnings+=("The 'gh' command is available but no token was found at ${gh_token_path}.")
-  elif ! gh auth login --with-token <"${gh_token_path}" >/dev/null; then
-    warnings+=("Failed to authenticate with Git.")
-  elif ! gh auth setup-git 2>/dev/null; then
-    warnings+=("Failed to setup Git.")
-  fi
   if [[ -f "/etc/bash_completion" ]]; then
     . /etc/bash_completion
   else
-    warnings+=("/etc/bash_completion not found. Bash completions will not be available.")
+    echo -e "\033[0;31mWARNING:\033[0m /etc/bash_completion not found. Bash completions will not be available."
   fi
-  if [[ ${warnings} ]]; then
-    for warning in "${warnings[@]}"; do
-      echo -e "\033[0;31mWARNING:\033[0m ${warning}"
-      sleep .2
-    done
-  fi
+  __profile__fn__install_gh
   __profile__fn__print_welcome_manual
   __profile__fn__bash_completions
   __profile__fn__run_checked_out_project_script
@@ -278,65 +276,6 @@ EOF
 }
 __profile__fn__public_rag() {
   __profile_rag__fn__main "$@"
-}
-__profile__fn__public_gh_token() {
-  if [[ ${1} == "--help" ]]; then
-    cat <<EOF
-USAGE: gh_token
-
-DESCRIPTION:
-
-Update the Github token.
-
-EOF
-    return 0
-  fi
-  local tmp_file="$(mktemp -q)"
-  local gh_token_path="${HOME}/.solos/secrets/gh_token"
-  gum_github_token >"${tmp_file}" || exit 1
-  gh_token=$(cat "${tmp_file}")
-  if gh auth login --with-token <"${tmp_file}" >/dev/null; then
-    log_info "Updated Github token."
-    # Wait for a successful login before saving it.
-    echo "${gh_token}" >"${gh_token_path}"
-    gh auth status
-  fi
-}
-__profile__fn__public_gh_email() {
-  if [[ ${1} == "--help" ]]; then
-    cat <<EOF
-USAGE: gh_email
-
-DESCRIPTION:
-
-Update the Github email.
-
-EOF
-    return 0
-  fi
-
-  local gh_email_path="${HOME}/.solos/store/gh_email"
-  gum_github_email >"${gh_email_path}" || exit 1
-  local gh_email=$(cat "${gh_email_path}")
-  git config --global user.name "${gh_email}"
-}
-__profile__fn__public_gh_name() {
-  if [[ ${1} == "--help" ]]; then
-    cat <<EOF
-USAGE: gh_name
-
-DESCRIPTION:
-
-Update the Github username.
-
-EOF
-    return 0
-  fi
-
-  local gh_name_path="${HOME}/.solos/store/gh_name"
-  gum_github_name >"${gh_name_path}" || exit 1
-  local gh_name=$(cat "${gh_name_path}")
-  git config --global user.name "${gh_name}"
 }
 __profile__fn__public_solos() {
   local executable_path="${HOME}/.solos/src/container/cli.sh"
@@ -477,15 +416,6 @@ EOF
   user_postexecs=("${user_postexecs[@]/${fn}/}")
 }
 __profile__fn__public_install_solos() {
-  trap - ERR
-  if [[ ${overwritten_fns} ]]; then
-    local newline=$'\n'
-    local message="The following functions are reserved in the SolOS shell:"
-    local message_length=${#message}
-    gum_danger_box "${message}${newline}$(printf '%*s\n' "${message_length}" '' | tr ' ' -)${newline}${overwritten_fns[@]}"
-    trap 'exit 1;' SIGINT
-    __profile__fn__error_press_enter
-  fi
   __profile__fn__install
   __profile_rag__fn__install
 }

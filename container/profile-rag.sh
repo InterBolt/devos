@@ -223,7 +223,7 @@ __profile_rag__fn__trap() {
     return 0
   fi
 
-  # Prevent recursive bugs.
+  # Prevent infinite loop bugs.
   trap - DEBUG
 
   # The existence of the COMP_LINE variable implies that a bash completion is taking place.

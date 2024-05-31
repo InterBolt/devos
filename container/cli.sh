@@ -22,10 +22,17 @@ cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
 
 shopt -s dotglob
 
-#-------------------------------------------------------------------
+#----------------------------------------------------------------------------
 # This is useful to confirm that our script is executable and the
-# symlink worked on installation.
-#-------------------------------------------------------------------
+# symlink worked post-installation:
+#
+# --restricted-noop
+#     - Exits with 0 to confirm the script is executable.
+# --restricted-shell
+#     - Detects whether or not the script was invoked within the SolOS shell.
+#       EX use case: prevent checking out a different project within the shell
+#       since our shell assumes a consistent project context for its entire lifetime.
+#----------------------------------------------------------------------------
 for arg in "$@"; do
   if [[ ${arg} = "--restricted-noop" ]]; then
     exit 0
@@ -111,6 +118,7 @@ checkout                 - Switch to a pre-existing project or initialize a new 
 app                      - Initializes or checks out a project app.
 shell                    - Start a SolOS shell session with ~/.solos/profile/.bashrc sourced.
 shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/profile/.bashrc.
+setup                    - Configure SolOS for things like Git credentials, API keys, etc.
 try                      - (DEV ONLY) Undocumented.
 
 Source: https://github.com/InterBolt/solos
@@ -155,6 +163,16 @@ USAGE: solos shell-minimal
 DESCRIPTION:
 
 Loads a interactive bash shell without a RC file.
+
+EOF
+}
+usage.cmd.setup.help() {
+  cat <<EOF
+USAGE: solos setup
+
+DESCRIPTION:
+
+Configure SolOS for things like Git credentials, API keys, etc.
 
 EOF
 }
@@ -319,7 +337,7 @@ argparse.ingest() {
         if [[ ${vRUN_FROM_SHELL} = true ]]; then
           if [[ -n ${vPROJECT_NAME} ]] && [[ ${checked_out_project} != "${vPROJECT_NAME}" ]]; then
             log_error \
-              "You cannot checkout a different project within a dockerized SolOS shell. Run on your host machine instead."
+              "Usage error: \`solos checkout ${vPROJECT_NAME}\` must be run on your host machine."
             return 1
           fi
           if [[ -n ${checked_out_project} ]]; then
@@ -330,6 +348,30 @@ argparse.ingest() {
       ;;
     esac
   done
+}
+#------------------------------------------------------
+# LIB:CONFIG_STORE: Things we manage via the setup cmd
+#------------------------------------------------------
+config_store.del() {
+  local store_dir="${HOME}/.solos/config"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  rm -f "${storage_file}"
+}
+config_store.get() {
+  local store_dir="${HOME}/.solos/config"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  cat "${storage_file}" 2>/dev/null || echo ""
+}
+config_store.set() {
+  local store_dir="${HOME}/.solos/config"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  if [[ ! -f ${storage_file} ]]; then
+    touch "${storage_file}"
+  fi
+  echo "$2" >"${storage_file}"
 }
 #--------------------------------------------
 # LIB:PROJECT_STORE: Information per project
@@ -382,50 +424,26 @@ project_store.set() {
 #-------------------------------------------------
 # LIB:PROJECT_SECRETS: Record secrets per project
 #-------------------------------------------------
-project_secrets.del() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
-    exit 1
-  fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
-    exit 1
-  fi
-  local secrets_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/secrets"
-  rm -f "${secrets_dir}/$1"
+secrets_store.del() {
+  local store_dir="${HOME}/.solos/secrets"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  rm -f "${storage_file}"
 }
-project_secrets.get() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
-    exit 1
-  fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
-    exit 1
-  fi
-  local secrets_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/secrets"
-  local secrets_file="${secrets_dir}/$1"
-  if [[ -f ${secrets_file} ]]; then
-    cat "${secrets_file}"
-  else
-    echo ""
-  fi
+secrets_store.get() {
+  local store_dir="${HOME}/.solos/secrets"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  cat "${storage_file}" 2>/dev/null || echo ""
 }
-project_secrets.set() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
-    exit 1
+secrets_store.set() {
+  local store_dir="${HOME}/.solos/secrets"
+  mkdir -p "${store_dir}"
+  local storage_file="${store_dir}/$1"
+  if [[ ! -f ${storage_file} ]]; then
+    touch "${storage_file}"
   fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
-    exit 1
-  fi
-  local secrets_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/secrets"
-  local secrets_file="${secrets_dir}/$1"
-  if [[ ! -f ${secrets_file} ]]; then
-    touch "${secrets_file}"
-  fi
-  echo "$2" >"${secrets_file}"
+  echo "$2" >"${storage_file}"
 }
 #-------------------------------
 # LIB:SSH: SSH helper functions
@@ -568,6 +586,22 @@ utils.template_variables() {
   if [[ ${errored} = "true" ]]; then
     exit 1
   fi
+}
+utils.git_hash() {
+  local source_code_path="${HOME}/.solos/src"
+  if [[ ! -d "${source_code_path}" ]]; then
+    log_error "Unexpected error: nothing found at ${source_code_path}. Cannot generate a version hash."
+    exit 1
+  fi
+  git -C "${source_code_path}" rev-parse --short HEAD | cut -c1-7 || echo ""
+}
+utils.pretty_print_dir_files() {
+  local dir="$1"
+  local tilde_dir="${dir/#\/root/\~}"
+  for store_dir_file in "${dir}"/*; do
+    local filename="$(basename ${store_dir_file})"
+    printf "\033[0;32m%s\033[0m\n" "${tilde_dir}/${filename}: $(cat ${store_dir_file})"
+  done
 }
 #-----------------------------------
 # LIB:CMD: Command implementations
@@ -759,6 +793,172 @@ echo "Hello from the checkout script for project: ${vPROJECT_NAME}"
 EOF
     chmod +x "${checkout_script}"
     log_info "${vPROJECT_NAME} - Created the checkout script."
+  fi
+}
+cmd.setup._print_curr_setup() {
+  local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
+  echo ""
+  echo "${full_line}"
+  echo ""
+  echo "CURRENT SETUP:"
+  echo ""
+  utils.pretty_print_dir_files "${HOME}/.solos/config"
+  utils.pretty_print_dir_files "${HOME}/.solos/secrets"
+  echo ""
+  echo "${full_line}"
+}
+cmd.setup._gh_token() {
+  local tmp_file="$1"
+  gum_github_token >"${tmp_file}" || exit 1
+  gh_token=$(cat "${tmp_file}")
+  if gh auth login --with-token <"${tmp_file}" >/dev/null; then
+    log_info "Updated Github token."
+  else
+    log_error "Failed to authenticate with: ${gh_token}"
+    local should_retry="$(gum_confirm_retry)"
+    if [[ ${should_retry} = true ]]; then
+      echo "" >"${tmp_file}"
+      cmd.setup._gh_token "${tmp_file}"
+    else
+      log_error "Exiting the setup process."
+      exit 1
+    fi
+  fi
+}
+cmd.setup._gh_email() {
+  local tmp_file="$1"
+  gum_github_email >"${tmp_file}" || exit 1
+  local github_email=$(cat "${tmp_file}")
+  if git config --global user.email "${github_email}"; then
+    log_info "Updated git email."
+  else
+    log_error "Failed to update git user.email to: ${github_email}"
+    local should_retry="$(gum_confirm_retry)"
+    if [[ ${should_retry} = true ]]; then
+      echo "" >"${tmp_file}"
+      cmd.setup._gh_token "${tmp_file}"
+    else
+      log_error "Exiting the setup process."
+      exit 1
+    fi
+  fi
+}
+cmd.setup._gh_name() {
+  local tmp_file="$1"
+  gum_github_name >"${tmp_file}" || exit 1
+  local github_name=$(cat "${tmp_file}")
+  if git config --global user.name "${github_name}"; then
+    log_info "Updated git name."
+  else
+    log_error "Failed to update git user.name to: ${github_name}"
+    local should_retry="$(gum_confirm_retry)"
+    if [[ ${should_retry} = true ]]; then
+      echo "" >"${tmp_file}"
+      cmd.setup._gh_token "${tmp_file}"
+    else
+      log_error "Exiting the setup process."
+      exit 1
+    fi
+  fi
+}
+cmd.setup._openai_api_key() {
+  local tmp_file="$1"
+  gum_optional_openai_api_key >"${tmp_file}" || exit 1
+  local openai_api_key=$(cat "${tmp_file}" 2>/dev/null || echo "")
+  if [[ -z ${openai_api_key} ]]; then
+    log_warn "Certain AI features will be turned off."
+    return 0
+  fi
+  if curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models -H "Authorization: Bearer ${openai_api_key}" | grep -q "200"; then
+    log_info "Updated and confirmed OpenAI API key."
+  else
+    log_error "Failed to authenticate with: ${openai_api_key}"
+    local should_retry="$(gum_confirm_retry)"
+    if [[ ${should_retry} = true ]]; then
+      echo "" >"${tmp_file}"
+      cmd.setup._openai_api_key "${tmp_file}"
+    else
+      log_error "Exiting the setup process."
+      exit 1
+    fi
+  fi
+}
+cmd.setup._checkout_project() {
+  local checked_out=""
+  local should_checkout_project="$(gum_confirm_checkout_project)"
+  if [[ ${should_checkout_project} = true ]]; then
+    local projects=("<create>")
+    for project in "${HOME}"/.solos/projects/*; do
+      if [[ -d ${project} ]]; then
+        projects+=("$(basename ${project})")
+      fi
+    done
+    local chosen_project="$(gum_choose_project "${projects[@]}")"
+    if [[ ${chosen_project} = "<create>" ]]; then
+      local new_project_name="$(gum_new_project_name)"
+      if [[ -n ${new_project_name} ]]; then
+        while [[ -d "${HOME}/.solos/projects/${new_project_name}" ]]; do
+          log_error "Project already exists: ${new_project_name}. Try something different."
+          new_project_name="$(gum_new_project_name)"
+          if [[ -z ${new_project_name} ]]; then
+            break
+          fi
+        done
+      fi
+      if [[ -n ${new_project_name} ]]; then
+        checked_out="${new_project_name}"
+      fi
+    elif [[ -n ${chosen_project} ]]; then
+      checked_out="${chosen_project}"
+    fi
+  fi
+  if [[ -n ${checked_out} ]]; then
+    global_store.set "checked_out_project" "${checked_out}"
+  fi
+}
+cmd.setup() {
+  local curr_git_hash="$(utils.git_hash)"
+  if [[ -z ${curr_git_hash} ]]; then
+    exit 1
+  fi
+  local git_hash="$(global_store.get "git_hash")"
+  local should_proceed=false
+  if [[ -n ${git_hash} ]]; then
+    if [[ ${git_hash} != ${curr_git_hash} ]]; then
+      cmd.setup._print_curr_setup
+      should_proceed=true
+    else
+      cmd.setup._print_curr_setup
+      should_proceed="$(gum_confirm_overwriting_setup)"
+    fi
+  else
+    should_proceed=true
+  fi
+  if [[ ${should_proceed} = false ]]; then
+    log_info "Exiting the setup process. Nothing was changed."
+    exit 0
+  fi
+
+  local gh_token_tmp_file="$(mktemp -q)"
+  local gh_email_tmp_file="$(mktemp -q)"
+  local gh_name_tmp_file="$(mktemp -q)"
+  local openai_api_key_tmp_file="$(mktemp -q)"
+  cmd.setup._gh_token "${gh_token_tmp_file}"
+  cmd.setup._gh_email "${gh_email_tmp_file}"
+  cmd.setup._gh_name "${gh_name_tmp_file}"
+  cmd.setup._openai_api_key "${openai_api_key_tmp_file}"
+  rm -rf "${HOME}/.solos/config"
+  rm -rf "${HOME}/.solos/secrets"
+  config_store.set "gh_email" "$(cat "${gh_email_tmp_file}")"
+  config_store.set "gh_name" "$(cat "${gh_name_tmp_file}")"
+  secrets_store.set "gh_token" "$(cat "${gh_token_tmp_file}")"
+  local openai_api_key="$(cat "${openai_api_key_tmp_file}" || echo "")"
+  if [[ -n ${openai_api_key} ]]; then
+    secrets_store.set "openai_api_key" "${openai_api_key}"
+  fi
+  global_store.set "git_hash" "${curr_git_hash}"
+  if [[ ${vRUN_FROM_SHELL} = false ]]; then
+    cmd.setup._checkout_project
   fi
 }
 cmd.try() {

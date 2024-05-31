@@ -103,6 +103,9 @@ __bridge__fn__exec_shell() {
     bash_args=(--rcfile "${relative_bashrc_file}")
   fi
 
+  local curr_time="$(date +%s)"
+  local time_diff="$((curr_time - ____debug__start))"
+
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
 __bridge__fn__exec_command() {

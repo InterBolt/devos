@@ -16,9 +16,6 @@ __cli_posthooks__fn__determine_command() {
 }
 # Every function below defines some behavior associated with the *success* of a particular command.
 __cli_posthooks__fn__checkout() {
-  if [[ -e /etc/solos ]]; then
-    return 0
-  fi
   if [[ -z "${1}" ]]; then
     echo "Unexpected error: no project specified." >&2
     exit 1
@@ -32,9 +29,6 @@ __cli_posthooks__fn__checkout() {
   code "${code_workspace_file}"
 }
 __cli_posthooks__fn__app() {
-  if [[ -e /etc/solos ]]; then
-    return 0
-  fi
   if [[ -z "${1}" ]]; then
     echo "Unexpected error: no app specified." >&2
     exit 1
@@ -57,4 +51,8 @@ __cli_posthooks__fn__app() {
     exit 1
   fi
   code -r "${app_dir_preexec_script}"
+}
+__cli_posthooks__fn__setup() {
+  local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
+  bash -ic "solos checkout ${project}"
 }

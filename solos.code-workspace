@@ -16,8 +16,8 @@
       "profile": "shell"
     },
     {
-      "name": "solos.store",
-      "uri": "__vUSERS_HOME_DIR__/.solos/store",
+      "name": "solos.config",
+      "uri": "__vUSERS_HOME_DIR__/.solos/config",
       "profile": "shell"
     },
     {

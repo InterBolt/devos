@@ -23,6 +23,23 @@ __gum__fn__get_release_file() {
   echo "${release}"
 }
 
+__gum__fn__create_choices_file() {
+  local choices=""
+  local i=0
+  local newline=$'\n'
+  while IFS= read -r line; do
+    if [[ -n "${line}" ]]; then
+      if [[ ${i} -gt 0 ]]; then
+        choices+="${newline}${line}"
+      else
+        choices+="${line}"
+      fi
+      i=$((i + 1))
+    fi
+  done <<<"${@}${newline}"
+  echo "${choices}"
+}
+
 # PUBLIC FUNCTIONS:
 
 gum_install() {
@@ -56,6 +73,9 @@ gum_github_name() {
 gum_repo_url() {
   gum_bin input --placeholder "Provide a github repo url:"
 }
+# gum_confirm_checkout_project
+# gum_choose_project
+# gum_new_project_name
 gum_confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
@@ -68,26 +88,63 @@ gum_confirm_new_app() {
     echo "false"
   fi
 }
-gum_s3_provider_api_key() {
-  gum_bin input --password --placeholder "Enter an API key associated with your s3 provider:"
+gum_confirm_checkout_project() {
+  if gum_bin confirm \
+    "Would you like to checkout a project?" \
+    --affirmative="Yes" \
+    --negative="No, I'll do that later."; then
+    echo "true"
+  else
+    echo "false"
+  fi
 }
-gum_s3_provider() {
-  local choice_file=""
+gum_choose_project() {
+  local user_exit_str="SOLOS:EXIT:1"
+  local choices_file=""
   local newline=$'\n'
-  local idx=0
-  for s3_provider in "${HOME}/.solos/src/cli/s3-providers"/*; do
-    if [[ -f ${s3_provider} ]]; then
-      local s3_provider_name="$(basename "${s3_provider}" | sed 's/.sh//')"
-      if [[ ${idx} -eq 0 ]]; then
-        choice_file="${s3_provider_name}"
-      else
-        choice_file="${choice_file}${newline}${s3_provider_name}"
-      fi
+  local i=0
+  for arg in "$@"; do
+    if [[ ${i} -gt 0 ]]; then
+      choices_file+="${newline}${arg}"
+    else
+      choices_file+="${arg}"
     fi
-    idx=$((idx + 1))
+    i=$((i + 1))
   done
-  local s3_provider_choice="$(echo "${choice_file}" | gum_bin choose --limit 1)"
-  echo "${s3_provider_choice}"
+  local project="$(echo "${choices_file}" | gum_bin choose --limit 1 || echo "${user_exit_str}")"
+  if [[ "${project}" = "${user_exit_str}" ]]; then
+    echo ""
+  else
+    echo "${project}"
+  fi
+}
+gum_new_project_name() {
+  gum_bin input --placeholder "Enter a new project name:"
+}
+gum_confirm_retry() {
+  local project_name="$1"
+  local project_app="$2"
+  if gum_bin confirm \
+    "Would you like to retry?" \
+    --affirmative="Yes, retry." \
+    --negative="No, I'll try again later."; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+gum_confirm_overwriting_setup() {
+  if gum_bin confirm \
+    "After reviewing the current setup, are you sure you want to proceed?" \
+    --affirmative="Yes, continue" \
+    --negative="No."; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
+gum_optional_openai_api_key() {
+  gum_bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
 }
 gum_danger_box() {
   local terminal_width=$(tput cols)
