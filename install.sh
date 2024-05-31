@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 # This script simply verifies the existence of dependencies and downloads/runs the the installer script.
 # Always execute all logic in a main function to prevent partial execution of the script.
