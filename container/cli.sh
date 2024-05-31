@@ -867,7 +867,7 @@ cmd.setup._gh_name() {
 }
 cmd.setup._openai_api_key() {
   local tmp_file="$1"
-  gum_optional_openai_api_key >"${tmp_file}" || exit 1
+  gum_optional_openai_api_key_input >"${tmp_file}" || exit 1
   local openai_api_key=$(cat "${tmp_file}" 2>/dev/null || echo "")
   if [[ -z ${openai_api_key} ]]; then
     log_warn "Certain AI features will be turned off."
@@ -891,19 +891,19 @@ cmd.setup._checkout_project() {
   local checked_out=""
   local should_checkout_project="$(gum_confirm_checkout_project)"
   if [[ ${should_checkout_project} = true ]]; then
-    local projects=("<create>")
+    local projects=()
     for project in "${HOME}"/.solos/projects/*; do
       if [[ -d ${project} ]]; then
         projects+=("$(basename ${project})")
       fi
     done
-    local chosen_project="$(gum_choose_project "${projects[@]}")"
+    local chosen_project="$(gum_project_choices "<create>" "${projects[@]}")"
     if [[ ${chosen_project} = "<create>" ]]; then
-      local new_project_name="$(gum_new_project_name)"
+      local new_project_name="$(gum_new_project_name_input)"
       if [[ -n ${new_project_name} ]]; then
         while [[ -d "${HOME}/.solos/projects/${new_project_name}" ]]; do
           log_error "Project already exists: ${new_project_name}. Try something different."
-          new_project_name="$(gum_new_project_name)"
+          new_project_name="$(gum_new_project_name_input)"
           if [[ -z ${new_project_name} ]]; then
             break
           fi

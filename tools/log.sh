@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 __log__filesize=0
-__log__logfile="${HOME}/.solos/logs/logger.log"
+__log__logfile="${HOME}/.solos/logs/shell.log"
 
 . "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
 
@@ -11,8 +11,8 @@ if [[ ! -f ${__log__logfile} ]]; then
 fi
 
 __log__filesize="$(du -k "${__log__logfile}" | cut -f 1 || echo "")"
-if [[ ${__log__filesize} -gt 5000 ]]; then
-  echo "LOG FILE IS GROWING LARGE: ${__log__filesize}Kb"
+if [[ ${__log__filesize} -gt 100000 ]]; then
+  echo "${__log__logfile} is growing large. Currently at ${__log__filesize}Kb"
 fi
 
 log._to_host_filename() {
@@ -23,33 +23,6 @@ log._to_host_filename() {
   local host="$(cat "${HOME}/.solos/store/users_home_dir")"
   echo "${filename/${HOME}/${host}}"
 }
-
-log._get_level_color() {
-  local level="${1}"
-  case "${level}" in
-  "info")
-    echo "#3B78FF"
-    ;;
-  "rag")
-    echo "#0F0"
-    ;;
-  "debug")
-    echo "#A0A"
-    ;;
-  "error")
-    echo "#F02"
-    ;;
-  "fatal")
-    echo "#F02"
-    ;;
-  "warn")
-    echo "#FA0"
-    ;;
-  *)
-    echo "#FFF"
-    ;;
-  esac
-}
 __log__fn__base() {
   if [[ ! -f ${__log__logfile} ]]; then
     if ! touch "${__log__logfile}" &>/dev/null; then
@@ -57,41 +30,21 @@ __log__fn__base() {
       exit 1
     fi
   fi
-
   local debug=${DEBUG:-false}
-  local date_format='+%F %T'
-  local formatted_date="$(date "${date_format}")"
   local level="${1}"
   shift
   local source="${1}"
   shift
   local msg="${1}"
   shift
-  local args=()
-
-  # Don't bother displaying the script source if it's null.
-  local date_args=(date "${formatted_date}")
-  local source_args=(source "[${source}]")
   if [[ ${source} == "NULL"* ]]; then
-    source_args=()
-    date_args=()
+    source=""
   fi
-
   if [[ ${level} = "rag" ]]; then
     echo "[RAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
-
-  gum_bin log \
-    --level.foreground "$(log._get_level_color "${level}")" \
-    --file "${__log__logfile}" \
-    --structured \
-    --level "${level}" "${msg}" "${source_args[@]}" "${date_args[@]}"
-
-  gum_bin log \
-    --level.foreground "$(log._get_level_color "${level}")" \
-    --structured \
-    --level "${level}" "${msg}" "${source_args[@]}" "${date_args[@]}"
+  gum_shell_log "${__log__logfile}" "${level}" "${msg}" "${source}"
 }
 
 # PUBLIC FUNCTIONS:

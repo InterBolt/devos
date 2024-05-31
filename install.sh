@@ -11,8 +11,8 @@ get_install_script_url() {
 
 main() {
   if ! command -v bash >/dev/null 2>&1; then
-    echo "Bash is required to install SolOS on this system." >&2
-    exit 1
+  echo "Bash is required to install SolOS on this system." >&2
+  exit 1
   fi
   if ! command -v docker >/dev/null 2>&1; then
     echo "Docker is required to install SolOS on this system." >&2
@@ -27,8 +27,10 @@ main() {
     exit 1
   fi
 
-  installer_script_url="$(get_install_script_url)"
-  . <(curl -s "${installer_script_url}")
+  tmp_dir="$(mktemp -d -q)"
+  git clone "https://github.com/InterBolt/solos.git" "${tmp_dir}" >/dev/null 
+  find "${tmp_dir}" -type f -exec chmod +x {} \;
+  bash "./${tmp_dir}/host/installer.sh"
 }
 
 main

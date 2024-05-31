@@ -22,23 +22,14 @@ __gum__fn__get_release_file() {
   fi
   echo "${release}"
 }
-
-__gum__fn__create_choices_file() {
-  local choices=""
-  local i=0
-  local newline=$'\n'
-  while IFS= read -r line; do
-    if [[ -n "${line}" ]]; then
-      if [[ ${i} -gt 0 ]]; then
-        choices+="${newline}${line}"
-      else
-        choices+="${line}"
-      fi
-      i=$((i + 1))
-    fi
-  done <<<"${@}${newline}"
-  echo "${choices}"
-}
+__gum__level_colors=(
+  ["info"]="#3B78FF"
+  ["rag"]="#0F0"
+  ["debug"]="#A0A"
+  ["error"]="#F02"
+  ["fatal"]="#F02"
+  ["warn"]="#FA0"
+)
 
 # PUBLIC FUNCTIONS:
 
@@ -61,6 +52,55 @@ gum_bin() {
     exit 1
   fi
 }
+gum_rag_tag_choice() {
+  local tags_file="$1"
+  local tags="$(cat "${tags_file}")"
+  local tags_file=""
+  local i=0
+  while IFS= read -r line; do
+    if [[ -n "${line}" ]]; then
+      if [[ ${i} -gt 0 ]]; then
+        tags_file+="${newline}${line}"
+      else
+        tags_file+="${line}"
+      fi
+      i=$((i + 1))
+    fi
+  done <<<"${tags}"
+  unset IFS
+  local user_exit_str="SOLOS:EXIT:1"
+  echo "${tags_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1"
+}
+gum_post_cmd_note() {
+  gum_bin input --placeholder "Post-command note:"
+}
+gum_rag_tag_input() {
+  gum_bin input --placeholder "Enter new tag:"
+}
+gum_pre_cmd_note_input() {
+  gum_bin input --placeholder "Enter note"
+}
+gum_shell_log() {
+  local log_file="$1"
+  local level="$2"
+  local msg="$3"
+  local source="$4"
+  local date="$(date "+%F %T")"
+  local source_args=()
+  if [[ -n ${source} ]]; then
+    source_args=(source "[${source}]")
+  fi
+  gum_bin log \
+    --level.foreground "${__gum__level_colors["${level}"]}" \
+    --file "${log_file}" \
+    --structured \
+    --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
+  gum_bin log \
+    --level.foreground "${__gum__level_colors["${level}"]}" \
+    --file "${log_file}" \
+    --structured \
+    --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
+}
 gum_github_token() {
   gum_bin input --password --placeholder "Enter Github access token:"
 }
@@ -73,9 +113,6 @@ gum_github_name() {
 gum_repo_url() {
   gum_bin input --placeholder "Provide a github repo url:"
 }
-# gum_confirm_checkout_project
-# gum_choose_project
-# gum_new_project_name
 gum_confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
@@ -98,8 +135,7 @@ gum_confirm_checkout_project() {
     echo "false"
   fi
 }
-gum_choose_project() {
-  local user_exit_str="SOLOS:EXIT:1"
+gum_project_choices() {
   local choices_file=""
   local newline=$'\n'
   local i=0
@@ -111,14 +147,14 @@ gum_choose_project() {
     fi
     i=$((i + 1))
   done
-  local project="$(echo "${choices_file}" | gum_bin choose --limit 1 || echo "${user_exit_str}")"
-  if [[ "${project}" = "${user_exit_str}" ]]; then
+  local project="$(echo "${choices_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1")"
+  if [[ "${project}" = "SOLOS:EXIT:1" ]]; then
     echo ""
   else
     echo "${project}"
   fi
 }
-gum_new_project_name() {
+gum_new_project_name_input() {
   gum_bin input --placeholder "Enter a new project name:"
 }
 gum_confirm_retry() {
@@ -143,7 +179,7 @@ gum_confirm_overwriting_setup() {
     echo "false"
   fi
 }
-gum_optional_openai_api_key() {
+gum_optional_openai_api_key_input() {
   gum_bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
 }
 gum_danger_box() {

@@ -2,7 +2,6 @@
 
 shopt -s extdebug
 
-__profile_rag__gum_sigexit='SOLOS:EXIT:1'
 # Rag logs don't need their own directory, place them in the shared logs folder for simpler processing.
 __profile_rag__logs_dir="${HOME}/.solos/logs"
 # Store state that is specific to RAG.
@@ -158,8 +157,8 @@ __profile_rag__fn__digest() {
     mv "${stdout_file}" "${__profile_rag__rag_std_dir}/${rag_id}.out"
     mv "${stderr_file}" "${__profile_rag__rag_std_dir}/${rag_id}.err"
     if [[ ${should_collect_post_note} = true ]]; then
-      local user_post_note="$(gum_bin input --placeholder "Post-run note:" || echo "${__profile_rag__gum_sigexit}")"
-      if [[ ${user_post_note} != "${__profile_rag__gum_sigexit}" ]]; then
+      local user_post_note="$(gum_post_cmd_note || echo "SOLOS:EXIT:1")"
+      if [[ ${user_post_note} != "SOLOS:EXIT:1" ]]; then
         jq '.user_post_note = '"$(echo "${user_post_note}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
         mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
       fi
@@ -364,24 +363,11 @@ __profile_rag__fn__install() {
 }
 __profile_rag__fn__apply_tag() {
   local newline=$'\n'
-  local tags="$(cat "${__profile_rag__rag_config_dir}/tags")"
-  local tags_file=""
-  local i=0
-  while IFS= read -r line; do
-    if [[ -n "${line}" ]]; then
-      if [[ ${i} -gt 0 ]]; then
-        tags_file+="${newline}${line}"
-      else
-        tags_file+="${line}"
-      fi
-      i=$((i + 1))
-    fi
-  done <<<"${tags}"
-  local tag_choice="$(echo "${tags_file}" | gum_bin choose --limit 1 || echo "${__profile_rag__gum_sigexit}")"
+  local tag_choice="$(gum_rag_tag_choice "${__profile_rag__rag_config_dir}/tags")"
   if [[ ${tag_choice} = "<none>" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
   elif [[ ${tag_choice} = "<create>" ]]; then
-    local new_tag="$(gum_bin input --placeholder "Type new tag" || echo "")"
+    local new_tag="$(gum_rag_tag_input || echo "")"
     if [[ -n "${new_tag}" ]]; then
       sed -i '1s/^/'"${new_tag}"'\n/' "${__profile_rag__rag_config_dir}/tags"
       echo "${new_tag}"
@@ -432,15 +418,15 @@ __profile_rag__fn__main() {
   fi
   local user_pre_note=""
   if [[ ${opt_tag_only} = false ]]; then
-    user_pre_note="$(gum_bin input --placeholder "Type note" || echo "${__profile_rag__gum_sigexit}")"
-    if [[ ${user_pre_note} = "${__profile_rag__gum_sigexit}" ]]; then
+    user_pre_note="$(gum_pre_cmd_note_input || echo "SOLOS:EXIT:1")"
+    if [[ ${user_pre_note} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi
   fi
   local user_tag=""
   if [[ ${opt_note_only} = false ]]; then
     user_tag="$(__profile_rag__fn__apply_tag)"
-    if [[ ${user_tag} = "${__profile_rag__gum_sigexit}" ]]; then
+    if [[ ${user_tag} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi
   fi
