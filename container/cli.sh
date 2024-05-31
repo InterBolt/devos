@@ -757,29 +757,28 @@ cmd.checkout() {
     mkdir -p "${HOME}/.solos/projects/${vPROJECT_NAME}"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
     log_info "${vPROJECT_NAME} - Established project directory"
-  fi
-  global_store.set "checked_out_project" "${vPROJECT_NAME}"
-  local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
-  mkdir -p "${vscode_dir}"
-  local tmp_dir="$(mktemp -d -q)"
-  cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
-  if utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
-    cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
-    log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
-  else
-    log_error "${vPROJECT_NAME} - Failed to build the code workspace file."
-    exit 1
-  fi
-  local checkout_script="${HOME}/.solos/projects/${vPROJECT_NAME}/solos.checkout.sh"
-  if [[ -f ${checkout_script} ]]; then
-    chmod +x "${checkout_script}"
-    if ! "${checkout_script}"; then
-      log_warn "${vPROJECT_NAME} - Failed to run the checkout script."
+    local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
+    mkdir -p "${vscode_dir}"
+    local tmp_dir="$(mktemp -d -q)"
+    cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
+    if utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
+      cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
+      log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
     else
-      log_info "${vPROJECT_NAME} - Checkout out."
+      log_error "${vPROJECT_NAME} - Failed to build the code workspace file."
+      exit 1
     fi
-  else
-    cat <<EOF >"${checkout_script}"
+
+    local checkout_script="${HOME}/.solos/projects/${vPROJECT_NAME}/solos.checkout.sh"
+    if [[ -f ${checkout_script} ]]; then
+      chmod +x "${checkout_script}"
+      if ! "${checkout_script}"; then
+        log_warn "${vPROJECT_NAME} - Failed to run the checkout script."
+      else
+        log_info "${vPROJECT_NAME} - Checkout out."
+      fi
+    else
+      cat <<EOF >"${checkout_script}"
 #!/usr/bin/env bash
 
 ######################################################################################################################
@@ -795,9 +794,11 @@ cmd.checkout() {
 echo "Hello from the checkout script for project: ${vPROJECT_NAME}"
 
 EOF
-    chmod +x "${checkout_script}"
-    log_info "${vPROJECT_NAME} - Created the checkout script."
+      chmod +x "${checkout_script}"
+      log_info "${vPROJECT_NAME} - Created the checkout script."
+    fi
   fi
+  global_store.set "checked_out_project" "${vPROJECT_NAME}"
 }
 cmd.setup._print_curr_setup() {
   local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
