@@ -28,7 +28,7 @@ main() {
   fi
 
   installer_script_url="$(get_install_script_url)"
-  curl -s "${installer_script_url}" | bash
+  . <(curl -s "${installer_script_url}")
 }
 
 main
