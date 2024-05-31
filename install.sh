@@ -1,7 +1,6 @@
 #!/usr/bin/env sh
 
-tty_descriptor="$(tty)"
-exec <"${tty_descriptor}" >"${tty_descriptor}" 2>"${tty_descriptor}"
+exec </dev/tty >/dev/tty 2>/dev/tty
 
 main() {
   if ! command -v bash >/dev/null 2>&1; then
