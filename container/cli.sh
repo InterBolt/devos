@@ -25,7 +25,7 @@ set -o errexit
 # --restricted-noop
 #     - Exits with 0 - serves only to confirm that the script is executable post-installation.
 #       Look, I'd love to assume that yeah, it'll work, we're just writing a little
-#       bash, running a little docker, forwarding some commands...
+#       bash, running a little docker, executing some commands...
 # --restricted-shell
 #     - Detects whether or not the script was invoked from within the SolOS shell.
 #       Example use case - prevent checking out a different project within the shell

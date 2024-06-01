@@ -61,7 +61,7 @@ output: ${__profile_tag__tmp_dir}
 OPTIONS:
 
 -n               Note only. Will not prompt for a category.
--c               Category only. Will not prompt for a note..
+-c               Category only. Will not prompt for a note
 
 --help           Print this help message.
 
