@@ -2,8 +2,8 @@
 
 . "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
-__bridge__rag_dir="${HOME}/.solos/rag"
-__bridge__rag_captured="${__bridge__rag_dir}/captured"
+__bridge__tag_dir="${HOME}/.solos/tag"
+__bridge__tag_captured="${__bridge__tag_dir}/captured"
 __bridge__repo_dir="${HOME}/.solos/src"
 __bridge__cli_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/container/cli.sh")"
 if [[ -z ${__bridge__cli_path} ]]; then

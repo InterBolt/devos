@@ -12,7 +12,7 @@ history -r
 
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-rag.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-tag.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
 __profile__pub_fns=""
@@ -65,7 +65,7 @@ __profile__fn__bash_completions() {
     _init_completion || return
     _command_offset 1
   }
-  complete -F _custom_command_completions rag
+  complete -F _custom_command_completions tag
   complete -F _custom_command_completions host
   complete -F _custom_command_completions '-'
 }
@@ -99,10 +99,10 @@ __profile__fn__print_info() {
 $(
     __profile_table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
-      '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
+      '-' "Runs its arguments as a command and avoids all tag-related stdout tracking." \
       info "Print info about this shell." \
       reload "$(reload --help | __profile__fn__extract_help_description)" \
-      rag "$(rag --help | __profile__fn__extract_help_description)" \
+      tag "$(tag --help | __profile__fn__extract_help_description)" \
       solos "$(solos --help | __profile__fn__extract_help_description)" \
       preexec_list "$(preexec_list --help | __profile__fn__extract_help_description)" \
       preexec_add "$(preexec_add --help | __profile__fn__extract_help_description)" \
@@ -220,7 +220,7 @@ __profile__fn__install() {
   __profile__fn__run_checked_out_project_script
 }
 # Rename, export, and make readonly for all user-accessible pub functions.
-# Ex: user should use `rag` rather than `__profile__fn__public_rag`.
+# Ex: user should use `tag` rather than `__profile__fn__public_tag`.
 __profile__fn__export_and_readonly() {
   __profile__pub_fns=""
   local pub_fns="$(declare -F | grep -o "__profile__fn__public_[a-z_]*" | xargs)"
@@ -261,11 +261,11 @@ EOF
   else
     log_info "No rcfile found at ${HOME}/.solos/profile/.bashrc. Skipping reload."
     trap 'exit 1;' SIGINT
-    trap '__profile_rag__fn__trap' DEBUG
+    trap '__profile_tag__fn__trap' DEBUG
   fi
 }
-__profile__fn__public_rag() {
-  __profile_rag__fn__main "$@"
+__profile__fn__public_tag() {
+  __profile_tag__fn__main "$@"
 }
 __profile__fn__public_solos() {
   local executable_path="${HOME}/.solos/src/container/cli.sh"
@@ -407,7 +407,7 @@ EOF
 }
 __profile__fn__public_install_solos() {
   __profile__fn__install
-  __profile_rag__fn__install
+  __profile_tag__fn__install
 }
 
 __profile__fn__export_and_readonly

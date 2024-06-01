@@ -40,7 +40,7 @@ __log__fn__base() {
   if [[ ${source} == "NULL"* ]]; then
     source=""
   fi
-  if [[ ${level} = "rag" ]]; then
+  if [[ ${level} = "tag" ]]; then
     echo "[RAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
@@ -49,11 +49,11 @@ __log__fn__base() {
 
 # PUBLIC FUNCTIONS:
 
-log_rag() {
+log_tag() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! __log__fn__base "rag" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
-    echo "log_rag failed"
+  if ! __log__fn__base "tag" "$(log._to_host_filename "${filename}"):${linenumber}" "$@"; then
+    echo "log_tag failed"
   fi
 }
 log_info() {

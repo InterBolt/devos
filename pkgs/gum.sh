@@ -44,29 +44,29 @@ gum_bin() {
     exit 1
   fi
 }
-gum_rag_tag_choice() {
-  local tags_file="$1"
-  local tags="$(cat "${tags_file}")"
-  local tags_file=""
+gum_tag_category_choice() {
+  local categories_file="$1"
+  local categories="$(cat "${categories_file}")"
+  local categories_file=""
   local i=0
   while IFS= read -r line; do
     if [[ -n "${line}" ]]; then
       if [[ ${i} -gt 0 ]]; then
-        tags_file+="${newline}${line}"
+        categories_file+="${newline}${line}"
       else
-        tags_file+="${line}"
+        categories_file+="${line}"
       fi
       i=$((i + 1))
     fi
-  done <<<"${tags}"
+  done <<<"${categories}"
   unset IFS
   local user_exit_str="SOLOS:EXIT:1"
-  echo "${tags_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1"
+  echo "${categories_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1"
 }
 gum_post_cmd_note() {
   gum_bin input --placeholder "Post-command note:"
 }
-gum_rag_tag_input() {
+gum_tag_category_input() {
   gum_bin input --placeholder "Enter new tag:"
 }
 gum_pre_cmd_note_input() {
@@ -77,7 +77,7 @@ gum_shell_log() {
   local level="$2"
   local msg="$3"
   local source="$4"
-  declare -A log_level_colors=(["info"]="#3B78FF" ["rag"]="#0F0" ["debug"]="#A0A" ["error"]="#F02" ["fatal"]="#F02" ["warn"]="#FA0")
+  declare -A log_level_colors=(["info"]="#3B78FF" ["tag"]="#0F0" ["debug"]="#A0A" ["error"]="#F02" ["fatal"]="#F02" ["warn"]="#FA0")
   local date="$(date "+%F %T")"
   local source_args=()
   if [[ -n ${source} ]]; then
