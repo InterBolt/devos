@@ -824,7 +824,7 @@ cmd.setup._openai_api_key() {
   gum_optional_openai_api_key_input >"${tmp_file}" || exit 1
   local openai_api_key=$(cat "${tmp_file}" 2>/dev/null || echo "")
   if [[ -z ${openai_api_key} ]]; then
-    log_warn "Certain AI features will be turned off."
+    log_warn "Local AI features will be turned off."
     return 0
   fi
   if curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models -H "Authorization: Bearer ${openai_api_key}" | grep -q "200"; then
