@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# This script must run and define everything within a single "main" function.
-# This is because we expect the user to run this via a piped `curl script_url | bash` command
-# and want to prevent partial execution of the script.
-
 __installer__fn__setup() {
   vENTRY_DIR="${PWD}"
   trap 'cd '"${vENTRY_DIR}"'' EXIT
