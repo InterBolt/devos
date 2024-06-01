@@ -94,7 +94,9 @@ __profile__fn__run_checked_out_project_script() {
 }
 __profile__fn__print_info() {
   local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-  $(
+  cat <<EOF
+
+$(
     __profile_table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
@@ -110,7 +112,7 @@ __profile__fn__print_info() {
       postexec_remove "$(postexec_remove --help | __profile__fn__extract_help_description)"
   )
 
-  $(
+$(
     __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
       'Checked out project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}" \
@@ -120,7 +122,7 @@ __profile__fn__print_info() {
       'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets"
   )
 
-  $(
+$(
     __profile_table_outputs__fn__format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
@@ -130,14 +132,14 @@ __profile__fn__print_info() {
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
 
-  $(
+$(
     __profile_table_outputs__fn__format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
       "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
       "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
       "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell."
   )
-  EOF
+EOF
 }
 
 __profile__fn__print_welcome_manual() {
