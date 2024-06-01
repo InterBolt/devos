@@ -79,7 +79,7 @@ global_store.set() {
   echo "$2" >"${storage_file}"
 }
 #-------------------------------------------------------------------
-# Dictionary:
+# Vars:
 #
 # vUSERS_HOME_DIR: The user's home directory on their host machine
 # vCMD: The command to run. Populated in the argparse functions.
