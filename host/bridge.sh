@@ -57,18 +57,6 @@ __bridge__fn__destroy() {
     fi
   done
 }
-__bridge__fn__symlinks() {
-  __bridge__fn__exec_command rm -rf /usr/local/bin/*_solos
-  for solos_bin_file in "${HOME}/.solos/src/tools/cmds"/*; do
-    local container_usr_bin_local_file="${solos_bin_file/#$HOME//root}"
-    if [[ -f ${solos_bin_file} ]]; then
-      chmod +x "${solos_bin_file}"
-      __bridge__fn__exec_command ln -sf \
-        "${container_usr_bin_local_file}" \
-        "/usr/local/bin/$(basename "${container_usr_bin_local_file}" | cut -d'.' -f1)_solos"
-    fi
-  done
-}
 __bridge__fn__test() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=()
@@ -157,17 +145,9 @@ __bridge__fn__rebuild() {
     echo "Unexpected error: failed to build and run the container." >&2
     __bridge__fn__error_press_enter
   fi
-  if ! __bridge__fn__symlinks; then
-    echo "Unexpected error: failed to create symbolic links." >&2
-    __bridge__fn__error_press_enter
-  fi
 }
 __bridge__fn__shell() {
   if __bridge__fn__test; then
-    if ! __bridge__fn__symlinks; then
-      echo "" >&2
-      __bridge__fn__error_press_enter
-    fi
     __bridge__fn__exec_shell "$@"
     return 0
   fi
@@ -176,9 +156,6 @@ __bridge__fn__shell() {
 }
 __bridge__fn__cmd() {
   if __bridge__fn__test; then
-    if ! __bridge__fn__symlinks; then
-      __bridge__fn__error_press_enter
-    fi
     __bridge__fn__exec_command "$@"
     return 0
   fi

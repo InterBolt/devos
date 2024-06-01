@@ -105,8 +105,8 @@ vPROJECT_APP=""
 # These are placed below the definition of vUSERS_HOME_DIR because
 # they might rely on it.
 #-------------------------------------------------------------------
-. "${HOME}/.solos/src/tools/pkgs/gum.sh"
-. "${HOME}/.solos/src/tools/log.sh"
+. "${HOME}/.solos/src/pkgs/gum.sh"
+. "${HOME}/.solos/src/pkgs/log.sh"
 #-------------------------------------------------
 # LIB:USAGE: CLI Help Information
 #-------------------------------------------------

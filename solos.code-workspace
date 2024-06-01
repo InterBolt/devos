@@ -21,7 +21,7 @@
       "profile": "shell"
     },
     {
-      "name": "solos.profile",
+      "name": "solos.bashrc",
       "uri": "__vUSERS_HOME_DIR__/.solos/profile",
       "profile": "shell"
     },

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-__gum__self_pwd="${HOME}/.solos/src/tools/pkgs"
+__gum__self_pwd="${HOME}/.solos/src/pkgs"
 __gum__self_dirname=".installs"
 
 __gum__fn__get_release_file() {

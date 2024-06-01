@@ -10,8 +10,8 @@ HISTCONTROL=ignoredups:erasedups
 # Load this history file.
 history -r
 
-. "${HOME}/.solos/src/tools/log.sh" || exit 1
-. "${HOME}/.solos/src/tools/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-rag.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 
@@ -94,21 +94,7 @@ __profile__fn__run_checked_out_project_script() {
 }
 __profile__fn__print_info() {
   local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-  local solos_bin_cmds=()
-  while IFS= read -r -d $'\0' file; do
-    local cmd_name="$(basename "${file}" | cut -d. -f1)"
-    solos_bin_cmds+=("${cmd_name}_solos" "$("${cmd_name}_solos" --help | __profile__fn__extract_help_description)")
-  done < <(find "${HOME}/.solos/src/tools/cmds/" -type f -print0)
-
-  cat <<EOF
-
-$(
-    __profile_table_outputs__fn__format \
-      "PATH_COMMAND,DESCRIPTION" \
-      "${solos_bin_cmds[@]}"
-  )
-
-$(
+  $(
     __profile_table_outputs__fn__format \
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all rag-related stdout tracking." \
@@ -123,8 +109,8 @@ $(
       postexec_add "$(postexec_add --help | __profile__fn__extract_help_description)" \
       postexec_remove "$(postexec_remove --help | __profile__fn__extract_help_description)"
   )
-  
-$(
+
+  $(
     __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
       'Checked out project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}" \
@@ -133,26 +119,25 @@ $(
       'Config' "$(__profile__fn__users_home_dir)/.solos/config" \
       'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets"
   )
-  
-$(
+
+  $(
     __profile_table_outputs__fn__format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
       "Mounted Volume" "$(__profile__fn__users_home_dir)/.solos" \
       "Bash Version" "${BASH_VERSION}" \
-      "Container OS" "$(lsb_release -d | cut -f2)" \
+      "Container OS" "Debian 12" \
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
 
-$(
+  $(
     __profile_table_outputs__fn__format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
-      "PATH_COMMAND" "Commands that are available in the container's PATH (meaning any bash script can use them). All path commands end in '_solos' to avoid conflicts and are defined at \`~/.solos/src/tools/cmds\`." \
       "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
       "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
       "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell."
   )
-EOF
+  EOF
 }
 
 __profile__fn__print_welcome_manual() {
