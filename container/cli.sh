@@ -15,24 +15,26 @@
 # (  It is not POSIX compliant and must be run with Bash version >= 5.0                   )
 #  )                                                                                     (
 # '---------------------------------------------------------------------------------------'
-
-set -o errexit
-
 cd "$(dirname "${BASH_SOURCE[0]}")" || exit 1
-
 shopt -s dotglob
-
-#----------------------------------------------------------------------------
-# This is useful to confirm that our script is executable and the
-# symlink worked post-installation:
+set -o errexit
+#-------------------------------------------------------------------------------------------
+#
+# RESTRICTED FLAGS:
 #
 # --restricted-noop
-#     - Exits with 0 to confirm the script is executable.
+#     - Exits with 0 - serves only to confirm that the script is executable post-installation.
+#       Look, I'd love to assume that yeah, it'll work, we're just writing a little
+#       bash, running a little docker, forwarding some commands...
 # --restricted-shell
-#     - Detects whether or not the script was invoked within the SolOS shell.
-#       EX use case: prevent checking out a different project within the shell
+#     - Detects whether or not the script was invoked from within the SolOS shell.
+#       Example use case - prevent checking out a different project within the shell
 #       since our shell assumes a consistent project context for its entire lifetime.
-#----------------------------------------------------------------------------
+#       Could we engineer this away? Sure. But is it simpler to support a rich feature set
+#       within the SolOS shell if we can always assume a consistent project context?
+#       Also, sure.
+#
+#-------------------------------------------------------------------------------------------
 for arg in "$@"; do
   if [[ ${arg} = "--restricted-noop" ]]; then
     exit 0
@@ -44,17 +46,17 @@ for arg in "$@"; do
     vRUN_FROM_SHELL=true
   fi
 done
-vUSERS_ARGS=()
+vUNRESTRICTED_ARGS=()
 while [[ $# -gt 0 ]]; do
   if [[ ${1} != --restricted-* ]]; then
-    vUSERS_ARGS+=("${1}")
+    vUNRESTRICTED_ARGS+=("${1}")
   fi
   shift
 done
-set -- "${vUSERS_ARGS[@]}"
-#-------------------------------------------
-# LIB:GLOBAL: Info Shared between Projects
-#-------------------------------------------
+set -- "${vUNRESTRICTED_ARGS[@]}"
+#--------------------------------------------------------------------
+# LIB:GLOBAL: Stuff that everything across all SolOS projects needs.
+#--------------------------------------------------------------------
 global_store.del() {
   local store_dir="${HOME}/.solos/store"
   mkdir -p "${store_dir}"
@@ -77,15 +79,19 @@ global_store.set() {
   echo "$2" >"${storage_file}"
 }
 #-------------------------------------------------------------------
+# Dictionary:
+#
 # vUSERS_HOME_DIR: The user's home directory on their host machine
 # vCMD: The command to run. Populated in the argparse functions.
+# vALLOWED_OPTIONS: An array of the allowed options for the current command.
 # vOPTIONS: An array of the options passed to the CLI.
 # vPROJECT_NAME: The name of the project being worked on.
+# vPROJECT_APP: The name of the app within the project being worked on.
 #-------------------------------------------------------------------
-vUSERS_ARGS=()
+vUNRESTRICTED_ARGS=()
 for arg in "$@"; do
   if [[ ${arg} != --restricted-* ]]; then
-    vUSERS_ARGS+=("${arg}")
+    vUNRESTRICTED_ARGS+=("${arg}")
   fi
 done
 vUSERS_HOME_DIR="$(global_store.get "users_home_dir" "/root")"
@@ -97,13 +103,13 @@ vPROJECT_APP=""
 #-------------------------------------------------------------------
 # Source any dependencies that are required for the CLI to function.
 # These are placed below the definition of vUSERS_HOME_DIR because
-# they rely on it.
+# they might rely on it.
 #-------------------------------------------------------------------
 . "${HOME}/.solos/src/tools/pkgs/gum.sh"
 . "${HOME}/.solos/src/tools/log.sh"
-#---------------------------------
+#-------------------------------------------------
 # LIB:USAGE: CLI Help Information
-#---------------------------------
+#-------------------------------------------------
 usage.help() {
   cat <<EOF
 USAGE: solos <command> <args..>
@@ -186,9 +192,9 @@ Undocumented.
 
 EOF
 }
-#-------------------------------
-# LIB:ARGPARSE: Parse CLI Args
-#-------------------------------
+#------------------------------------------------------------
+# LIB:ARGPARSE: Converts arguments into usable variables
+#------------------------------------------------------------
 argparse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     return 0
@@ -349,9 +355,11 @@ argparse.ingest() {
     esac
   done
 }
-#------------------------------------------------------
-# LIB:CONFIG_STORE: Things we manage via the setup cmd
-#------------------------------------------------------
+#-------------------------------------------------------------
+# LIB:CONFIG_STORE: Amy strings we don't need to keep secret,
+#                   but will likely reference, change, and use
+#                   across projects.
+#-------------------------------------------------------------
 config_store.del() {
   local store_dir="${HOME}/.solos/config"
   mkdir -p "${store_dir}"
@@ -373,9 +381,9 @@ config_store.set() {
   fi
   echo "$2" >"${storage_file}"
 }
-#--------------------------------------------
-# LIB:PROJECT_STORE: Information per project
-#--------------------------------------------
+#-----------------------------------------------------------------
+# LIB:PROJECT_STORE: Things about a project that could be public.
+#-----------------------------------------------------------------
 project_store.del() {
   if [[ -z ${vPROJECT_NAME} ]]; then
     log_error "vPROJECT_NAME is not set."
@@ -422,7 +430,7 @@ project_store.set() {
   echo "$2" >"${project_store_file}"
 }
 #-------------------------------------------------
-# LIB:PROJECT_SECRETS: Record secrets per project
+# LIB:PROJECT_SECRETS: Per-project secrets
 #-------------------------------------------------
 secrets_store.del() {
   local store_dir="${HOME}/.solos/secrets"
@@ -445,74 +453,9 @@ secrets_store.set() {
   fi
   echo "$2" >"${storage_file}"
 }
-#-------------------------------
-# LIB:SSH: SSH helper functions
-#-------------------------------
-ssh._validate() {
-  local key_name="$1"
-  local ip="$2"
-  local project_dir="${HOME}/.solos/projects/${vPROJECT_NAME}"
-  if [[ -z ${key_name} ]]; then
-    log_error "key_name is required."
-    exit 1
-  fi
-  if [[ -z ${ip} ]]; then
-    log_error "ip is required."
-    exit 1
-  fi
-  local key_path="${project_dir}/.ssh/${key_name}.priv"
-  if [[ ! -f "${key_path}" ]]; then
-    log_error "key file not found: ${key_path}"
-    exit 1
-  fi
-  echo "${key_path}"
-}
-ssh.cmd() {
-  local key_name="$1"
-  local ip="$2"
-  local cmd="$3"
-  local key_path="$(ssh._validate "${key_name}" "${ip}")"
-  ssh \
-    -i "${key_path}" \
-    -o StrictHostKeyChecking=no \
-    -o LogLevel=ERROR \
-    -o UserKnownHostsFile=/dev/null \
-    "$@" root@"${ip}" \
-    "${cmd}"
-}
-ssh.rsync() {
-  local key_name="$1"
-  shift
-  local ip="$1"
-  shift
-  local key_path="$(ssh._validate "${key_name}" "${ip}")"
-  rsync --checksum \
-    -a \
-    -e "ssh \
-    -i ${key_path} \
-    -o StrictHostKeyChecking=no \
-    -o LogLevel=ERROR \
-    -o UserKnownHostsFile=/dev/null" \
-    "$@"
-}
-ssh.pubkey() {
-  local key_name="$1"
-  local ssh_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
-  if [[ -z ${key_name} ]]; then
-    log_error "key_name is required."
-    exit 1
-  fi
-  if [[ ! -d ${ssh_dir} ]]; then
-    log_error "ssh directory not found: ${ssh_dir}"
-    exit 1
-  fi
-  local pubkey_path="${ssh_dir}/${key_name}.pub"
-  if [[ ! -f "${pubkey_path}" ]]; then
-    log_error "key file not found: ${pubkey_path}"
-    exit 1
-  fi
-  cat "${pubkey_path}"
-}
+#-------------------------------------------------
+# LIB:SSH: SSH stuff. Just creating keys for now.
+#-------------------------------------------------
 ssh.create() {
   local key_name="$1"
   local ssh_dir="${2}"
@@ -543,9 +486,9 @@ ssh.create() {
   fi
   cd "${entry_dir}" || exit 1
 }
-#-----------------------------------------
-# LIB:UTILS: Uncategorized helper methods
-#-----------------------------------------
+#----------------------------------------------
+# LIB:UTILS: Anything and everything, brother.
+#----------------------------------------------
 utils.template_variables() {
   local dir_or_file="$1"
   local eligible_files=()
@@ -603,9 +546,10 @@ utils.pretty_print_dir_files() {
     printf "\033[0;32m%s\033[0m\n" "${tilde_dir}/${filename}: $(cat ${store_dir_file})"
   done
 }
-#-----------------------------------
-# LIB:CMD: Command implementations
-#-----------------------------------
+#----------------------------------------------------------------------------
+# LIB:CMD: CLI command implementations and their specific helper functions.
+#          at cmd.<command_name>_<subcommand_name>.
+#----------------------------------------------------------------------------
 cmd.app._remove_app_from_code_workspace() {
   local workspace_file="$1"
   jq 'del(.folders[] | select(.name == "'"${vPROJECT_NAME}"'.'"${vPROJECT_APP}"'"))' "${workspace_file}" >"${workspace_file}.tmp"

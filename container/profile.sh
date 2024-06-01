@@ -127,11 +127,11 @@ $(
 $(
     __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
+      'Checked out project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}" \
       'User managed rcfile' "$(__profile__fn__users_home_dir)/.solos/profile/.bashrc" \
       'Internal rcfile' "$(__profile__fn__users_home_dir)/.solos/src/container/profile.sh" \
       'Config' "$(__profile__fn__users_home_dir)/.solos/config" \
-      'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets" \
-      'Project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}"
+      'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets"
   )
   
 $(

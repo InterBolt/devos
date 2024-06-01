@@ -6,9 +6,6 @@ RUN apt-get update \
   && DEBIAN_FRONTEND=noninteractive apt-get install --assume-yes --no-install-recommends \
   git-all \
   coreutils \
-  awscli \
-  moreutils \
-  rsync \
   bash-completion \
   ca-certificates \
   man-db \
@@ -16,9 +13,7 @@ RUN apt-get update \
   jq \
   wget \
   sudo \
-  build-essential \
   manpages-dev \
-  procps \
   keychain
 
 # Install GitHub CLI
