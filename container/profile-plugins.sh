@@ -188,7 +188,7 @@ __profile_plugins__fn__cli_list() {
   cat <<EOF
 $(
     __profile_table_outputs__fn__format \
-      "PLUGIN,CONFIG_PATH" \
+      "INSTALLED_PLUGIN,CONFIG_PATH" \
       "${print_args[@]}"
   )
 EOF

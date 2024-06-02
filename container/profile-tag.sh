@@ -335,7 +335,7 @@ __profile_tag__fn__install() {
   # Make sure that if the user messes with the PROMPT_COMMAND or debug trap that we
   # fail in an obvious way. If they need these things, the best path forward is to
   # not install the SolOS shell. Not great, but it's the best we can do.
-  if [[ -n "${PROMPT_COMMAND}" ]]; then
+  if [[ -n ${PROMPT_COMMAND} ]]; then
     echo "PROMPT_COMMAND is already set. Will not track command outputs." >&2
     return 1
   fi

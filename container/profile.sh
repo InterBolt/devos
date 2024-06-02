@@ -286,7 +286,7 @@ EOF
     bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
     log_info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
-    trap 'exit 1;' SIGINT
+    trap 'trap "__profile_tag__fn__trap" DEBUG; exit 1;' SIGINT
     trap '__profile_tag__fn__trap' DEBUG
   fi
 }
