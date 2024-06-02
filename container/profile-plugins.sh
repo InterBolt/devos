@@ -195,6 +195,10 @@ EOF
 }
 __profile_plugins__fn__cli_uninstall() {
   local plugin_name="${1}"
+  if [[ -z ${plugin_name} ]]; then
+    log_error "Missing required argument: <name>"
+    return 1
+  fi
   local plugins_dir="${HOME}/.solos/plugins"
   local plugin_dir="${plugins_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
