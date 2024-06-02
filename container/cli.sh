@@ -122,8 +122,8 @@ COMMANDS:
 
 checkout                 - Switch to a pre-existing project or initialize a new one.
 app                      - Initializes or checks out a project app.
-shell                    - Start a SolOS shell session with ~/.solos/profile/.bashrc sourced.
-shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/profile/.bashrc.
+shell                    - Start a SolOS shell session with ~/.solos/rcfiles/.bashrc sourced.
+shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/rcfiles/.bashrc.
 setup                    - Configure SolOS for things like Git credentials, API keys, etc.
 try                      - (DEV ONLY) Undocumented.
 
@@ -158,7 +158,7 @@ USAGE: solos shell
 
 DESCRIPTION:
 
-Loads a interactive bash shell with the RC file at ~/.solos/profile/.bashrc sourced.
+Loads a interactive bash shell with the RC file at ~/.solos/rcfiles/.bashrc sourced.
 
 EOF
 }

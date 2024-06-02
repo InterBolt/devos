@@ -2,16 +2,10 @@
 
 . "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
-__bridge__tag_dir="${HOME}/.solos/tag"
-__bridge__tag_captured="${__bridge__tag_dir}/captured"
+__bridge__collections_dir="${HOME}/.solos/collections"
 __bridge__repo_dir="${HOME}/.solos/src"
-__bridge__cli_path="$(readlink -f "$0" || echo "${HOME}/.solos/src/container/cli.sh")"
-if [[ -z ${__bridge__cli_path} ]]; then
-  echo "Unexpected error: couldn't detect symbolic linking" >&2
-  exit 1
-fi
-__bridge__volume_config_hostfile="${HOME}/.solos/store/users_home_dir"
-__bridge__volume_mounted="/root/.solos"
+__bridge__users_home_dir="${HOME}/.solos/store/users_home_dir"
+__bridge__mount_dir="/root/.solos"
 __bridge__installer_no_tty_flag=false
 __bridge__shell_minimal_flag=false
 __bridge__shell_full_flag=false
@@ -109,8 +103,8 @@ __bridge__fn__build_and_run() {
     echo "Unhandled: a file called .solos was detected in your home directory." >&2
     exit 1
   fi
-  mkdir -p "$(dirname "${__bridge__volume_config_hostfile}")"
-  echo "${HOME}" >"${__bridge__volume_config_hostfile}"
+  mkdir -p "$(dirname "${__bridge__users_home_dir}")"
+  echo "${HOME}" >"${__bridge__users_home_dir}"
   if ! docker build -t "solos:$(__bridge__fn__hash)" -f "${__bridge__repo_dir}/Dockerfile" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     __bridge__fn__error_press_enter
@@ -124,7 +118,7 @@ __bridge__fn__build_and_run() {
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
-    "${HOME}/.solos:${__bridge__volume_mounted}"
+    "${HOME}/.solos:${__bridge__mount_dir}"
     "solos:$(__bridge__fn__hash)"
   )
   if [[ ${__bridge__installer_no_tty_flag} = true ]]; then
@@ -205,7 +199,7 @@ __bridge__fn__main() {
     __bridge__fn__shell
     exit $?
   elif [[ ${__bridge__shell_full_flag} = true ]]; then
-    __bridge__fn__shell "${HOME}/.solos/profile/.bashrc"
+    __bridge__fn__shell "${HOME}/.solos/rcfiles/.bashrc"
     exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2

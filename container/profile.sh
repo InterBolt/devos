@@ -116,7 +116,7 @@ $(
     __profile_table_outputs__fn__format \
       "RESOURCE,PATH" \
       'Checked out project' "$(__profile__fn__users_home_dir)/.solos/projects/${checked_out_project}" \
-      'User managed rcfile' "$(__profile__fn__users_home_dir)/.solos/profile/.bashrc" \
+      'User managed rcfile' "$(__profile__fn__users_home_dir)/.solos/rcfiles/.bashrc" \
       'Internal rcfile' "$(__profile__fn__users_home_dir)/.solos/src/container/profile.sh" \
       'Config' "$(__profile__fn__users_home_dir)/.solos/config" \
       'Secrets' "$(__profile__fn__users_home_dir)/.solos/secrets"
@@ -255,11 +255,11 @@ EOF
   fi
   trap - DEBUG
   trap - SIGINT
-  if [[ -f "${HOME}/.solos/profile/.bashrc" ]]; then
+  if [[ -f "${HOME}/.solos/rcfiles/.bashrc" ]]; then
     history -a
-    bash --rcfile "${HOME}/.solos/profile/.bashrc" -i
+    bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
-    log_info "No rcfile found at ${HOME}/.solos/profile/.bashrc. Skipping reload."
+    log_info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
     trap 'exit 1;' SIGINT
     trap '__profile_tag__fn__trap' DEBUG
   fi

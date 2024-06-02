@@ -2,13 +2,10 @@
 
 shopt -s extdebug
 
-# Rag logs don't need their own directory, place them in the shared logs folder for simpler processing.
-__profile_tag__logs_dir="${HOME}/.solos/logs"
-# Store state that is specific to RAG.
-__profile_tag__dir="${HOME}/.solos/tag"
-__profile_tag__config_dir="${__profile_tag__dir}/config"
-__profile_tag__std_dir="${__profile_tag__dir}/std"
-__profile_tag__tmp_dir="${__profile_tag__dir}/tmp"
+__profile_tag__base_dir="${HOME}/.solos/collections"
+__profile_tag__logs_dir="${__profile_tag__base_dir}/logs"
+__profile_tag__config_dir="${__profile_tag__base_dir}/config"
+__profile_tag__std_dir="${__profile_tag__base_dir}/std"
 
 # Make sure that control-c will cancel the running command while also reseting the trap.
 trap 'trap "__profile_tag__fn__trap" DEBUG; exit 1;' SIGINT
@@ -54,9 +51,7 @@ Prompts the user to write a note. Any positional arguments supplied that are not
 valid options will be executed as a command. The output of the command is recorded \
 along with the note for future reference.
 
-config: ${__profile_tag__config_dir}
-logs: ${__profile_tag__logs_dir}
-output: ${__profile_tag__tmp_dir}
+collections dir: ${__profile_tag__base_dir}
 
 OPTIONS:
 
@@ -67,7 +62,6 @@ OPTIONS:
 
 EOF
 }
-
 __profile_tag__fn__init_fs() {
   mkdir -p "${__profile_tag__config_dir}"
   mkdir -p "${__profile_tag__logs_dir}"
@@ -79,23 +73,21 @@ __profile_tag__fn__init_fs() {
     } >"${__profile_tag__config_dir}/categories"
   fi
 }
-
 __profile_tag__fn__disgest_save() {
   local tmp_jq_output_file="$1"
   jq -c '.' <"${tmp_jq_output_file}" >>"${__profile_tag__logs_dir}/tag.log"
   rm -f "${tmp_jq_output_file}"
 }
-
 __profile_tag__fn__create_tmp_files() {
-  rm -rf "${__profile_tag__tmp_dir}"
-  mkdir -p "${__profile_tag__tmp_dir}"
+  # This is used across several functions so must be global.
+  __profile_tag__working_tmp_dir="$(mktemp -d)"
 
-  local stdout_file="${__profile_tag__tmp_dir}/stdout"
-  local stderr_file="${__profile_tag__tmp_dir}/stderr"
-  local cmd_file="${__profile_tag__tmp_dir}/cmd"
-  local return_code_file="${__profile_tag__tmp_dir}/return_code"
-  local stderr_tag_file="${__profile_tag__tmp_dir}/stderr_tag"
-  local stdout_tag_file="${__profile_tag__tmp_dir}/stdout_tag"
+  local stdout_file="${__profile_tag__working_tmp_dir}/stdout"
+  local stderr_file="${__profile_tag__working_tmp_dir}/stderr"
+  local cmd_file="${__profile_tag__working_tmp_dir}/cmd"
+  local return_code_file="${__profile_tag__working_tmp_dir}/return_code"
+  local stderr_tag_file="${__profile_tag__working_tmp_dir}/stderr_tag"
+  local stdout_tag_file="${__profile_tag__working_tmp_dir}/stdout_tag"
 
   rm -f \
     "${stdout_file}" \
@@ -113,17 +105,16 @@ __profile_tag__fn__create_tmp_files() {
     "${stdout_tag_file}" \
     "${stderr_tag_file}"
 }
-
 __profile_tag__fn__digest() {
   local tag_id="${1:-""}"
   local user_note="${2:-""}"
   local user_category="${3:-""}"
   local should_collect_post_note="${3:-false}"
 
-  local stdout_file="${__profile_tag__tmp_dir}/stdout"
-  local stderr_file="${__profile_tag__tmp_dir}/stderr"
-  local cmd_file="${__profile_tag__tmp_dir}/cmd"
-  local return_code_file="${__profile_tag__tmp_dir}/return_code"
+  local stdout_file="${__profile_tag__working_tmp_dir}/stdout"
+  local stderr_file="${__profile_tag__working_tmp_dir}/stderr"
+  local cmd_file="${__profile_tag__working_tmp_dir}/cmd"
+  local return_code_file="${__profile_tag__working_tmp_dir}/return_code"
 
   local tmp_jq_output_file="$(mktemp)"
   echo '{
@@ -162,15 +153,14 @@ __profile_tag__fn__digest() {
   fi
   __profile_tag__fn__disgest_save "${tmp_jq_output_file}"
 }
-
 __profile_tag__fn__trap_eval() {
   local tag_id="${1}"
   local cmd="${2}"
 
-  local stdout_file="${__profile_tag__tmp_dir}/stdout"
-  local stderr_file="${__profile_tag__tmp_dir}/stderr"
-  local cmd_file="${__profile_tag__tmp_dir}/cmd"
-  local return_code_file="${__profile_tag__tmp_dir}/return_code"
+  local stdout_file="${__profile_tag__working_tmp_dir}/stdout"
+  local stderr_file="${__profile_tag__working_tmp_dir}/stderr"
+  local cmd_file="${__profile_tag__working_tmp_dir}/cmd"
+  local return_code_file="${__profile_tag__working_tmp_dir}/return_code"
   local return_code=1
   echo "${return_code}" >"${return_code_file}"
   {

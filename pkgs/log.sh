@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 __log__filesize=0
-__log__logfile="${HOME}/.solos/logs/shell.log"
+__log__logfile="${HOME}/.solos/collections/logs/shell.log"
 
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 

@@ -23,7 +23,7 @@ __installer__fn__clone() {
   fi
 }
 __installer__fn__init_fs() {
-  local solos_bashrc="${vSOLOS_HOME_DIR}/profile/.bashrc"
+  local solos_bashrc="${vSOLOS_HOME_DIR}/rcfiles/.bashrc"
   local src_dir="${vSOLOS_HOME_DIR}/src"
 
   mkdir -p "${vSOLOS_HOME_DIR}" || exit 1

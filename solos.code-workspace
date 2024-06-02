@@ -1,13 +1,8 @@
 {
   "folders": [
     {
-      "name": "solos.logs",
-      "uri": "__vUSERS_HOME_DIR__/.solos/logs",
-      "profile": "shell"
-    },
-    {
-      "name": "solos.tag",
-      "uri": "__vUSERS_HOME_DIR__/.solos/tag",
+      "name": "solos.collections",
+      "uri": "__vUSERS_HOME_DIR__/.solos/collections",
       "profile": "shell"
     },
     {
@@ -21,8 +16,8 @@
       "profile": "shell"
     },
     {
-      "name": "solos.bashrc",
-      "uri": "__vUSERS_HOME_DIR__/.solos/profile",
+      "name": "solos.rcfiles",
+      "uri": "__vUSERS_HOME_DIR__/.solos/rcfiles",
       "profile": "shell"
     },
     {
