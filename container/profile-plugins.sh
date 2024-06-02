@@ -61,30 +61,28 @@ Uninstall a SolOS plugin.
 EOF
 }
 __profile_plugins__fn__cli_install() {
+  local plugin_name="${1}"
+  shift
   local loader=""
   local collector=""
   local processor=""
   local config=""
-  while [[ $# -gt 0 ]]; do
-    case "${1}" in
-    --loader)
-      loader="${2}"
-      shift 2
+  for arg in "$@"; do
+    case "${arg}" in
+    --loader=*)
+      loader="${arg#*=}"
       ;;
-    --collector)
-      collector="${2}"
-      shift 2
+    --collector=*)
+      collector="${arg#*=}"
       ;;
-    --processor)
-      processor="${2}"
-      shift 2
+    --processor=*)
+      processor="${arg#*=}"
       ;;
-    --config)
-      config="${2}"
-      shift 2
+    --config=*)
+      config="${arg#*=}"
       ;;
     *)
-      log_error "Unknown option: ${1}"
+      log_error "Invalid option: ${arg}"
       return 1
       ;;
     esac
@@ -105,19 +103,21 @@ __profile_plugins__fn__cli_install() {
     log_error "Missing required option: --config"
     return 1
   fi
-  local plugin_name="${1}"
   local plugins_dir="${HOME}/.solos/plugins"
+  mkdir -p "${plugins_dir}"
   local plugin_dir="${plugins_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     log_error "Plugin \`${plugin_name}\` already exists. Please uninstall it first or use a different name for the new plugin."
     return 1
   fi
   local tmp_dir="$(mktemp -d)"
+  log_info "Downloading plugin executables..."
   curl "${loader}" -o "${tmp_dir}/loader.exe" -s &
   curl "${collector}" -o "${tmp_dir}/collector.exe" -s &
   curl "${processor}" -o "${tmp_dir}/processor.exe" -s &
   curl "${config}" -o "${tmp_dir}/config.json" -s &
   wait
+  log_info "Downloaded executables from their remove sources \`${plugin_name}\`."
   if [[ ! -f ${tmp_dir}/loader.exe ]]; then
     log_error "Failed to download loader from ${loader}"
     return 1
@@ -138,11 +138,12 @@ __profile_plugins__fn__cli_install() {
     log_error "Invalid config file. JSON parsing failed."
     return 1
   fi
-  jq '. + { "sources": { "loader": "'${loader}'", "collector": "'${collector}'", "processor": "'${processor}'", "config": "'${config}'" } }' "${tmp_dir}/config.json" >"${plugin_dir}/config.json"
+  jq '. + { "sources": { "loader": "'"${loader}"'", "collector": "'"${collector}"'", "processor": "'"${processor}"'", "config": "'"${config}"'" } }' "${tmp_dir}/config.json" >"${tmp_dir}/config.json.tmp"
+  mv "${tmp_dir}/config.json.tmp" "${tmp_dir}/config.json"
   local required_keys=()
   local i=0
   while IFS= read -r key; do
-    if [[ ${key} == "requires" ]]; then
+    if [[ ${key} = "requires" ]]; then
       continue
     fi
     if [[ $(jq -r ".${key}" "${tmp_dir}/config.json") = null ]]; then
@@ -180,9 +181,17 @@ __profile_plugins__fn__cli_list() {
     log_info "No plugins installed."
     return 0
   fi
+  local print_args=()
   for plugin in "${plugins[@]}"; do
-    printf "\033[0;34m%s\033[0m\n" "${plugin}"
+    print_args=("${plugin}" "${plugins_dir}/${plugin}/config.json")
   done
+  cat <<EOF
+$(
+    __profile_table_outputs__fn__format \
+      "PLUGIN,CONFIG_PATH" \
+      "${print_args[@]}"
+  )
+EOF
 }
 __profile_plugins__fn__cli_uninstall() {
   local plugin_name="${1}"

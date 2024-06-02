@@ -95,6 +95,28 @@ __profile__fn__run_checked_out_project_script() {
 }
 __profile__fn__print_info() {
   local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+  local installed_plugins_dir="${HOME}/.solos/plugins"
+  local installed_plugins=()
+  if [[ -d ${installed_plugins_dir} ]]; then
+    while IFS= read -r installed_plugin; do
+      installed_plugins+=("${installed_plugin}")
+    done < <(ls -1 "${installed_plugins_dir}")
+    if [[ ${#installed_plugins[@]} -gt 0 ]]; then
+      for installed_plugin in "${installed_plugins[@]}"; do
+        installed_plugins+=("${installed_plugin}" "${installed_plugins_dir}/${installed_plugin}/config.json")
+      done
+    fi
+  fi
+  if [[ ${#installed_plugins[@]} -eq 0 ]]; then
+    local installed_plugins_sections=""
+  else
+    local newline=$'\n'
+    local installed_plugins_sections="${newline}$(
+      __profile_table_outputs__fn__format \
+        "INSTALLED_PLUGIN,CONFIG_PATH" \
+        "${installed_plugins[@]}"
+    )"
+  fi
   cat <<EOF
 
 $(
@@ -133,13 +155,15 @@ $(
       "Container OS" "Debian 12" \
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
+${installed_plugins_sections}
 
 $(
     __profile_table_outputs__fn__format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
       "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
       "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
-      "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell."
+      "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell." \
+      "INSTALLED_PLUGIN" "Plugins installed in the environment with their config paths."
   )
 EOF
 }
