@@ -14,6 +14,7 @@ history -r
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-tag.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-plugins.sh" || exit 1
 
 __profile__pub_fns=""
 __profile__relay_dir="${HOME}/.solos/.relay"
@@ -103,6 +104,7 @@ $(
       info "Print info about this shell." \
       reload "$(reload --help | __profile__fn__extract_help_description)" \
       tag "$(tag --help | __profile__fn__extract_help_description)" \
+      plugin "$(plugin --help | __profile__fn__extract_help_description)" \
       solos "$(solos --help | __profile__fn__extract_help_description)" \
       preexec_list "$(preexec_list --help | __profile__fn__extract_help_description)" \
       preexec_add "$(preexec_add --help | __profile__fn__extract_help_description)" \
@@ -266,6 +268,9 @@ EOF
 }
 __profile__fn__public_tag() {
   __profile_tag__fn__main "$@"
+}
+__profile__fn__public_plugin() {
+  __profile_plugins__fn__cli "$@"
 }
 __profile__fn__public_solos() {
   local executable_path="${HOME}/.solos/src/container/cli.sh"

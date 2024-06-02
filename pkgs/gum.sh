@@ -72,6 +72,15 @@ gum_tag_category_input() {
 gum_pre_cmd_note_input() {
   gum_bin input --placeholder "Enter note"
 }
+gum_plugin_config_input() {
+  local key="$1"
+  local value="$(gum_bin input --placeholder "Enter ${key}:" || echo "SOLOS:EXIT:1")"
+  if [[ -z ${value} ]]; then
+    gum_plugin_config_input "${key}"
+  else
+    echo "${value}"
+  fi
+}
 gum_shell_log() {
   local log_file="$1"
   local level="$2"
