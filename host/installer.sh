@@ -38,9 +38,6 @@ installer.init_fs() {
 # Add your customizations to the SolOS shell.
 # Tip: type \`info\` in the shell to see what functions and aliases are available.
 
-# WARNING: Define any custom functions or alias ABOVE the call to \`install_solos\`
-# unless you really know what you're doing.
-# Enable SolOS:
 install_solos
 EOF
   fi

@@ -1,23 +1,28 @@
 {
   "folders": [
     {
-      "name": "solos.data",
-      "uri": "___cli__users_home_dir___/.solos/data",
-      "profile": "shell"
-    },
-    {
-      "name": "solos.secrets",
-      "uri": "___cli__users_home_dir___/.solos/secrets",
-      "profile": "shell"
-    },
-    {
       "name": "solos.config",
       "uri": "___cli__users_home_dir___/.solos/config",
       "profile": "shell"
     },
     {
+      "name": "solos.data",
+      "uri": "___cli__users_home_dir___/.solos/data",
+      "profile": "shell"
+    },
+    {
+      "name": "solos.plugins",
+      "uri": "___cli__users_home_dir___/.solos/plugins",
+      "profile": "shell"
+    },
+    {
       "name": "solos.rcfiles",
       "uri": "___cli__users_home_dir___/.solos/rcfiles",
+      "profile": "shell"
+    },
+    {
+      "name": "solos.secrets",
+      "uri": "___cli__users_home_dir___/.solos/secrets",
       "profile": "shell"
     },
     {

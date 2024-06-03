@@ -28,7 +28,7 @@ EOF
 }
 profile_plugins.cli_usage_install() {
   cat <<EOF
-USAGE: plugin install <name> --loader <loader> --collector <collector> --processor <processor> --config <config>
+USAGE: plugin install <name> --loader=<loader> --collector=<collector> --processor=<processor> --config=<config>
 
 DESCRIPTION:
 
