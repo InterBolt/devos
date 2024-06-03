@@ -522,7 +522,7 @@ cli.utils.template_variables() {
         continue
       fi
       if [[ ${errored} = "false" ]]; then
-        sed -i "s,__${bin_var}__,${!bin_var},g" "${file}"
+        sed -i "s,___${bin_var}___,${!bin_var},g" "${file}"
       fi
     done
   done
