@@ -3,24 +3,24 @@
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
-__profile_plugins__fn__cli() {
+profile_plugins.cli() {
   if [[ ${1} == "--help" ]]; then
-    __profile_plugins__fn__cli_usage
+    profile_plugins.cli_usage
     return 0
   fi
   local subcommand="${1}"
   shift
-  if ! declare -F "__profile_plugins__fn__cli_${subcommand}" >/dev/null; then
+  if ! declare -F "profile_plugins.cli_${subcommand}" >/dev/null; then
     log_error "Unsupported command: ${subcommand}. See \`plugin --help\` for available commands."
     return 1
   fi
   if [[ ${1} == "--help" ]]; then
-    "__profile_plugins__fn__cli_usage_${subcommand}"
+    "profile_plugins.cli_usage_${subcommand}"
     return 0
   fi
-  "__profile_plugins__fn__cli_${subcommand}" "$@"
+  "profile_plugins.cli_${subcommand}" "$@"
 }
-__profile_plugins__fn__cli_usage() {
+profile_plugins.cli_usage() {
   cat <<EOF
 USAGE: plugin <install|uninstall|list> [...args]
 
@@ -30,7 +30,7 @@ Manage SolOS plugins.
 
 EOF
 }
-__profile_plugins__fn__cli_usage_install() {
+profile_plugins.cli_usage_install() {
   cat <<EOF
 USAGE: plugin install <name> --loader <loader> --collector <collector> --processor <processor> --config <config>
 
@@ -40,7 +40,7 @@ Install a SolOS plugin by providing the urls to the required executables.
 
 EOF
 }
-__profile_plugins__fn__cli_usage_list() {
+profile_plugins.cli_usage_list() {
   cat <<EOF
 USAGE: plugin list
 
@@ -50,7 +50,7 @@ List all installed SolOS plugins.
 
 EOF
 }
-__profile_plugins__fn__cli_usage_uninstall() {
+profile_plugins.cli_usage_uninstall() {
   cat <<EOF
 USAGE: plugin uninstall <name>
 
@@ -60,7 +60,7 @@ Uninstall a SolOS plugin.
 
 EOF
 }
-__profile_plugins__fn__cli_install() {
+profile_plugins.cli_install() {
   local plugin_name="${1}"
   shift
   local loader=""
@@ -170,7 +170,7 @@ __profile_plugins__fn__cli_install() {
   mv "${tmp_dir}" "${plugin_dir}"
   log_info "Plugin \`${plugin_name}\` installed."
 }
-__profile_plugins__fn__cli_list() {
+profile_plugins.cli_list() {
   local plugins_dir="${HOME}/.solos/plugins"
   mkdir -p "${plugins_dir}"
   local plugins=()
@@ -187,13 +187,13 @@ __profile_plugins__fn__cli_list() {
   done
   cat <<EOF
 $(
-    __profile_table_outputs__fn__format \
+    profile_table_outputs.format \
       "INSTALLED_PLUGIN,CONFIG_PATH" \
       "${print_args[@]}"
   )
 EOF
 }
-__profile_plugins__fn__cli_uninstall() {
+profile_plugins.cli_uninstall() {
   local plugin_name="${1}"
   if [[ -z ${plugin_name} ]]; then
     log_error "Missing required argument: <name>"

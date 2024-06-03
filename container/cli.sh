@@ -21,6 +21,8 @@ set -o errexit
 #-------------------------------------------------------------------------------------------
 #
 # RESTRICTED FLAGS:
+# The prefix --restricted-* is kind of dumb but it's specific to internal uses of the CLI
+# which means we can change it at anytime without worrying about breaking changes.
 #
 # --restricted-noop
 #     - Exits with 0 - serves only to confirm that the script is executable post-installation.
