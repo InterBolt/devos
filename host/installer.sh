@@ -27,7 +27,7 @@ installer.init_fs() {
   local src_dir="${installer__solos_home_dir}/src"
 
   mkdir -p "${installer__solos_home_dir}" || exit 1
-  mkdir -p "${installer__solos_home_dir}/profile" || exit 1
+  mkdir -p "${installer__solos_home_dir}/rcfiles" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"
