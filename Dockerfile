@@ -14,7 +14,8 @@ RUN apt-get update \
   wget \
   sudo \
   manpages-dev \
-  keychain
+  keychain \
+  procps
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \

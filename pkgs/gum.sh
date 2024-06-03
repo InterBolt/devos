@@ -92,13 +92,15 @@ gum_shell_log() {
   if [[ -n ${source} ]]; then
     source_args=(source "[${source}]")
   fi
+  if [[ -t 1 ]]; then
+    gum_bin log \
+      --level.foreground "${log_level_colors["${level}"]}" \
+      --structured \
+      --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
+  fi
   gum_bin log \
     --level.foreground "${log_level_colors["${level}"]}" \
     --file "${log_file}" \
-    --structured \
-    --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
-  gum_bin log \
-    --level.foreground "${log_level_colors["${level}"]}" \
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
 }

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
 main() {
   if ! command -v bash >/dev/null 2>&1; then

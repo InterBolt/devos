@@ -47,6 +47,14 @@ log.base() {
   gum_shell_log "${log__logfile}" "${level}" "${msg}" "${source}"
 }
 
+log.use_custom_logfile() {
+  log__logfile="${1}"
+  log__filesize="$(du -k "${log__logfile}" | cut -f 1 || echo "")"
+  if [[ ${log__filesize} -gt 100000 ]]; then
+    echo "${log__logfile} is growing large. Currently at ${log__filesize}Kb"
+  fi
+}
+
 # PUBLIC FUNCTIONS:
 
 log_tag() {

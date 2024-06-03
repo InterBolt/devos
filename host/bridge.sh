@@ -64,6 +64,12 @@ bridge.test() {
   fi
   return 0
 }
+bridge.launch_daemon() {
+  local container_ctx="${PWD/#$HOME//root}"
+  local args=(-i -w "${container_ctx}" "$(bridge.hash)")
+  local bash_args=(-c 'nohup /root/.solos/src/container/daemon.sh >/dev/null 2>&1 &')
+  docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
+}
 bridge.exec_shell() {
   local bashrc_file="${1:-""}"
   local container_ctx="${PWD/#$HOME//root}"
@@ -129,6 +135,7 @@ bridge.build_and_run() {
   while ! bridge.test; do
     sleep .2
   done
+  bridge.launch_daemon
 }
 bridge.rebuild() {
   if ! bridge.destroy; then
