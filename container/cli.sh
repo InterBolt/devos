@@ -59,19 +59,19 @@ set -- "${cli__restricted_args[@]}"
 #--------------------------------------------------------------------
 # LIB:GLOBAL: Stuff that everything across all SolOS projects needs.
 #--------------------------------------------------------------------
-global_store.del() {
+cli.global_store.del() {
   local store_dir="${HOME}/.solos/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   rm -f "${storage_file}"
 }
-global_store.get() {
+cli.global_store.get() {
   local store_dir="${HOME}/.solos/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   cat "${storage_file}" 2>/dev/null || echo ""
 }
-global_store.set() {
+cli.global_store.set() {
   local store_dir="${HOME}/.solos/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
@@ -96,7 +96,7 @@ for arg in "$@"; do
     cli__restricted_args+=("${arg}")
   fi
 done
-cli__users_home_dir="$(global_store.get "users_home_dir" "/root")"
+cli__users_home_dir="$(cli.global_store.get "users_home_dir" "/root")"
 cli__cmd=""
 cli__allowed_options=()
 cli__options=()
@@ -112,7 +112,7 @@ cli__project_app=""
 #-------------------------------------------------
 # LIB:USAGE: CLI Help Information
 #-------------------------------------------------
-usage.help() {
+cli.usage.cmds.help() {
   cat <<EOF
 USAGE: solos <command> <args..>
 
@@ -127,12 +127,11 @@ app                      - Initializes or checks out a project app.
 shell                    - Start a SolOS shell session with ~/.solos/rcfiles/.bashrc sourced.
 shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/rcfiles/.bashrc.
 setup                    - Configure SolOS for things like Git credentials, API keys, etc.
-try                      - (DEV ONLY) Undocumented.
 
 Source: https://github.com/InterBolt/solos
 EOF
 }
-usage.cmd.checkout.help() {
+cli.usage.checkout.help() {
   cat <<EOF
 USAGE: solos checkout <project>
 
@@ -143,7 +142,7 @@ is cached in the CLI so that all future commands operate against it. Think git c
 
 EOF
 }
-usage.cmd.app.help() {
+cli.usage.app.help() {
   cat <<EOF
 USAGE: solos app <app_name>
 
@@ -154,7 +153,7 @@ it will checkout and re-install env dependencies for the app.
 
 EOF
 }
-usage.cmd.shell.help() {
+cli.usage.shell.help() {
   cat <<EOF
 USAGE: solos shell
 
@@ -164,7 +163,7 @@ Loads a interactive bash shell with the RC file at ~/.solos/rcfiles/.bashrc sour
 
 EOF
 }
-usage.cmd.shell_minimal.help() {
+cli.usage.shell_minimal.help() {
   cat <<EOF
 USAGE: solos shell-minimal
 
@@ -174,7 +173,7 @@ Loads a interactive bash shell without a RC file.
 
 EOF
 }
-usage.cmd.setup.help() {
+cli.usage.setup.help() {
   cat <<EOF
 USAGE: solos setup
 
@@ -184,7 +183,7 @@ Configure SolOS for things like Git credentials, API keys, etc.
 
 EOF
 }
-usage.cmd.try.help() {
+cli.usage.try.help() {
   cat <<EOF
 USAGE: solos try
 
@@ -197,39 +196,42 @@ EOF
 #------------------------------------------------------------
 # LIB:ARGPARSE: Converts arguments into usable variables
 #------------------------------------------------------------
-argparse._is_valid_help_command() {
+cli.argparse._is_valid_help_command() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     return 0
   else
     return 1
   fi
 }
-argparse._allowed_cmds() {
+cli.argparse._allowed_cmds() {
   local allowed_cmds=()
-  for cmd in $(compgen -A function | grep "usage.cmd.*.help"); do
-    allowed_cmds+=("$(echo "${cmd}" | awk -F '.' '{print $3}' | tr '_' '-')")
+  for cmd in $(compgen -A function | grep "cli.usage.*.help"); do
+    local cmd_name=$(echo "${cmd}" | awk -F '.' '{print $3}' | tr '_' '-')
+    if [[ ${cmd_name} != "cmds" ]]; then
+      allowed_cmds+=("${cmd_name}")
+    fi
   done
   echo "${allowed_cmds[@]}"
 }
-argparse.cmd() {
-  local allowed_cmds=($(argparse._allowed_cmds))
+cli.argparse.cmd() {
+  local allowed_cmds=($(cli.argparse._allowed_cmds))
   if [[ -z "$1" ]]; then
     log_error "No command supplied."
-    usage.help
+    cli.usage.cmds.help
     exit 0
   fi
-  if argparse._is_valid_help_command "$1"; then
-    usage.help
+  if cli.argparse._is_valid_help_command "$1"; then
+    cli.usage.cmds.help
     exit 0
   fi
   local post_command_arg_index=0
   while [[ "$#" -gt 0 ]]; do
-    if argparse._is_valid_help_command "$1"; then
+    if cli.argparse._is_valid_help_command "$1"; then
       if [[ -z ${cli__cmd} ]]; then
         log_error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
-      usage.cmd."${cli__cmd}".help
+      cli.usage."${cli__cmd}".help
       exit 0
     fi
     case "$1" in
@@ -264,10 +266,10 @@ argparse.cmd() {
     shift
   done
 }
-argparse.requirements() {
-  local allowed_cmds=($(argparse._allowed_cmds))
+cli.argparse.requirements() {
+  local allowed_cmds=($(cli.argparse._allowed_cmds))
   for cmd_name in $(
-    usage.help |
+    cli.usage.cmds.help |
       grep -A 1000 "COMMANDS:" |
       grep -v "COMMANDS:" |
       grep -E "^[a-z]" |
@@ -282,7 +284,7 @@ argparse.requirements() {
     cmd="$(echo "${cmd}" | tr '-' '_')"
     opts="${cmd}("
     first=true
-    for cmd_option in $(usage.cmd."${cmd}".help | grep -E "^--" | awk '{print $1}'); do
+    for cmd_option in $(cli.usage."${cmd}".help | grep -E "^--" | awk '{print $1}'); do
       cmd_option="$(echo "${cmd_option}" | awk -F '=' '{print $1}' | sed 's/^--//')"
       if [[ ${first} = true ]]; then
         opts="${opts}${cmd_option}"
@@ -294,7 +296,7 @@ argparse.requirements() {
     cli__allowed_options+=("${opts})")
   done
 }
-argparse.validate_opts() {
+cli.argparse.validate_opts() {
   if [[ -n ${cli__options[0]} ]]; then
     for cmd_option in "${cli__options[@]}"; do
       for allowed_cmd_option in "${cli__allowed_options[@]}"; do
@@ -322,8 +324,8 @@ argparse.validate_opts() {
     done
   fi
 }
-argparse.ingest() {
-  local checked_out_project="$(global_store.get "checked_out_project")"
+cli.argparse.ingest() {
+  local checked_out_project="$(cli.global_store.get "checked_out_project")"
   if [[ ${cli__cmd} = "checkout" ]] && [[ ${#cli__options[@]} -eq 0 ]]; then
     if [[ -z ${checked_out_project} ]]; then
       log_error "No project currently checked out."
@@ -339,7 +341,7 @@ argparse.ingest() {
       fi
       if [[ ${cli__cmd} = "checkout" ]]; then
         cli__project_name="${cli__options[$i]#*=}"
-        # If we're running from the SolOS shell, prevent checking out a different project.
+        # If we're running from the SolOS shell, prevent checking out a different cli.project.
         # This is not the best solution but one that will prevent hair-pulling bugs/inconsistencies
         # while we work on a better solution.
         if [[ ${cli__is_running_in_shell} = true ]]; then
@@ -362,19 +364,19 @@ argparse.ingest() {
 #                   but will likely reference, change, and use
 #                   across projects.
 #-------------------------------------------------------------
-config_store.del() {
+cli.config_store.del() {
   local store_dir="${HOME}/.solos/config"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   rm -f "${storage_file}"
 }
-config_store.get() {
+cli.config_store.get() {
   local store_dir="${HOME}/.solos/config"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   cat "${storage_file}" 2>/dev/null || echo ""
 }
-config_store.set() {
+cli.config_store.set() {
   local store_dir="${HOME}/.solos/config"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
@@ -386,7 +388,7 @@ config_store.set() {
 #-----------------------------------------------------------------
 # LIB:PROJECT_STORE: Things about a project that could be public.
 #-----------------------------------------------------------------
-project_store.del() {
+cli.project_store.del() {
   if [[ -z ${cli__project_name} ]]; then
     log_error "cli__project_name is not set."
     exit 1
@@ -398,7 +400,7 @@ project_store.del() {
   local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
   rm -f "${project_store_dir}/$1"
 }
-project_store.get() {
+cli.project_store.get() {
   if [[ -z ${cli__project_name} ]]; then
     log_error "cli__project_name is not set."
     exit 1
@@ -415,7 +417,7 @@ project_store.get() {
     echo ""
   fi
 }
-project_store.set() {
+cli.project_store.set() {
   if [[ -z ${cli__project_name} ]]; then
     log_error "cli__project_name is not set."
     exit 1
@@ -434,19 +436,19 @@ project_store.set() {
 #-------------------------------------------------
 # LIB:PROJECT_SECRETS: Per-project secrets
 #-------------------------------------------------
-secrets_store.del() {
+cli.secrets_store.del() {
   local store_dir="${HOME}/.solos/secrets"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   rm -f "${storage_file}"
 }
-secrets_store.get() {
+cli.secrets_store.get() {
   local store_dir="${HOME}/.solos/secrets"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   cat "${storage_file}" 2>/dev/null || echo ""
 }
-secrets_store.set() {
+cli.secrets_store.set() {
   local store_dir="${HOME}/.solos/secrets"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
@@ -458,7 +460,7 @@ secrets_store.set() {
 #-------------------------------------------------
 # LIB:SSH: SSH stuff. Just creating keys for now.
 #-------------------------------------------------
-ssh.create() {
+cli.ssh.create() {
   local key_name="$1"
   local ssh_dir="${2}"
   mkdir -p "${ssh_dir}"
@@ -491,13 +493,13 @@ ssh.create() {
 #----------------------------------------------
 # LIB:UTILS: Anything and everything, brother.
 #----------------------------------------------
-utils.template_variables() {
+cli.utils.template_variables() {
   local dir_or_file="$1"
   local eligible_files=()
   if [[ -d ${dir_or_file} ]]; then
     for file in "${dir_or_file}"/*; do
       if [[ -d ${file} ]]; then
-        utils.template_variables "${file}"
+        cli.utils.template_variables "${file}"
       fi
       if [[ -f ${file} ]]; then
         eligible_files+=("${file}")
@@ -532,7 +534,7 @@ utils.template_variables() {
     exit 1
   fi
 }
-utils.git_hash() {
+cli.utils.git_hash() {
   local source_code_path="${HOME}/.solos/src"
   if [[ ! -d "${source_code_path}" ]]; then
     log_error "Unexpected error: nothing found at ${source_code_path}. Cannot generate a version hash."
@@ -540,7 +542,7 @@ utils.git_hash() {
   fi
   git -C "${source_code_path}" rev-parse --short HEAD | cut -c1-7 || echo ""
 }
-utils.pretty_print_dir_files() {
+cli.utils.pretty_print_dir_files() {
   local dir="$1"
   local tilde_dir="${dir/#\/root/\~}"
   for store_dir_file in "${dir}"/*; do
@@ -552,7 +554,7 @@ utils.pretty_print_dir_files() {
 # LIB:CMD: CLI command implementations and their specific helper functions.
 #          at cmd.<command_name>_<subcommand_name>.
 #----------------------------------------------------------------------------
-cmd.app._remove_app_from_code_workspace() {
+cli.cmd.app._remove_app_from_code_workspace() {
   local workspace_file="$1"
   jq 'del(.folders[] | select(.name == "'"${cli__project_name}"'.'"${cli__project_app}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
   if ! jq . "${workspace_file}.tmp" >/dev/null; then
@@ -561,12 +563,12 @@ cmd.app._remove_app_from_code_workspace() {
   fi
   mv "${workspace_file}.tmp" "${workspace_file}"
 }
-cmd.app._get_path_to_app() {
+cli.cmd.app._get_path_to_app() {
   local path_to_apps="${HOME}/.solos/projects/${cli__project_name}/apps"
   mkdir -p "${path_to_apps}"
   echo "${path_to_apps}/${cli__project_app}"
 }
-cmd.app._init() {
+cli.cmd.app._init() {
   if [[ ! ${cli__project_app} =~ ^[a-z_-]*$ ]]; then
     log_error "Invalid app name. App names must be lowercase and can only contain letters, hyphens, and underscores."
     exit 1
@@ -628,7 +630,7 @@ EOF
 echo "Hello from the post-exec script for app: ${cli__project_app}"
 EOF
   log_info "${cli__project_name}:${cli__project_app} - Created the pre-exec script."
-  local app_dir="$(cmd.app._get_path_to_app)"
+  local app_dir="$(cli.cmd.app._get_path_to_app)"
   local vscode_workspace_file="${HOME}/.solos/projects/${cli__project_name}/.vscode/solos-${cli__project_name}.code-workspace"
   local tmp_vscode_workspace_file="${tmp_misc_dir}/$(basename ${vscode_workspace_file})"
   if [[ ! -f "${vscode_workspace_file}" ]]; then
@@ -638,7 +640,7 @@ EOF
   cp -f "${vscode_workspace_file}" "${tmp_vscode_workspace_file}"
   # The goal is to remove the app and then add it back to the beginning of the folders array.
   # This gives the best UX in VS Code since a new terminal will automatically assume the app's dir context.
-  cmd.app._remove_app_from_code_workspace "${tmp_vscode_workspace_file}"
+  cli.cmd.app._remove_app_from_code_workspace "${tmp_vscode_workspace_file}"
   jq \
     --arg app_name "${cli__project_app}" \
     '.folders |= [{ "name": "app.'"${cli__project_app}"'", "uri": "'"${cli__users_home_dir}"'/.solos/projects/'"${cli__project_name}"'/apps/'"${cli__project_app}"'", "profile": "shell" }] + .' \
@@ -659,8 +661,8 @@ EOF
   rm -rf "${tmp_misc_dir}"
   log_info "${cli__project_name}:${cli__project_app} - Initialized the app."
 }
-cmd.app() {
-  cli__project_name="$(global_store.get "checked_out_project")"
+cli.cmd.app() {
+  cli__project_name="$(cli.global_store.get "checked_out_project")"
   if [[ -z ${cli__project_name} ]]; then
     log_error "No project currently checked out."
     exit 1
@@ -673,14 +675,14 @@ cmd.app() {
     log_error "A project name is required. Please checkout a project first."
     exit 1
   fi
-  local app_dir="$(cmd.app._get_path_to_app)"
+  local app_dir="$(cli.cmd.app._get_path_to_app)"
   if [[ ! -d ${app_dir} ]]; then
-    cmd.app._init
+    cli.cmd.app._init
   else
     log_info "${cli__project_name}:${cli__project_app} - App already exists."
   fi
 }
-cmd.checkout() {
+cli.cmd.checkout() {
   if [[ -z ${cli__project_name} ]]; then
     log_error "No project name was supplied."
     exit 1
@@ -698,7 +700,7 @@ cmd.checkout() {
       log_error "Unexpected error: no tmp dir was created."
       exit 1
     fi
-    ssh.create "default" "${tmp_project_ssh_dir}" || exit 1
+    cli.ssh.create "default" "${tmp_project_ssh_dir}" || exit 1
     log_info "${cli__project_name} - Created keypair for project"
     mkdir -p "${HOME}/.solos/projects/${cli__project_name}"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${cli__project_name}/.ssh"
@@ -707,7 +709,7 @@ cmd.checkout() {
     mkdir -p "${vscode_dir}"
     local tmp_dir="$(mktemp -d -q)"
     cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${cli__project_name}.code-workspace"
-    if utils.template_variables "${tmp_dir}/solos-${cli__project_name}.code-workspace"; then
+    if cli.utils.template_variables "${tmp_dir}/solos-${cli__project_name}.code-workspace"; then
       cp -f "${tmp_dir}/solos-${cli__project_name}.code-workspace" "${vscode_dir}/solos-${cli__project_name}.code-workspace"
       log_info "${cli__project_name} - Successfully templated the Visual Studio Code workspace file."
     else
@@ -744,21 +746,21 @@ EOF
       log_info "${cli__project_name} - Created the checkout script."
     fi
   fi
-  global_store.set "checked_out_project" "${cli__project_name}"
+  cli.global_store.set "checked_out_project" "${cli__project_name}"
 }
-cmd.setup._print_curr_setup() {
+cli.cmd.setup._print_curr_setup() {
   local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
   echo ""
   echo "${full_line}"
   echo ""
   echo "CURRENT SETUP:"
   echo ""
-  utils.pretty_print_dir_files "${HOME}/.solos/config"
-  utils.pretty_print_dir_files "${HOME}/.solos/secrets"
+  cli.utils.pretty_print_dir_files "${HOME}/.solos/config"
+  cli.utils.pretty_print_dir_files "${HOME}/.solos/secrets"
   echo ""
   echo "${full_line}"
 }
-cmd.setup._gh_token() {
+cli.cmd.setup._gh_token() {
   local tmp_file="$1"
   local gh_token="$(gum_github_token)"
   if [[ -z ${gh_token} ]]; then
@@ -772,14 +774,14 @@ cmd.setup._gh_token() {
     local should_retry="$(gum_confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
-      cmd.setup._gh_token "${tmp_file}"
+      cli.cmd.setup._gh_token "${tmp_file}"
     else
       log_error "Exiting the setup process."
       exit 1
     fi
   fi
 }
-cmd.setup._gh_email() {
+cli.cmd.setup._gh_email() {
   local tmp_file="$1"
   local github_email="$(gum_github_email)"
   if [[ -z ${github_email} ]]; then
@@ -793,14 +795,14 @@ cmd.setup._gh_email() {
     local should_retry="$(gum_confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
-      cmd.setup._gh_token "${tmp_file}"
+      cli.cmd.setup._gh_token "${tmp_file}"
     else
       log_error "Exiting the setup process."
       exit 1
     fi
   fi
 }
-cmd.setup._gh_name() {
+cli.cmd.setup._gh_name() {
   local tmp_file="$1"
   local github_name="$(gum_github_name)"
   if [[ -z ${github_name} ]]; then
@@ -814,14 +816,14 @@ cmd.setup._gh_name() {
     local should_retry="$(gum_confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
-      cmd.setup._gh_token "${tmp_file}"
+      cli.cmd.setup._gh_token "${tmp_file}"
     else
       log_error "Exiting the setup process."
       exit 1
     fi
   fi
 }
-cmd.setup._openai_api_key() {
+cli.cmd.setup._openai_api_key() {
   local tmp_file="$1"
   gum_optional_openai_api_key_input >"${tmp_file}" || exit 1
   local openai_api_key=$(cat "${tmp_file}" 2>/dev/null || echo "")
@@ -836,14 +838,14 @@ cmd.setup._openai_api_key() {
     local should_retry="$(gum_confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
-      cmd.setup._openai_api_key "${tmp_file}"
+      cli.cmd.setup._openai_api_key "${tmp_file}"
     else
       log_error "Exiting the setup process."
       exit 1
     fi
   fi
 }
-cmd.setup._checkout_project() {
+cli.cmd.setup._checkout_project() {
   local checked_out=""
   local should_checkout_project="$(gum_confirm_checkout_project)"
   if [[ ${should_checkout_project} = true ]]; then
@@ -873,22 +875,22 @@ cmd.setup._checkout_project() {
     fi
   fi
   if [[ -n ${checked_out} ]]; then
-    global_store.set "checked_out_project" "${checked_out}"
+    cli.global_store.set "checked_out_project" "${checked_out}"
   fi
 }
-cmd.setup() {
-  local curr_git_hash="$(utils.git_hash)"
+cli.cmd.setup() {
+  local curr_git_hash="$(cli.utils.git_hash)"
   if [[ -z ${curr_git_hash} ]]; then
     exit 1
   fi
-  local git_hash="$(global_store.get "git_hash")"
+  local git_hash="$(cli.global_store.get "git_hash")"
   local should_proceed=false
   if [[ -n ${git_hash} ]]; then
     if [[ ${git_hash} != ${curr_git_hash} ]]; then
-      cmd.setup._print_curr_setup
+      cli.cmd.setup._print_curr_setup
       should_proceed=true
     else
-      cmd.setup._print_curr_setup
+      cli.cmd.setup._print_curr_setup
       should_proceed="$(gum_confirm_overwriting_setup)"
     fi
   else
@@ -903,32 +905,28 @@ cmd.setup() {
   local gh_email_tmp_file="$(mktemp -q)"
   local gh_name_tmp_file="$(mktemp -q)"
   local openai_api_key_tmp_file="$(mktemp -q)"
-  cmd.setup._gh_token "${gh_token_tmp_file}"
-  cmd.setup._gh_email "${gh_email_tmp_file}"
-  cmd.setup._gh_name "${gh_name_tmp_file}"
-  cmd.setup._openai_api_key "${openai_api_key_tmp_file}"
+  cli.cmd.setup._gh_token "${gh_token_tmp_file}"
+  cli.cmd.setup._gh_email "${gh_email_tmp_file}"
+  cli.cmd.setup._gh_name "${gh_name_tmp_file}"
+  cli.cmd.setup._openai_api_key "${openai_api_key_tmp_file}"
   rm -rf "${HOME}/.solos/config"
   rm -rf "${HOME}/.solos/secrets"
-  config_store.set "gh_email" "$(cat "${gh_email_tmp_file}")"
-  config_store.set "gh_name" "$(cat "${gh_name_tmp_file}")"
-  secrets_store.set "gh_token" "$(cat "${gh_token_tmp_file}")"
+  cli.config_store.set "gh_email" "$(cat "${gh_email_tmp_file}")"
+  cli.config_store.set "gh_name" "$(cat "${gh_name_tmp_file}")"
+  cli.secrets_store.set "gh_token" "$(cat "${gh_token_tmp_file}")"
   local openai_api_key="$(cat "${openai_api_key_tmp_file}" || echo "")"
   if [[ -n ${openai_api_key} ]]; then
-    secrets_store.set "openai_api_key" "${openai_api_key}"
+    cli.secrets_store.set "openai_api_key" "${openai_api_key}"
   fi
-  global_store.set "git_hash" "${curr_git_hash}"
+  cli.global_store.set "git_hash" "${curr_git_hash}"
   if [[ ${cli__is_running_in_shell} = false ]]; then
-    cmd.setup._checkout_project
+    cli.cmd.setup._checkout_project
   fi
-}
-cmd.try() {
-  project.checkout
-  log_warn "TODO: implementation needed"
 }
 #---------------------------------------------
 # LIB:PROJECT: Project related helper methods
 #---------------------------------------------
-project.prune() {
+cli.project.prune() {
   local tmp_dir="$(mktemp -d -q)"
   local vscode_workspace_file="${HOME}/.solos/projects/${cli__project_name}/.vscode/solos-${cli__project_name}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
@@ -968,22 +966,22 @@ project.prune() {
 #                            RUN IT
 #--------------------------------------------------------------------
 __MAIN__() {
-  argparse.requirements
-  argparse.cmd "$@"
-  argparse.validate_opts
-  if ! argparse.ingest; then
+  cli.argparse.requirements
+  cli.argparse.cmd "$@"
+  cli.argparse.validate_opts
+  if ! cli.argparse.ingest; then
     exit 1
   fi
   if [[ -z ${cli__cmd} ]]; then
     exit 1
   fi
-  if ! command -v "cmd.${cli__cmd}" &>/dev/null; then
+  if ! command -v "cli.cmd.${cli__cmd}" &>/dev/null; then
     log_error "Unexpected error: no implementation for cmd.${cli__cmd} exists."
     exit 1
   fi
-  "cmd.${cli__cmd}" || true
+  "cli.cmd.${cli__cmd}" || true
   if [[ -n ${cli__project_name} ]]; then
-    if ! project.prune; then
+    if ! cli.project.prune; then
       log_error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
     fi
   fi
