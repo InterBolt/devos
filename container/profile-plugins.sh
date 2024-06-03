@@ -3,27 +3,18 @@
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
-profile_plugins.cli() {
-  local cmd="${1}"
-  if profile.is_help_cmd "${1}"; then
-    profile_plugins.cli_usage
-    return 0
+profile_plugins__data_dir="${HOME}/.solos/data/plugins"
+profile_plugins__dir="${HOME}/.solos/plugins"
+
+profile_plugins.init_fs() {
+  mkdir -p "${profile_plugins__data_dir}"
+  mkdir -p "${profile_plugins__dir}"
+  if [[ ! -f ${profile_plugins__data_dir}/processed.log ]]; then
+    touch "${profile_plugins__data_dir}/processed.log"
   fi
-  if [[ -z ${cmd} ]]; then
-    log_error "Missing required argument: <command>"
-    return 1
+  if [[ ! -f ${profile_plugins__data_dir}/collected.log ]]; then
+    touch "${profile_plugins__data_dir}/collected.log"
   fi
-  shift
-  local cmd_arg="${1}"
-  if ! declare -F "profile_plugins.cli_${cmd}" >/dev/null; then
-    log_error "Unsupported command: ${cmd}. See \`plugin --help\` for available commands."
-    return 1
-  fi
-  if profile.is_help_cmd "${cmd_arg}"; then
-    "profile_plugins.cli_usage_${cmd}"
-    return 0
-  fi
-  "profile_plugins.cli_${cmd}" "$@"
 }
 profile_plugins.cli_usage() {
   cat <<EOF
@@ -108,9 +99,7 @@ profile_plugins.cli_install() {
     log_error "Missing required option: --config"
     return 1
   fi
-  local plugins_dir="${HOME}/.solos/plugins"
-  mkdir -p "${plugins_dir}"
-  local plugin_dir="${plugins_dir}/${plugin_name}"
+  local plugin_dir="${profile_plugins__dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     log_error "Plugin \`${plugin_name}\` already exists. Please uninstall it first or use a different name for the new plugin."
     return 1
@@ -176,19 +165,17 @@ profile_plugins.cli_install() {
   log_info "Plugin \`${plugin_name}\` installed."
 }
 profile_plugins.cli_list() {
-  local plugins_dir="${HOME}/.solos/plugins"
-  mkdir -p "${plugins_dir}"
   local plugins=()
   while IFS= read -r plugin; do
     plugins+=("${plugin}")
-  done < <(ls -1 "${plugins_dir}")
+  done < <(ls -1 "${profile_plugins__dir}")
   if [[ ${#plugins[@]} -eq 0 ]]; then
     log_info "No plugins installed."
     return 0
   fi
   local print_args=()
   for plugin in "${plugins[@]}"; do
-    print_args=("${plugin}" "${plugins_dir}/${plugin}/config.json")
+    print_args=("${plugin}" "${profile_plugins__dir}/${plugin}/config.json")
   done
   cat <<EOF
 $(
@@ -204,12 +191,37 @@ profile_plugins.cli_uninstall() {
     log_error "Missing required argument: <name>"
     return 1
   fi
-  local plugins_dir="${HOME}/.solos/plugins"
-  local plugin_dir="${plugins_dir}/${plugin_name}"
+  local plugin_dir="${profile_plugins__dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     rm -rf "${plugin_dir}"
     log_info "Plugin \`${plugin_name}\` uninstalled."
   else
     log_error "Plugin \`${plugin_name}\` not found."
   fi
+}
+profile_plugins.main() {
+  if ! profile_plugins.init_fs; then
+    log_error "Failed to initialize plugin filesystem."
+    return 1
+  fi
+  local cmd="${1}"
+  if profile.is_help_cmd "${1}"; then
+    profile_plugins.cli_usage
+    return 0
+  fi
+  if [[ -z ${cmd} ]]; then
+    log_error "Missing required argument: <command>"
+    return 1
+  fi
+  shift
+  local cmd_arg="${1}"
+  if ! declare -F "profile_plugins.cli_${cmd}" >/dev/null; then
+    log_error "Unsupported command: ${cmd}. See \`plugin --help\` for available commands."
+    return 1
+  fi
+  if profile.is_help_cmd "${cmd_arg}"; then
+    "profile_plugins.cli_usage_${cmd}"
+    return 0
+  fi
+  "profile_plugins.cli_${cmd}" "$@"
 }

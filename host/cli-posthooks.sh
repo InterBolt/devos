@@ -34,7 +34,7 @@ cli_posthooks.app() {
     exit 1
   fi
   local app="${1}"
-  local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
+  local project="$(cat "${HOME}/.solos/data/store/checked_out_project" | head -n 1)"
   local project_dir="${HOME}/.solos/projects/${project}"
   if [[ ! -d "${HOME}/.solos/projects/${project}" ]]; then
     echo "Unexpected error: no project specified." >&2
@@ -53,6 +53,6 @@ cli_posthooks.app() {
   code -r "${app_dir_preexec_script}"
 }
 cli_posthooks.setup() {
-  local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
+  local project="$(cat "${HOME}/.solos/data/store/checked_out_project" | head -n 1)"
   bash -ic "solos checkout ${project}"
 }

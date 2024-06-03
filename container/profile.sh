@@ -27,7 +27,6 @@ profile.error_press_enter() {
   read -r || exit 1
   exit 1
 }
-
 profile.is_help_cmd() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
     return 0
@@ -35,16 +34,14 @@ profile.is_help_cmd() {
     return 1
   fi
 }
-
 profile.users_home_dir() {
-  local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
+  local home_dir_saved_location="${HOME}/.solos/data/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
     log_error "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}."
     profile.error_press_enter
   fi
   cat "${home_dir_saved_location}" 2>/dev/null | head -n1
 }
-
 profile.extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
@@ -63,7 +60,6 @@ profile.extract_help_description() {
   fi
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
 }
-
 profile.bash_completions() {
   _custom_command_completions() {
     local cur prev words cword
@@ -76,7 +72,7 @@ profile.bash_completions() {
 }
 
 profile.run_checked_out_project_script() {
-  local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+  local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
   if [[ -z ${checked_out_project} ]]; then
     return 0
   fi
@@ -98,7 +94,7 @@ profile.run_checked_out_project_script() {
   fi
 }
 profile.print_info() {
-  local checked_out_project="$(cat "${HOME}/.solos/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+  local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
   local installed_plugins_dir="${HOME}/.solos/plugins"
   local installed_plugins=()
   if [[ -d ${installed_plugins_dir} ]]; then
@@ -129,8 +125,7 @@ $(
       '-' "Runs its arguments as a command and avoids all tag-related stdout tracking." \
       info "Print info about this shell." \
       ask_docs "$(ask_docs --help | profile.extract_help_description)" \
-      reload "$(reload --help | profile.extract_help_description)" \
-      tag "$(tag --help | profile.extract_help_description)" \
+      track "$(track --help | profile.extract_help_description)" \
       plugin "$(plugin --help | profile.extract_help_description)" \
       solos "$(solos --help | profile.extract_help_description)" \
       preexec_list "$(preexec_list --help | profile.extract_help_description)" \
@@ -138,7 +133,8 @@ $(
       preexec_remove "$(preexec_remove --help | profile.extract_help_description)" \
       postexec_list "$(postexec_list --help | profile.extract_help_description)" \
       postexec_add "$(postexec_add --help | profile.extract_help_description)" \
-      postexec_remove "$(postexec_remove --help | profile.extract_help_description)"
+      postexec_remove "$(postexec_remove --help | profile.extract_help_description)" \
+      reload "$(reload --help | profile.extract_help_description)"
   )
 
 $(
@@ -237,7 +233,6 @@ profile.install_gh() {
     profile.error_press_enter
   fi
 }
-
 profile.install() {
   PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then
@@ -251,7 +246,7 @@ profile.install() {
   profile.run_checked_out_project_script
 }
 # Rename, export, and make readonly for all user-accessible pub functions.
-# Ex: user should use `tag` rather than `profile.public_tag`.
+# Ex: user should use `tag` rather than `profile.public_track`.
 profile.export_and_readonly() {
   profile__pub_fns=""
   local pub_fns="$(declare -F | grep -o "profile.public_[a-z_]*" | xargs)"
@@ -291,8 +286,8 @@ EOF
     bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
     log_info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
-    trap 'trap "profile_tag.trap" DEBUG; exit 1;' SIGINT
-    trap 'profile_tag.trap' DEBUG
+    trap 'trap "profile_track.trap" DEBUG; exit 1;' SIGINT
+    trap 'profile_track.trap' DEBUG
   fi
 }
 profile.public_ask_docs() {
@@ -318,11 +313,11 @@ EOF
   fi
   log_warn "TODO: No implementation exists yet. Stay tuned."
 }
-profile.public_tag() {
-  profile_tag.main "$@"
+profile.public_track() {
+  profile_track.main "$@"
 }
 profile.public_plugin() {
-  profile_plugins.cli "$@"
+  profile_plugins.main "$@"
 }
 profile.public_solos() {
   local executable_path="${HOME}/.solos/src/container/cli.sh"
@@ -464,7 +459,7 @@ EOF
 }
 profile.public_install_solos() {
   profile.install
-  profile_tag.install
+  profile_track.install
 }
 
 profile.export_and_readonly

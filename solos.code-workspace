@@ -1,8 +1,8 @@
 {
   "folders": [
     {
-      "name": "solos.collections",
-      "uri": "___cli__users_home_dir___/.solos/collections",
+      "name": "solos.data",
+      "uri": "___cli__users_home_dir___/.solos/data",
       "profile": "shell"
     },
     {

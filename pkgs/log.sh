@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 log__filesize=0
-log__logfile="${HOME}/.solos/collections/logs/shell.log"
+log__logfile="${HOME}/.solos/data/log/master.log"
 
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
@@ -20,7 +20,7 @@ log.to_hostname() {
   if [[ ${filename} != /* ]]; then
     filename="$(pwd)/${filename}"
   fi
-  local host="$(cat "${HOME}/.solos/store/users_home_dir")"
+  local host="$(cat "${HOME}/.solos/data/store/users_home_dir")"
   echo "${filename/${HOME}/${host}}"
 }
 log.base() {

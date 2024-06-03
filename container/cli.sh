@@ -60,19 +60,19 @@ set -- "${cli__restricted_args[@]}"
 # LIB:GLOBAL: Stuff that everything across all SolOS projects needs.
 #--------------------------------------------------------------------
 cli.global_store.del() {
-  local store_dir="${HOME}/.solos/store"
+  local store_dir="${HOME}/.solos/data/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   rm -f "${storage_file}"
 }
 cli.global_store.get() {
-  local store_dir="${HOME}/.solos/store"
+  local store_dir="${HOME}/.solos/data/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   cat "${storage_file}" 2>/dev/null || echo ""
 }
 cli.global_store.set() {
-  local store_dir="${HOME}/.solos/store"
+  local store_dir="${HOME}/.solos/data/store"
   mkdir -p "${store_dir}"
   local storage_file="${store_dir}/$1"
   if [[ ! -f ${storage_file} ]]; then
@@ -81,8 +81,6 @@ cli.global_store.set() {
   echo "$2" >"${storage_file}"
 }
 #-------------------------------------------------------------------
-# Vars:
-#
 # cli__users_home_dir: The user's home directory on their host machine
 # cli__cmd: The command to run. Populated in the argparse functions.
 # cli__allowed_options: An array of the allowed options for the current command.
@@ -180,16 +178,6 @@ USAGE: solos setup
 DESCRIPTION:
 
 Configure SolOS for things like Git credentials, API keys, etc.
-
-EOF
-}
-cli.usage.try.help() {
-  cat <<EOF
-USAGE: solos try
-
-DESCRIPTION:
-
-Undocumented.
 
 EOF
 }
@@ -397,7 +385,11 @@ cli.project_store.del() {
     log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/data/store"
+  if [[ -z $1 ]]; then
+    log_warn "No key provided. Nothing to delete."
+    return 0
+  fi
   rm -f "${project_store_dir}/$1"
 }
 cli.project_store.get() {
@@ -409,7 +401,7 @@ cli.project_store.get() {
     log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/data/store"
   local project_store_file="${project_store_dir}/$1"
   if [[ -f ${project_store_file} ]]; then
     cat "${project_store_file}"
@@ -426,7 +418,11 @@ cli.project_store.set() {
     log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/data/store"
+  if [[ -z $1 ]]; then
+    log_warn "No key provided. Nothing to set."
+    return 0
+  fi
   local project_store_file="${project_store_dir}/$1"
   if [[ ! -f ${project_store_file} ]]; then
     touch "${project_store_file}"
@@ -703,6 +699,7 @@ cli.cmd.checkout() {
     cli.ssh.create "default" "${tmp_project_ssh_dir}" || exit 1
     log_info "${cli__project_name} - Created keypair for project"
     mkdir -p "${HOME}/.solos/projects/${cli__project_name}"
+    mkdir -p "${HOME}/.solos/projects/${cli__project_name}/data/store"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${cli__project_name}/.ssh"
     log_info "${cli__project_name} - Established project directory"
     local vscode_dir="${HOME}/.solos/projects/${cli__project_name}/.vscode"

@@ -2,9 +2,9 @@
 
 . "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
-bridge__collections_dir="${HOME}/.solos/collections"
+bridge__data_dir="${HOME}/.solos/data"
 bridge__repo_dir="${HOME}/.solos/src"
-bridge__users_home_dir="${HOME}/.solos/store/users_home_dir"
+bridge__users_home_dir="${HOME}/.solos/data/store/users_home_dir"
 bridge__mount_dir="/root/.solos"
 bridge__installer_no_tty_flag=false
 bridge__shell_minimal_flag=false
@@ -171,7 +171,7 @@ bridge.exec_cli() {
 }
 bridge.cli() {
   local curr_project="$(
-    head -n 1 "${HOME}"/.solos/store/checked_out_project 2>/dev/null || echo ""
+    head -n 1 "${HOME}"/.solos/data/store/checked_out_project 2>/dev/null || echo ""
   )"
   local solos_cmd=""
   local args=("$@")
@@ -186,6 +186,7 @@ bridge.cli() {
   bridge.exec_cli "${args[@]}"
 }
 bridge.main() {
+  mkdir -p "${bridge__data_dir}"
   if [[ ${bridge__cli_flag} = true ]]; then
     local cli_args=()
     for entry_arg in "$@"; do
