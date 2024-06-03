@@ -49,10 +49,8 @@ USAGE: track [options] <command>
 DESCRIPTION:
 
 Prompts the user to write a note. Any positional arguments supplied that are not \
-valid options will be executed as a command. The output of the command is recorded \
-along with the note for future reference.
-
-output dir: ${profile_track__base_dir}
+valid options will be eval'd. The output of the eval'd arguments and any \
+notes or category selections will be saved in ${profile_track__base_dir/\/root\//~\/}.
 
 OPTIONS:
 
@@ -181,7 +179,7 @@ profile_track.trap_eval() {
   } | cat
   return ${return_code}
 }
-profile_track.trap_lifeycle_scripts() {
+profile_track.lifecycle_scripts() {
   local lifecycle="${1}"
   local prompt="${2}"
 
@@ -252,7 +250,6 @@ profile_track.trap() {
     fi
 
     # Avoid tag/tracking stuff for blacklisted commands.
-    # Ex: all pub_* functions in the bashrc will be blacklisted.
     local blacklist="$(profile_track.get_blacklist | xargs)"
     for opt_out in ${blacklist}; do
       if [[ ${submitted_prompt} = "${opt_out} "* ]] || [[ ${submitted_prompt} = "${opt_out}" ]]; then
@@ -285,7 +282,7 @@ profile_track.trap() {
     # Execute the preexec scripts associated with the user's working directory.
     # These scripts run in the order of their directory structures, where parents
     # are executed first and children are executed last.
-    profile_track.trap_lifeycle_scripts "preexec" "${submitted_prompt}"
+    profile_track.lifecycle_scripts "preexec" "${submitted_prompt}"
     local preexec_return="${PIPESTATUS[0]}"
     local should_skip_tag=false
     # 0 - implies that we are running a blacklisted command and should skip the tag tracking.
@@ -323,7 +320,7 @@ profile_track.trap() {
         fi
       done
     fi
-    profile_track.trap_lifeycle_scripts "postexec" "${submitted_prompt}"
+    profile_track.lifecycle_scripts "postexec" "${submitted_prompt}"
   fi
 
   # All done, reset the trap and ensure $BASH_COMMAND does not execute.

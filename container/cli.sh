@@ -116,7 +116,7 @@ USAGE: solos <command> <args..>
 
 DESCRIPTION:
 
-A CLI to manage SolOS projects on your local machine or container.
+Manage your SolOS projects and apps.
 
 COMMANDS:
 

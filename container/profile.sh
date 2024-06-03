@@ -11,7 +11,7 @@ history -r
 
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-tag.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-track.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-plugins.sh" || exit 1
 
@@ -122,18 +122,14 @@ profile.print_info() {
 $(
     profile_table_outputs.format \
       "SHELL_COMMAND,DESCRIPTION" \
-      '-' "Runs its arguments as a command and avoids all tag-related stdout tracking." \
+      '-' "Runs its arguments as a command. Avoids pre/post exec functions and output tracking." \
       info "Print info about this shell." \
       ask_docs "$(ask_docs --help | profile.extract_help_description)" \
       track "$(track --help | profile.extract_help_description)" \
       plugin "$(plugin --help | profile.extract_help_description)" \
       solos "$(solos --help | profile.extract_help_description)" \
-      preexec_list "$(preexec_list --help | profile.extract_help_description)" \
-      preexec_add "$(preexec_add --help | profile.extract_help_description)" \
-      preexec_remove "$(preexec_remove --help | profile.extract_help_description)" \
-      postexec_list "$(postexec_list --help | profile.extract_help_description)" \
-      postexec_add "$(postexec_add --help | profile.extract_help_description)" \
-      postexec_remove "$(postexec_remove --help | profile.extract_help_description)" \
+      preexec "$(preexec --help | profile.extract_help_description)" \
+      postexec "$(postexec --help | profile.extract_help_description)" \
       reload "$(reload --help | profile.extract_help_description)"
   )
 
@@ -163,10 +159,10 @@ ${installed_plugins_sections}
 $(
     profile_table_outputs.format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
-      "SHELL_COMMAND" "Commands that are ONLY available in the SolOS shell." \
-      "RESOURCE" "Relevant directories and files created and/or managed by SolOS." \
-      "SHELL_PROPERTY" "These properties describe various aspects of the SolOS shell." \
-      "INSTALLED_PLUGIN" "Plugins installed in the environment with their config paths."
+      "SHELL_COMMAND" "Commands available when sourcing ~/.solos/src/container/profile.sh." \
+      "RESOURCE" "Relevant directories and files managed by SolOS." \
+      "SHELL_PROPERTY" "Properties that describe the SolOS environment." \
+      "INSTALLED_PLUGIN" "Plugins available to all SolOS project."
   )
 EOF
 }
@@ -276,7 +272,9 @@ USAGE: reload
 
 DESCRIPTION:
 
-Reload the current shell session.
+Reload the current shell session. Warning: exiting a reloaded shell will take you back \
+to the version of the shell before the reload. \
+So you might need to type \`exit\` a few times to completely exit the shell.
 
 EOF
     return 0
@@ -341,123 +339,111 @@ EOF
   profile.print_info
   echo ""
 }
-profile.public_preexec_list() {
+profile.public_preexec() {
   if profile.is_help_cmd "${1}"; then
     cat <<EOF
-USAGE: preexec_list
+USAGE: preexex <add|remove|list>
 
 DESCRIPTION:
 
-List all user-defined preexec functions.
-
+Manage user-defined preexec functions that will run (in the order they are added) \
+before any entered shell prompt. For use in \`~/.solos/rcfiles/.bashrc\`. \
+Warning: some shell prompts (ie. \`cd\`, \`ls\`, etc) opt out of pre/post \
+exec functions.
 EOF
     return 0
   fi
-  echo "${user_preexecs[@]}"
+
+  local cmd="${1}"
+  if [[ -z ${cmd} ]]; then
+    log_error "No command supplied to \`preexec\`."
+    return 1
+  fi
+  if [[ ${cmd} = "list" ]]; then
+    echo "${user_preexecs[@]}"
+    return 0
+  fi
+  if [[ ${cmd} = "add" ]]; then
+    local fn="${1}"
+    if [[ -z ${fn} ]]; then
+      log_error "Invalid usage: missing function name"
+      return 1
+    fi
+    if ! declare -f "${fn}" >/dev/null; then
+      log_error "Invalid usage: function '${fn}' not found"
+      return 1
+    fi
+    if [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+      log_error "Invalid usage: function '${fn}' already exists in user_preexecs"
+      return 1
+    fi
+    user_preexecs+=("${fn}")
+    return 0
+  fi
+  if [[ ${cmd} = "remove" ]]; then
+    local fn="${1}"
+    if [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
+      log_error "Invalid usage: preexec: function '${fn}' not found in user_preexecs"
+      return 1
+    fi
+    user_preexecs=("${user_preexecs[@]/${fn}/}")
+    return 0
+  fi
+  log_error "Invalid usage: unknown command: ${cmd} supplied to \`preexec\`."
 }
-profile.public_preexec_add() {
+
+profile.public_postexec() {
   if profile.is_help_cmd "${1}"; then
     cat <<EOF
-USAGE: preexec_add <function_name>
+USAGE: postexec <add|remove|list>
 
 DESCRIPTION:
 
-Add a user-defined preexec function.
+Manage user-defined postexec functions that will run (in the order they are added) \
+after the execution of any submitted shell prompts. \
+For use in \`~/.solos/rcfiles/.bashrc\`. Warning: some shell prompts \
+(ie. \`cd\`, \`ls\`, etc) opt out of pre/post exec functions.
 EOF
     return 0
   fi
-  local fn="${1}"
-  if [[ -z ${fn} ]]; then
-    log_error "preexec: missing function name"
+
+  local cmd="${1}"
+  if [[ -z ${cmd} ]]; then
+    log_error "No command supplied to \`preexec\`."
     return 1
   fi
-  if ! declare -f "${fn}" >/dev/null; then
-    log_error "preexec: function '${fn}' not found"
-    return 1
-  fi
-  if [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    log_error "preexec: function '${fn}' already exists in user_preexecs"
-    return 1
-  fi
-  user_preexecs+=("${fn}")
-}
-profile.public_preexec_remove() {
-  if profile.is_help_cmd "${1}"; then
-    cat <<EOF
-USAGE: preexec_remove <function_name>
 
-DESCRIPTION:
-
-Remove a user-defined preexec function.
-
-EOF
+  if [[ ${cmd} = "list" ]]; then
+    echo "${user_postexecs[@]}"
     return 0
   fi
-  local fn="${1}"
-  if [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    log_error "Invalid usage: preexec: function '${fn}' not found in user_preexecs"
-    return 1
-  fi
-  user_preexecs=("${user_preexecs[@]/${fn}/}")
-}
-profile.public_postexec_list() {
-  if profile.is_help_cmd "${1}"; then
-    cat <<EOF
-USAGE: postexec_list
-
-DESCRIPTION:
-
-List all user-defined postexec functions.
-
-EOF
+  if [[ ${cmd} = "add" ]]; then
+    local fn="${1}"
+    if [[ -z ${fn} ]]; then
+      log_error "Invalid usage: missing function name"
+      return 1
+    fi
+    if ! declare -f "${fn}" >/dev/null; then
+      log_error "Invalid usage: function '${fn}' not found"
+      return 1
+    fi
+    if [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
+      log_error "Invalid usage: function '${fn}' already exists in user_postexecs"
+      return 1
+    fi
+    user_postexecs+=("${fn}")
     return 0
   fi
-  echo "${user_postexecs[@]}"
-}
-profile.public_postexec_add() {
-  if profile.is_help_cmd "${1}"; then
-    cat <<EOF
-USAGE: postexec_add <function_name>
-
-DESCRIPTION:
-
-Add a user-defined postexec function.
-EOF
+  if [[ ${cmd} = "remove" ]]; then
+    local fn="${1}"
+    if [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
+      log_error "Invalid usage: postexec: function '${fn}' not found in user_postexecs" >&2
+      return 1
+    fi
+    user_postexecs=("${user_postexecs[@]/${fn}/}")
     return 0
   fi
-  local fn="${1}"
-  if [[ -z ${fn} ]]; then
-    echo "postexec: missing function name" >&2
-    return 1
-  fi
-  if ! declare -f "${fn}" >/dev/null; then
-    echo "postexec: function '${fn}' not found" >&2
-    return 1
-  fi
-  if [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    echo "postexec: function '${fn}' already exists in user_postexecs" >&2
-    return 1
-  fi
-  user_postexecs+=("${fn}")
-}
-profile.public_postexec_remove() {
-  if profile.is_help_cmd "${1}"; then
-    cat <<EOF
-USAGE: postexec_remove <function_name>
-
-DESCRIPTION:
-
-Remove a user-defined postexec function.
-
-EOF
-    return 0
-  fi
-  local fn="${1}"
-  if [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    echo "Invalid usage: postexec: function '${fn}' not found in user_postexecs" >&2
-    return 1
-  fi
-  user_postexecs=("${user_postexecs[@]/${fn}/}")
+  log_error "Invalid usage: unknown command: ${cmd} supplied to \`postexec\`." >&2
 }
 profile.public_install_solos() {
   profile.install
