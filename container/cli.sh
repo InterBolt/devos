@@ -42,20 +42,20 @@ for arg in "$@"; do
     exit 0
   fi
 done
-vRUN_FROM_SHELL=false
+cli__is_running_in_shell=false
 for arg in "$@"; do
   if [[ ${arg} = "--restricted-shell" ]]; then
-    vRUN_FROM_SHELL=true
+    cli__is_running_in_shell=true
   fi
 done
-vUNRESTRICTED_ARGS=()
+cli__restricted_args=()
 while [[ $# -gt 0 ]]; do
   if [[ ${1} != --restricted-* ]]; then
-    vUNRESTRICTED_ARGS+=("${1}")
+    cli__restricted_args+=("${1}")
   fi
   shift
 done
-set -- "${vUNRESTRICTED_ARGS[@]}"
+set -- "${cli__restricted_args[@]}"
 #--------------------------------------------------------------------
 # LIB:GLOBAL: Stuff that everything across all SolOS projects needs.
 #--------------------------------------------------------------------
@@ -83,28 +83,28 @@ global_store.set() {
 #-------------------------------------------------------------------
 # Vars:
 #
-# vUSERS_HOME_DIR: The user's home directory on their host machine
-# vCMD: The command to run. Populated in the argparse functions.
-# vALLOWED_OPTIONS: An array of the allowed options for the current command.
-# vOPTIONS: An array of the options passed to the CLI.
-# vPROJECT_NAME: The name of the project being worked on.
-# vPROJECT_APP: The name of the app within the project being worked on.
+# cli__users_home_dir: The user's home directory on their host machine
+# cli__cmd: The command to run. Populated in the argparse functions.
+# cli__allowed_options: An array of the allowed options for the current command.
+# cli__options: An array of the options passed to the CLI.
+# cli__project_name: The name of the project being worked on.
+# cli__project_app: The name of the app within the project being worked on.
 #-------------------------------------------------------------------
-vUNRESTRICTED_ARGS=()
+cli__restricted_args=()
 for arg in "$@"; do
   if [[ ${arg} != --restricted-* ]]; then
-    vUNRESTRICTED_ARGS+=("${arg}")
+    cli__restricted_args+=("${arg}")
   fi
 done
-vUSERS_HOME_DIR="$(global_store.get "users_home_dir" "/root")"
-vCMD=""
-vALLOWED_OPTIONS=()
-vOPTIONS=()
-vPROJECT_NAME=""
-vPROJECT_APP=""
+cli__users_home_dir="$(global_store.get "users_home_dir" "/root")"
+cli__cmd=""
+cli__allowed_options=()
+cli__options=()
+cli__project_name=""
+cli__project_app=""
 #-------------------------------------------------------------------
 # Source any dependencies that are required for the CLI to function.
-# These are placed below the definition of vUSERS_HOME_DIR because
+# These are placed below the definition of cli__users_home_dir because
 # they might rely on it.
 #-------------------------------------------------------------------
 . "${HOME}/.solos/src/pkgs/gum.sh"
@@ -225,26 +225,26 @@ argparse.cmd() {
   local post_command_arg_index=0
   while [[ "$#" -gt 0 ]]; do
     if argparse._is_valid_help_command "$1"; then
-      if [[ -z ${vCMD} ]]; then
+      if [[ -z ${cli__cmd} ]]; then
         log_error "invalid command, use \`solos --help\` to see available commands."
         exit 1
       fi
-      usage.cmd."${vCMD}".help
+      usage.cmd."${cli__cmd}".help
       exit 0
     fi
     case "$1" in
     --*)
       local key=$(echo "$1" | awk -F '=' '{print $1}' | sed 's/^--//')
       local value=$(echo "$1" | awk -F '=' '{print $2}')
-      vOPTIONS+=("${key}=${value}")
+      cli__options+=("${key}=${value}")
       ;;
     *)
       if [[ -z "$1" ]]; then
         break
       fi
-      if [[ -n "${vCMD}" ]]; then
+      if [[ -n "${cli__cmd}" ]]; then
         post_command_arg_index=$((post_command_arg_index + 1))
-        vOPTIONS+=("argv${post_command_arg_index}=$1")
+        cli__options+=("argv${post_command_arg_index}=$1")
         break
       fi
       local cmd_name=$(echo "$1" | tr '-' '_')
@@ -257,7 +257,7 @@ argparse.cmd() {
       if [[ ${is_allowed} = "false" ]]; then
         log_error "Unknown command: $1"
       else
-        vCMD="${cmd_name}"
+        cli__cmd="${cmd_name}"
       fi
       ;;
     esac
@@ -291,16 +291,16 @@ argparse.requirements() {
       fi
       first=false
     done
-    vALLOWED_OPTIONS+=("${opts})")
+    cli__allowed_options+=("${opts})")
   done
 }
 argparse.validate_opts() {
-  if [[ -n ${vOPTIONS[0]} ]]; then
-    for cmd_option in "${vOPTIONS[@]}"; do
-      for allowed_cmd_option in "${vALLOWED_OPTIONS[@]}"; do
+  if [[ -n ${cli__options[0]} ]]; then
+    for cmd_option in "${cli__options[@]}"; do
+      for allowed_cmd_option in "${cli__allowed_options[@]}"; do
         cmd_name=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $1}')
         cmd_options=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
-        if [[ ${cmd_name} = ${vCMD} ]]; then
+        if [[ ${cmd_name} = ${cli__cmd} ]]; then
           is_cmd_option_allowed=false
           flag_name="$(echo "${cmd_option}" | awk -F '=' '{print $1}')"
           for cmd_option in "$(echo "${cmd_options}" | tr ',' '\n')"; do
@@ -313,7 +313,7 @@ argparse.validate_opts() {
           fi
           if [[ ${is_cmd_option_allowed} = false ]]; then
             echo ""
-            echo "Command option: ${cmd_option} is not allowed for command: ${vCMD}."
+            echo "Command option: ${cmd_option} is not allowed for command: ${cli__cmd}."
             echo ""
             exit 1
           fi
@@ -324,32 +324,32 @@ argparse.validate_opts() {
 }
 argparse.ingest() {
   local checked_out_project="$(global_store.get "checked_out_project")"
-  if [[ ${vCMD} = "checkout" ]] && [[ ${#vOPTIONS[@]} -eq 0 ]]; then
+  if [[ ${cli__cmd} = "checkout" ]] && [[ ${#cli__options[@]} -eq 0 ]]; then
     if [[ -z ${checked_out_project} ]]; then
       log_error "No project currently checked out."
       return 1
     fi
-    vOPTIONS=("argv1=${checked_out_project}")
+    cli__options=("argv1=${checked_out_project}")
   fi
-  for i in "${!vOPTIONS[@]}"; do
-    case "${vOPTIONS[$i]}" in
+  for i in "${!cli__options[@]}"; do
+    case "${cli__options[$i]}" in
     argv1=*)
-      if [[ ${vCMD} = "app" ]]; then
-        vPROJECT_APP="${vOPTIONS[$i]#*=}"
+      if [[ ${cli__cmd} = "app" ]]; then
+        cli__project_app="${cli__options[$i]#*=}"
       fi
-      if [[ ${vCMD} = "checkout" ]]; then
-        vPROJECT_NAME="${vOPTIONS[$i]#*=}"
+      if [[ ${cli__cmd} = "checkout" ]]; then
+        cli__project_name="${cli__options[$i]#*=}"
         # If we're running from the SolOS shell, prevent checking out a different project.
         # This is not the best solution but one that will prevent hair-pulling bugs/inconsistencies
         # while we work on a better solution.
-        if [[ ${vRUN_FROM_SHELL} = true ]]; then
-          if [[ -n ${vPROJECT_NAME} ]] && [[ ${checked_out_project} != "${vPROJECT_NAME}" ]]; then
+        if [[ ${cli__is_running_in_shell} = true ]]; then
+          if [[ -n ${cli__project_name} ]] && [[ ${checked_out_project} != "${cli__project_name}" ]]; then
             log_error \
-              "Usage error: \`solos checkout ${vPROJECT_NAME}\` must be run on your host machine."
+              "Usage error: \`solos checkout ${cli__project_name}\` must be run on your host machine."
             return 1
           fi
           if [[ -n ${checked_out_project} ]]; then
-            vPROJECT_NAME="${checked_out_project}"
+            cli__project_name="${checked_out_project}"
           fi
         fi
       fi
@@ -387,27 +387,27 @@ config_store.set() {
 # LIB:PROJECT_STORE: Things about a project that could be public.
 #-----------------------------------------------------------------
 project_store.del() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
+  if [[ -z ${cli__project_name} ]]; then
+    log_error "cli__project_name is not set."
     exit 1
   fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
+  if [[ ! -d ${HOME}/.solos/projects/${cli__project_name} ]]; then
+    log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
   rm -f "${project_store_dir}/$1"
 }
 project_store.get() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
+  if [[ -z ${cli__project_name} ]]; then
+    log_error "cli__project_name is not set."
     exit 1
   fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
+  if [[ ! -d ${HOME}/.solos/projects/${cli__project_name} ]]; then
+    log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
   local project_store_file="${project_store_dir}/$1"
   if [[ -f ${project_store_file} ]]; then
     cat "${project_store_file}"
@@ -416,15 +416,15 @@ project_store.get() {
   fi
 }
 project_store.set() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
-    log_error "vPROJECT_NAME is not set."
+  if [[ -z ${cli__project_name} ]]; then
+    log_error "cli__project_name is not set."
     exit 1
   fi
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
-    log_error "Project not found: ${vPROJECT_NAME}"
+  if [[ ! -d ${HOME}/.solos/projects/${cli__project_name} ]]; then
+    log_error "Project not found: ${cli__project_name}"
     exit 1
   fi
-  local project_store_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/store"
+  local project_store_dir="${HOME}/.solos/projects/${cli__project_name}/store"
   local project_store_file="${project_store_dir}/$1"
   if [[ ! -f ${project_store_file} ]]; then
     touch "${project_store_file}"
@@ -511,7 +511,7 @@ utils.template_variables() {
   fi
   local errored=false
   for file in "${eligible_files[@]}"; do
-    bin_vars=$(grep -o "__v[A-Z0-9_]*__" "${file}" | sed 's/__//g')
+    bin_vars=$(grep -o "___cli__[a-z0-9_]*___" "${file}" | sed 's/___//g')
     for bin_var in ${bin_vars}; do
       if [[ -z ${!bin_var+x} ]]; then
         log_error "Template variables error: ${file} is using an unset variable: ${bin_var}"
@@ -554,7 +554,7 @@ utils.pretty_print_dir_files() {
 #----------------------------------------------------------------------------
 cmd.app._remove_app_from_code_workspace() {
   local workspace_file="$1"
-  jq 'del(.folders[] | select(.name == "'"${vPROJECT_NAME}"'.'"${vPROJECT_APP}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
+  jq 'del(.folders[] | select(.name == "'"${cli__project_name}"'.'"${cli__project_app}"'"))' "${workspace_file}" >"${workspace_file}.tmp"
   if ! jq . "${workspace_file}.tmp" >/dev/null; then
     log_error "Failed to validate the updated code workspace file: ${workspace_file}.tmp"
     exit 1
@@ -562,27 +562,27 @@ cmd.app._remove_app_from_code_workspace() {
   mv "${workspace_file}.tmp" "${workspace_file}"
 }
 cmd.app._get_path_to_app() {
-  local path_to_apps="${HOME}/.solos/projects/${vPROJECT_NAME}/apps"
+  local path_to_apps="${HOME}/.solos/projects/${cli__project_name}/apps"
   mkdir -p "${path_to_apps}"
-  echo "${path_to_apps}/${vPROJECT_APP}"
+  echo "${path_to_apps}/${cli__project_app}"
 }
 cmd.app._init() {
-  if [[ ! ${vPROJECT_APP} =~ ^[a-z_-]*$ ]]; then
+  if [[ ! ${cli__project_app} =~ ^[a-z_-]*$ ]]; then
     log_error "Invalid app name. App names must be lowercase and can only contain letters, hyphens, and underscores."
     exit 1
   fi
   # Do this to prevent when the case where the user wants to create an app but has the wrong
   # project checked out. They can still fuck it up but at least we provide some guardrail.
-  local should_continue="$(gum_confirm_new_app "${vPROJECT_NAME}" "${vPROJECT_APP}")"
+  local should_continue="$(gum_confirm_new_app "${cli__project_name}" "${cli__project_app}")"
   if [[ ${should_continue} = false ]]; then
-    log_error "${vPROJECT_NAME}:${vPROJECT_APP} - Aborted."
+    log_error "${cli__project_name}:${cli__project_app} - Aborted."
     exit 1
   fi
   local tmp_app_dir="$(mktemp -d -q)"
   local tmp_misc_dir="$(mktemp -d -q)"
   local tmp_file="$(mktemp -d -q)/repo"
   if ! gum_repo_url >"${tmp_file}"; then
-    log_error "${vPROJECT_NAME}:${vPROJECT_APP} - Aborted."
+    log_error "${cli__project_name}:${cli__project_app} - Aborted."
     exit 1
   fi
   local repo_url="$(cat "${tmp_file}")"
@@ -591,9 +591,9 @@ cmd.app._init() {
       log_error "Failed to clone the app's repository."
       exit 1
     fi
-    log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Cloned the app's repository."
+    log_info "${cli__project_name}:${cli__project_app} - Cloned the app's repository."
   else
-    log_warn "${vPROJECT_NAME}:${vPROJECT_APP} - No repo url supplied. Creating an empty app directory."
+    log_warn "${cli__project_name}:${cli__project_app} - No repo url supplied. Creating an empty app directory."
   fi
   cat <<EOF >"${tmp_app_dir}/solos.preexec.sh"
 #!/usr/bin/env bash
@@ -611,7 +611,7 @@ cmd.app._init() {
 #########################################################################################################
 
 # Write your code below:
-echo "Hello from the pre-exec script for app: ${vPROJECT_APP}"
+echo "Hello from the pre-exec script for app: ${cli__project_app}"
 EOF
   cat <<EOF >"${tmp_app_dir}/solos.postexec.sh"
 #!/usr/bin/env bash
@@ -625,11 +625,11 @@ EOF
 #########################################################################################################
 
 # Write your code below:
-echo "Hello from the post-exec script for app: ${vPROJECT_APP}"
+echo "Hello from the post-exec script for app: ${cli__project_app}"
 EOF
-  log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Created the pre-exec script."
+  log_info "${cli__project_name}:${cli__project_app} - Created the pre-exec script."
   local app_dir="$(cmd.app._get_path_to_app)"
-  local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
+  local vscode_workspace_file="${HOME}/.solos/projects/${cli__project_name}/.vscode/solos-${cli__project_name}.code-workspace"
   local tmp_vscode_workspace_file="${tmp_misc_dir}/$(basename ${vscode_workspace_file})"
   if [[ ! -f "${vscode_workspace_file}" ]]; then
     log_error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
@@ -640,8 +640,8 @@ EOF
   # This gives the best UX in VS Code since a new terminal will automatically assume the app's dir context.
   cmd.app._remove_app_from_code_workspace "${tmp_vscode_workspace_file}"
   jq \
-    --arg app_name "${vPROJECT_APP}" \
-    '.folders |= [{ "name": "app.'"${vPROJECT_APP}"'", "uri": "'"${vUSERS_HOME_DIR}"'/.solos/projects/'"${vPROJECT_NAME}"'/apps/'"${vPROJECT_APP}"'", "profile": "shell" }] + .' \
+    --arg app_name "${cli__project_app}" \
+    '.folders |= [{ "name": "app.'"${cli__project_app}"'", "uri": "'"${cli__users_home_dir}"'/.solos/projects/'"${cli__project_name}"'/apps/'"${cli__project_app}"'", "profile": "shell" }] + .' \
     "${tmp_vscode_workspace_file}" >"${tmp_vscode_workspace_file}.tmp"
   mv "${tmp_vscode_workspace_file}.tmp" "${tmp_vscode_workspace_file}"
   if ! jq . "${tmp_vscode_workspace_file}" >/dev/null; then
@@ -651,25 +651,25 @@ EOF
 
   chmod +x "${tmp_app_dir}/solos.preexec.sh"
   chmod +x "${tmp_app_dir}/solos.postexec.sh"
-  log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Made the lifecycle scripts executable."
+  log_info "${cli__project_name}:${cli__project_app} - Made the lifecycle scripts executable."
 
   # Do last to prevent partial app setup.
   mv "${tmp_app_dir}" "${app_dir}"
   cp -f "${tmp_vscode_workspace_file}" "${vscode_workspace_file}"
   rm -rf "${tmp_misc_dir}"
-  log_info "${vPROJECT_NAME}:${vPROJECT_APP} - Initialized the app."
+  log_info "${cli__project_name}:${cli__project_app} - Initialized the app."
 }
 cmd.app() {
-  vPROJECT_NAME="$(global_store.get "checked_out_project")"
-  if [[ -z ${vPROJECT_NAME} ]]; then
+  cli__project_name="$(global_store.get "checked_out_project")"
+  if [[ -z ${cli__project_name} ]]; then
     log_error "No project currently checked out."
     exit 1
   fi
-  if [[ -z "${vPROJECT_APP}" ]]; then
+  if [[ -z "${cli__project_app}" ]]; then
     log_error "No app name was supplied."
     exit 1
   fi
-  if [[ -z "${vPROJECT_NAME}" ]]; then
+  if [[ -z "${cli__project_name}" ]]; then
     log_error "A project name is required. Please checkout a project first."
     exit 1
   fi
@@ -677,11 +677,11 @@ cmd.app() {
   if [[ ! -d ${app_dir} ]]; then
     cmd.app._init
   else
-    log_info "${vPROJECT_NAME}:${vPROJECT_APP} - App already exists."
+    log_info "${cli__project_name}:${cli__project_app} - App already exists."
   fi
 }
 cmd.checkout() {
-  if [[ -z ${vPROJECT_NAME} ]]; then
+  if [[ -z ${cli__project_name} ]]; then
     log_error "No project name was supplied."
     exit 1
   fi
@@ -692,36 +692,36 @@ cmd.checkout() {
   # If the project dir exists, let's assume it was setup ok.
   # We'll use a tmp dir to build up the files so that unexpected errors
   # won't result in a partial project dir.
-  if [[ ! -d ${HOME}/.solos/projects/${vPROJECT_NAME} ]]; then
+  if [[ ! -d ${HOME}/.solos/projects/${cli__project_name} ]]; then
     local tmp_project_ssh_dir="$(mktemp -d -q)"
     if [[ ! -d ${tmp_project_ssh_dir} ]]; then
       log_error "Unexpected error: no tmp dir was created."
       exit 1
     fi
     ssh.create "default" "${tmp_project_ssh_dir}" || exit 1
-    log_info "${vPROJECT_NAME} - Created keypair for project"
-    mkdir -p "${HOME}/.solos/projects/${vPROJECT_NAME}"
-    cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${vPROJECT_NAME}/.ssh"
-    log_info "${vPROJECT_NAME} - Established project directory"
-    local vscode_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode"
+    log_info "${cli__project_name} - Created keypair for project"
+    mkdir -p "${HOME}/.solos/projects/${cli__project_name}"
+    cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${cli__project_name}/.ssh"
+    log_info "${cli__project_name} - Established project directory"
+    local vscode_dir="${HOME}/.solos/projects/${cli__project_name}/.vscode"
     mkdir -p "${vscode_dir}"
     local tmp_dir="$(mktemp -d -q)"
-    cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"
-    if utils.template_variables "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace"; then
-      cp -f "${tmp_dir}/solos-${vPROJECT_NAME}.code-workspace" "${vscode_dir}/solos-${vPROJECT_NAME}.code-workspace"
-      log_info "${vPROJECT_NAME} - Successfully templated the Visual Studio Code workspace file."
+    cp "${HOME}/.solos/src/solos.code-workspace" "${tmp_dir}/solos-${cli__project_name}.code-workspace"
+    if utils.template_variables "${tmp_dir}/solos-${cli__project_name}.code-workspace"; then
+      cp -f "${tmp_dir}/solos-${cli__project_name}.code-workspace" "${vscode_dir}/solos-${cli__project_name}.code-workspace"
+      log_info "${cli__project_name} - Successfully templated the Visual Studio Code workspace file."
     else
-      log_error "${vPROJECT_NAME} - Failed to build the code workspace file."
+      log_error "${cli__project_name} - Failed to build the code workspace file."
       exit 1
     fi
 
-    local checkout_script="${HOME}/.solos/projects/${vPROJECT_NAME}/solos.checkout.sh"
+    local checkout_script="${HOME}/.solos/projects/${cli__project_name}/solos.checkout.sh"
     if [[ -f ${checkout_script} ]]; then
       chmod +x "${checkout_script}"
       if ! "${checkout_script}"; then
-        log_warn "${vPROJECT_NAME} - Failed to run the checkout script."
+        log_warn "${cli__project_name} - Failed to run the checkout script."
       else
-        log_info "${vPROJECT_NAME} - Checkout out."
+        log_info "${cli__project_name} - Checkout out."
       fi
     else
       cat <<EOF >"${checkout_script}"
@@ -737,14 +737,14 @@ cmd.checkout() {
 ######################################################################################################################
 
 # Write your code below:
-echo "Hello from the checkout script for project: ${vPROJECT_NAME}"
+echo "Hello from the checkout script for project: ${cli__project_name}"
 
 EOF
       chmod +x "${checkout_script}"
-      log_info "${vPROJECT_NAME} - Created the checkout script."
+      log_info "${cli__project_name} - Created the checkout script."
     fi
   fi
-  global_store.set "checked_out_project" "${vPROJECT_NAME}"
+  global_store.set "checked_out_project" "${cli__project_name}"
 }
 cmd.setup._print_curr_setup() {
   local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
@@ -917,7 +917,7 @@ cmd.setup() {
     secrets_store.set "openai_api_key" "${openai_api_key}"
   fi
   global_store.set "git_hash" "${curr_git_hash}"
-  if [[ ${vRUN_FROM_SHELL} = false ]]; then
+  if [[ ${cli__is_running_in_shell} = false ]]; then
     cmd.setup._checkout_project
   fi
 }
@@ -930,7 +930,7 @@ cmd.try() {
 #---------------------------------------------
 project.prune() {
   local tmp_dir="$(mktemp -d -q)"
-  local vscode_workspace_file="${HOME}/.solos/projects/${vPROJECT_NAME}/.vscode/solos-${vPROJECT_NAME}.code-workspace"
+  local vscode_workspace_file="${HOME}/.solos/projects/${cli__project_name}/.vscode/solos-${cli__project_name}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
     log_error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
     exit 1
@@ -943,7 +943,7 @@ project.prune() {
     if [[ -z ${app} ]]; then
       continue
     fi
-    local app_dir="${HOME}/.solos/projects/${vPROJECT_NAME}/apps/${app}"
+    local app_dir="${HOME}/.solos/projects/${cli__project_name}/apps/${app}"
     if [[ ! -d ${app_dir} ]]; then
       nonexistent_apps+=("${app}")
     fi
@@ -974,15 +974,15 @@ __MAIN__() {
   if ! argparse.ingest; then
     exit 1
   fi
-  if [[ -z ${vCMD} ]]; then
+  if [[ -z ${cli__cmd} ]]; then
     exit 1
   fi
-  if ! command -v "cmd.${vCMD}" &>/dev/null; then
-    log_error "Unexpected error: no implementation for cmd.${vCMD} exists."
+  if ! command -v "cmd.${cli__cmd}" &>/dev/null; then
+    log_error "Unexpected error: no implementation for cmd.${cli__cmd} exists."
     exit 1
   fi
-  "cmd.${vCMD}" || true
-  if [[ -n ${vPROJECT_NAME} ]]; then
+  "cmd.${cli__cmd}" || true
+  if [[ -n ${cli__project_name} ]]; then
     if ! project.prune; then
       log_error "Unexpected error: something failed while pruning nonexistent apps from the vscode workspace file."
     fi

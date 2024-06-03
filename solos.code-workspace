@@ -2,37 +2,37 @@
   "folders": [
     {
       "name": "solos.collections",
-      "uri": "__vUSERS_HOME_DIR__/.solos/collections",
+      "uri": "___cli__users_home_dir___/.solos/collections",
       "profile": "shell"
     },
     {
       "name": "solos.secrets",
-      "uri": "__vUSERS_HOME_DIR__/.solos/secrets",
+      "uri": "___cli__users_home_dir___/.solos/secrets",
       "profile": "shell"
     },
     {
       "name": "solos.config",
-      "uri": "__vUSERS_HOME_DIR__/.solos/config",
+      "uri": "___cli__users_home_dir___/.solos/config",
       "profile": "shell"
     },
     {
       "name": "solos.rcfiles",
-      "uri": "__vUSERS_HOME_DIR__/.solos/rcfiles",
+      "uri": "___cli__users_home_dir___/.solos/rcfiles",
       "profile": "shell"
     },
     {
       "name": "solos.source-code",
-      "uri": "__vUSERS_HOME_DIR__/.solos/src",
+      "uri": "___cli__users_home_dir___/.solos/src",
       "profile": "shell-minimal"
     },
     {
-      "name": "project.__vPROJECT_NAME__",
-      "uri": "__vUSERS_HOME_DIR__/.solos/projects/__vPROJECT_NAME__",
+      "name": "project.___cli__project_name___",
+      "uri": "___cli__users_home_dir___/.solos/projects/___cli__project_name___",
       "profile": "shell"
     },
     {
       "name": "root",
-      "uri": "__vUSERS_HOME_DIR__/.solos",
+      "uri": "___cli__users_home_dir___/.solos",
       "profile": "shell"
     }
   ],
@@ -42,11 +42,11 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,
@@ -56,11 +56,11 @@
     },
     "terminal.integrated.profiles.linux": {
       "shell": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "__vUSERS_HOME_DIR__/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,

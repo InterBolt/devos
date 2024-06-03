@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-__gum__self_pwd="${HOME}/.solos/src/pkgs"
-__gum__self_dirname=".installs"
+gum__self_dir="${HOME}/.solos/src/pkgs"
+gum__self_dirname=".installs"
 
-__gum__fn__get_release_file() {
+gum.get_release_file() {
   local gum_version="0.13.0"
   local gum_release_url="https://github.com/charmbracelet/gum/releases/download"
   local release=""
@@ -26,9 +26,9 @@ __gum__fn__get_release_file() {
 # PUBLIC FUNCTIONS:
 
 gum_install() {
-  local release="$(__gum__fn__get_release_file)"
+  local release="$(gum.get_release_file)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
-  local location_dir="${__gum__self_pwd}/${__gum__self_dirname}/${release_download_dirname}"
+  local location_dir="${gum__self_dir}/${gum__self_dirname}/${release_download_dirname}"
   mkdir -p "${location_dir}"
   if [[ ! -f ${location_dir}/gum ]]; then
     curl -L --silent --show-error "${release}" | tar -xz -C "${location_dir}"

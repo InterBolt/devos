@@ -1,33 +1,33 @@
 #!/usr/bin/env bash
 
-__installer__fn__setup() {
-  vENTRY_DIR="${PWD}"
-  trap 'cd '"${vENTRY_DIR}"'' EXIT
+installer.setup() {
+  installer__entry_dir="${PWD}"
+  trap 'cd '"${installer__entry_dir}"'' EXIT
 
-  vBIN_PATH="${HOME}/.solos/src/host/bridge.sh"
-  vUSR_BIN_PATH="/usr/local/bin/solos"
-  vGITHUB_REPO_URL="https://github.com/InterBolt/solos.git"
-  vTMP_DIR="$(mktemp -d 2>/dev/null)"
-  vSOLOS_HOME_DIR="${HOME}/.solos"
+  installer__bin_path="${HOME}/.solos/src/host/bridge.sh"
+  installer__usr_bin_path="/usr/local/bin/solos"
+  installer__github_repo="https://github.com/InterBolt/solos.git"
+  installer__tmp_dir="$(mktemp -d 2>/dev/null)"
+  installer__solos_home_dir="${HOME}/.solos"
 
-  if [[ -z ${vTMP_DIR} ]]; then
+  if [[ -z ${installer__tmp_dir} ]]; then
     echo "Failed to create temporary directory." >&2
     return 1
   fi
 }
 
-__installer__fn__clone() {
-  if ! git clone "${vGITHUB_REPO_URL}" "${vTMP_DIR}/src" >/dev/null 2>&1; then
-    echo "Failed to clone ${vGITHUB_REPO_URL} to ${vTMP_DIR}/src" >&2
+installer.clone() {
+  if ! git clone "${installer__github_repo}" "${installer__tmp_dir}/src" >/dev/null 2>&1; then
+    echo "Failed to clone ${installer__github_repo} to ${installer__tmp_dir}/src" >&2
     exit 1
   fi
 }
-__installer__fn__init_fs() {
-  local solos_bashrc="${vSOLOS_HOME_DIR}/rcfiles/.bashrc"
-  local src_dir="${vSOLOS_HOME_DIR}/src"
+installer.init_fs() {
+  local solos_bashrc="${installer__solos_home_dir}/rcfiles/.bashrc"
+  local src_dir="${installer__solos_home_dir}/src"
 
-  mkdir -p "${vSOLOS_HOME_DIR}" || exit 1
-  mkdir -p "${vSOLOS_HOME_DIR}/profile" || exit 1
+  mkdir -p "${installer__solos_home_dir}" || exit 1
+  mkdir -p "${installer__solos_home_dir}/profile" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"
@@ -50,36 +50,36 @@ EOF
   else
     rm -rf "${src_dir}" || exit 1
     mkdir -p "${src_dir}" || exit 1
-    cp -r "${vTMP_DIR}/src/." "${src_dir}" || exit 1
+    cp -r "${installer__tmp_dir}/src/." "${src_dir}" || exit 1
   fi
 }
-__installer__fn__symlink() {
-  if ! ln -sfv "${vBIN_PATH}" "${vUSR_BIN_PATH}" >/dev/null; then
-    echo "Failed to link ${vBIN_PATH} to ${vUSR_BIN_PATH}" >&2
+installer.symlink() {
+  if ! ln -sfv "${installer__bin_path}" "${installer__usr_bin_path}" >/dev/null; then
+    echo "Failed to link ${installer__bin_path} to ${installer__usr_bin_path}" >&2
     exit 1
   fi
-  if ! chmod +x "${vUSR_BIN_PATH}"; then
-    echo "Failed to make ${vUSR_BIN_PATH} executable." >&2
+  if ! chmod +x "${installer__usr_bin_path}"; then
+    echo "Failed to make ${installer__usr_bin_path} executable." >&2
     exit 1
   fi
 }
-__installer__fn__install() {
-  if ! __installer__fn__clone; then
+installer.install() {
+  if ! installer.clone; then
     echo "SolOS installation failed." >&2
     echo "Failed to clone SolOS repository." >&2
     return 1
   fi
-  if ! __installer__fn__init_fs; then
+  if ! installer.init_fs; then
     echo "SolOS installation failed." >&2
     echo "Failed to initialize SolOS filesystem." >&2
     return 1
   fi
-  if ! __installer__fn__symlink; then
+  if ! installer.symlink; then
     echo "SolOS installation failed." >&2
     echo "Failed to link SolOS executable to /usr/local/bin/solos." >&2
     return 1
   fi
-  if ! "${vUSR_BIN_PATH}" --installer-no-tty --restricted-noop; then
+  if ! "${installer__usr_bin_path}" --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
@@ -87,13 +87,13 @@ __installer__fn__install() {
   bash -ic "solos setup"
 }
 
-__installer__fn__main() {
-  if ! __installer__fn__setup; then
+installer.main() {
+  if ! installer.setup; then
     exit 1
   fi
-  if ! __installer__fn__install; then
+  if ! installer.install; then
     exit 1
   fi
 }
 
-__installer__fn__main
+installer.main

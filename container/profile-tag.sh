@@ -376,6 +376,14 @@ profile_tag.main() {
       profile_tag.print_help
       return 0
       ;;
+    help)
+      profile_tag.print_help
+      return 0
+      ;;
+    -h)
+      profile_tag.print_help
+      return 0
+      ;;
     -c)
       opt_category_only=true
       shift

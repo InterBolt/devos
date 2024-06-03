@@ -4,21 +4,26 @@
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
 profile_plugins.cli() {
-  if [[ ${1} == "--help" ]]; then
+  local cmd="${1}"
+  if profile.is_help_cmd "${1}"; then
     profile_plugins.cli_usage
     return 0
   fi
-  local subcommand="${1}"
-  shift
-  if ! declare -F "profile_plugins.cli_${subcommand}" >/dev/null; then
-    log_error "Unsupported command: ${subcommand}. See \`plugin --help\` for available commands."
+  if [[ -z ${cmd} ]]; then
+    log_error "Missing required argument: <command>"
     return 1
   fi
-  if [[ ${1} == "--help" ]]; then
-    "profile_plugins.cli_usage_${subcommand}"
+  shift
+  local cmd_arg="${1}"
+  if ! declare -F "profile_plugins.cli_${cmd}" >/dev/null; then
+    log_error "Unsupported command: ${cmd}. See \`plugin --help\` for available commands."
+    return 1
+  fi
+  if profile.is_help_cmd "${cmd_arg}"; then
+    "profile_plugins.cli_usage_${cmd}"
     return 0
   fi
-  "profile_plugins.cli_${subcommand}" "$@"
+  "profile_plugins.cli_${cmd}" "$@"
 }
 profile_plugins.cli_usage() {
   cat <<EOF

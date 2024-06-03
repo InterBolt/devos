@@ -4,18 +4,18 @@
 # Ex: when we run `solos app <app_name>`, we want to invoke the `code` command on the host.
 
 # A utility function. There is not command called `determine_command`
-__cli_posthooks__fn__determine_command() {
+cli_posthooks.determine_command() {
   while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
     shift
   done
   local host_post_fn=""
-  if declare -f "__cli_posthooks__fn__${1}" >/dev/null; then
+  if declare -f "cli_posthooks.${1}" >/dev/null; then
     host_post_fn="$1"
   fi
   echo "${host_post_fn}"
 }
 # Every function below defines some behavior associated with the *success* of a particular command.
-__cli_posthooks__fn__checkout() {
+cli_posthooks.checkout() {
   if [[ -z "${1}" ]]; then
     echo "Unexpected error: no project specified." >&2
     exit 1
@@ -28,7 +28,7 @@ __cli_posthooks__fn__checkout() {
   fi
   code "${code_workspace_file}"
 }
-__cli_posthooks__fn__app() {
+cli_posthooks.app() {
   if [[ -z "${1}" ]]; then
     echo "Unexpected error: no app specified." >&2
     exit 1
@@ -52,7 +52,7 @@ __cli_posthooks__fn__app() {
   fi
   code -r "${app_dir_preexec_script}"
 }
-__cli_posthooks__fn__setup() {
+cli_posthooks.setup() {
   local project="$(cat "${HOME}/.solos/store/checked_out_project" | head -n 1)"
   bash -ic "solos checkout ${project}"
 }

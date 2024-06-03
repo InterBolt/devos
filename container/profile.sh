@@ -28,6 +28,14 @@ profile.error_press_enter() {
   exit 1
 }
 
+profile.is_help_cmd() {
+  if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 profile.users_home_dir() {
   local home_dir_saved_location="${HOME}/.solos/store/users_home_dir"
   if [[ ! -f ${home_dir_saved_location} ]]; then
@@ -120,6 +128,7 @@ $(
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command and avoids all tag-related stdout tracking." \
       info "Print info about this shell." \
+      ask_docs "$(ask_docs --help | profile.extract_help_description)" \
       reload "$(reload --help | profile.extract_help_description)" \
       tag "$(tag --help | profile.extract_help_description)" \
       plugin "$(plugin --help | profile.extract_help_description)" \
@@ -246,8 +255,8 @@ profile.install() {
 profile.export_and_readonly() {
   profile__pub_fns=""
   local pub_fns="$(declare -F | grep -o "profile.public_[a-z_]*" | xargs)"
-  local internal_fns="$(compgen -A function | grep -o "__[a-z_]*__[a-z_]*" | xargs)"
-  local internal_vars="$(compgen -v | grep -o "__[a-z_]*__[a-z_]*" | xargs)"
+  local internal_fns="$(compgen -A function | grep -o "profile.[a-z_]*" | xargs)"
+  local internal_vars="$(compgen -v | grep -o "profile__[a-z_]*" | xargs)"
   for pub_func in ${pub_fns}; do
     pub_func_renamed="${pub_func#"profile.public_"}"
     eval "${pub_func_renamed}() { ${pub_func} \"\$@\"; }"
@@ -263,7 +272,7 @@ user_preexecs=()
 user_postexecs=()
 
 profile.public_reload() {
-  if [[ ${1} == "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 
 USAGE: reload
@@ -286,6 +295,29 @@ EOF
     trap 'profile_tag.trap' DEBUG
   fi
 }
+profile.public_ask_docs() {
+  if profile.is_help_cmd "${1}"; then
+    cat <<EOF
+USAGE: ask_docs <question>
+
+DESCRIPTION:
+
+Ask a question about the SolOS documentation.
+
+EOF
+    return 0
+  fi
+  local query=''"${*}"''
+  if [[ -z ${query} ]]; then
+    log_error "No question provided."
+    return 1
+  fi
+  if [[ ! -f ${HOME}/.solos/secrets/openai_api_key ]]; then
+    log_error "This feature is disabled since you did not provide SolOS with an OpenAI API key during the setup process. Use \`solos setup\` to add one."
+    return 1
+  fi
+  log_warn "TODO: No implementation exists yet. Stay tuned."
+}
 profile.public_tag() {
   profile_tag.main "$@"
 }
@@ -297,7 +329,7 @@ profile.public_solos() {
   "${executable_path}" --restricted-shell "$@"
 }
 profile.public_info() {
-  if [[ "${1}" == "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: info
 
@@ -313,7 +345,7 @@ EOF
   echo ""
 }
 profile.public_preexec_list() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: preexec_list
 
@@ -327,7 +359,7 @@ EOF
   echo "${user_preexecs[@]}"
 }
 profile.public_preexec_add() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: preexec_add <function_name>
 
@@ -353,7 +385,7 @@ EOF
   user_preexecs+=("${fn}")
 }
 profile.public_preexec_remove() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: preexec_remove <function_name>
 
@@ -372,7 +404,7 @@ EOF
   user_preexecs=("${user_preexecs[@]/${fn}/}")
 }
 profile.public_postexec_list() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: postexec_list
 
@@ -386,7 +418,7 @@ EOF
   echo "${user_postexecs[@]}"
 }
 profile.public_postexec_add() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: postexec_add <function_name>
 
@@ -412,7 +444,7 @@ EOF
   user_postexecs+=("${fn}")
 }
 profile.public_postexec_remove() {
-  if [[ ${1} = "--help" ]]; then
+  if profile.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: postexec_remove <function_name>
 
