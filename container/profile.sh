@@ -144,7 +144,9 @@ $(
       'User managed rcfile' "$(profile.users_home_dir)/.solos/rcfiles/.bashrc" \
       'Internal rcfile' "$(profile.users_home_dir)/.solos/src/container/profile.sh" \
       'Config' "$(profile.users_home_dir)/.solos/config" \
-      'Secrets' "$(profile.users_home_dir)/.solos/secrets"
+      'Secrets' "$(profile.users_home_dir)/.solos/secrets" \
+      'Data' "$(profile.users_home_dir)/.solos/data" \
+      'Plugins' "$(profile.users_home_dir)/.solos/plugins"
   )
 
 $(

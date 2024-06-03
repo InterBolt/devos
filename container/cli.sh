@@ -700,6 +700,8 @@ cli.cmd.checkout() {
     log_info "${cli__project_name} - Created keypair for project"
     mkdir -p "${HOME}/.solos/projects/${cli__project_name}"
     mkdir -p "${HOME}/.solos/projects/${cli__project_name}/data/store"
+    echo "# Any plugin names listed below this line will be turned off when working in this project." \
+      >"${HOME}/.solos/projects/${cli__project_name}/solos.ignoreplugins"
     cp -a "${tmp_project_ssh_dir}" "${HOME}/.solos/projects/${cli__project_name}/.ssh"
     log_info "${cli__project_name} - Established project directory"
     local vscode_dir="${HOME}/.solos/projects/${cli__project_name}/.vscode"
