@@ -2,9 +2,14 @@
 
 shopt -s extdebug
 
+profile_track.get_history_count() {
+  history | tail -n 1 | tr -s ' ' | xargs | cut -d' ' -f1
+}
+
 profile_track__base_dir="${HOME}/.solos/data/track"
 profile_track__config_dir="${profile_track__base_dir}/config"
 profile_track__std_dir="${profile_track__base_dir}/std"
+profile_track__prev_history_count="$(profile_track.get_history_count)"
 
 mkdir -p "${profile_track__base_dir}"
 
@@ -19,21 +24,11 @@ profile_track.get_blacklist() {
     "logout"
     "cd"
     "clear"
-    "code"
-    "cp"
-    "rm"
-    "mv"
-    "touch"
-    "mktemp"
-    "mkdir"
-    "rmdir"
     "ls"
     "pwd"
     "cat"
     "man"
     "help"
-    "sleep"
-    "uname"
   )
   for cmd in ${profile__pub_fns}; do
     blacklist+=("${cmd}")
@@ -44,7 +39,7 @@ profile_track.get_blacklist() {
 profile_track.print_help() {
   cat <<EOF
 
-USAGE: track [options] <command>
+USAGE: track [options] <...args_to_eval>
 
 DESCRIPTION:
 
@@ -224,11 +219,20 @@ profile_track.trap() {
   if [[ -n "${profile_track__trap_gate_open+set}" ]]; then
     unset profile_track__trap_gate_open
 
-    if [[ -n "${profile__loaded_project}" ]]; then
+    # If the history count has not changed, we probably issued a signal to the
+    # shell rather than a command.
+    local curr_history_count="$(profile_track.get_history_count)"
+    if [[ "${profile_track__prev_history_count}" -eq "${curr_history_count}" ]]; then
+      trap 'profile_track.trap' DEBUG
+      return 0
+    fi
+    profile_track__prev_history_count="${curr_history_count}"
+
+    if [[ -n "${profile__checked_out_project}" ]]; then
       local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-      if [[ "${profile__loaded_project}" != "${checked_out_project}" ]]; then
-        echo "You have changed projects (${profile__loaded_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
-        echo "Please exit and re-open your terminal." >&2
+      if [[ "${profile__checked_out_project}" != "${checked_out_project}" ]]; then
+        echo "You have changed projects (${profile__checked_out_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
+        echo "Please exit and start a new shell session." >&2
         trap 'profile_track.trap' DEBUG
         return 1
       fi

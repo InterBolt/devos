@@ -16,7 +16,7 @@ history -r
 . "${HOME}/.solos/src/container/profile-plugins.sh" || exit 1
 
 profile__pub_fns=""
-profile__loaded_project=""
+profile__checked_out_project=""
 
 if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
   cd "${HOME}/.solos" || exit 1
@@ -88,8 +88,8 @@ profile.run_checked_out_project_script() {
     local project_script="${HOME}/.solos/projects/${checked_out_project}/solos.checkout.sh"
     if [[ -f ${project_script} ]]; then
       . "${project_script}"
-      profile__loaded_project="${checked_out_project}"
-      echo -e "\033[0;32mChecked out project: ${profile__loaded_project} \033[0m"
+      profile__checked_out_project="${checked_out_project}"
+      echo -e "\033[0;32mChecked out project: ${profile__checked_out_project} \033[0m"
     fi
   fi
 }
