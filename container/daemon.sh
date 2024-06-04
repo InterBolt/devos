@@ -44,6 +44,7 @@ daemon.run() {
 
 if ! daemon.start; then
   log_error "Failed to start the daemon process."
+  echo "DOWN" >"${daemon__status_file}"
   exit 1
 fi
 
