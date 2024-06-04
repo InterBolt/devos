@@ -111,7 +111,7 @@ bridge.build_and_run() {
   fi
   mkdir -p "$(dirname "${bridge__users_home_dir}")"
   echo "${HOME}" >"${bridge__users_home_dir}"
-  if ! docker build -t "solos:$(bridge.hash)" -f "${bridge__repo_dir}/Dockerfile" .; then
+  if ! docker build -q -t "solos:$(bridge.hash)" -f "${bridge__repo_dir}/Dockerfile" . >/dev/null 2>&1; then
     echo "Unexpected error: failed to build the docker image." >&2
     bridge.error_press_enter
   fi
@@ -138,6 +138,7 @@ bridge.build_and_run() {
   bridge.launch_daemon
 }
 bridge.rebuild() {
+  echo -e "\033[0;34mRebuilding the container...\033[0m"
   if ! bridge.destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     bridge.error_press_enter
