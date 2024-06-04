@@ -13,7 +13,7 @@ trap "log_error 'Caught and prevented an exit on SIGTERM'" SIGTERM
 trap "log_error 'Caught and prevented an exit on SIGINT'" SIGINT
 
 daemon.start() {
-  echo "STARTING" >"${daemon__status_file}"
+  echo "LAUNCHING" >"${daemon__status_file}"
   local force=false
   mkdir -p "${daemon__data_dir}"
   if [[ ! -f ${daemon__logfile} ]]; then
@@ -49,6 +49,6 @@ fi
 
 if ! daemon.run; then
   log_error "Failed to run the daemon process."
-  echo "DEAD" >"${daemon__status_file}"
+  echo "DOWN" >"${daemon__status_file}"
   exit 1
 fi
