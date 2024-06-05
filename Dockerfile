@@ -15,7 +15,8 @@ RUN apt-get update \
   sudo \
   manpages-dev \
   keychain \
-  procps
+  procps \
+  firejail
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \

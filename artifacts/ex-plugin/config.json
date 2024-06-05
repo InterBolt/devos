@@ -2,5 +2,5 @@
   "requires": [
     "pinecone_api_key"
   ],
-  "pinecone_api_key": "asdfasdf"
+  "pinecone_api_key": ""
 }

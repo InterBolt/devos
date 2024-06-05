@@ -882,10 +882,10 @@ cli.cmd.setup() {
   if [[ -z ${curr_git_hash} ]]; then
     exit 1
   fi
-  local git_hash="$(cli.global_store.get "git_hash")"
+  local setup_at_git_hash="$(cli.global_store.get "setup_at_git_hash")"
   local should_proceed=false
-  if [[ -n ${git_hash} ]]; then
-    if [[ ${git_hash} != ${curr_git_hash} ]]; then
+  if [[ -n ${setup_at_git_hash} ]]; then
+    if [[ ${setup_at_git_hash} != ${curr_git_hash} ]]; then
       cli.cmd.setup._print_curr_setup
       should_proceed=true
     else
@@ -917,7 +917,7 @@ cli.cmd.setup() {
   if [[ -n ${openai_api_key} ]]; then
     cli.secrets_store.set "openai_api_key" "${openai_api_key}"
   fi
-  cli.global_store.set "git_hash" "${curr_git_hash}"
+  cli.global_store.set "setup_at_git_hash" "${curr_git_hash}"
   if [[ ${cli__is_running_in_shell} = false ]]; then
     cli.cmd.setup._checkout_project
   fi

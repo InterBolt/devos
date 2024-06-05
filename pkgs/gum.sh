@@ -82,17 +82,18 @@ gum_plugin_config_input() {
   fi
 }
 gum_shell_log() {
-  local log_file="$1"
-  local level="$2"
-  local msg="$3"
-  local source="$4"
+  local no_print="$1"
+  local log_file="$2"
+  local level="$3"
+  local msg="$4"
+  local source="$5"
   declare -A log_level_colors=(["info"]="#3B78FF" ["tag"]="#0F0" ["debug"]="#A0A" ["error"]="#F02" ["fatal"]="#F02" ["warn"]="#FA0")
   local date="$(date "+%F %T")"
   local source_args=()
   if [[ -n ${source} ]]; then
     source_args=(source "[${source}]")
   fi
-  if [[ -t 1 ]]; then
+  if [[ -t 1 ]] || [[ ${no_print} = false ]]; then
     gum_bin log \
       --level.foreground "${log_level_colors["${level}"]}" \
       --structured \

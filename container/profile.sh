@@ -230,7 +230,7 @@ profile.install_gh() {
   fi
 }
 profile.install() {
-  PS1='\[\033[0;32m\](SolOS:Debian)\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
+  PS1='\[\033[0;32m\]SolOS\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then
     . /etc/bash_completion
   else
@@ -347,10 +347,9 @@ profile.public_daemon() {
   profile_daemon.main "$@"
 }
 profile.public_install_solos() {
-  profile_daemon.install &
+  profile_daemon.install
   profile.install
   profile_track.install
   profile_user_execs.install
-  wait
 }
 profile.export_and_readonly

@@ -5,6 +5,7 @@
 bridge__data_dir="${HOME}/.solos/data"
 bridge__repo_dir="${HOME}/.solos/src"
 bridge__users_home_dir="${HOME}/.solos/data/store/users_home_dir"
+bridge__last_docker_build_hash="${HOME}/.solos/data/store/last_docker_build_hash"
 bridge__mount_dir="/root/.solos"
 bridge__installer_no_tty_flag=false
 bridge__shell_minimal_flag=false
@@ -111,10 +112,19 @@ bridge.build_and_run() {
   fi
   mkdir -p "$(dirname "${bridge__users_home_dir}")"
   echo "${HOME}" >"${bridge__users_home_dir}"
-  if ! docker build -q -t "solos:$(bridge.hash)" -f "${bridge__repo_dir}/Dockerfile" . >/dev/null 2>&1; then
+  local prev_hash="$(cat "${bridge__last_docker_build_hash}" 2>/dev/null || echo "")"
+  local hash="$(bridge.hash)"
+  local build_args=(-q)
+  local fd_stdout="/dev/null"
+  if [[ ${prev_hash} != "${hash}" ]]; then
+    build_args=()
+    fd_stdout="&1"
+  fi
+  if ! docker build "${build_args[@]}" -t "solos:${hash}" -f "${bridge__repo_dir}/Dockerfile" . >${fd_stdout}; then
     echo "Unexpected error: failed to build the docker image." >&2
     bridge.error_press_enter
   fi
+  echo "${hash}" >"${bridge__last_docker_build_hash}"
   local shared_docker_run_args=(
     --name
     "$(bridge.hash)"
@@ -128,9 +138,9 @@ bridge.build_and_run() {
     "solos:$(bridge.hash)"
   )
   if [[ ${bridge__installer_no_tty_flag} = true ]]; then
-    docker run -i "${shared_docker_run_args[@]}" &
+    docker run -i "${shared_docker_run_args[@]}" >/dev/null &
   else
-    docker run -it "${shared_docker_run_args[@]}" &
+    docker run -it "${shared_docker_run_args[@]}" >/dev/null &
   fi
   while ! bridge.test; do
     sleep .2

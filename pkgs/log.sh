@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+log__no_print=false
 log__filesize=0
 log__logfile="${HOME}/.solos/data/log/master.log"
 
@@ -41,10 +42,10 @@ log.base() {
     source=""
   fi
   if [[ ${level} = "tag" ]]; then
-    echo "[RAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
+    echo "[TAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
-  gum_shell_log "${log__logfile}" "${level}" "${msg}" "${source}"
+  gum_shell_log "${log__no_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
 }
 
 log.use_custom_logfile() {
@@ -53,6 +54,9 @@ log.use_custom_logfile() {
   if [[ ${log__filesize} -gt 100000 ]]; then
     echo "${log__logfile} is growing large. Currently at ${log__filesize}Kb"
   fi
+}
+log.use_file_only() {
+  log__no_print=true
 }
 
 # PUBLIC FUNCTIONS:
