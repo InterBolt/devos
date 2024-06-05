@@ -78,21 +78,23 @@ daemon_scrub.copy_to_tmp() {
 }
 daemon_scrub.remove_ssh() {
   local tmp_dir="${1}"
-  local ssh_dirpaths="$(find "${tmp_dir}" -type d -name ".ssh")"
+  local ssh_dirpaths="$(find "${tmp_dir}" -type d -name ".ssh" -o -name "ssh")"
   for ssh_dirpath in ${ssh_dirpaths[@]}; do
     if ! rm -rf "${ssh_dirpath}"; then
       daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
       return 1
     fi
   done
-
-  # Yeah, yeah, this is dumb but I'd just repeat myself than use a harder to read regex or something.
-  local ssh_dirpaths="$(find "${tmp_dir}" -type d -name "ssh")"
-  for ssh_dirpath in ${ssh_dirpaths[@]}; do
-    if ! rm -rf "${ssh_dirpath}"; then
-      daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
+}
+daemon_scrub.remove_suspect_secretfiles() {
+  local tmp_dir="${1}"
+  local secret_filepaths="$(find "${tmp_dir}" -type f -name "*.key" -o -name "*.pem" -o -name "*.crt" -o -name "*.cer" -o -name "*.pub" -o -name "*.ppk" -o -name "*.p12" -o -name "*.pfx" -o -name "*.asc" -o -name "*.gpg")"
+  for secret_filepath in ${secret_filepaths[@]}; do
+    if ! rm -f "${secret_filepath}"; then
+      daemon_scrub.log_error "Failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
       return 1
     fi
+    daemon_scrub.log_info "Removed the potential secret file: \"${secret_filepath}\" from the temporary directory."
   done
 }
 # Scrub all secrets, even those associated with non-checked out projects.
@@ -176,6 +178,10 @@ daemon_scrub.main() {
     return 1
   fi
   daemon_scrub.log_info "Removed SSH keys from the safe copy."
+  if ! daemon_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_scrub.log_info "Removed suspect secret files from the safe copy."
   if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
     return 1
   fi
