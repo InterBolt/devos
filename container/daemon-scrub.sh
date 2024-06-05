@@ -76,6 +76,7 @@ daemon_scrub.copy_to_tmp() {
   done
   echo "${tmp_dir}"
 }
+# Anything that looks like an SSH key directory is removed.
 daemon_scrub.remove_ssh() {
   local tmp_dir="${1}"
   local ssh_dirpaths="$(find "${tmp_dir}" -type d -name ".ssh" -o -name "ssh")"
@@ -86,9 +87,10 @@ daemon_scrub.remove_ssh() {
     fi
   done
 }
+# Not an exact science but we do our best to get rid of any files that look like they might be secret files.
 daemon_scrub.remove_suspect_secretfiles() {
   local tmp_dir="${1}"
-  local secret_filepaths="$(find "${tmp_dir}" -type f -name "*.key" -o -name "*.pem" -o -name "*.crt" -o -name "*.cer" -o -name "*.pub" -o -name "*.ppk" -o -name "*.p12" -o -name "*.pfx" -o -name "*.asc" -o -name "*.gpg")"
+  local secret_filepaths="$(find "${tmp_dir}" -type f -name "*.key" -o -name "*.pem" -o -name "*.crt" -o -name "*.cer" -o -name "*.pub" -o -name "*.priv" -o -name "*.ppk" -o -name "*.p12" -o -name "*.pfx" -o -name "*.asc" -o -name "*.gpg")"
   for secret_filepath in ${secret_filepaths[@]}; do
     if ! rm -f "${secret_filepath}"; then
       daemon_scrub.log_error "Failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
@@ -97,7 +99,6 @@ daemon_scrub.remove_suspect_secretfiles() {
     daemon_scrub.log_info "Removed the potential secret file: \"${secret_filepath}\" from the temporary directory."
   done
 }
-# I'm giving in and just removing anything in the gitignore file.
 # Might revisit if it severely limits what plugins can achieve for users that
 # dont mind trusting the plugin.
 daemon_scrub.remove_gitignored_paths() {
