@@ -107,20 +107,18 @@ bridge.exec_command() {
 }
 bridge.build_and_run() {
   if [[ -f ${HOME}/.solos ]]; then
-    echo "Unhandled: a file called .solos was detected in your home directory." >&2
-    exit 1
+    echo "A file called .solos was detected in your home directory." >&2
+    bridge.error_press_enter
   fi
   mkdir -p "$(dirname "${bridge__users_home_dir}")"
   echo "${HOME}" >"${bridge__users_home_dir}"
   local prev_hash="$(cat "${bridge__last_docker_build_hash}" 2>/dev/null || echo "")"
   local hash="$(bridge.hash)"
   local build_args=(-q)
-  local fd_stdout="/dev/null"
   if [[ ${prev_hash} != "${hash}" ]]; then
     build_args=()
-    fd_stdout="&1"
   fi
-  if ! docker build "${build_args[@]}" -t "solos:${hash}" -f "${bridge__repo_dir}/Dockerfile" . >${fd_stdout}; then
+  if ! docker build "${build_args[@]}" -t "solos:${hash}" -f "${bridge__repo_dir}/Dockerfile" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     bridge.error_press_enter
   fi
@@ -222,7 +220,7 @@ bridge.main() {
     exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2
-    exit 1
+    bridge.error_press_enter
   fi
 }
 

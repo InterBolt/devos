@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 profile_daemon__data_dir="${HOME}/.solos/data/daemon"
+profile_daemon__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
 profile_daemon__status_file="${profile_daemon__data_dir}/status"
 profile_daemon__pid_file="${profile_daemon__data_dir}/pid"
 profile_daemon__kill_file="${profile_daemon__data_dir}/kill"
@@ -15,7 +16,7 @@ profile_daemon.suggested_action_on_error() {
 }
 profile_daemon.install() {
   # We only do this once so do it fast and allow lots of retries.
-  local max_attempts=30
+  local max_attempts="100"
   local attempts=0
   local timeout="0.1"
 
@@ -73,7 +74,7 @@ profile_daemon.main() {
     cat <<EOF
 Daemon status: ${status}
 Daemon PID: ${pid}
-Daemon logfile: ${profile_daemon__logfile}
+Daemon logfile: ${profile_daemon__logfile/\/root\//${profile_daemon__users_home_dir}\/}
 EOF
     return 0
   fi
