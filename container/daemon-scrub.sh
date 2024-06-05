@@ -76,6 +76,25 @@ daemon_scrub.copy_to_tmp() {
   done
   echo "${tmp_dir}"
 }
+daemon_scrub.remove_ssh() {
+  local tmp_dir="${1}"
+  local ssh_dirpaths="$(find "${tmp_dir}" -type d -name ".ssh")"
+  for ssh_dirpath in ${ssh_dirpaths[@]}; do
+    if ! rm -rf "${ssh_dirpath}"; then
+      daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
+      return 1
+    fi
+  done
+
+  # Yeah, yeah, this is dumb but I'd just repeat myself than use a harder to read regex or something.
+  local ssh_dirpaths="$(find "${tmp_dir}" -type d -name "ssh")"
+  for ssh_dirpath in ${ssh_dirpaths[@]}; do
+    if ! rm -rf "${ssh_dirpath}"; then
+      daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
+      return 1
+    fi
+  done
+}
 # Scrub all secrets, even those associated with non-checked out projects.
 # Rather than relying on our due diligence to not include project-specific secrets
 # in global directories, just make sure we scrub everything for extra safety.
@@ -153,6 +172,10 @@ daemon_scrub.main() {
     return 1
   fi
   daemon_scrub.log_info "Created a safe copy of the .solos directory at: ${tmp_dir}"
+  if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_scrub.log_info "Removed SSH keys from the safe copy."
   if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
     return 1
   fi
