@@ -97,6 +97,30 @@ daemon_scrub.remove_suspect_secretfiles() {
     daemon_scrub.log_info "Removed the potential secret file: \"${secret_filepath}\" from the temporary directory."
   done
 }
+# I'm giving in and just removing anything in the gitignore file.
+# Might revisit if it severely limits what plugins can achieve for users that
+# dont mind trusting the plugin.
+daemon_scrub.remove_gitignored_paths() {
+  local tmp_dir="${1}"
+  local git_dirs="$(find "${tmp_dir}" -type d -name ".git")"
+  for git_dir in ${git_dirs[@]}; do
+    local git_project_path="$(dirname "${git_dir}")"
+    local gitignore_path="${git_project_path}/.gitignore"
+    if [[ ! -f "${gitignore_path}" ]]; then
+      daemon_scrub.log_info "No .gitignore file found git repo: \"${git_project_path}\""
+      continue
+    fi
+    local gitignored_paths_to_delete="$(git -C "${git_project_path}" status -s --ignored | grep "^\!\!" | cut -d' ' -f2 | xargs)"
+    for gitignored_path_to_delete in ${gitignored_paths_to_delete}; do
+      gitignored_path_to_delete="${git_project_path}/${gitignored_path_to_delete}"
+      if ! rm -rf "${gitignored_path_to_delete}"; then
+        daemon_scrub.log_error "Failed to remove the gitignored path: \"${gitignored_path_to_delete}\" from the temporary directory."
+        return 1
+      fi
+      daemon_scrub.log_info "Removed: \"${gitignored_path_to_delete}\""
+    done
+  done
+}
 # Scrub all secrets, even those associated with non-checked out projects.
 # Rather than relying on our due diligence to not include project-specific secrets
 # in global directories, just make sure we scrub everything for extra safety.
@@ -174,6 +198,10 @@ daemon_scrub.main() {
     return 1
   fi
   daemon_scrub.log_info "Created a safe copy of the .solos directory at: ${tmp_dir}"
+  if ! daemon_scrub.remove_gitignored_paths "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_scrub.log_info "Removed gitignored paths from the safe copy."
   if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
     return 1
   fi
