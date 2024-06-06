@@ -200,6 +200,7 @@ daemon_scrub.scrub_secrets() {
       continue
     fi
     secrets+=("$(cat "${global_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
+    i=$((i + 1))
   done
   daemon_scrub.log_info "Process - found ${i} secrets in global secret dir: ${tmp_dir}/secrets"
 

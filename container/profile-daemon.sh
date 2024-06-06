@@ -11,7 +11,7 @@ profile_daemon__logfile="${profile_daemon__data_dir}/master.log"
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
 
 profile_daemon.suggested_action_on_error() {
-  log_error "Try stopping and deleting the docker container and its associated images before restarting the shell."
+  log_error "Try stopping and deleting the docker container and its associated images before reloading the shell."
   log_error "If the issue persists, please report it here: https://github.com/InterBolt/solos/issues"
 }
 profile_daemon.install() {
@@ -37,7 +37,7 @@ profile_daemon.install() {
 profile_daemon.print_help() {
   cat <<EOF
 
-USAGE: daemon <status|pid|logs|tail|flush|restart|kill>
+USAGE: daemon <status|pid|logs|tail|flush|reload|kill>
 
 DESCRIPTION:
 
@@ -113,14 +113,22 @@ EOF
     fi
   fi
   if [[ ${1} = "tail" ]]; then
+    shift
+    local tail_args=("$@")
     if [[ ! -f ${profile_daemon__logfile} ]]; then
       log_error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
-    tail -f "${profile_daemon__logfile}" || return 0
+    tail "${tail_args[@]}" "${profile_daemon__logfile}" || return 0
+    return 0
   fi
   if [[ ${1} = "kill" ]]; then
+    shift
+    if [[ $# -ne 0 ]]; then
+      log_error "Unknown kill options: ${*}"
+      return 1
+    fi
     log_info "Killing. Waiting for the daemon to finish its current task."
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
@@ -138,8 +146,8 @@ EOF
     log_info "Killed the daemon process with PID - ${pid}"
     return 0
   fi
-  if [[ ${1} = "restart" ]]; then
-    log_info "Restarting. Waiting for the daemon to finish its current task."
+  if [[ ${1} = "reload" ]]; then
+    log_info "Reloading. Waiting for the daemon to finish its current task."
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     local running="false"
     if [[ -z ${pid} ]]; then
@@ -161,9 +169,9 @@ EOF
     local solos_version_hash="$(git -C "/root/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
     local args=(-i -w "${container_ctx}" "${solos_version_hash}")
-    local bash_args=(-c 'nohup /root/.solos/src/container/daemon.sh >/dev/null 2>&1 &')
+    local bash_args=(-c 'nohup /root/.solos/src/container/daemon-main.sh >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
-      log_error "Failed to restart the daemon process."
+      log_error "Failed to reload the daemon process."
       return 1
     fi
     while true; do

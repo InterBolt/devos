@@ -30,17 +30,17 @@ fi
 
 # Consider a more elegant way to enforce log prefixes for daemon components.
 daemon.log_info() {
-  local message="(MASTER) ${1} pid=\"${daemon__pid}\""
+  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
   shift
   log_info "${message}" "$@"
 }
 daemon.log_error() {
-  local message="(MASTER) ${1} pid=\"${daemon__pid}\""
+  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
   shift
   log_error "${message}" "$@"
 }
 daemon.log_warn() {
-  local message="(MASTER) ${1} pid=\"${daemon__pid}\""
+  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
   shift
   log_warn "${message}" "$@"
 }
@@ -163,19 +163,20 @@ daemon.run() {
     if ! daemon_collector.main "${scrubbed_copy}"; then
       daemon.log_error "Something went wrong with the collector."
     else
-      daemon.log_info "Collector ran successfully."
+      daemon.log_info "Lifecycle - collector ran successfully."
     fi
     if ! daemon_processor.main "${scrubbed_copy}"; then
       daemon.log_error "Something went wrong with the processor."
     else
-      daemon.log_info "Processor ran successfully."
+      daemon.log_info "Lifecycle - processor ran successfully."
     fi
     if ! daemon_loader.main "${scrubbed_copy}"; then
       daemon.log_error "Something went wrong with the loader."
     else
-      daemon.log_info "Loader ran successfully."
+      daemon.log_info "Lifecycle - loader ran successfully."
     fi
-    sleep 2
+    daemon.log_warn "Sleeping for 20 seconds before the next plugin cycle."
+    sleep 20
     if daemon.should_kill; then
       if ! daemon.update_status "USER_KILLED"; then
         daemon.log_error "Failed to update the daemon status to USER_KILLED."

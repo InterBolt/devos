@@ -45,6 +45,7 @@ profile_table_outputs.format() {
     lines+="${line}${IFS}"
   done
   local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
-  echo "${lines}" | sed 's/|/  /g' | sed '2s/^/'"${full_line}"'\n/'
+  local output="$(echo "${lines}" | sed 's/|/  /g' | sed '2s/^/'"${full_line}"'\n/')"
+  echo "${output}"
   unset IFS
 }

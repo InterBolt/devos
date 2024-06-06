@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-log__no_print=false
+log__will_print=true
 log__filesize=0
 log__logfile="${HOME}/.solos/data/log/master.log"
 
@@ -45,7 +45,7 @@ log.base() {
     echo "[TAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
-  gum_shell_log "${log__no_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
+  gum_shell_log "${log__will_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
 }
 
 log.use_custom_logfile() {
@@ -56,7 +56,7 @@ log.use_custom_logfile() {
   fi
 }
 log.use_file_only() {
-  log__no_print=true
+  log__will_print=false
 }
 
 # PUBLIC FUNCTIONS:
