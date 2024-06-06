@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 daemon_processor.log_info() {
-  local message="(PROCESSOR) ${1} pid=\"${daemon__pid}\""
+  local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_info "${message}" "$@"
 }
 daemon_processor.log_error() {
-  local message="(PROCESSOR) ${1} pid=\"${daemon__pid}\""
+  local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_error "${message}" "$@"
 }
 daemon_processor.log_warn() {
-  local message="(PROCESSOR) ${1} pid=\"${daemon__pid}\""
+  local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_warn "${message}" "$@"
 }

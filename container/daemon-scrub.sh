@@ -49,17 +49,17 @@ daemon_scrub__suspect_extensions=(
 trap 'rm -rf /root/.solos/data/daemon/tmp' EXIT
 
 daemon_scrub.log_info() {
-  local message="(SCRUB) ${1} pid=\"${daemon__pid}\""
+  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_info "${message}" "$@"
 }
 daemon_scrub.log_error() {
-  local message="(SCRUB) ${1} pid=\"${daemon__pid}\""
+  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_error "${message}" "$@"
 }
 daemon_scrub.log_warn() {
-  local message="(SCRUB) ${1} pid=\"${daemon__pid}\""
+  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_warn "${message}" "$@"
 }

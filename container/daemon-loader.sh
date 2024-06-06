@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 daemon_loader.log_info() {
-  local message="(LOADER) ${1} pid=\"${daemon__pid}\""
+  local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_info "${message}" "$@"
 }
 daemon_loader.log_error() {
-  local message="(LOADER) ${1} pid=\"${daemon__pid}\""
+  local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_error "${message}" "$@"
 }
 daemon_loader.log_warn() {
-  local message="(LOADER) ${1} pid=\"${daemon__pid}\""
+  local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_warn "${message}" "$@"
 }

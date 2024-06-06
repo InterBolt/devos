@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
 daemon_collector.log_info() {
-  local message="(COLLECTOR) ${1} pid=\"${daemon__pid}\""
+  local message="(COLLECTOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_info "${message}" "$@"
 }
 daemon_collector.log_error() {
-  local message="(COLLECTOR) ${1} pid=\"${daemon__pid}\""
+  local message="(COLLECTOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_error "${message}" "$@"
 }
 daemon_collector.log_warn() {
-  local message="(COLLECTOR) ${1} pid=\"${daemon__pid}\""
+  local message="(COLLECTOR) ${1} pid=\"${daemon_main__pid}\""
   shift
   log_warn "${message}" "$@"
 }
