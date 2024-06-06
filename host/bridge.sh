@@ -143,7 +143,7 @@ bridge.build_and_run() {
   while ! bridge.test; do
     sleep .2
   done
-  bridge.launch_daemon
+  # bridge.launch_daemon
 }
 bridge.rebuild() {
   echo -e "\033[0;34mRebuilding the container...\033[0m"
@@ -176,7 +176,7 @@ bridge.exec_cli() {
   local post_behavior="$(cli_posthooks.determine_command "$@")"
   if bridge.cmd /root/.solos/src/container/cli.sh "$@"; then
     if [[ -n ${post_behavior} ]]; then
-      if [[ "$*" == *" --help"* ]] || [[ "$*" == *" help"* ]]; then
+      if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
         return 0
       fi
       # The first arg is the command.

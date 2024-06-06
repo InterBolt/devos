@@ -18,6 +18,9 @@ daemon__report_string='Please report to https://github.com/InterBolt/solos/issue
 # this is a background process and we should rely on the \`daemon\` <tail | logs> command
 # for that.
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
+if [[ ! -f ${daemon__logfile} ]]; then
+  touch "${daemon__logfile}"
+fi
 log.use_custom_logfile "${daemon__logfile}"
 # The --dev flag is something we need to test the daemon in the foreground for better debugging.
 # Ensure that when supplied, our logs will be written to the console as well as the file.

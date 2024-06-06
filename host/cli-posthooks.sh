@@ -5,7 +5,8 @@
 
 # A utility function. There is not command called `determine_command`
 cli_posthooks.determine_command() {
-  while [[ $# -gt 0 ]] && [[ $1 == --* ]]; do
+  # Strip flags to get the command name.
+  while [[ $# -gt 0 ]] && [[ $1 = --* ]]; do
     shift
   done
   local host_post_fn=""

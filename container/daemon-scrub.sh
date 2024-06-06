@@ -3,6 +3,50 @@
 daemon_scrub__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_scrub__checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_scrub__project_dir="/root/.solos/projects/${daemon_scrub__checked_out_project}"
+# While not an exhaustive list, it's a good start.
+daemon_scrub__suspect_extensions=(
+  "pem"
+  "key"
+  "cer"
+  "crt"
+  "der"
+  "pfx"
+  "p12"
+  "p7b"
+  "p7c"
+  "p7a"
+  "p8"
+  "spc"
+  "rsa"
+  "jwk"
+  "pri"
+  "bin"
+  "asc"
+  "gpg"
+  "pgp"
+  "kdb"
+  "kdbx"
+  "ovpn"
+  "enc"
+  "jks"
+  "keystore"
+  "ssh"
+  "ppk"
+  "env"
+  "xml"
+  "bak"
+  "zip"
+  "tar"
+  "gz"
+  "tgz"
+  "rar"
+  "java"
+  "rtf"
+  "xlsx"
+  "pptx"
+)
+
+trap 'rm -rf /root/.solos/data/daemon/tmp' EXIT
 
 daemon_scrub.log_info() {
   local message="(SCRUB) ${1} pid=\"${daemon__pid}\""
@@ -34,16 +78,21 @@ daemon_scrub.project_dir_exists() {
 # Create a copy of the entire .solos directory minus projects that are not the checked out project.
 # Copy and echo tmp dir only.
 daemon_scrub.copy_to_tmp() {
-  local tmp_dir="$(mktemp -d)"
+  local cp_tmp_dir="$(mktemp -d)"
+  local tmp_dir="/root/.solos/data/daemon/tmp"
+  if rm -rf "${tmp_dir}"; then
+    daemon_scrub.log_info "Process - cleared the previous temporary directory: \"${tmp_dir}\""
+  fi
+  mkdir -p "${tmp_dir}"
   if [[ -z ${tmp_dir} ]]; then
     daemon_scrub.log_error "Failed to create a temporary directory for the safe copy."
     return 1
   fi
-  if ! mkdir -p "${tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
+  if ! mkdir -p "${cp_tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
     daemon_scrub.log_error "Failed to create the projects directory in the temporary directory."
     return 1
   fi
-  if ! cp -r "${daemon_scrub__project_dir}/." "${tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
+  if ! cp -r "${daemon_scrub__project_dir}/." "${cp_tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
     daemon_scrub.log_error "Failed to copy the project directory: \"${daemon_scrub__project_dir}\" to: \"${tmp_dir}/projects/${daemon_scrub__checked_out_project}\""
     return 1
   fi
@@ -52,29 +101,31 @@ daemon_scrub.copy_to_tmp() {
     local base="$(basename "${root_path}")"
     # Ensure that plugins don't need target any project in particular. Instead they can just do their thing
     # against all projects and we'll make sure that "all projects" is really just the checked out project.
-    if [[ ${base} == "projects" ]]; then
+    if [[ ${base} = "projects" ]]; then
       continue
     fi
-    if [[ ${base} == ".solos" ]]; then
+    if [[ ${base} = ".solos" ]]; then
       continue
     fi
-    if ! mkdir -p "${tmp_dir}/${base}"; then
-      daemon_scrub.log_error "Failed to create the directory: \"${tmp_dir}/${base}\""
+    if ! mkdir -p "${cp_tmp_dir}/${base}"; then
+      daemon_scrub.log_error "Failed to create the directory: \"${cp_tmp_dir}/${base}\""
       return 1
     fi
     if [[ -d ${root_path} ]]; then
-      if ! cp -r "${root_path}/." "${tmp_dir}/${base}"; then
-        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${tmp_dir}/${base}\""
+      if ! cp -r "${root_path}/." "${cp_tmp_dir}/${base}"; then
+        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
         return 1
       fi
     else
-      if ! cp "${root_path}" "${tmp_dir}/${base}"; then
-        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${tmp_dir}/${base}\""
+      if ! cp "${root_path}" "${cp_tmp_dir}/${base}"; then
+        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
         return 1
       fi
     fi
   done
-  echo "${tmp_dir}"
+  local random_dirname="$(date +%s | sha256sum | base64 | head -c 32)"
+  mv "${cp_tmp_dir}" "${tmp_dir}/${random_dirname}"
+  echo "${tmp_dir}/${random_dirname}"
 }
 # Anything that looks like an SSH key directory is removed.
 daemon_scrub.remove_ssh() {
@@ -85,18 +136,28 @@ daemon_scrub.remove_ssh() {
       daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
       return 1
     fi
+    daemon_scrub.log_info "Scrubbed - \"${ssh_dirpath}\""
   done
 }
 # Not an exact science but we do our best to get rid of any files that look like they might be secret files.
 daemon_scrub.remove_suspect_secretfiles() {
   local tmp_dir="${1}"
-  local secret_filepaths="$(find "${tmp_dir}" -type f -name "*.key" -o -name "*.pem" -o -name "*.crt" -o -name "*.cer" -o -name "*.pub" -o -name "*.priv" -o -name "*.ppk" -o -name "*.p12" -o -name "*.pfx" -o -name "*.asc" -o -name "*.gpg")"
+  # map daemon_scrub__suspect_extensions to a list of args likeso: (-o -name "*.key" -o -name "*.pem" ...)
+  local find_args=()
+  for suspect_extension in "${daemon_scrub__suspect_extensions[@]}"; do
+    if [[ ${#find_args[@]} -eq 0 ]]; then
+      find_args+=("-name" "*.${suspect_extension}")
+      continue
+    fi
+    find_args+=("-o" "-name" "*.${suspect_extension}")
+  done
+  local secret_filepaths="$(find "${tmp_dir}" -type f "${find_args[@]}")"
   for secret_filepath in ${secret_filepaths[@]}; do
     if ! rm -f "${secret_filepath}"; then
       daemon_scrub.log_error "Failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
       return 1
     fi
-    daemon_scrub.log_info "Removed the potential secret file: \"${secret_filepath}\" from the temporary directory."
+    daemon_scrub.log_info "Scrubbed - \"${secret_filepath}\""
   done
 }
 # Might revisit if it severely limits what plugins can achieve for users that
@@ -108,7 +169,7 @@ daemon_scrub.remove_gitignored_paths() {
     local git_project_path="$(dirname "${git_dir}")"
     local gitignore_path="${git_project_path}/.gitignore"
     if [[ ! -f "${gitignore_path}" ]]; then
-      daemon_scrub.log_info "No .gitignore file found git repo: \"${git_project_path}\""
+      daemon_scrub.log_warn "No .gitignore file found in git repo: \"${git_project_path}\""
       continue
     fi
     local gitignored_paths_to_delete="$(git -C "${git_project_path}" status -s --ignored | grep "^\!\!" | cut -d' ' -f2 | xargs)"
@@ -118,7 +179,7 @@ daemon_scrub.remove_gitignored_paths() {
         daemon_scrub.log_error "Failed to remove the gitignored path: \"${gitignored_path_to_delete}\" from the temporary directory."
         return 1
       fi
-      daemon_scrub.log_info "Removed: \"${gitignored_path_to_delete}\""
+      daemon_scrub.log_info "Scrubbed - \"${gitignored_path_to_delete}\""
     done
   done
 }
@@ -129,64 +190,67 @@ daemon_scrub.scrub_secrets() {
   local tmp_dir="${1}"
 
   # The goal is to populate these arrays.
-  local secret_filepaths=()
   local secrets=()
 
   # First up, the global secrets.
-  local global_secret_filepaths="$(find /root/.solos/secrets -maxdepth 1)"
+  local global_secret_filepaths="$(find "${tmp_dir}"/secrets -maxdepth 1)"
+  local i=0
   for global_secret_filepath in ${global_secret_filepaths[@]}; do
     if [[ -d ${global_secret_filepath} ]]; then
       continue
     fi
-    secret_filepaths+=("${global_secret_filepath}")
+    secrets+=("$(cat "${global_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
   done
+  daemon_scrub.log_info "Process - found ${i} secrets in global secret dir: ${tmp_dir}/secrets"
 
-  # Find all the secret files in each project and associated apps.
-  local project_paths="$(find /root/.solos/projects -maxdepth 1)"
+  # Find secret files in each project.
+  local project_paths="$(find "${tmp_dir}"/projects -maxdepth 1)"
   for project_path in ${project_paths[@]}; do
     local project_secrets_path="${project_path}/secrets"
     if [[ ! -d ${project_secrets_path} ]]; then
       continue
     fi
     local project_secret_filepaths="$(find "${project_secrets_path}" -maxdepth 1)"
+    local i=0
     for project_secret_filepath in ${project_secret_filepaths[@]}; do
       if [[ -d ${project_secret_filepath} ]]; then
         continue
       fi
-      secret_filepaths+=("${project_secret_filepath}")
+      secrets+=("$(cat "${project_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
+      i=$((i + 1))
     done
-    # WARNING: don't ever be clever and assume that any app/secrets dir is a SolOS secrets dir.
-    # better to assume the user is handling that somehow themselves.
+    daemon_scrub.log_info "Process - found ${i} secrets in project secret dir: ${project_secrets_path}"
   done
 
   # First, look for any .env.* files across all of .solos and extract the secrets.
-  # Note: we still want to encourage users to use the secrets directory for secrets, but I think
-  # being extra cautious doesn't hurt and could save someone's ass.
-  # An alternative is to blanket remove anything in a .gitignore file but I wonder if that will
-  # constrain our plugins too much since there could be useful artifacts that we end up stripping away.
-  local env_filepaths="$(find /root/.solos -type f -name ".env"*)"
+  # Note: we still want to encourage users to stuff everything into the secrets directory.
+  # But the extra cautious doesn't hurt and could save someone's ass.
+  local env_filepaths="$(find "${tmp_dir}" -type f -name ".env"*)"
   for env_filepath in ${env_filepaths[@]}; do
     # Filter away comments, blank lines, and then strip quotations.
     local env_secrets="$(cat "${env_filepath}" | grep -v '^#' | grep -v '^$' | sed 's/^[^=]*=//g' | sed 's/"//g' | sed "s/'//g" | xargs)"
+    local i=0
     for env_secret in ${env_secrets[@]}; do
       secrets+=("${env_secret}")
+      i=$((i + 1))
     done
+    daemon_scrub.log_info "Process - extracted ${i} secrets from file: ${env_filepath}"
   done
 
-  # Now loop through the secret files. Each secret file is guaranteed to only contain
-  # it's secret contents on the first line.
-  for secret_filepath in "${secret_filepaths[@]}"; do
-    secrets+=("$(cat "${secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
-  done
-
-  # Do the scrubbing:
-  # - grep efficiently narrows down the files to the ones that contain the secret.
-  # - sed does the actually replacement/scrubbing.
+  # Remove the duplicate secrets and scrub the secrets from all the files left in the tmp dir.
+  secrets=($(printf "%s\n" "${secrets[@]}" | sort -u))
   for secret in "${secrets[@]}"; do
-    if ! grep -rl "${secret}" "${tmp_dir}" | xargs sed -i "s/${secret}/SOLOS_REDACTED/g"; then
-      daemon_scrub.log_error "Failed to scrub secret: \"${secret}\" from the temporary directory."
-      return 1
+    input_files=$(grep -rl "${secret}" "${tmp_dir}")
+    if [[ -z ${input_files} ]]; then
+      continue
     fi
+    while IFS= read -r input_file; do
+      if ! sed -E -i "s@${secret}@[REDACTED]@g" "${input_file}"; then
+        daemon_scrub.log_error "Failed to scrub - \"${secret}\" from ${input_file}."
+        return 1
+      fi
+    done <<<"${input_files}"
+    daemon_scrub.log_info "Scrubbed - \"${secret}\""
   done
 }
 # Validate, copy, scrub, and echo the tmp dir path.
@@ -198,22 +262,22 @@ daemon_scrub.main() {
   if [[ ! -d ${tmp_dir} ]]; then
     return 1
   fi
-  daemon_scrub.log_info "Created a safe copy of the .solos directory at: ${tmp_dir}"
+  daemon_scrub.log_info "Checkpoint - copied solos to: ${tmp_dir}"
   if ! daemon_scrub.remove_gitignored_paths "${tmp_dir}"; then
     return 1
   fi
-  daemon_scrub.log_info "Removed gitignored paths from the safe copy."
+  daemon_scrub.log_info "Checkpoint - removed gitignored paths from: ${tmp_dir}"
   if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
     return 1
   fi
-  daemon_scrub.log_info "Removed SSH keys from the safe copy."
+  daemon_scrub.log_info "Checkpoint - removed SSH directories from: ${tmp_dir}"
   if ! daemon_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
     return 1
   fi
-  daemon_scrub.log_info "Removed suspect secret files from the safe copy."
+  daemon_scrub.log_info "Checkpoint - deleted potentially sensitive files based on an extension blacklist."
   if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
     return 1
   fi
-  daemon_scrub.log_info "Scrubbed secrets from the safe copy."
+  daemon_scrub.log_info "Checkpoint - scrubbed known secrets."
   echo "${tmp_dir}"
 }

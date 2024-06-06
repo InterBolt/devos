@@ -240,7 +240,7 @@ cli.argparse.cmd() {
       local cmd_name=$(echo "$1" | tr '-' '_')
       local is_allowed=false
       for allowed_cmd_name in "${allowed_cmds[@]}"; do
-        if [[ ${cmd_name} = ${allowed_cmd_name} ]]; then
+        if [[ ${cmd_name} = "${allowed_cmd_name}" ]]; then
           is_allowed=true
         fi
       done
@@ -290,11 +290,11 @@ cli.argparse.validate_opts() {
       for allowed_cmd_option in "${cli__allowed_options[@]}"; do
         cmd_name=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $1}')
         cmd_options=$(echo "${allowed_cmd_option}" | awk -F '(' '{print $2}' | awk -F ')' '{print $1}')
-        if [[ ${cmd_name} = ${cli__cmd} ]]; then
+        if [[ ${cmd_name} = "${cli__cmd}" ]]; then
           is_cmd_option_allowed=false
           flag_name="$(echo "${cmd_option}" | awk -F '=' '{print $1}')"
           for cmd_option in "$(echo "${cmd_options}" | tr ',' '\n')"; do
-            if [[ ${cmd_option} = ${flag_name} ]]; then
+            if [[ ${cmd_option} = "${flag_name}" ]]; then
               is_cmd_option_allowed=true
             fi
           done

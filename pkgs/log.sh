@@ -38,7 +38,7 @@ log.base() {
   shift
   local msg="${1}"
   shift
-  if [[ ${source} == "NULL"* ]]; then
+  if [[ ${source} = "NULL"* ]]; then
     source=""
   fi
   if [[ ${level} = "tag" ]]; then
