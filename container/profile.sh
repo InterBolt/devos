@@ -66,8 +66,7 @@ profile.bash_completions() {
     _init_completion || return
     _command_offset 1
   }
-  complete -F _custom_command_completions tag
-  complete -F _custom_command_completions host
+  complete -F _custom_command_completions track
   complete -F _custom_command_completions '-'
 }
 profile.run_checked_out_project_script() {
