@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 
 log__will_print=true
+log__use_container_paths=false
 log__filesize=0
 log__logfile="${HOME}/.solos/data/log/master.log"
+log__panicfile="${HOME}/.solos/panic"
 
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/pkgs/panics.sh" || exit 1
 
 mkdir -p "$(dirname "${log__logfile}")"
 if [[ ! -f ${log__logfile} ]]; then
@@ -24,6 +27,26 @@ log.to_hostname() {
   local host="$(cat "${HOME}/.solos/data/store/users_home_dir")"
   echo "${filename/${HOME}/${host}}"
 }
+log.correct_paths_in_msg() {
+  local msg="${1}"
+  if [[ ${log__use_container_paths} = true ]]; then
+    echo "${msg}"
+    return 0
+  fi
+  local home_dir_reference_file="${HOME}/.solos/data/store/users_home_dir"
+  if [[ ! -s "${home_dir_reference_file}" ]]; then
+    panics_add "logging_missing_home_reference_file" "MEDIUM" <<EOF
+The logging functions are unable to find a non-empty reference file for the user's home directory at ${home_dir_reference_file}.
+This results in container-specific paths being used in the logs, which isn't terribly helpful since VSCode isn't running \
+inside the container. 
+As a result, right-clicking a filepath in the logging output won't open it in VSCode as we'd expect.
+EOF
+    echo "${msg}"
+    return 1
+  fi
+  local home_dir_path="$(cat "${home_dir_reference_file}")"
+  echo "${msg}" | sed -e "s|/root/|${home_dir_path}/|g" | sed -e "s|~/|${home_dir_path}/|g"
+}
 log.base() {
   if [[ ! -f ${log__logfile} ]]; then
     if ! touch "${log__logfile}" &>/dev/null; then
@@ -41,6 +64,7 @@ log.base() {
   if [[ ${source} = "NULL"* ]]; then
     source=""
   fi
+  msg="$(log.correct_paths_in_msg "${msg}")"
   if [[ ${level} = "tag" ]]; then
     echo "[TAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
@@ -57,6 +81,9 @@ log.use_custom_logfile() {
 }
 log.use_file_only() {
   log__will_print=false
+}
+log.use_container_paths() {
+  log__use_container_paths=true
 }
 
 # PUBLIC FUNCTIONS:

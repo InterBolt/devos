@@ -42,6 +42,7 @@
     }
   ],
   "settings": {
+    "window.zoomLevel": -0.2,
     "terminal.integrated.defaultProfile.osx": "shell",
     "terminal.integrated.defaultProfile.linux": "shell",
     "terminal.integrated.cwd": "${workspaceFolder}",

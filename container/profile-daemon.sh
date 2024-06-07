@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 
-profile_daemon_main__data_dir="${HOME}/.solos/data/daemon"
-profile_daemon_main__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
-profile_daemon_main__status_file="${profile_daemon_main__data_dir}/status"
-profile_daemon_main__pid_file="${profile_daemon_main__data_dir}/pid"
-profile_daemon_main__kill_file="${profile_daemon_main__data_dir}/kill"
-profile_daemon_main__logfile="${profile_daemon_main__data_dir}/master.log"
+profile_daemon__data_dir="${HOME}/.solos/data/daemon"
+profile_daemon__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
+profile_daemon__status_file="${profile_daemon__data_dir}/status"
+profile_daemon__pid_file="${profile_daemon__data_dir}/pid"
+profile_daemon__kill_file="${profile_daemon__data_dir}/kill"
+profile_daemon__log_file="${profile_daemon__data_dir}/master.log"
 
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
@@ -21,7 +21,7 @@ profile_daemon.install() {
   local timeout="0.1"
 
   while true; do
-    local status="$(cat "${profile_daemon_main__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ ${status} = "UP" ]] || [[ ${status} = "USER_KILLED" ]]; then
       break
     fi
@@ -55,8 +55,8 @@ profile_daemon.main() {
     return 0
   fi
   if [[ ${1} = "status" ]]; then
-    local status="$(cat "${profile_daemon_main__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    local pid="$(cat "${profile_daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${status} ]]; then
       log_error "Unexpected error: the daemon status does not exist."
       profile_daemon.suggested_action_on_error
@@ -74,12 +74,12 @@ profile_daemon.main() {
     cat <<EOF
 Daemon status: ${status}
 Daemon PID: ${pid}
-Daemon logfile: ${profile_daemon_main__logfile/\/root\//${profile_daemon_main__users_home_dir}\/}
+Daemon logfile: ${profile_daemon__log_file/\/root\//${profile_daemon__users_home_dir}\/}
 EOF
     return 0
   fi
   if [[ ${1} = "pid" ]]; then
-    local pid="$(cat "${profile_daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
       log_error "Unexpected error: the daemon pid does not exist."
       profile_daemon.suggested_action_on_error
@@ -89,23 +89,23 @@ EOF
     return 0
   fi
   if [[ ${1} = "logs" ]]; then
-    if [[ ! -f ${profile_daemon_main__logfile} ]]; then
+    if [[ ! -f ${profile_daemon__log_file} ]]; then
       log_error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
-    cat "${profile_daemon_main__logfile}"
+    cat "${profile_daemon__log_file}"
     return 0
   fi
   if [[ ${1} = "flush" ]]; then
-    if [[ ! -f ${profile_daemon_main__logfile} ]]; then
+    if [[ ! -f ${profile_daemon__log_file} ]]; then
       log_error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
-    if cat "${profile_daemon_main__logfile}"; then
-      rm -f "${profile_daemon_main__logfile}"
-      touch "${profile_daemon_main__logfile}"
+    if cat "${profile_daemon__log_file}"; then
+      rm -f "${profile_daemon__log_file}"
+      touch "${profile_daemon__log_file}"
       return 0
     else
       log_error "Failed to flush the daemon logfile."
@@ -115,12 +115,12 @@ EOF
   if [[ ${1} = "tail" ]]; then
     shift
     local tail_args=("$@")
-    if [[ ! -f ${profile_daemon_main__logfile} ]]; then
+    if [[ ! -f ${profile_daemon__log_file} ]]; then
       log_error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
-    tail "${tail_args[@]}" "${profile_daemon_main__logfile}" || return 0
+    tail "${tail_args[@]}" "${profile_daemon__log_file}" || return 0
     return 0
   fi
   if [[ ${1} = "kill" ]]; then
@@ -130,14 +130,14 @@ EOF
       return 1
     fi
     log_info "Killing. Waiting for the daemon to finish its current task."
-    local pid="$(cat "${profile_daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
       log_warn "No pid was found. Nothing to kill"
       return 0
     fi
-    echo "${pid}" >"${profile_daemon_main__kill_file}"
+    echo "${pid}" >"${profile_daemon__kill_file}"
     while true; do
-      local status="$(cat "${profile_daemon_main__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+      local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
       if [[ ${status} = "USER_KILLED" ]]; then
         break
       fi
@@ -148,7 +148,7 @@ EOF
   fi
   if [[ ${1} = "reload" ]]; then
     log_info "Reloading. Waiting for the daemon to finish its current task."
-    local pid="$(cat "${profile_daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     local running="false"
     if [[ -z ${pid} ]]; then
       log_warn "No pid was found. Will start the daemon process."
@@ -156,9 +156,9 @@ EOF
       running="true"
     fi
     if [[ ${running} = "true" ]]; then
-      echo "${pid}" >"${profile_daemon_main__kill_file}"
+      echo "${pid}" >"${profile_daemon__kill_file}"
       while true; do
-        local status="$(cat "${profile_daemon_main__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+        local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
         if [[ ${status} = "USER_KILLED" ]]; then
           break
         fi
@@ -175,7 +175,7 @@ EOF
       return 1
     fi
     while true; do
-      local status="$(cat "${profile_daemon_main__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+      local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
       if [[ ${status} = "UP" ]]; then
         break
       fi

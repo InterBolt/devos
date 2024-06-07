@@ -183,6 +183,16 @@ gum_confirm_overwriting_setup() {
     echo "false"
   fi
 }
+gum_confirm_ignore_panic() {
+  if gum_bin confirm \
+    "Would you like to ignore the panic file?" \
+    --affirmative="Yes, I know what I'm doing" \
+    --negative="No, exit now."; then
+    echo "true"
+  else
+    echo "false"
+  fi
+}
 gum_optional_openai_api_key_input() {
   gum_bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
 }

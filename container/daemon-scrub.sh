@@ -32,7 +32,6 @@ daemon_scrub__suspect_extensions=(
   "keystore"
   "ssh"
   "ppk"
-  "env"
   "xml"
   "bak"
   "zip"
@@ -160,8 +159,7 @@ daemon_scrub.remove_suspect_secretfiles() {
     daemon_scrub.log_info "Scrubbed - \"${secret_filepath}\""
   done
 }
-# Might revisit if it severely limits what plugins can achieve for users that
-# dont mind trusting the plugin.
+# Scrub anything we find in the gitignored paths.
 daemon_scrub.remove_gitignored_paths() {
   local tmp_dir="${1}"
   local git_dirs="$(find "${tmp_dir}" -type d -name ".git")"
@@ -183,13 +181,9 @@ daemon_scrub.remove_gitignored_paths() {
     done
   done
 }
-# Scrub all secrets, even those associated with non-checked out projects.
-# Rather than relying on our due diligence to not include project-specific secrets
-# in global directories, just make sure we scrub everything for extra safety.
 daemon_scrub.scrub_secrets() {
   local tmp_dir="${1}"
-
-  # The goal is to populate these arrays.
+  # We'll build this array with several sources of secrets.
   local secrets=()
 
   # First up, the global secrets.
@@ -225,8 +219,8 @@ daemon_scrub.scrub_secrets() {
 
   # First, look for any .env.* files across all of .solos and extract the secrets.
   # Note: we still want to encourage users to stuff everything into the secrets directory.
-  # But the extra cautious doesn't hurt and could save someone's ass.
-  local env_filepaths="$(find "${tmp_dir}" -type f -name ".env"*)"
+  # But the extra cautiousness doesn't hurt and could save someone's ass.
+  local env_filepaths="$(find "${tmp_dir}" -type f -name ".env"* -o -name ".env")"
   for env_filepath in ${env_filepaths[@]}; do
     # Filter away comments, blank lines, and then strip quotations.
     local env_secrets="$(cat "${env_filepath}" | grep -v '^#' | grep -v '^$' | sed 's/^[^=]*=//g' | sed 's/"//g' | sed "s/'//g" | xargs)"

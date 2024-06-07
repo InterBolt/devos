@@ -132,7 +132,11 @@ profile_plugins.cli_install() {
     log_error "Invalid config file. JSON parsing failed."
     return 1
   fi
-  jq '. + { "sources": { "loader": "'"${loader}"'", "collector": "'"${collector}"'", "processor": "'"${processor}"'", "config": "'"${config}"'" } }' "${tmp_dir}/config.json" >"${tmp_dir}/config.json.tmp"
+  jq '. + { \
+    "sources": { "\
+        loader": "'"${loader}"'", "collector": "'"${collector}"'", "processor": "'"${processor}"'", "config": "'"${config}"'" \
+    } \
+  }' "${tmp_dir}/config.json" >"${tmp_dir}/config.json.tmp"
   mv "${tmp_dir}/config.json.tmp" "${tmp_dir}/config.json"
   local required_keys=()
   local i=0
@@ -147,6 +151,7 @@ profile_plugins.cli_install() {
     required_keys+=("${key}")
     i=$((i + 1))
   done < <(jq -r ".requires[]" "${tmp_dir}/config.json")
+  # TODO: add support for "untrusted and trusted plugins via the config spec"
   for key in "${required_keys[@]}"; do
     local next_value="$(gum_plugin_config_input "${key}")"
     if [[ ${next_value} = "SOLOS:EXIT:1" ]]; then

@@ -249,6 +249,7 @@ profile_track.trap() {
     # something goes awry and we need to quickly determine whether or not the trap logic is the issue.
     if [[ ${submitted_prompt} = "- "* ]]; then
       eval "$(echo "${submitted_prompt}" | tr -s ' ' | cut -d' ' -f2-)" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+      profile_panics.print
       trap 'profile_track.trap' DEBUG
       return 1
     fi
@@ -261,6 +262,7 @@ profile_track.trap() {
           break
         fi
         eval "${submitted_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+        profile_panics.print
         trap 'profile_track.trap' DEBUG
         return 1
       fi
@@ -292,6 +294,7 @@ profile_track.trap() {
     # 0 - implies that we are running a blacklisted command and should skip the tag tracking.
     if [[ ${preexec_return} -eq 0 ]]; then
       eval "${submitted_prompt}" <>"${tty_descriptor}" 2<>"${tty_descriptor}"
+      profile_panics.print
       should_skip_tag=true
     # 151 - implies that one of the preexec scripts failed.
     elif [[ ${preexec_return} -eq 151 ]]; then
@@ -309,6 +312,7 @@ profile_track.trap() {
       profile_track.create_tmp_files
       profile_track.trap_eval "${submitted_prompt}"
       profile_track.digest "${track_id}"
+      profile_panics.print
     fi
 
     # User defined postexec functions. If one of them fails, do not execute the rest.

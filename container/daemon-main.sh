@@ -5,23 +5,26 @@ daemon_main__data_dir="${HOME}/.solos/data/daemon"
 daemon_main__pid_file="${daemon_main__data_dir}/pid"
 daemon_main__status_file="${daemon_main__data_dir}/status"
 daemon_main__kill_file="${daemon_main__data_dir}/kill"
-daemon_main__logfile="${daemon_main__data_dir}/master.log"
-daemon_main__collectionsfile="${daemon_main__data_dir}/collections.log"
-daemon_main__processedfile="${daemon_main__data_dir}/processed.log"
+daemon_main__log_file="${daemon_main__data_dir}/master.log"
+daemon_main__collections_dir="${daemon_main__data_dir}/collections"
+daemon_main__processed_file="${daemon_main__data_dir}/processed.log"
 daemon_main__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_main__checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_main__prev_pid="$(cat "${daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_main__report_string='Please report to https://github.com/InterBolt/solos/issues.'
 
+daemon_main.host_path() {
+  local path="${1}"
+  echo "${path/\/root\//${daemon_main__users_home_dir}\/}"
+}
+
 # Load the log functions and set the custom logfile separate from the logs generated
-# by the user in the foreground. And don't bother ever writing to the console since
-# this is a background process and we should rely on the \`daemon\` <tail | logs> command
-# for that.
+# by the user in the foreground
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-if [[ ! -f ${daemon_main__logfile} ]]; then
-  touch "${daemon_main__logfile}"
+if [[ ! -f ${daemon_main__log_file} ]]; then
+  touch "${daemon_main__log_file}"
 fi
-log.use_custom_logfile "${daemon_main__logfile}"
+log.use_custom_logfile "${daemon_main__log_file}"
 # The --dev flag is something we need to test the daemon in the foreground for better debugging.
 # Ensure that when supplied, our logs will be written to the console as well as the file.
 if [[ ${1} != "--dev" ]]; then
@@ -46,7 +49,6 @@ daemon_main.log_warn() {
 }
 
 daemon_main.log_info "Daemon process started with pid: ${daemon_main__pid}"
-
 # If the daemon is already running, we should abort the launch.
 # Important: abort but do not update the status. The status file should pertain
 # to the actually running daemon process, not this one.
@@ -59,10 +61,10 @@ fi
 
 # Clean any old files that will interfere with the daemon's state assumptions.
 if rm -f "${daemon_main__pid_file}"; then
-  daemon_main.log_info "Cleared previous pid file: \"${daemon_main__pid_file/\/root\//${daemon_main__users_home_dir}\/}\""
+  daemon_main.log_info "Cleared previous pid file: \"$(daemon_main.host_path "${daemon_main__pid_file}")\""
 fi
 if rm -f "${daemon_main__kill_file}"; then
-  daemon_main.log_info "Cleared previous kill file: \"${daemon_main__kill_file/\/root\//${daemon_main__users_home_dir}\/}\""
+  daemon_main.log_info "Cleared previous kill file: \"$(daemon_main.host_path "${daemon_main__kill_file}")\""
 fi
 
 # We'll use the "main" function from each script to handle the plugin lifecycles.
@@ -95,7 +97,7 @@ daemon_main.update_status() {
 # Wrap the saving op for better error handling.
 daemon_main.save_pid() {
   if [[ -z ${daemon_main__pid} ]]; then
-    daemon_main.log_error "Can't save an empty pid to the pid file: \"${daemon_main__pid_file/\/root\//${daemon_main__users_home_dir}\/}\""
+    daemon_main.log_error "Can't save an empty pid to the pid file: \"$(daemon_main.host_path "${daemon_main__pid_file}")\""
     return 1
   fi
   echo "${daemon_main__pid}" >"${daemon_main__pid_file}"
@@ -106,9 +108,9 @@ daemon_main.should_kill() {
     local kill_pid="$(cat "${daemon_main__kill_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ ${kill_pid} -eq ${daemon_main__pid} ]]; then
       if rm -f "${daemon_main__kill_file}"; then
-        daemon_main.log_info "Removed the kill file: \"${daemon_main__kill_file/\/root\//${daemon_main__users_home_dir}\/}\""
+        daemon_main.log_info "Removed the kill file: \"$(daemon_main.host_path "${daemon_main__kill_file}")\""
       else
-        daemon_main.log_error "Failed to remove the kill file: \"${daemon_main__kill_file/\/root\//${daemon_main__users_home_dir}\/}\""
+        daemon_main.log_error "Failed to remove the kill file: \"$(daemon_main.host_path "${daemon_main__kill_file}")\""
         exit 1
       fi
       return 0
@@ -125,27 +127,27 @@ daemon_main.should_kill() {
 # errors that we don't account for and can't handle gracefully.
 daemon_main.start() {
   mkdir -p "${daemon_main__data_dir}"
-  if [[ ! -f ${daemon_main__logfile} ]]; then
-    touch "${daemon_main__logfile}"
-    daemon_main.log_info "Created master log file: \"${daemon_main__logfile/\/root\//${daemon_main__users_home_dir}\/}\""
+  if [[ ! -f ${daemon_main__log_file} ]]; then
+    touch "${daemon_main__log_file}"
+    daemon_main.log_info "Created master log file: \"$(daemon_main.host_path "${daemon_main__log_file}")\""
   fi
-  if [[ ! -f ${daemon_main__collectionsfile} ]]; then
-    touch "${daemon_main__collectionsfile}"
-    daemon_main.log_info "Created collections file: \"${daemon_main__collectionsfile/\/root\//${daemon_main__users_home_dir}\/}\""
+  if [[ ! -d ${daemon_main__collections_dir} ]]; then
+    mkdir -p "${daemon_main__collections_dir}"
+    daemon_main.log_info "Created collections dir: \"$(daemon_main.host_path "${daemon_main__collections_dir}")\""
   fi
-  if [[ ! -f ${daemon_main__processedfile} ]]; then
-    touch "${daemon_main__processedfile}"
-    daemon_main.log_info "Created processed file: \"${daemon_main__processedfile/\/root\//${daemon_main__users_home_dir}\/}\""
+  if [[ ! -f ${daemon_main__processed_file} ]]; then
+    touch "${daemon_main__processed_file}"
+    daemon_main.log_info "Created processed file: \"$(daemon_main.host_path "${daemon_main__processed_file}")\""
   fi
   # Speculation: Given that we check for an already running Daemon at the top, I can only see this
   # happening if another daemon is started between the time the pid file is removed and here.
   # Seems like a very unlikely scenario unless a bug prevents this line from executing in a timely way.
   if [[ -f ${daemon_main__pid_file} ]]; then
-    daemon_main.log_error "\"${daemon_main__pid_file/\/root\//${daemon_main__users_home_dir}\/}\" already exists. This should never happen."
+    daemon_main.log_error "\"$(daemon_main.host_path "${daemon_main__pid_file}")\" already exists. This should never happen."
     return 1
   fi
   if ! daemon_main.save_pid; then
-    daemon_main.log_error "Failed to save the daemon pid: \"${daemon_main__pid}\" to \"${daemon_main__pid_file/\/root\//${daemon_main__users_home_dir}\/}\""
+    daemon_main.log_error "Failed to save the daemon pid: \"${daemon_main__pid}\" to \"$(daemon_main.host_path "${daemon_main__pid_file}")\""
     return 1
   fi
 }
@@ -156,21 +158,23 @@ daemon_main.run() {
   # causing any weird side effects.
   while true; do
     local scrubbed_copy="$(daemon_scrub.main)"
+    local collections_dir="$(mktemp -d)"
+    local processed_file="$(mktemp)"
     if [[ -z ${scrubbed_copy} ]]; then
       daemon_main.log_error "Something went wrong with the safe copy."
       return 1
     fi
-    if ! daemon_collector.main "${scrubbed_copy}"; then
+    if ! daemon_collector.main "${scrubbed_copy}" "${collections_dir}"; then
       daemon_main.log_error "Something went wrong with the collector."
     else
       daemon_main.log_info "Lifecycle - collector ran successfully."
     fi
-    if ! daemon_processor.main "${scrubbed_copy}"; then
+    if ! daemon_processor.main "${scrubbed_copy}" "${collections_dir}" "${processed_file}"; then
       daemon_main.log_error "Something went wrong with the processor."
     else
       daemon_main.log_info "Lifecycle - processor ran successfully."
     fi
-    if ! daemon_loader.main "${scrubbed_copy}"; then
+    if ! daemon_loader.main "${processed_file}"; then
       daemon_main.log_error "Something went wrong with the loader."
     else
       daemon_main.log_info "Lifecycle - loader ran successfully."

@@ -9,6 +9,7 @@ history -r
 
 . "${HOME}/.solos/src/pkgs/log.sh" || exit 1
 . "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/container/profile-panics.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-daemon.sh" || exit 1
 . "${HOME}/.solos/src/container/profile-user-execs.sh" || exit 1
@@ -129,7 +130,8 @@ $(
       preexec "$(preexec --help | profile.extract_help_description)" \
       postexec "$(postexec --help | profile.extract_help_description)" \
       daemon "$(daemon --help | profile.extract_help_description)" \
-      reload "$(reload --help | profile.extract_help_description)"
+      reload "$(reload --help | profile.extract_help_description)" \
+      panics "$(panics --help | profile.extract_help_description)"
   )
 
 $(
@@ -345,7 +347,11 @@ profile.public_postexec() {
 profile.public_daemon() {
   profile_daemon.main "$@"
 }
+profile.public_panics() {
+  profile_panics.main "$@"
+}
 profile.public_install_solos() {
+  profile_panics.install
   profile_daemon.install
   profile.install
   profile_track.install
