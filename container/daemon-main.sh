@@ -169,7 +169,7 @@ daemon_main.run() {
     else
       daemon_main.log_info "Lifecycle - collector ran successfully."
     fi
-    if ! daemon_processor.main "${scrubbed_copy}" "${collections_dir}" "${processed_file}"; then
+    if ! daemon_processor.main "${collections_dir}" >"${processed_file}"; then
       daemon_main.log_error "Something went wrong with the processor."
     else
       daemon_main.log_info "Lifecycle - processor ran successfully."
