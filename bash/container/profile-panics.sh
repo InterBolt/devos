@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+
 profile_panic__dir="${HOME}/.solos/data/panics"
 profile_panic__muted=false
 
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/panics.sh" || exit 1
-
 profile_panics.print() {
   if [[ ${profile_panic__muted} = true ]]; then
+    echo ""
     return 0
   fi
-  local panic_messages="$(panics_print_latest)"
+  local panic_messages="$(lib.panics_print_all)"
   if [[ -z ${panic_messages} ]]; then
     return 1
   fi
@@ -40,11 +41,13 @@ DESCRIPTION:
 A command to review "panic" files. \
 A panic file contains a message, a severity level, and a timestamp.
 
-Unlike error logs, which might pertain to resolved issue(s), \
-the presence of panic files indicate a problem that needs immediate attention. \
-SolOS will display a panic file's contents every chance it gets until the panic is cleared.
-
 Panic files at: ${profile_panic__dir}
+
+COMMANDS:
+
+review       - Review the panic messages.
+clear        - Clear all panic messages.
+mute         - Mute the panic messages.
 
 EOF
 }
@@ -65,7 +68,7 @@ profile_panics.main() {
       return 0
     fi
   elif [[ $1 = "clear" ]]; then
-    panics_clear
+    lib.panics_clear
     return 0
   elif [[ $1 = "mute" ]]; then
     profile_panic__muted=true

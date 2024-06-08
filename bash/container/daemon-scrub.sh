@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 
-daemon_scrub__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
-daemon_scrub__checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1 | xargs)"
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
+daemon_scrub__users_home_dir="$(lib.home_dir_path)"
+daemon_scrub__checked_out_project="$(lib.checked_out_project)"
 daemon_scrub__project_dir="/root/.solos/projects/${daemon_scrub__checked_out_project}"
 # While not an exhaustive list, it's a good start.
 daemon_scrub__suspect_extensions=(
@@ -135,7 +137,7 @@ daemon_scrub.remove_ssh() {
       daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
       return 1
     fi
-    daemon_scrub.log_info "Scrubbed - \"${ssh_dirpath}\""
+    daemon_scrub.log_info "Pruned - \"${ssh_dirpath}\""
   done
 }
 # Not an exact science but we do our best to get rid of any files that look like they might be secret files.
@@ -177,7 +179,7 @@ daemon_scrub.remove_gitignored_paths() {
         daemon_scrub.log_error "Failed to remove the gitignored path: \"${gitignored_path_to_delete}\" from the temporary directory."
         return 1
       fi
-      daemon_scrub.log_info "Scrubbed - \"${gitignored_path_to_delete}\""
+      daemon_scrub.log_info "Pruned - \"${gitignored_path_to_delete}\""
     done
   done
 }

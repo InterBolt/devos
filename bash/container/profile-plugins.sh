@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
 
-profile_plugins__data_dir="${HOME}/.solos/data/plugins"
-profile_plugins__dir="${HOME}/.solos/plugins"
+profile_plugins__data_dir="${HOME}/.solos/data/installed"
+profile_plugins__installed_dir="${HOME}/.solos/installed"
+profile_plugins__processed_logfile="${profile_plugins__data_dir}/processed.log"
+profile_plugins__collected_logfile="${profile_plugins__data_dir}/collected.log"
 
 profile_plugins.init_fs() {
   mkdir -p "${profile_plugins__data_dir}"
-  mkdir -p "${profile_plugins__dir}"
-  if [[ ! -f ${profile_plugins__data_dir}/processed.log ]]; then
-    touch "${profile_plugins__data_dir}/processed.log"
+  mkdir -p "${profile_plugins__installed_dir}"
+  if [[ ! -f "${profile_plugins__processed_logfile}" ]]; then
+    touch "${profile_plugins__processed_logfile}"
   fi
-  if [[ ! -f ${profile_plugins__data_dir}/collected.log ]]; then
-    touch "${profile_plugins__data_dir}/collected.log"
+  if [[ ! -f "${profile_plugins__collected_logfile}" ]]; then
+    touch "${profile_plugins__collected_logfile}"
   fi
 }
 profile_plugins.cli_usage() {
@@ -99,28 +102,28 @@ profile_plugins.cli_install() {
     log_error "Missing required option: --config"
     return 1
   fi
-  local plugin_dir="${profile_plugins__dir}/${plugin_name}"
+  local plugin_dir="${profile_plugins__installed_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     log_error "Plugin \`${plugin_name}\` already exists. Please uninstall it first or use a different name for the new plugin."
     return 1
   fi
   local tmp_dir="$(mktemp -d)"
   log_info "Downloading plugin executables..."
-  curl "${loader}" -o "${tmp_dir}/loader.exe" -s &
-  curl "${collector}" -o "${tmp_dir}/collector.exe" -s &
-  curl "${processor}" -o "${tmp_dir}/processor.exe" -s &
+  curl "${loader}" -o "${tmp_dir}/loader" -s &
+  curl "${collector}" -o "${tmp_dir}/collector" -s &
+  curl "${processor}" -o "${tmp_dir}/processor" -s &
   curl "${config}" -o "${tmp_dir}/config.json" -s &
   wait
   log_info "Downloaded executables from their remove sources \`${plugin_name}\`."
-  if [[ ! -f ${tmp_dir}/loader.exe ]]; then
+  if [[ ! -f ${tmp_dir}/loader ]]; then
     log_error "Failed to download loader from ${loader}"
     return 1
   fi
-  if [[ ! -f ${tmp_dir}/collector.exe ]]; then
+  if [[ ! -f ${tmp_dir}/collector ]]; then
     log_error "Failed to download collector from ${collector}"
     return 1
   fi
-  if [[ ! -f ${tmp_dir}/processor.exe ]]; then
+  if [[ ! -f ${tmp_dir}/processor ]]; then
     log_error "Failed to download processor from ${processor}"
     return 1
   fi
@@ -165,7 +168,7 @@ profile_plugins.cli_install() {
     mv "${tmp_dir}/config.json.tmp" "${tmp_dir}/config.json"
     i=$((i + 1))
   done
-  chmod +x "${tmp_dir}/loader.exe" "${tmp_dir}/collector.exe" "${tmp_dir}/processor.exe"
+  chmod +x "${tmp_dir}/loader" "${tmp_dir}/collector" "${tmp_dir}/processor"
   mv "${tmp_dir}" "${plugin_dir}"
   log_info "Plugin \`${plugin_name}\` installed."
 }
@@ -173,14 +176,14 @@ profile_plugins.cli_list() {
   local plugins=()
   while IFS= read -r plugin; do
     plugins+=("${plugin}")
-  done < <(ls -1 "${profile_plugins__dir}")
+  done < <(ls -1 "${profile_plugins__installed_dir}")
   if [[ ${#plugins[@]} -eq 0 ]]; then
     log_info "No plugins installed."
     return 0
   fi
   local print_args=()
   for plugin in "${plugins[@]}"; do
-    print_args=("${plugin}" "${profile_plugins__dir}/${plugin}/config.json")
+    print_args=("${plugin}" "${profile_plugins__installed_dir}/${plugin}/config.json")
   done
   cat <<EOF
 $(
@@ -196,7 +199,7 @@ profile_plugins.cli_uninstall() {
     log_error "Missing required argument: <name>"
     return 1
   fi
-  local plugin_dir="${profile_plugins__dir}/${plugin_name}"
+  local plugin_dir="${profile_plugins__installed_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     rm -rf "${plugin_dir}"
     log_info "Plugin \`${plugin_name}\` uninstalled."

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
 # This script defines some behavior associated with the *success* of various CLI commands when run on the host.
 # Ex: when we run `solos app <app_name>`, we want to invoke the `code` command on the host.
 
@@ -35,10 +37,14 @@ cli_posthooks.app() {
     exit 1
   fi
   local app="${1}"
-  local project="$(cat "${HOME}/.solos/data/store/checked_out_project" | head -n 1)"
+  local project="$(lib.checked_out_project)"
+  if [[ -z ${project} ]]; then
+    echo "Unexpected error: no project checked out." >&2
+    exit 1
+  fi
   local project_dir="${HOME}/.solos/projects/${project}"
   if [[ ! -d "${HOME}/.solos/projects/${project}" ]]; then
-    echo "Unexpected error: no project specified." >&2
+    echo "Unexpected error: no project exists." >&2
     exit 1
   fi
   local app_dir="${project_dir}/apps/${app}"
@@ -54,6 +60,10 @@ cli_posthooks.app() {
   code -r "${app_dir_preexec_script}"
 }
 cli_posthooks.setup() {
-  local project="$(cat "${HOME}/.solos/data/store/checked_out_project" | head -n 1)"
+  local project="$(lib.checked_out_project)"
+  if [[ -z ${project} ]]; then
+    echo "Unexpected error: no project checked out." >&2
+    exit 1
+  fi
   bash -ic "solos checkout ${project}"
 }

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
 
 profile_user_execs.install() {
   local failed=false

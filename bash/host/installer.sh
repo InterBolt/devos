@@ -4,7 +4,7 @@ installer.setup() {
   installer__entry_dir="${PWD}"
   trap 'cd '"${installer__entry_dir}"'' EXIT
 
-  installer__bin_path="${HOME}/.solos/src/host/bridge.sh"
+  installer__bin_path="${HOME}/.solos/src/bash/host/bridge.sh"
   installer__usr_bin_path="/usr/local/bin/solos"
   installer__github_repo="https://github.com/InterBolt/solos.git"
   installer__tmp_dir="$(mktemp -d 2>/dev/null)"
@@ -33,7 +33,7 @@ installer.init_fs() {
     cat <<EOF >"${solos_bashrc}"
 #!/usr/bin/env bash
 
-. "\${HOME}/.solos/src/container/profile.sh" "\$@"
+. "\${HOME}/.solos/src/bash/container/profile.sh" "\$@"
 
 # Add your customizations to the SolOS shell.
 # Tip: type \`info\` in the shell to see what functions and aliases are available.

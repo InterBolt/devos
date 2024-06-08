@@ -7,14 +7,15 @@ shopt -s histappend
 # Load this history file.
 history -r
 
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-panics.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-table-outputs.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-daemon.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-user-execs.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-track.sh" || exit 1
-. "${HOME}/.solos/src/container/profile-plugins.sh" || exit 1
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-panics.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-table-outputs.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-daemon.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-user-execs.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-track.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/profile-plugins.sh" || exit 1
 
 profile__pub_fns=""
 profile__checked_out_project=""
@@ -36,12 +37,14 @@ profile.is_help_cmd() {
   fi
 }
 profile.users_home_dir() {
-  local home_dir_saved_location="${HOME}/.solos/data/store/users_home_dir"
-  if [[ ! -f ${home_dir_saved_location} ]]; then
-    log_error "Unexpected error: the user's home directory is not saved at: ${home_dir_saved_location}."
+  local home_dir_path="$(lib.home_dir_path)"
+  if [[ -z ${home_dir_path} ]]; then
+    lib.panics_add "missing_home_dir" <<EOF
+No reference to the user's home directory was found in the folder: ~/.solos/data/store.
+EOF
     profile.error_press_enter
   fi
-  cat "${home_dir_saved_location}" 2>/dev/null | head -n1
+  echo "${home_dir_path}"
 }
 profile.extract_help_description() {
   local help_output=$(cat)
@@ -71,7 +74,7 @@ profile.bash_completions() {
   complete -F _custom_command_completions '-'
 }
 profile.run_checked_out_project_script() {
-  local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+  local checked_out_project="$(lib.checked_out_project)"
   if [[ -z ${checked_out_project} ]]; then
     return 0
   fi
@@ -93,8 +96,8 @@ profile.run_checked_out_project_script() {
   fi
 }
 profile.print_info() {
-  local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
-  local installed_plugins_dir="${HOME}/.solos/plugins"
+  local checked_out_project="$(lib.checked_out_project)"
+  local installed_plugins_dir="${HOME}/.solos/installed"
   local installed_plugins=()
   if [[ -d ${installed_plugins_dir} ]]; then
     while IFS= read -r installed_plugin; do
@@ -139,11 +142,11 @@ $(
       "RESOURCE,PATH" \
       'Checked out project' "$(profile.users_home_dir)/.solos/projects/${checked_out_project}" \
       'User managed rcfile' "$(profile.users_home_dir)/.solos/rcfiles/.bashrc" \
-      'Internal rcfile' "$(profile.users_home_dir)/.solos/src/container/profile.sh" \
+      'Internal rcfile' "$(profile.users_home_dir)/.solos/src/bash/container/profile.sh" \
       'Config' "$(profile.users_home_dir)/.solos/config" \
       'Secrets' "$(profile.users_home_dir)/.solos/secrets" \
       'Data' "$(profile.users_home_dir)/.solos/data" \
-      'Plugins' "$(profile.users_home_dir)/.solos/plugins"
+      'Installed Plugins' "$(profile.users_home_dir)/.solos/installed"
   )
 
 $(
@@ -160,7 +163,7 @@ ${installed_plugins_sections}
 $(
     profile_table_outputs.format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
-      "SHELL_COMMAND" "Commands available when sourcing ~/.solos/src/container/profile.sh." \
+      "SHELL_COMMAND" "Commands available when sourcing ~/.solos/src/bash/container/profile.sh." \
       "RESOURCE" "Relevant directories and files managed by SolOS." \
       "SHELL_PROPERTY" "Properties that describe the SolOS environment." \
       "INSTALLED_PLUGIN" "Plugins available to all SolOS project."
@@ -319,7 +322,7 @@ profile.public_plugin() {
   profile_plugins.main "$@"
 }
 profile.public_solos() {
-  local executable_path="${HOME}/.solos/src/container/cli.sh"
+  local executable_path="${HOME}/.solos/src/bash/container/cli.sh"
   "${executable_path}" --restricted-shell "$@"
 }
 profile.public_info() {

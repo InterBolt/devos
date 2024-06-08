@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
 profile_daemon__data_dir="${HOME}/.solos/data/daemon"
-profile_daemon__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
+profile_daemon__users_home_dir="$(lib.home_dir_path)"
 profile_daemon__status_file="${profile_daemon__data_dir}/status"
 profile_daemon__pid_file="${profile_daemon__data_dir}/pid"
 profile_daemon__kill_file="${profile_daemon__data_dir}/kill"
 profile_daemon__log_file="${profile_daemon__data_dir}/master.log"
+profile_daemon__mounted_script="/root/.solos/src/bash/container/daemon-main.sh"
 
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
 
 profile_daemon.suggested_action_on_error() {
   log_error "Try stopping and deleting the docker container and its associated images before reloading the shell."
@@ -169,7 +172,7 @@ EOF
     local solos_version_hash="$(git -C "/root/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
     local args=(-i -w "${container_ctx}" "${solos_version_hash}")
-    local bash_args=(-c 'nohup /root/.solos/src/container/daemon-main.sh >/dev/null 2>&1 &')
+    local bash_args=(-c 'nohup '"${profile_daemon__mounted_script}"' >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
       log_error "Failed to reload the daemon process."
       return 1

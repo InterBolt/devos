@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 
-. "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}"/.solos/src/bash/host/cli-posthooks.sh || exit 1
 
-bridge__data_dir="${HOME}/.solos/data"
+bridge__data_dir="$(lib.data_dir_path)"
 bridge__repo_dir="${HOME}/.solos/src"
-bridge__users_home_dir="${HOME}/.solos/data/store/users_home_dir"
-bridge__last_docker_build_hash="${HOME}/.solos/data/store/last_docker_build_hash"
+bridge__store_dir="${HOME}/.solos/data/store"
+bridge__stored_users_home_dir="${bridge__store_dir}/users_home_dir"
+bridge__last_docker_build_hash="$(lib.last_docker_build_hash_path)"
 bridge__mount_dir="/root/.solos"
+bridge__mounted_daemon_path="/root/.solos/src/bash/container/daemon-main.sh"
+bridge__mounted_cli_path="/root/.solos/src/bash/container/cli.sh"
+bridge__users_bashrc_path="${HOME}/.solos/rcfiles/.bashrc"
 bridge__installer_no_tty_flag=false
 bridge__shell_minimal_flag=false
 bridge__shell_full_flag=false
@@ -68,7 +73,7 @@ bridge.test() {
 bridge.launch_daemon() {
   local container_ctx="${PWD/#$HOME//root}"
   local args=(-i -w "${container_ctx}" "$(bridge.hash)")
-  local bash_args=(-c 'nohup /root/.solos/src/container/daemon-main.sh >/dev/null 2>&1 &')
+  local bash_args=(-c 'nohup '"${bridge__mounted_daemon_path}"' >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bridge.exec_shell() {
@@ -110,8 +115,8 @@ bridge.build_and_run() {
     echo "A file called .solos was detected in your home directory." >&2
     bridge.error_press_enter
   fi
-  mkdir -p "$(dirname "${bridge__users_home_dir}")"
-  echo "${HOME}" >"${bridge__users_home_dir}"
+  mkdir -p "$(dirname "${bridge__stored_users_home_dir}")"
+  echo "${HOME}" >"${bridge__stored_users_home_dir}"
   local prev_hash="$(cat "${bridge__last_docker_build_hash}" 2>/dev/null || echo "")"
   local hash="$(bridge.hash)"
   local build_args=(-q)
@@ -174,7 +179,7 @@ bridge.cmd() {
 }
 bridge.exec_cli() {
   local post_behavior="$(cli_posthooks.determine_command "$@")"
-  if bridge.cmd /root/.solos/src/container/cli.sh "$@"; then
+  if bridge.cmd "${bridge__mounted_cli_path}" "$@"; then
     if [[ -n ${post_behavior} ]]; then
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
         return 0
@@ -186,9 +191,7 @@ bridge.exec_cli() {
   fi
 }
 bridge.cli() {
-  local curr_project="$(
-    head -n 1 "${HOME}"/.solos/data/store/checked_out_project 2>/dev/null || echo ""
-  )"
+  local curr_project="$(lib.checked_out_project)"
   local solos_cmd=""
   local args=("$@")
   for arg in "${args[@]}"; do
@@ -216,7 +219,7 @@ bridge.main() {
     bridge.shell
     exit $?
   elif [[ ${bridge__shell_full_flag} = true ]]; then
-    bridge.shell "${HOME}/.solos/rcfiles/.bashrc"
+    bridge.shell "${bridge__users_bashrc_path}"
     exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2

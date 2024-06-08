@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
 shopt -s extdebug
 
 profile_track.get_history_count() {
@@ -229,7 +231,7 @@ profile_track.trap() {
     profile_track__prev_history_count="${curr_history_count}"
 
     if [[ -n "${profile__checked_out_project}" ]]; then
-      local checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1)"
+      local checked_out_project="$(lib.checked_out_project)"
       if [[ "${profile__checked_out_project}" != "${checked_out_project}" ]]; then
         echo "You have changed projects (${profile__checked_out_project} => ${checked_out_project}) and your shell is no longer up to date." >&2
         echo "Please exit and start a new shell session." >&2

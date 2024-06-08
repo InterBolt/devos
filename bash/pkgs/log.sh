@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+
 log__will_print=true
 log__use_container_paths=false
 log__filesize=0
 log__logfile="${HOME}/.solos/data/log/master.log"
-log__panicfile="${HOME}/.solos/panic"
-
-. "${HOME}/.solos/src/pkgs/gum.sh" || exit 1
-. "${HOME}/.solos/src/pkgs/panics.sh" || exit 1
 
 mkdir -p "$(dirname "${log__logfile}")"
 if [[ ! -f ${log__logfile} ]]; then
@@ -24,8 +23,7 @@ log.to_hostname() {
   if [[ ${filename} != /* ]]; then
     filename="$(pwd)/${filename}"
   fi
-  local host="$(cat "${HOME}/.solos/data/store/users_home_dir")"
-  echo "${filename/${HOME}/${host}}"
+  lib.use_host "${filename}"
 }
 log.correct_paths_in_msg() {
   local msg="${1}"
@@ -33,18 +31,15 @@ log.correct_paths_in_msg() {
     echo "${msg}"
     return 0
   fi
-  local home_dir_reference_file="${HOME}/.solos/data/store/users_home_dir"
-  if [[ ! -s "${home_dir_reference_file}" ]]; then
-    panics_add "logging_missing_home_reference_file" "MEDIUM" <<EOF
-The logging functions are unable to find a non-empty reference file for the user's home directory at ${home_dir_reference_file}.
-This results in container-specific paths being used in the logs, which isn't terribly helpful since VSCode isn't running \
-inside the container. 
-As a result, right-clicking a filepath in the logging output won't open it in VSCode as we'd expect.
+  local home_dir_path="$(lib.home_dir_path)"
+  if [[ -z "${home_dir_path}" ]]; then
+    lib.panics_add "missing_home_dir" <<EOF
+No reference to the user's home directory was found in the folder: ~/.solos/data/store.
 EOF
     echo "${msg}"
     return 1
   fi
-  local home_dir_path="$(cat "${home_dir_reference_file}")"
+  local home_dir_path="$(lib.home_dir_path)"
   echo "${msg}" | sed -e "s|/root/|${home_dir_path}/|g" | sed -e "s|~/|${home_dir_path}/|g"
 }
 log.base() {

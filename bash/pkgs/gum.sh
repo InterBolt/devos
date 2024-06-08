@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-gum__self_dir="${HOME}/.solos/src/pkgs"
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
+gum__self_dir="${HOME}/.solos/src/bash/pkgs"
 gum__self_dirname=".installs"
 
 gum.get_release_file() {

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
 daemon_main__pid=$$
 daemon_main__data_dir="${HOME}/.solos/data/daemon"
 daemon_main__pid_file="${daemon_main__data_dir}/pid"
@@ -8,8 +10,8 @@ daemon_main__kill_file="${daemon_main__data_dir}/kill"
 daemon_main__log_file="${daemon_main__data_dir}/master.log"
 daemon_main__collections_dir="${daemon_main__data_dir}/collections"
 daemon_main__processed_file="${daemon_main__data_dir}/processed.log"
-daemon_main__users_home_dir="$(cat "${HOME}/.solos/data/store/users_home_dir" 2>/dev/null || echo "" | head -n 1 | xargs)"
-daemon_main__checked_out_project="$(cat "${HOME}/.solos/data/store/checked_out_project" 2>/dev/null || echo "" | head -n 1 | xargs)"
+daemon_main__users_home_dir="$(lib.home_dir_path)"
+daemon_main__checked_out_project="$(lib.checked_out_project)"
 daemon_main__prev_pid="$(cat "${daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon_main__report_string='Please report to https://github.com/InterBolt/solos/issues.'
 
@@ -20,7 +22,7 @@ daemon_main.host_path() {
 
 # Load the log functions and set the custom logfile separate from the logs generated
 # by the user in the foreground
-. "${HOME}/.solos/src/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
 if [[ ! -f ${daemon_main__log_file} ]]; then
   touch "${daemon_main__log_file}"
 fi
@@ -69,10 +71,10 @@ fi
 
 # We'll use the "main" function from each script to handle the plugin lifecycles.
 # Ie. collector.main, loader.main, processor.main.
-. "${HOME}/.solos/src/container/daemon-scrub.sh" || exit 1
-. "${HOME}/.solos/src/container/daemon-collector.sh" || exit 1
-. "${HOME}/.solos/src/container/daemon-loader.sh" || exit 1
-. "${HOME}/.solos/src/container/daemon-processor.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-scrub.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-collector.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-loader.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-processor.sh" || exit 1
 
 # Validate any status changes and print the status message.
 # Note: we may need more statuses to improve various failure cases

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
 #                                     /\             /\
 #                                    |`\\_,--="=--,_//`|
 #                                    \ ."  :'. .':  ". /
@@ -105,8 +106,8 @@ cli__project_app=""
 # These are placed below the definition of cli__users_home_dir because
 # they might rely on it.
 #-------------------------------------------------------------------
-. "${HOME}/.solos/src/pkgs/gum.sh"
-. "${HOME}/.solos/src/pkgs/log.sh"
+. "${HOME}/.solos/src/bash/pkgs/gum.sh"
+. "${HOME}/.solos/src/bash/pkgs/log.sh"
 #-------------------------------------------------
 # LIB:USAGE: CLI Help Information
 #-------------------------------------------------
@@ -596,6 +597,8 @@ cli.cmd.app._init() {
   cat <<EOF >"${tmp_app_dir}/solos.preexec.sh"
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+
 #########################################################################################################
 ## This script is executed prior to any command run in the SolOS's shell when the working directory is a 
 ## the parent directory or a subdirectory of the app's directory. The output of this script is not
@@ -613,6 +616,8 @@ echo "Hello from the pre-exec script for app: ${cli__project_app}"
 EOF
   cat <<EOF >"${tmp_app_dir}/solos.postexec.sh"
 #!/usr/bin/env bash
+
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
 #########################################################################################################
 ## This script is executed after any command run in the SolOS's shell when the working directory is a 
@@ -727,6 +732,8 @@ cli.cmd.checkout() {
     else
       cat <<EOF >"${checkout_script}"
 #!/usr/bin/env bash
+
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
 ######################################################################################################################
 ## This script runs at two different possible points in time:

@@ -11,8 +11,8 @@
       "profile": "shell"
     },
     {
-      "name": "solos.plugins",
-      "uri": "___cli__users_home_dir___/.solos/plugins",
+      "name": "solos.installed",
+      "uri": "___cli__users_home_dir___/.solos/installed",
       "profile": "shell"
     },
     {
@@ -48,11 +48,11 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/bash/host/bridge.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/bash/host/bridge.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,
@@ -62,11 +62,11 @@
     },
     "terminal.integrated.profiles.linux": {
       "shell": {
-        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/bash/host/bridge.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___cli__users_home_dir___/.solos/src/host/bridge.sh",
+        "path": "___cli__users_home_dir___/.solos/src/bash/host/bridge.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,

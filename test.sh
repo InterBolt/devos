@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 
-profile_plugins__dir="${HOME}/.solos/plugins"
+. "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
-plugins=()
-while IFS= read -r plugin; do
-  plugins+=("${plugin}")
-done < <(ls -1 "${profile_plugins__dir}")
-if [[ ${#plugins[@]} -eq 0 ]]; then
-  echo "No plugins installed."
-fi
-
-echo "plugins - ${plugins[@]}"
+lib.use_host "/root/.solos/src"
+lib.use_host "/Users/colinlaptop/.solos/src"
+lib.use_host "./src"
+lib.use_host "colinlaptop/.solos/src"
