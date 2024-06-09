@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/gum.sh" || exit 1
 
-profile_panic__dir="${HOME}/.solos/data/panics"
+profile_panic__dir="$(lib.panic_dir_path)"
 profile_panic__muted=false
 
 profile_panics.print() {
@@ -17,12 +17,12 @@ profile_panics.print() {
     return 1
   fi
   local newline=$'\n'
-  gum_danger_box "${panic_messages}${newline}${newline}Please report the issue at https://github.com/interbolt/solos/issues."
+  gum.danger_box "${panic_messages}${newline}${newline}Please report the issue at https://github.com/interbolt/solos/issues."
   return 0
 }
 profile_panics.install() {
   if profile_panics.print; then
-    local should_proceed="$(gum_confirm_ignore_panic)"
+    local should_proceed="$(gum.confirm_ignore_panic)"
     if [[ ${should_proceed} = true ]]; then
       return 1
     else
@@ -64,7 +64,7 @@ profile_panics.main() {
     if profile_panics.print; then
       return 0
     else
-      log_info "No panic message was found."
+      log.info "No panic message was found."
       return 0
     fi
   elif [[ $1 = "clear" ]]; then

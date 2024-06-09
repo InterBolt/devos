@@ -3,13 +3,14 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
 daemon_main__pid=$$
-daemon_main__data_dir="${HOME}/.solos/data/daemon"
-daemon_main__pid_file="${daemon_main__data_dir}/pid"
-daemon_main__status_file="${daemon_main__data_dir}/status"
-daemon_main__kill_file="${daemon_main__data_dir}/kill"
-daemon_main__log_file="${daemon_main__data_dir}/master.log"
-daemon_main__collections_dir="${daemon_main__data_dir}/collections"
-daemon_main__processed_file="${daemon_main__data_dir}/processed.log"
+daemon_main__daemon_data_dir="${HOME}/.solos/data/daemon"
+daemon_main__plugins_data_dir="${HOME}/.solos/data/plugins"
+daemon_main__pid_file="${daemon_main__daemon_data_dir}/pid"
+daemon_main__status_file="${daemon_main__daemon_data_dir}/status"
+daemon_main__kill_file="${daemon_main__daemon_data_dir}/kill"
+daemon_main__log_file="${daemon_main__daemon_data_dir}/master.log"
+daemon_main__collections_dir="${daemon_main__plugins_data_dir}/collections"
+daemon_main__processed_file="${daemon_main__plugins_data_dir}/processed.log"
 daemon_main__users_home_dir="$(lib.home_dir_path)"
 daemon_main__checked_out_project="$(lib.checked_out_project)"
 daemon_main__prev_pid="$(cat "${daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -22,7 +23,7 @@ daemon_main.host_path() {
 
 # Load the log functions and set the custom logfile separate from the logs generated
 # by the user in the foreground
-. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/log.sh" || exit 1
 if [[ ! -f ${daemon_main__log_file} ]]; then
   touch "${daemon_main__log_file}"
 fi
@@ -37,17 +38,17 @@ fi
 daemon_main.log_info() {
   local message="(MAIN) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_info "${message}" "$@"
+  log.info "${message}" "$@"
 }
 daemon_main.log_error() {
   local message="(MAIN) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_error "${message}" "$@"
+  log.error "${message}" "$@"
 }
 daemon_main.log_warn() {
   local message="(MAIN) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_warn "${message}" "$@"
+  log.warn "${message}" "$@"
 }
 
 daemon_main.log_info "Daemon process started with pid: ${daemon_main__pid}"
@@ -128,7 +129,8 @@ daemon_main.should_kill() {
 # Init anything needed before starting the daemon and prevent any particularly strange
 # errors that we don't account for and can't handle gracefully.
 daemon_main.start() {
-  mkdir -p "${daemon_main__data_dir}"
+  mkdir -p "${daemon_main__plugins_data_dir}"
+  mkdir -p "${daemon_main__daemon_data_dir}"
   if [[ ! -f ${daemon_main__log_file} ]]; then
     touch "${daemon_main__log_file}"
     daemon_main.log_info "Created master log file: \"$(daemon_main.host_path "${daemon_main__log_file}")\""
@@ -182,7 +184,7 @@ daemon_main.run() {
       daemon_main.log_info "Lifecycle - loader ran successfully."
     fi
     daemon_main.log_warn "Sleeping - 20 seconds before the next plugin cycle."
-    sleep 20
+    sleep 2
     if daemon_main.should_kill; then
       if ! daemon_main.update_status "USER_KILLED"; then
         daemon_main.log_error "Failed to update the daemon status to USER_KILLED."

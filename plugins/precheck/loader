@@ -3,11 +3,7 @@
 plugin__processed_file="${HOME}/processed.log"
 
 plugin.failed() {
-  echo "FAILED: ${*}"
-  exit 1
-}
-plugin.passed() {
-  echo "PASSED: ${*}"
+  echo "SOLOS_KILL: ${*}"
 }
 
 if [[ ! -w "${plugin__processed_file}" ]]; then
@@ -15,5 +11,3 @@ if [[ ! -w "${plugin__processed_file}" ]]; then
 else
   plugin.failed "The processed file is not readonly."
 fi
-
-exit 0

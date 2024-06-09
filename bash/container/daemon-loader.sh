@@ -6,17 +6,17 @@
 daemon_loader.log_info() {
   local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_info "${message}" "$@"
+  log.info "${message}" "$@"
 }
 daemon_loader.log_error() {
   local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_error "${message}" "$@"
+  log.error "${message}" "$@"
 }
 daemon_loader.log_warn() {
   local message="(LOADER) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_warn "${message}" "$@"
+  log.warn "${message}" "$@"
 }
 
 daemon_loader.main() {

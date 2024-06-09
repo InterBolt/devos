@@ -52,17 +52,17 @@ trap 'rm -rf /root/.solos/data/daemon/tmp' EXIT
 daemon_scrub.log_info() {
   local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_info "${message}" "$@"
+  log.info "${message}" "$@"
 }
 daemon_scrub.log_error() {
   local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_error "${message}" "$@"
+  log.error "${message}" "$@"
 }
 daemon_scrub.log_warn() {
   local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_warn "${message}" "$@"
+  log.warn "${message}" "$@"
 }
 
 # A little extra validation before we start copying stuff around.
@@ -256,25 +256,25 @@ daemon_scrub.main() {
     return 1
   fi
   local tmp_dir="$(daemon_scrub.copy_to_tmp)"
-  if [[ ! -d ${tmp_dir} ]]; then
-    return 1
-  fi
-  daemon_scrub.log_info "Checkpoint - copied solos to: ${tmp_dir}"
-  if ! daemon_scrub.remove_gitignored_paths "${tmp_dir}"; then
-    return 1
-  fi
-  daemon_scrub.log_info "Checkpoint - removed gitignored paths from: ${tmp_dir}"
-  if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
-    return 1
-  fi
-  daemon_scrub.log_info "Checkpoint - removed SSH directories from: ${tmp_dir}"
-  if ! daemon_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
-    return 1
-  fi
-  daemon_scrub.log_info "Checkpoint - deleted potentially sensitive files based on an extension blacklist."
-  if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
-    return 1
-  fi
-  daemon_scrub.log_info "Checkpoint - scrubbed known secrets."
+  # if [[ ! -d ${tmp_dir} ]]; then
+  #   return 1
+  # fi
+  # daemon_scrub.log_info "Checkpoint - copied solos to: ${tmp_dir}"
+  # if ! daemon_scrub.remove_gitignored_paths "${tmp_dir}"; then
+  #   return 1
+  # fi
+  # daemon_scrub.log_info "Checkpoint - removed gitignored paths from: ${tmp_dir}"
+  # if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
+  #   return 1
+  # fi
+  # daemon_scrub.log_info "Checkpoint - removed SSH directories from: ${tmp_dir}"
+  # if ! daemon_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
+  #   return 1
+  # fi
+  # daemon_scrub.log_info "Checkpoint - deleted potentially sensitive files based on an extension blacklist."
+  # if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
+  #   return 1
+  # fi
+  # daemon_scrub.log_info "Checkpoint - scrubbed known secrets."
   echo "${tmp_dir}"
 }

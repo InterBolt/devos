@@ -44,6 +44,11 @@ lib.data_dir_path() {
 }
 export -f lib.data_dir_path
 
+lib.panic_dir_path() {
+  echo "${lib__panics_dir}"
+}
+export -f lib.panic_dir_path
+
 lib.last_docker_build_hash_path() {
   echo "${lib__store_dir}/last_docker_build_hash" | xargs
 }

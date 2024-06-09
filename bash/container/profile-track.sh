@@ -139,7 +139,7 @@ profile_track.digest() {
     mv "${stdout_file}" "${profile_track__std_dir}/${track_id}.out"
     mv "${stderr_file}" "${profile_track__std_dir}/${track_id}.err"
     if [[ ${should_collect_post_note} = true ]]; then
-      local user_post_note="$(gum_post_cmd_note || echo "SOLOS:EXIT:1")"
+      local user_post_note="$(gum.post_cmd_note || echo "SOLOS:EXIT:1")"
       if [[ ${user_post_note} != "SOLOS:EXIT:1" ]]; then
         jq '.user_post_note = '"$(echo "${user_post_note}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
         mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
@@ -355,11 +355,11 @@ profile_track.install() {
 }
 profile_track.apply_category() {
   local newline=$'\n'
-  local category_choice="$(gum_tag_category_choice "${profile_track__config_dir}/categories")"
+  local category_choice="$(gum.tag_category_choice "${profile_track__config_dir}/categories")"
   if [[ ${category_choice} = "<none>" ]] || [[ -z ${category_choice} ]]; then
     echo ""
   elif [[ ${category_choice} = "<create>" ]]; then
-    local new_category="$(gum_tag_category_input || echo "")"
+    local new_category="$(gum.tag_category_input || echo "")"
     if [[ -n "${new_category}" ]]; then
       sed -i '1s/^/'"${new_category}"'\n/' "${profile_track__config_dir}/categories"
       echo "${new_category}"
@@ -413,7 +413,7 @@ profile_track.main() {
   fi
   local user_pre_note=""
   if [[ ${opt_category_only} = false ]]; then
-    user_pre_note="$(gum_pre_cmd_note_input || echo "SOLOS:EXIT:1")"
+    user_pre_note="$(gum.pre_cmd_note_input || echo "SOLOS:EXIT:1")"
     if [[ ${user_pre_note} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi

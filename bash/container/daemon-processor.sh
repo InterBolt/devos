@@ -6,17 +6,17 @@
 daemon_processor.log_info() {
   local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_info "${message}" "$@"
+  log.info "${message}" "$@"
 }
 daemon_processor.log_error() {
   local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_error "${message}" "$@"
+  log.error "${message}" "$@"
 }
 daemon_processor.log_warn() {
   local message="(PROCESSOR) ${1} pid=\"${daemon_main__pid}\""
   shift
-  log_warn "${message}" "$@"
+  log.warn "${message}" "$@"
 }
 
 daemon_processor.main() {

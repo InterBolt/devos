@@ -134,6 +134,9 @@ bridge.build_and_run() {
     -d
     --network
     host
+    --pid
+    host
+    --privileged
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v

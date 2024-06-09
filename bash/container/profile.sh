@@ -8,8 +8,8 @@ shopt -s histappend
 history -r
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/gum.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/profile-panics.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/profile-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/profile-daemon.sh" || exit 1
@@ -49,17 +49,17 @@ EOF
 profile.extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
-    log_error "Unexpected error: empty help output."
+    log.error "Unexpected error: empty help output."
     return 1
   fi
   local description_line_number=$(echo "${help_output}" | grep -n "^DESCRIPTION:" | cut -d: -f1)
   if [[ -z ${description_line_number} ]]; then
-    log_error "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`"
+    log.error "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`"
     return 1
   fi
   local first_description_line=$((description_line_number + 2))
   if [[ -z $(echo "${help_output}" | sed -n "${first_description_line}p") ]]; then
-    log_error "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:"
+    log.error "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:"
     return 1
   fi
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
@@ -199,11 +199,11 @@ profile.install_gh() {
   local secrets_path="${HOME}/.solos/secrets"
   local config_path="${HOME}/.solos/config"
   if [[ ! -d ${secrets_path} ]]; then
-    log_error "No secrets directory found at ${secrets_path}. You probably need to run \`solos setup\`."
+    log.error "No secrets directory found at ${secrets_path}. You probably need to run \`solos setup\`."
     profile.error_press_enter
   fi
   if [[ ! -d ${config_path} ]]; then
-    log_error "No config directory found at ${config_path}. You probably need to run \`solos setup\`."
+    log.error "No config directory found at ${config_path}. You probably need to run \`solos setup\`."
     profile.error_press_enter
   fi
 
@@ -211,25 +211,25 @@ profile.install_gh() {
   local gh_name_path="${config_path}/gh_name"
   local gh_email_path="${config_path}/gh_email"
   if [[ ! -f ${gh_token_path} ]]; then
-    log_error "No Github token found at ${gh_token_path}. You probably need to run \`solos setup\`."
+    log.error "No Github token found at ${gh_token_path}. You probably need to run \`solos setup\`."
     profile.error_press_enter
   fi
   if [[ ! -f ${gh_name_path} ]]; then
-    log_error "No Github name found at ${gh_name_path}. You probably need to run \`solos setup\`."
+    log.error "No Github name found at ${gh_name_path}. You probably need to run \`solos setup\`."
     profile.error_press_enter
   fi
   if [[ ! -f ${gh_email_path} ]]; then
-    log_error "No Github email found at ${gh_email_path}. You probably need to run \`solos setup\`."
+    log.error "No Github email found at ${gh_email_path}. You probably need to run \`solos setup\`."
     profile.error_press_enter
   fi
   git config --global user.name "$(cat "${gh_name_path}")" || profile.error_press_enter
   git config --global user.email "$(cat "${gh_email_path}")" || profile.error_press_enter
   if ! gh auth login --with-token <"${gh_token_path}"; then
-    log_error "Github CLI failed to authenticate."
+    log.error "Github CLI failed to authenticate."
     profile.error_press_enter
   fi
   if ! gh auth setup-git; then
-    log_error "Github CLI failed to setup."
+    log.error "Github CLI failed to setup."
     profile.error_press_enter
   fi
 }
@@ -287,7 +287,7 @@ EOF
     history -a
     bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
-    log_info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
+    log.info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
     trap 'trap "profile_track.trap" DEBUG; exit 1;' SIGINT
     trap 'profile_track.trap' DEBUG
   fi
@@ -306,14 +306,14 @@ EOF
   fi
   local query=''"${*}"''
   if [[ -z ${query} ]]; then
-    log_error "No question provided."
+    log.error "No question provided."
     return 1
   fi
   if [[ ! -f ${HOME}/.solos/secrets/openai_api_key ]]; then
-    log_error "This feature is disabled since you did not provide SolOS with an OpenAI API key during the setup process. Use \`solos setup\` to add one."
+    log.error "This feature is disabled since you did not provide SolOS with an OpenAI API key during the setup process. Use \`solos setup\` to add one."
     return 1
   fi
-  log_warn "TODO: No implementation exists yet. Stay tuned."
+  log.warn "TODO: No implementation exists yet. Stay tuned."
 }
 profile.public_track() {
   profile_track.main "$@"

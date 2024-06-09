@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/gum.sh" || exit 1
 
 log__will_print=true
 log__use_container_paths=false
@@ -18,14 +18,14 @@ if [[ ${log__filesize} -gt 100000 ]]; then
   echo "${log__logfile} is growing large. Currently at ${log__filesize}Kb"
 fi
 
-log.to_hostname() {
+log._to_hostname() {
   local filename="${1}"
   if [[ ${filename} != /* ]]; then
     filename="$(pwd)/${filename}"
   fi
   lib.use_host "${filename}"
 }
-log.correct_paths_in_msg() {
+log._correct_paths_in_msg() {
   local msg="${1}"
   if [[ ${log__use_container_paths} = true ]]; then
     echo "${msg}"
@@ -42,7 +42,7 @@ EOF
   local home_dir_path="$(lib.home_dir_path)"
   echo "${msg}" | sed -e "s|/root/|${home_dir_path}/|g" | sed -e "s|~/|${home_dir_path}/|g"
 }
-log.base() {
+log._base() {
   if [[ ! -f ${log__logfile} ]]; then
     if ! touch "${log__logfile}" &>/dev/null; then
       echo "Failed to create log file: ${log__logfile}"
@@ -59,13 +59,15 @@ log.base() {
   if [[ ${source} = "NULL"* ]]; then
     source=""
   fi
-  msg="$(log.correct_paths_in_msg "${msg}")"
+  msg="$(log._correct_paths_in_msg "${msg}")"
   if [[ ${level} = "tag" ]]; then
     echo "[TAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
-  gum_shell_log "${log__will_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
+  gum.shell_log "${log__will_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
 }
+
+# PUBLIC FUNCTIONS:
 
 log.use_custom_logfile() {
   log__logfile="${1}"
@@ -80,48 +82,45 @@ log.use_file_only() {
 log.use_container_paths() {
   log__use_container_paths=true
 }
-
-# PUBLIC FUNCTIONS:
-
-log_tag() {
+log.tag() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "tag" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_tag failed"
+  if ! log._base "tag" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.tag failed"
   fi
 }
-log_info() {
+log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "info" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_info failed"
+  if ! log._base "info" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.info failed"
   fi
 }
-log_debug() {
+log.debug() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "debug" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_debug failed"
+  if ! log._base "debug" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.debug failed"
   fi
 }
-log_error() {
+log.error() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "error" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_error failed"
+  if ! log._base "error" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.error failed"
   fi
 }
-log_fatal() {
+log.fatal() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "fatal" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_fatal failed"
+  if ! log._base "fatal" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.fatal failed"
   fi
 }
-log_warn() {
+log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log.base "warn" "$(log.to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log_warn failed"
+  if ! log._base "warn" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.warn failed"
   fi
 }

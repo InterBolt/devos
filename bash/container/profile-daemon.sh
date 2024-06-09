@@ -10,12 +10,12 @@ profile_daemon__kill_file="${profile_daemon__data_dir}/kill"
 profile_daemon__log_file="${profile_daemon__data_dir}/master.log"
 profile_daemon__mounted_script="/root/.solos/src/bash/container/daemon-main.sh"
 
-. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/gum.sh" || exit 1
 
 profile_daemon.suggested_action_on_error() {
-  log_error "Try stopping and deleting the docker container and its associated images before reloading the shell."
-  log_error "If the issue persists, please report it here: https://github.com/InterBolt/solos/issues"
+  log.error "Try stopping and deleting the docker container and its associated images before reloading the shell."
+  log.error "If the issue persists, please report it here: https://github.com/InterBolt/solos/issues"
 }
 profile_daemon.install() {
   # We only do this once so do it fast and allow lots of retries.
@@ -29,7 +29,7 @@ profile_daemon.install() {
       break
     fi
     if [[ ${attempts} -ge ${max_attempts} ]]; then
-      log_error "Unexpected error: the daemon process failed to start. It's status is: ${status}"
+      log.error "Unexpected error: the daemon process failed to start. It's status is: ${status}"
       profile_daemon.suggested_action_on_error
       profile.error_press_enter
     fi
@@ -61,7 +61,7 @@ profile_daemon.main() {
     local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${status} ]]; then
-      log_error "Unexpected error: the daemon status does not exist."
+      log.error "Unexpected error: the daemon status does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -70,7 +70,7 @@ profile_daemon.main() {
       expect_pid="true"
     fi
     if [[ -z ${pid} ]] && [[ ${expect_pid} = true ]]; then
-      log_error "Unexpected error: the daemon pid does not exist."
+      log.error "Unexpected error: the daemon pid does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -84,7 +84,7 @@ EOF
   if [[ ${1} = "pid" ]]; then
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
-      log_error "Unexpected error: the daemon pid does not exist."
+      log.error "Unexpected error: the daemon pid does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -93,7 +93,7 @@ EOF
   fi
   if [[ ${1} = "logs" ]]; then
     if [[ ! -f ${profile_daemon__log_file} ]]; then
-      log_error "Unexpected error: the daemon logfile does not exist."
+      log.error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -102,7 +102,7 @@ EOF
   fi
   if [[ ${1} = "flush" ]]; then
     if [[ ! -f ${profile_daemon__log_file} ]]; then
-      log_error "Unexpected error: the daemon logfile does not exist."
+      log.error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -111,7 +111,7 @@ EOF
       touch "${profile_daemon__log_file}"
       return 0
     else
-      log_error "Failed to flush the daemon logfile."
+      log.error "Failed to flush the daemon logfile."
       return 1
     fi
   fi
@@ -119,7 +119,7 @@ EOF
     shift
     local tail_args=("$@")
     if [[ ! -f ${profile_daemon__log_file} ]]; then
-      log_error "Unexpected error: the daemon logfile does not exist."
+      log.error "Unexpected error: the daemon logfile does not exist."
       profile_daemon.suggested_action_on_error
       return 1
     fi
@@ -129,13 +129,13 @@ EOF
   if [[ ${1} = "kill" ]]; then
     shift
     if [[ $# -ne 0 ]]; then
-      log_error "Unknown kill options: ${*}"
+      log.error "Unknown kill options: ${*}"
       return 1
     fi
-    log_info "Killing. Waiting for the daemon to finish its current task."
+    log.info "Killing. Waiting for the daemon to finish its current task."
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
-      log_warn "No pid was found. Nothing to kill"
+      log.warn "No pid was found. Nothing to kill"
       return 0
     fi
     echo "${pid}" >"${profile_daemon__kill_file}"
@@ -146,15 +146,15 @@ EOF
       fi
       sleep 0.5
     done
-    log_info "Killed the daemon process with PID - ${pid}"
+    log.info "Killed the daemon process with PID - ${pid}"
     return 0
   fi
   if [[ ${1} = "reload" ]]; then
-    log_info "Reloading. Waiting for the daemon to finish its current task."
+    log.info "Reloading. Waiting for the daemon to finish its current task."
     local pid="$(cat "${profile_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     local running="false"
     if [[ -z ${pid} ]]; then
-      log_warn "No pid was found. Will start the daemon process."
+      log.warn "No pid was found. Will start the daemon process."
     elif ps -p "${pid}" >/dev/null; then
       running="true"
     fi
@@ -167,14 +167,14 @@ EOF
         fi
         sleep 0.5
       done
-      log_info "Killed the daemon process with PID - ${pid}"
+      log.info "Killed the daemon process with PID - ${pid}"
     fi
     local solos_version_hash="$(git -C "/root/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
     local args=(-i -w "${container_ctx}" "${solos_version_hash}")
     local bash_args=(-c 'nohup '"${profile_daemon__mounted_script}"' >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
-      log_error "Failed to reload the daemon process."
+      log.error "Failed to reload the daemon process."
       return 1
     fi
     while true; do
@@ -184,9 +184,9 @@ EOF
       fi
       sleep 0.5
     done
-    log_info "Restarted the daemon process."
+    log.info "Restarted the daemon process."
     return 0
   fi
-  log_error "Unknown command: ${1}"
+  log.error "Unknown command: ${1}"
   return 1
 }

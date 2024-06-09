@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/pkgs/gum.sh" || exit 1
+. "${HOME}/.solos/src/bash/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/gum.sh" || exit 1
 
 profile_plugins__data_dir="${HOME}/.solos/data/installed"
 profile_plugins__installed_dir="${HOME}/.solos/installed"
@@ -81,58 +81,58 @@ profile_plugins.cli_install() {
       config="${arg#*=}"
       ;;
     *)
-      log_error "Invalid option: ${arg}"
+      log.error "Invalid option: ${arg}"
       return 1
       ;;
     esac
   done
   if [[ -z ${loader} ]]; then
-    log_error "Missing required option: --loader"
+    log.error "Missing required option: --loader"
     return 1
   fi
   if [[ -z ${collector} ]]; then
-    log_error "Missing required option: --collector"
+    log.error "Missing required option: --collector"
     return 1
   fi
   if [[ -z ${processor} ]]; then
-    log_error "Missing required option: --processor"
+    log.error "Missing required option: --processor"
     return 1
   fi
   if [[ -z ${config} ]]; then
-    log_error "Missing required option: --config"
+    log.error "Missing required option: --config"
     return 1
   fi
   local plugin_dir="${profile_plugins__installed_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
-    log_error "Plugin \`${plugin_name}\` already exists. Please uninstall it first or use a different name for the new plugin."
+    log.error "Plugin \`${plugin_name}\` already exists. Please uninstall it first or use a different name for the new plugin."
     return 1
   fi
   local tmp_dir="$(mktemp -d)"
-  log_info "Downloading plugin executables..."
+  log.info "Downloading plugin executables..."
   curl "${loader}" -o "${tmp_dir}/loader" -s &
   curl "${collector}" -o "${tmp_dir}/collector" -s &
   curl "${processor}" -o "${tmp_dir}/processor" -s &
   curl "${config}" -o "${tmp_dir}/config.json" -s &
   wait
-  log_info "Downloaded executables from their remove sources \`${plugin_name}\`."
+  log.info "Downloaded executables from their remove sources \`${plugin_name}\`."
   if [[ ! -f ${tmp_dir}/loader ]]; then
-    log_error "Failed to download loader from ${loader}"
+    log.error "Failed to download loader from ${loader}"
     return 1
   fi
   if [[ ! -f ${tmp_dir}/collector ]]; then
-    log_error "Failed to download collector from ${collector}"
+    log.error "Failed to download collector from ${collector}"
     return 1
   fi
   if [[ ! -f ${tmp_dir}/processor ]]; then
-    log_error "Failed to download processor from ${processor}"
+    log.error "Failed to download processor from ${processor}"
     return 1
   fi
   if [[ ! -f ${tmp_dir}/config.json ]]; then
-    log_error "Failed to download config from ${config}"
+    log.error "Failed to download config from ${config}"
     return 1
   fi
   if ! jq . "${tmp_dir}/config.json" >/dev/null 2>&1; then
-    log_error "Invalid config file. JSON parsing failed."
+    log.error "Invalid config file. JSON parsing failed."
     return 1
   fi
   jq '. + { \
@@ -156,7 +156,7 @@ profile_plugins.cli_install() {
   done < <(jq -r ".requires[]" "${tmp_dir}/config.json")
   # TODO: add support for "untrusted and trusted plugins via the config spec"
   for key in "${required_keys[@]}"; do
-    local next_value="$(gum_plugin_config_input "${key}")"
+    local next_value="$(gum.plugin_config_input "${key}")"
     if [[ ${next_value} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi
@@ -170,7 +170,7 @@ profile_plugins.cli_install() {
   done
   chmod +x "${tmp_dir}/loader" "${tmp_dir}/collector" "${tmp_dir}/processor"
   mv "${tmp_dir}" "${plugin_dir}"
-  log_info "Plugin \`${plugin_name}\` installed."
+  log.info "Plugin \`${plugin_name}\` installed."
 }
 profile_plugins.cli_list() {
   local plugins=()
@@ -178,7 +178,7 @@ profile_plugins.cli_list() {
     plugins+=("${plugin}")
   done < <(ls -1 "${profile_plugins__installed_dir}")
   if [[ ${#plugins[@]} -eq 0 ]]; then
-    log_info "No plugins installed."
+    log.info "No plugins installed."
     return 0
   fi
   local print_args=()
@@ -196,20 +196,20 @@ EOF
 profile_plugins.cli_uninstall() {
   local plugin_name="${1}"
   if [[ -z ${plugin_name} ]]; then
-    log_error "Missing required argument: <name>"
+    log.error "Missing required argument: <name>"
     return 1
   fi
   local plugin_dir="${profile_plugins__installed_dir}/${plugin_name}"
   if [[ -d ${plugin_dir} ]]; then
     rm -rf "${plugin_dir}"
-    log_info "Plugin \`${plugin_name}\` uninstalled."
+    log.info "Plugin \`${plugin_name}\` uninstalled."
   else
-    log_error "Plugin \`${plugin_name}\` not found."
+    log.error "Plugin \`${plugin_name}\` not found."
   fi
 }
 profile_plugins.main() {
   if ! profile_plugins.init_fs; then
-    log_error "Failed to initialize plugin filesystem."
+    log.error "Failed to initialize plugin filesystem."
     return 1
   fi
   local cmd="${1}"
@@ -218,13 +218,13 @@ profile_plugins.main() {
     return 0
   fi
   if [[ -z ${cmd} ]]; then
-    log_error "Missing required argument: <command>"
+    log.error "Missing required argument: <command>"
     return 1
   fi
   shift
   local cmd_arg="${1}"
   if ! declare -F "profile_plugins.cli_${cmd}" >/dev/null; then
-    log_error "Unsupported command: ${cmd}. See \`plugin --help\` for available commands."
+    log.error "Unsupported command: ${cmd}. See \`plugin --help\` for available commands."
     return 1
   fi
   if profile.is_help_cmd "${cmd_arg}"; then

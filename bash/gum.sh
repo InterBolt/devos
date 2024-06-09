@@ -2,10 +2,10 @@
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
-gum__self_dir="${HOME}/.solos/src/bash/pkgs"
+gum__self_dir="${HOME}/.solos/src/bash"
 gum__self_dirname=".installs"
 
-gum.get_release_file() {
+gum._get_release_file() {
   local gum_version="0.13.0"
   local gum_release_url="https://github.com/charmbracelet/gum/releases/download"
   local release=""
@@ -24,11 +24,8 @@ gum.get_release_file() {
   fi
   echo "${release}"
 }
-
-# PUBLIC FUNCTIONS:
-
-gum_install() {
-  local release="$(gum.get_release_file)"
+gum._install() {
+  local release="$(gum._get_release_file)"
   local release_download_dirname="$(basename "${release}" | sed 's/.tar.gz//')"
   local location_dir="${gum__self_dir}/${gum__self_dirname}/${release_download_dirname}"
   mkdir -p "${location_dir}"
@@ -37,8 +34,8 @@ gum_install() {
   fi
   echo "${location_dir}/gum"
 }
-gum_bin() {
-  local executable_path="$(gum_install)"
+gum._bin() {
+  local executable_path="$(gum._install)"
   if [[ -f ${executable_path} ]]; then
     "${executable_path}" "$@"
   else
@@ -46,7 +43,10 @@ gum_bin() {
     exit 1
   fi
 }
-gum_tag_category_choice() {
+
+# PUBLIC FUNCTIONS:
+
+gum.tag_category_choice() {
   local categories_file="$1"
   local categories="$(cat "${categories_file}")"
   local categories_file=""
@@ -63,27 +63,27 @@ gum_tag_category_choice() {
   done <<<"${categories}"
   unset IFS
   local user_exit_str="SOLOS:EXIT:1"
-  echo "${categories_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1"
+  echo "${categories_file}" | gum._bin choose --limit 1 || echo "SOLOS:EXIT:1"
 }
-gum_post_cmd_note() {
-  gum_bin input --placeholder "Post-command note:"
+gum.post_cmd_note() {
+  gum._bin input --placeholder "Post-command note:"
 }
-gum_tag_category_input() {
-  gum_bin input --placeholder "Enter new tag:"
+gum.tag_category_input() {
+  gum._bin input --placeholder "Enter new tag:"
 }
-gum_pre_cmd_note_input() {
-  gum_bin input --placeholder "Enter note"
+gum.pre_cmd_note_input() {
+  gum._bin input --placeholder "Enter note"
 }
-gum_plugin_config_input() {
+gum.plugin_config_input() {
   local key="$1"
-  local value="$(gum_bin input --placeholder "Enter ${key}:" || echo "SOLOS:EXIT:1")"
+  local value="$(gum._bin input --placeholder "Enter ${key}:" || echo "SOLOS:EXIT:1")"
   if [[ -z ${value} ]]; then
-    gum_plugin_config_input "${key}"
+    gum.plugin_config_input "${key}"
   else
     echo "${value}"
   fi
 }
-gum_shell_log() {
+gum.shell_log() {
   local will_print="${1:-true}"
   local log_file="$2"
   local level="$3"
@@ -96,33 +96,33 @@ gum_shell_log() {
     source_args=(source "[${source}]")
   fi
   if [[ -t 1 ]] || [[ ${will_print} = true ]]; then
-    gum_bin log \
+    gum._bin log \
       --level.foreground "${log_level_colors["${level}"]}" \
       --structured \
       --level "${level}" "${msg}"
   fi
-  gum_bin log \
+  gum._bin log \
     --level.foreground "${log_level_colors["${level}"]}" \
     --file "${log_file}" \
     --structured \
     --level "${level}" "${msg}" "${source_args[@]}" date "${date}"
 }
-gum_github_token() {
-  gum_bin input --password --placeholder "Enter Github access token:"
+gum.github_token() {
+  gum._bin input --password --placeholder "Enter Github access token:"
 }
-gum_github_email() {
-  gum_bin input --placeholder "Enter Github email:"
+gum.github_email() {
+  gum._bin input --placeholder "Enter Github email:"
 }
-gum_github_name() {
-  gum_bin input --placeholder "Enter Github username:"
+gum.github_name() {
+  gum._bin input --placeholder "Enter Github username:"
 }
-gum_repo_url() {
-  gum_bin input --placeholder "Provide a github repo url:"
+gum.repo_url() {
+  gum._bin input --placeholder "Provide a github repo url:"
 }
-gum_confirm_new_app() {
+gum.confirm_new_app() {
   local project_name="$1"
   local project_app="$2"
-  if gum_bin confirm \
+  if gum._bin confirm \
     "Are you sure you want to create a new app called \`${project_app}\` in the project \`${project_name}\`?" \
     --affirmative="Yes" \
     --negative="No, exit without creating the app."; then
@@ -131,8 +131,8 @@ gum_confirm_new_app() {
     echo "false"
   fi
 }
-gum_confirm_checkout_project() {
-  if gum_bin confirm \
+gum.confirm_checkout_project() {
+  if gum._bin confirm \
     "Would you like to checkout a project?" \
     --affirmative="Yes" \
     --negative="No, I'll do that later."; then
@@ -141,7 +141,7 @@ gum_confirm_checkout_project() {
     echo "false"
   fi
 }
-gum_project_choices() {
+gum.project_choices() {
   local choices_file=""
   local newline=$'\n'
   local i=0
@@ -153,20 +153,20 @@ gum_project_choices() {
     fi
     i=$((i + 1))
   done
-  local project="$(echo "${choices_file}" | gum_bin choose --limit 1 || echo "SOLOS:EXIT:1")"
+  local project="$(echo "${choices_file}" | gum._bin choose --limit 1 || echo "SOLOS:EXIT:1")"
   if [[ "${project}" = "SOLOS:EXIT:1" ]]; then
     echo ""
   else
     echo "${project}"
   fi
 }
-gum_new_project_name_input() {
-  gum_bin input --placeholder "Enter a new project name:"
+gum.new_project_name_input() {
+  gum._bin input --placeholder "Enter a new project name:"
 }
-gum_confirm_retry() {
+gum.confirm_retry() {
   local project_name="$1"
   local project_app="$2"
-  if gum_bin confirm \
+  if gum._bin confirm \
     "Would you like to retry?" \
     --affirmative="Yes, retry." \
     --negative="No, I'll try again later."; then
@@ -175,8 +175,8 @@ gum_confirm_retry() {
     echo "false"
   fi
 }
-gum_confirm_overwriting_setup() {
-  if gum_bin confirm \
+gum.confirm_overwriting_setup() {
+  if gum._bin confirm \
     "After reviewing the current setup, are you sure you want to proceed?" \
     --affirmative="Yes, continue" \
     --negative="No."; then
@@ -185,8 +185,8 @@ gum_confirm_overwriting_setup() {
     echo "false"
   fi
 }
-gum_confirm_ignore_panic() {
-  if gum_bin confirm \
+gum.confirm_ignore_panic() {
+  if gum._bin confirm \
     "Would you like to ignore the panic file?" \
     --affirmative="Yes, I know what I'm doing" \
     --negative="No, exit now."; then
@@ -195,19 +195,19 @@ gum_confirm_ignore_panic() {
     echo "false"
   fi
 }
-gum_optional_openai_api_key_input() {
-  gum_bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
+gum.optional_openai_api_key_input() {
+  gum._bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
 }
-gum_danger_box() {
+gum.danger_box() {
   local terminal_width=$(tput cols)
-  gum_bin style \
+  gum._bin style \
     --foreground "#F02" --border-foreground "#F02" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
 }
-gum_success_box() {
+gum.success_box() {
   local terminal_width=$(tput cols)
-  gum_bin style \
+  gum._bin style \
     --foreground "#0F0" --border-foreground "#0F0" --border thick \
     --width "$((terminal_width - 2))" --align left --margin ".5" --padding "1 2" \
     "$@"
