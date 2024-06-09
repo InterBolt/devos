@@ -11,8 +11,6 @@ daemon_main__pid_file="${daemon_main__daemon_data_dir}/pid"
 daemon_main__status_file="${daemon_main__daemon_data_dir}/status"
 daemon_main__kill_file="${daemon_main__daemon_data_dir}/kill"
 daemon_main__log_file="${daemon_main__daemon_data_dir}/master.log"
-daemon_main__collections_dir="${daemon_main__plugins_data_dir}/collections"
-daemon_main__processed_file="${daemon_main__plugins_data_dir}/processed.log"
 daemon_main__users_home_dir="$(lib.home_dir_path)"
 daemon_main__checked_out_project="$(lib.checked_out_project)"
 daemon_main__prev_pid="$(cat "${daemon_main__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -133,19 +131,6 @@ daemon_main.found_user_kill_request_file() {
 # errors that we don't account for and can't handle gracefully.
 daemon_main.start() {
   mkdir -p "${daemon_main__plugins_data_dir}"
-  mkdir -p "${daemon_main__daemon_data_dir}"
-  if [[ ! -f ${daemon_main__log_file} ]]; then
-    touch "${daemon_main__log_file}"
-    daemon_main.log_info "Created master log file: \"$(daemon_main.host_path "${daemon_main__log_file}")\""
-  fi
-  if [[ ! -d ${daemon_main__collections_dir} ]]; then
-    mkdir -p "${daemon_main__collections_dir}"
-    daemon_main.log_info "Created collections dir: \"$(daemon_main.host_path "${daemon_main__collections_dir}")\""
-  fi
-  if [[ ! -f ${daemon_main__processed_file} ]]; then
-    touch "${daemon_main__processed_file}"
-    daemon_main.log_info "Created processed file: \"$(daemon_main.host_path "${daemon_main__processed_file}")\""
-  fi
   # Speculation: Given that we check for an already running Daemon at the top, I can only see this
   # happening if another daemon is started between the time the pid file is removed and here.
   # Seems like a very unlikely scenario unless a bug prevents this line from executing in a timely way.
@@ -172,6 +157,23 @@ daemon_main.handle_phase_kill_request() {
 daemon_main.handle_phases_succeeded() {
   daemon_main__phase_kill_count=0
   return 0
+}
+daemon_main.archive_run() {
+  local paths="${*}"
+  local archive_dir="${daemon_main__plugins_data_dir}/archive-$(date +%s)"
+  mkdir -p "${archive_dir}"
+  for path in ${paths}; do
+    local path_basename="$(basename "${path}")"
+    mv "${path}" "${archive_dir}/${path_basename}"
+  done
+  local archives=($(ls -t "${daemon_main__plugins_data_dir}" | grep "archive-"))
+  local archives_count="${#archives[@]}"
+  if [[ ${archives_count} -gt 5 ]]; then
+    local archives_to_remove=("${archives[@]:5}")
+    for archive in ${archives_to_remove}; do
+      rm -rf "${daemon_main__plugins_data_dir}/${archive}"
+    done
+  fi
 }
 daemon_main.run() {
   local phase_kill_request_message="phase failed with a non-151 code (151 indicates a phase asking to kill the daemon)."
@@ -248,6 +250,8 @@ daemon_main.run() {
     else
       daemon_main.log_info "Lifecycle - push ran successfully."
     fi
+    daemon_main.archive_run "${scrubbed_volume_dir}" "${pulled_data_dir}" "${collections_dir}" "${processed_file}"
+    daemon_main.log_info "Lifecycle - archived the run."
     daemon_main.handle_phases_succeeded
     daemon_main.log_warn "Done - all phases ran successfully. Waiting for the next cycle."
     sleep 2
