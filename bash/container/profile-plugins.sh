@@ -154,7 +154,6 @@ profile_plugins.cli_install() {
     required_keys+=("${key}")
     i=$((i + 1))
   done < <(jq -r ".requires[]" "${tmp_dir}/config.json")
-  # TODO: add support for "untrusted and trusted plugins via the config spec"
   for key in "${required_keys[@]}"; do
     local next_value="$(gum.plugin_config_input "${key}")"
     if [[ ${next_value} = "SOLOS:EXIT:1" ]]; then
