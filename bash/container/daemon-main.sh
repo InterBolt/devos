@@ -149,6 +149,10 @@ daemon_main.handle_phase_kill_request() {
   daemon_main.log_error "Lifecycle - kill code (151) detected from the phase: ${phase}. Will try to recover ${remaining_attempts} more times."
   if [[ ${daemon_main__phase_kill_count} -gt 9 ]]; then
     daemon_main.log_error "Lifecycle - kill code (151) detected 10 times. Exiting the daemon."
+    lib.panics_add "phase_kill_request" <<EOF
+The daemon was killed after 10 failed attempts to run the plugin phases. \
+The last phase that failed was: ${phase}. The time of failure was $(date).
+EOF
     return 151
   fi
   daemon_main__phase_kill_count=$((daemon_main__phase_kill_count + 1))
