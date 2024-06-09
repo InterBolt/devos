@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 plugin__scrubbed_copy="${HOME}/.solos"
-plugin__collections_dir="${HOME}/collections"
+plugin__collection_dir="${HOME}/collection"
 
 # choose a random number, 1-3
 plugin__random_number=$(((RANDOM % 3) + 1))
@@ -10,16 +10,16 @@ plugin.failed() {
   echo "SOLOS_KILL: ${*}"
 }
 
-if [[ -d "${plugin__collections_dir}" ]]; then
-  if [[ -w "${plugin__collections_dir}" ]]; then
-    if [[ ! -z "$(ls -A "${plugin__collections_dir}")" ]]; then
-      plugin.failed "The collections directory is not empty."
+if [[ -d "${plugin__collection_dir}" ]]; then
+  if [[ -w "${plugin__collection_dir}" ]]; then
+    if [[ ! -z "$(ls -A "${plugin__collection_dir}")" ]]; then
+      plugin.failed "The collection directory is not empty."
     fi
   else
-    plugin.failed "The collections directory is not writable."
+    plugin.failed "The collection directory is not writable."
   fi
 else
-  plugin.failed "The collections directory does not exist."
+  plugin.failed "The collection directory does not exist."
 fi
 if curl -s -m 5 -o /dev/null https://www.google.com; then
   plugin.failed "Network access was detected."

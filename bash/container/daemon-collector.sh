@@ -44,13 +44,13 @@ daemon_collector._execute() {
   local firejailed_stderr_files=()
   for executable_path in ${executable_paths}; do
     local firejailed_home_dir="$(mktemp -d)"
-    local firejailed_collections_dir="$(mktemp -d)"
+    local firejailed_collection_dir="$(mktemp -d)"
     local firejailed_stdout_file="$(mktemp)"
     local firejailed_stderr_file="$(mktemp)"
     mkdir -p "${firejailed_home_dir}/.solos"
     cp -r "${scrubbed_copy}/." "${firejailed_home_dir}/.solos/"
     cp -a "${executable_path}" "${firejailed_home_dir}/executable"
-    mv "${firejailed_collections_dir}" "${firejailed_home_dir}/collections"
+    mv "${firejailed_collection_dir}" "${firejailed_home_dir}/collection"
     firejail \
       --quiet \
       --noprofile \
