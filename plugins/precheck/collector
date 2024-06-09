@@ -2,9 +2,7 @@
 
 plugin__scrubbed_copy="${HOME}/.solos"
 plugin__collection_dir="${HOME}/collection"
-
-# choose a random number, 1-3
-plugin__random_number=$(((RANDOM % 3) + 1))
+plugin__data_dir="${HOME}/data"
 
 plugin.failed() {
   echo "SOLOS_KILL: ${*}"
@@ -13,14 +11,18 @@ plugin.failed() {
 if [[ -d "${plugin__collection_dir}" ]]; then
   if [[ -w "${plugin__collection_dir}" ]]; then
     if [[ ! -z "$(ls -A "${plugin__collection_dir}")" ]]; then
-      plugin.failed "The collection directory is not empty."
+      plugin.failed "${plugin__collection_dir} is not empty."
     fi
   else
-    plugin.failed "The collection directory is not writable."
+    plugin.failed "${plugin__collection_dir} is not writable."
   fi
 else
-  plugin.failed "The collection directory does not exist."
+  plugin.failed "${plugin__collection_dir} does not exist."
 fi
 if curl -s -m 5 -o /dev/null https://www.google.com; then
   plugin.failed "Network access was detected."
+fi
+
+if [[ ! -d "${plugin__data_dir}" ]]; then
+  plugin.failed "${plugin__data_dir} does not exist."
 fi

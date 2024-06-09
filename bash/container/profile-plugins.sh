@@ -4,21 +4,8 @@
 . "${HOME}/.solos/src/bash/log.sh" || exit 1
 . "${HOME}/.solos/src/bash/gum.sh" || exit 1
 
-profile_plugins__data_dir="${HOME}/.solos/data/installed"
 profile_plugins__installed_dir="${HOME}/.solos/installed"
-profile_plugins__processed_logfile="${profile_plugins__data_dir}/processed.log"
-profile_plugins__collected_logfile="${profile_plugins__data_dir}/collected.log"
 
-profile_plugins.init_fs() {
-  mkdir -p "${profile_plugins__data_dir}"
-  mkdir -p "${profile_plugins__installed_dir}"
-  if [[ ! -f "${profile_plugins__processed_logfile}" ]]; then
-    touch "${profile_plugins__processed_logfile}"
-  fi
-  if [[ ! -f "${profile_plugins__collected_logfile}" ]]; then
-    touch "${profile_plugins__collected_logfile}"
-  fi
-}
 profile_plugins.cli_usage() {
   cat <<EOF
 USAGE: plugin <install|uninstall|list> [...args]
@@ -31,7 +18,7 @@ EOF
 }
 profile_plugins.cli_usage_install() {
   cat <<EOF
-USAGE: plugin install <name> --loader=<loader> --collector=<collector> --processor=<processor> --config=<config>
+USAGE: plugin install <name> --pull=<url> --collector=<url> --processor=<url> --push=<url> --config=<url>
 
 DESCRIPTION:
 
@@ -62,14 +49,18 @@ EOF
 profile_plugins.cli_install() {
   local plugin_name="${1}"
   shift
-  local loader=""
+  local pull=""
+  local push=""
   local collector=""
   local processor=""
   local config=""
   for arg in "$@"; do
     case "${arg}" in
-    --loader=*)
-      loader="${arg#*=}"
+    --pull=*)
+      pull="${arg#*=}"
+      ;;
+    --push=*)
+      push="${arg#*=}"
       ;;
     --collector=*)
       collector="${arg#*=}"
@@ -86,8 +77,12 @@ profile_plugins.cli_install() {
       ;;
     esac
   done
-  if [[ -z ${loader} ]]; then
-    log.error "Missing required option: --loader"
+  if [[ -z ${pull} ]]; then
+    log.error "Missing required option: --pull"
+    return 1
+  fi
+  if [[ -z ${push} ]]; then
+    log.error "Missing required option: --push"
     return 1
   fi
   if [[ -z ${collector} ]]; then
@@ -109,14 +104,15 @@ profile_plugins.cli_install() {
   fi
   local tmp_dir="$(mktemp -d)"
   log.info "Downloading plugin executables..."
-  curl "${loader}" -o "${tmp_dir}/loader" -s &
+  curl "${pull}" -o "${tmp_dir}/pull" -s &
   curl "${collector}" -o "${tmp_dir}/collector" -s &
   curl "${processor}" -o "${tmp_dir}/processor" -s &
+  curl "${push}" -o "${tmp_dir}/push" -s &
   curl "${config}" -o "${tmp_dir}/config.json" -s &
   wait
   log.info "Downloaded executables from their remove sources \`${plugin_name}\`."
-  if [[ ! -f ${tmp_dir}/loader ]]; then
-    log.error "Failed to download loader from ${loader}"
+  if [[ ! -f ${tmp_dir}/pull ]]; then
+    log.error "Failed to download pull from ${pull}"
     return 1
   fi
   if [[ ! -f ${tmp_dir}/collector ]]; then
@@ -125,6 +121,10 @@ profile_plugins.cli_install() {
   fi
   if [[ ! -f ${tmp_dir}/processor ]]; then
     log.error "Failed to download processor from ${processor}"
+    return 1
+  fi
+  if [[ ! -f ${tmp_dir}/push ]]; then
+    log.error "Failed to download push from ${push}"
     return 1
   fi
   if [[ ! -f ${tmp_dir}/config.json ]]; then
@@ -137,7 +137,7 @@ profile_plugins.cli_install() {
   fi
   jq '. + { \
     "sources": { "\
-        loader": "'"${loader}"'", "collector": "'"${collector}"'", "processor": "'"${processor}"'", "config": "'"${config}"'" \
+        pull": "'"${pull}"'", "collector": "'"${collector}"'", "processor": "'"${processor}"'", "push": "'"${push}"'", "config": "'"${config}"'" \
     } \
   }' "${tmp_dir}/config.json" >"${tmp_dir}/config.json.tmp"
   mv "${tmp_dir}/config.json.tmp" "${tmp_dir}/config.json"
@@ -167,7 +167,7 @@ profile_plugins.cli_install() {
     mv "${tmp_dir}/config.json.tmp" "${tmp_dir}/config.json"
     i=$((i + 1))
   done
-  chmod +x "${tmp_dir}/loader" "${tmp_dir}/collector" "${tmp_dir}/processor"
+  chmod +x "${tmp_dir}/pull" "${tmp_dir}/collector" "${tmp_dir}/processor"
   mv "${tmp_dir}" "${plugin_dir}"
   log.info "Plugin \`${plugin_name}\` installed."
 }
@@ -207,10 +207,7 @@ profile_plugins.cli_uninstall() {
   fi
 }
 profile_plugins.main() {
-  if ! profile_plugins.init_fs; then
-    log.error "Failed to initialize plugin filesystem."
-    return 1
-  fi
+  mkdir -p "${profile_plugins__installed_dir}"
   local cmd="${1}"
   if profile.is_help_cmd "${1}"; then
     profile_plugins.cli_usage

@@ -3,6 +3,8 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
 daemon_main__pid=$$
+daemon_main__phase_kill_count=0
+daemon_main__phase_cache="$(mktemp -d)"
 daemon_main__daemon_data_dir="${HOME}/.solos/data/daemon"
 daemon_main__plugins_data_dir="${HOME}/.solos/data/plugins"
 daemon_main__pid_file="${daemon_main__daemon_data_dir}/pid"
@@ -71,11 +73,12 @@ if rm -f "${daemon_main__kill_file}"; then
 fi
 
 # We'll use the "main" function from each script to handle the plugin lifecycles.
-# Ie. collector.main, loader.main, processor.main.
+# Ie. collector.main, push.main, processor.main.
 . "${HOME}/.solos/src/bash/container/daemon-scrub.sh" || exit 1
-. "${HOME}/.solos/src/bash/container/daemon-collector.sh" || exit 1
-. "${HOME}/.solos/src/bash/container/daemon-loader.sh" || exit 1
-. "${HOME}/.solos/src/bash/container/daemon-processor.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-phase-pull.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-phase-collector.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-phase-processor.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-phase-push.sh" || exit 1
 
 # Validate any status changes and print the status message.
 # Note: we may need more statuses to improve various failure cases
@@ -106,7 +109,7 @@ daemon_main.save_pid() {
   echo "${daemon_main__pid}" >"${daemon_main__pid_file}"
 }
 # Will run at the end of each loop iteration to enable "clean" exits.
-daemon_main.should_kill() {
+daemon_main.found_user_kill_request_file() {
   if [[ -f ${daemon_main__kill_file} ]]; then
     local kill_pid="$(cat "${daemon_main__kill_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ ${kill_pid} -eq ${daemon_main__pid} ]]; then
@@ -155,37 +158,100 @@ daemon_main.start() {
     return 1
   fi
 }
+daemon_main.handle_phase_kill_request() {
+  local phase="$1"
+  local remaining_attempts=$((10 - daemon_main__phase_kill_count))
+  daemon_main.log_error "Lifecycle - kill code (151) detected from the phase: ${phase}. Will try to recover ${remaining_attempts} more times."
+  if [[ ${daemon_main__phase_kill_count} -gt 9 ]]; then
+    daemon_main.log_error "Lifecycle - kill code (151) detected 10 times. Exiting the daemon."
+    return 151
+  fi
+  daemon_main__phase_kill_count=$((daemon_main__phase_kill_count + 1))
+  return 0
+}
+daemon_main.handle_phases_succeeded() {
+  daemon_main__phase_kill_count=0
+  return 0
+}
 daemon_main.run() {
-  # Individual lifecycles can fail, but the daemon should keep running.
-  # It should only quit if the user explicitly kills it. Plugin authors are
-  # responsible for ensuring that their plugins can fail repeatedly without
-  # causing any weird side effects.
+  local phase_kill_request_message="phase failed with a non-151 code (151 indicates a phase asking to kill the daemon)."
   while true; do
-    local scrubbed_copy="$(daemon_scrub.main)"
+    local scrubbed_volume_dir="$(daemon_scrub.main)"
+    local pulled_data_dir="$(mktemp -d)"
     local collections_dir="$(mktemp -d)"
     local processed_file="$(mktemp)"
-    if [[ -z ${scrubbed_copy} ]]; then
+    if [[ -z ${scrubbed_volume_dir} ]]; then
       daemon_main.log_error "Something went wrong with the safe copy."
       return 1
     fi
-    if ! daemon_collector.main "${scrubbed_copy}" "${collections_dir}"; then
-      daemon_main.log_error "Something went wrong with the collector."
+    # ------------------------------------------------------------------------------------
+    #
+    # PULL PHASE:
+    # let plugins download anything they need before they gain access to the data.
+    #
+    # ------------------------------------------------------------------------------------
+    if ! daemon_phase_pull.main "${pulled_data_dir}" "${daemon_main__phase_cache}"; then
+      if [[ $? -eq 151 ]]; then
+        daemon_main.handle_phase_kill_request "pull"
+        return "$?"
+      fi
+      daemon_main.log_error "Lifecycle - pull ${phase_kill_request_message}"
     else
       daemon_main.log_info "Lifecycle - collector ran successfully."
     fi
-    if ! daemon_processor.main "${collections_dir}" >"${processed_file}"; then
-      daemon_main.log_error "Something went wrong with the processor."
+    # ------------------------------------------------------------------------------------
+    #
+    # COLLECTOR PHASE:
+    # Let plugins collect the data they need in combination with data they pulled
+    # previously to generate a directory full of data.
+    #
+    # ------------------------------------------------------------------------------------
+    if ! daemon_phase_collector.main "${scrubbed_volume_dir}" "${pulled_data_dir}" "${collections_dir}"; then
+      if [[ $? -eq 151 ]]; then
+        daemon_main.handle_phase_kill_request "collector"
+        return "$?"
+      fi
+      daemon_main.log_error "Lifecycle - collector ${phase_kill_request_message}"
+    else
+      daemon_main.log_info "Lifecycle - collector ran successfully."
+    fi
+    # ------------------------------------------------------------------------------------
+    #
+    # PROCESSOR PHASE:
+    # Allow all plugins to access the collected data. Any one plugin can access the data
+    # generated by another plugin. This is key to allow plugins to work together.
+    #
+    # ------------------------------------------------------------------------------------
+    if ! daemon_phase_processor.main "${collections_dir}" >"${processed_file}"; then
+      if [[ $? -eq 151 ]]; then
+        daemon_main.handle_phase_kill_request "processor"
+        return "$?"
+      fi
+      daemon_main.log_error "Lifecycle - processor ${phase_kill_request_message}"
     else
       daemon_main.log_info "Lifecycle - processor ran successfully."
     fi
-    if ! daemon_loader.main "${processed_file}"; then
-      daemon_main.log_error "Something went wrong with the loader."
+    # ------------------------------------------------------------------------------------
+    #
+    # PUSH PHASE:
+    # Let plugins review all the processed data across all other plugins and push it
+    # to a remote location or service. Ex: a plugin might include a push that pushes
+    # processed data to a RAG-as-a-service backend.
+    #
+    # ------------------------------------------------------------------------------------
+    if ! daemon_phase_push.main "${processed_file}"; then
+      if [[ $? -eq 151 ]]; then
+        daemon_main.handle_phase_kill_request "push"
+        return "$?"
+      fi
+      daemon_main.log_error "Lifecycle - push ${phase_kill_request_message}"
     else
-      daemon_main.log_info "Lifecycle - loader ran successfully."
+      daemon_main.log_info "Lifecycle - push ran successfully."
     fi
-    daemon_main.log_warn "Sleeping - 20 seconds before the next plugin cycle."
+    daemon_main.handle_phases_succeeded
+    daemon_main.log_warn "Done - all phases ran successfully. Waiting for the next cycle."
     sleep 2
-    if daemon_main.should_kill; then
+    if daemon_main.found_user_kill_request_file; then
       if ! daemon_main.update_status "USER_KILLED"; then
         daemon_main.log_error "Failed to update the daemon status to USER_KILLED."
         return 1
