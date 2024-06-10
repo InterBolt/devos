@@ -15,7 +15,6 @@ history -r
 . "${HOME}/.solos/src/bash/container/profile-daemon.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/profile-user-execs.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/profile-track.sh" || exit 1
-. "${HOME}/.solos/src/bash/container/profile-plugins.sh" || exit 1
 
 profile__pub_fns=""
 profile__checked_out_project=""
@@ -128,7 +127,6 @@ $(
       info "Print info about this shell." \
       ask_docs "$(ask_docs --help | profile.extract_help_description)" \
       track "$(track --help | profile.extract_help_description)" \
-      plugin "$(plugin --help | profile.extract_help_description)" \
       solos "$(solos --help | profile.extract_help_description)" \
       preexec "$(preexec --help | profile.extract_help_description)" \
       postexec "$(postexec --help | profile.extract_help_description)" \
@@ -317,9 +315,6 @@ EOF
 }
 profile.public_track() {
   profile_track.main "$@"
-}
-profile.public_plugin() {
-  profile_plugins.main "$@"
 }
 profile.public_solos() {
   local executable_path="${HOME}/.solos/src/bash/container/cli.sh"

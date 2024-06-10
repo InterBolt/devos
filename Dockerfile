@@ -16,7 +16,10 @@ RUN apt-get update \
   manpages-dev \
   keychain \
   procps \
-  firejail
+  firejail \
+  netcat-traditional \
+  iptables \
+  iproute2
 
 # Install GitHub CLI
 RUN (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \

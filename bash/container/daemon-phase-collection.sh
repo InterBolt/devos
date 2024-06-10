@@ -3,35 +3,35 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 
-daemon_phase_collector.log_info() {
-  local message="(COLLECTOR) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
+daemon_phase_collection.log_info() {
+  local message="(COLLECTION) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
   shift
   log.info "${message}" "$@"
 }
-daemon_phase_collector.log_error() {
-  local message="(COLLECTOR) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
+daemon_phase_collection.log_error() {
+  local message="(COLLECTION) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
   shift
   log.error "${message}" "$@"
 }
-daemon_phase_collector.log_warn() {
-  local message="(COLLECTOR) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
+daemon_phase_collection.log_warn() {
+  local message="(COLLECTION) ${1} pid=\"$(cat "${HOME}/.solos/data/daemon/pid" 2>/dev/null || echo "")\""
   shift
   log.warn "${message}" "$@"
 }
 
 # Grab all executable files and make sure we're going to be able to run them.
-daemon_phase_collector._get_executables() {
+daemon_phase_collection._get_executables() {
   local plugin_executables=()
   local plugins="${*}"
   for plugin in ${plugins}; do
-    if [[ -f "${plugin}/collector" ]]; then
-      chmod +x "${plugin}/collector"
-      plugin_executables+=("${plugin}/collector")
+    if [[ -f "${plugin}/collection" ]]; then
+      chmod +x "${plugin}/collection"
+      plugin_executables+=("${plugin}/collection")
     fi
   done
   echo "${plugin_executables[*]}"
 }
-daemon_phase_collector._execute() {
+daemon_phase_collection._execute() {
   local scrubbed_volume_dir="${1}"
   local pulled_data_dir="${2}"
   shift 2
@@ -73,7 +73,7 @@ daemon_phase_collector._execute() {
   local i=0
   for firejailed_pid in "${firejailed_pids[@]}"; do
     # Wait on each firejailed process and log any output. Handle a specific type of
-    # output that indicates the collector was killed by SolOS.
+    # output that indicates the collection was killed by SolOS.
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
     local executable_path="${executable_paths[${i}]}"
@@ -87,27 +87,27 @@ daemon_phase_collector._execute() {
     fi
     if [[ -f ${firejailed_stderr_file} ]]; then
       while read -r firejailed_stderr_line; do
-        daemon_phase_collector.log_error \
+        daemon_phase_collection.log_error \
           "$(dirname "${executable_path}") - ${firejailed_stderr_line}"
       done <"${firejailed_stderr_file}"
     fi
     if [[ -f ${firejailed_stdout_file} ]]; then
       while read -r firejailed_stdout_line; do
-        daemon_phase_collector.log_info \
+        daemon_phase_collection.log_info \
           "$(dirname "${executable_path}") - ${firejailed_stdout_line}"
       done <"${firejailed_stdout_file}"
     fi
     if [[ ${firejailed_exit_code} -ne 0 ]]; then
-      daemon_phase_collector.log_error \
-        "Plugin malfunction - the collector at ${executable_path} exited with status ${firejailed_exit_code}"
+      daemon_phase_collection.log_error \
+        "Plugin malfunction - the collection at ${executable_path} exited with status ${firejailed_exit_code}"
       firejailed_failures=$((firejailed_failures + 1))
       # Must maintain order
       final_collection_dirs+=("-")
     else
       local sandboxed_collections_dir="${firejailed_home_dir[${i}]}/collections"
       if [[ ! -d ${sandboxed_collections_dir} ]]; then
-        daemon_phase_collector.log_warn \
-          "Plugin malfunction - the collector at ${executable_path} must have deleted its collections directory."
+        daemon_phase_collection.log_warn \
+          "Plugin malfunction - the collection at ${executable_path} must have deleted its collections directory."
         # Must maintain order
         final_collection_dirs+=("-")
       else
@@ -118,22 +118,22 @@ daemon_phase_collector._execute() {
   done
   local return_code=0
   if [[ ${firejailed_failures} -gt 0 ]]; then
-    daemon_phase_collector.log_error \
+    daemon_phase_collection.log_error \
       "Plugin malfunction - there were ${firejailed_failures} plugin malfunctions."
   fi
   if [[ ${firejailed_requesting_kill} = true ]]; then
-    daemon_phase_collector.log_error \
-      "Plugin malfunction - a collector made a kill request in it's output."
+    daemon_phase_collection.log_error \
+      "Plugin malfunction - a collection made a kill request in it's output."
     return_code=151
   fi
-  # Even when a collector fails, it still adds a dash to the list of collections dirs.
-  # This guarantees that we echo one line per collector, which makes it easier to parse the output.
+  # Even when a collection fails, it still adds a dash to the list of collections dirs.
+  # This guarantees that we echo one line per collection, which makes it easier to parse the output.
   for final_collection_dir in "${final_collection_dirs[@]}"; do
     echo "${final_collection_dir}"
   done
   return "${return_code}"
 }
-daemon_phase_collector._mv_to_shared() {
+daemon_phase_collection._mv_to_shared() {
   local unique_plugin_namespace="${1}"
   local sandboxed_collections_dir="${2}"
   local merged_collections_dir="${3}"
@@ -150,7 +150,7 @@ daemon_phase_collector._mv_to_shared() {
     mv "${sandboxed_file}" "${merged_file_path}"
   done
 }
-daemon_phase_collector.main() {
+daemon_phase_collection.main() {
   # The scrubbed copy is everything in the user's ~/.solos directory devoid of
   # 1) potentially sensitive files based on a blacklist of extensions (it's a bit aggressive. might need changes)
   # 2) .gitignored files/folders
@@ -160,30 +160,30 @@ daemon_phase_collector.main() {
   local merged_collections_dir="${3}"
 
   # Were it not for security concerns, we'd simply mount a shared folder to each
-  # collector's firejailed process and let them write their output there, relying on the due dilligence
+  # collection's firejailed process and let them write their output there, relying on the due dilligence
   # of plugin authors to avoid file collisions.
-  # But, for max sandboxing, we don't want collectors to gain the ability to "communicate" across plugins via such shared folders.
-  # So instead, after a collector runs, we'll rename all files in each collector's outputted folder with a unique prefix.
-  # Then, recursively copy each collector's output dir's contents to a single new folder that our processors can use.
+  # But, for max sandboxing, we don't want collections to gain the ability to "communicate" across plugins via such shared folders.
+  # So instead, after a collection runs, we'll rename all files in each collection's outputted folder with a unique prefix.
+  # Then, recursively copy each collection's output dir's contents to a single new folder that our processors can use.
   # Collisions aren't possible due to the prefixes. But categorical folders are still used to keep things organized and to ensure maximum
   # backwards compatibility with existing processors.
   #
   # Extra unrelated note: while I don't normally endorse engineering for speculative use-cases, I believe the SolOS plugin
   # design will almost certain end up with a permission system, even if it's just trusted/untrusted. That's why we need full sandboxing
-  # not just between a collector and our system, but also a collector and other collectors. If from day we only add "trusted" plugins,
+  # not just between a collection and our system, but also a collection and other collections. If from day we only add "trusted" plugins,
   # introducing the concept of "untrusted" plugins should not result in a major version bump.
 
-  # Get the executables and unique names of internal/external collectors.
+  # Get the executables and unique names of internal/external collections.
   local unique_plugin_names=()
-  local precheck_executables="$(daemon_phase_collector._get_executables "$(daemon_shared.get_precheck_plugins | xargs)" | xargs)"
+  local precheck_executables="$(daemon_phase_collection._get_executables "$(daemon_shared.get_precheck_plugins | xargs)" | xargs)"
   for precheck_executable in ${precheck_executables}; do
     unique_plugin_names+=("precheck-$(basename "$(dirname "${precheck_executable}")")")
   done
-  local internal_executables="$(daemon_phase_collector._get_executables "$(daemon_shared.get_internal_plugins | xargs)" | xargs)"
+  local internal_executables="$(daemon_phase_collection._get_executables "$(daemon_shared.get_internal_plugins | xargs)" | xargs)"
   for internal_executable in ${internal_executables}; do
     unique_plugin_names+=("internal-$(basename "$(dirname "${internal_executable}")")")
   done
-  local external_executables="$(daemon_phase_collector._get_executables "$(daemon_shared.get_external_plugins | xargs)" | xargs)"
+  local external_executables="$(daemon_phase_collection._get_executables "$(daemon_shared.get_external_plugins | xargs)" | xargs)"
   for external_executable in ${external_executables}; do
     unique_plugin_names+=("external-$(basename "$(dirname "${external_executable}")")")
   done
@@ -192,21 +192,21 @@ daemon_phase_collector.main() {
   # Necessary pre-requisite for pushing more and more key functionality into internal plugins rather than bloating
   # SolOS with tons of baked-features.
   local stashed_firejailed_collection_dirs="$(mktemp)"
-  if ! daemon_phase_collector._execute \
+  if ! daemon_phase_collection._execute \
     "${scrubbed_volume_dir}" "${pulled_data_dir}" "${precheck_executables[@]}" >>"${stashed_firejailed_collection_dirs}"; then
     return "${?}"
   fi
-  if ! daemon_phase_collector._execute \
+  if ! daemon_phase_collection._execute \
     "${scrubbed_volume_dir}" "${pulled_data_dir}" "${internal_executables[@]}" >>"${stashed_firejailed_collection_dirs}"; then
     return "${?}"
   fi
   # Installed plugins can fail since they're not guaranteed to be well-behaved and we don't want one shitty
   # plugin to prevent the rest from running.
-  daemon_phase_collector._execute \
+  daemon_phase_collection._execute \
     "${scrubbed_volume_dir}" "${pulled_data_dir}" "${external_executables[@]}" >>"${stashed_firejailed_collection_dirs}"
   local externals_exit_code="${?}"
-  # We only allow external plugins to cause the collector to faile when a 151 exit code is returned,
-  # which here means that a plugin requested to kill the collector.
+  # We only allow external plugins to cause the collection to faile when a 151 exit code is returned,
+  # which here means that a plugin requested to kill the collection.
   if [[ ${externals_exit_code} -eq 151 ]]; then
     return "${externals_exit_code}"
   fi
@@ -224,7 +224,7 @@ daemon_phase_collector.main() {
   for firejailed_collection_dir in ${firejailed_collection_dirs}; do
     if [[ ${firejailed_collection_dir} != "-" ]]; then
       local unique_plugin_name="${unique_plugin_names[${i}]}"
-      daemon_phase_collector._mv_to_shared "${unique_plugin_name}" "${firejailed_collection_dir}" "${merged_collections_dir}"
+      daemon_phase_collection._mv_to_shared "${unique_plugin_name}" "${firejailed_collection_dir}" "${merged_collections_dir}"
     fi
     i=$((i + 1))
   done
