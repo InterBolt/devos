@@ -144,7 +144,7 @@ plugin.verify_network_acccess() {
 # PHASE TESTS:
 #
 plugin.main() {
-  local solos_dir="/root/.solos"
+  local scrubbed_dir="/root/.solos"
   local config_file="/root/solos.json"
   local download_dir="/root/download"
   local collection_dir="/root/collection"
@@ -154,7 +154,7 @@ plugin.main() {
 
   if [[ ${1} = "--phase-configure" ]]; then
     plugin.verify_absence \
-      "${solos_dir}" \
+      "${scrubbed_dir}" \
       "${download_dir}" \
       "${collection_dir}" \
       "${processed_file}" \
@@ -169,7 +169,7 @@ plugin.main() {
 
   elif [[ ${1} = "--phase-download" ]]; then
     plugin.verify_absence \
-      "${solos_dir}" \
+      "${scrubbed_dir}" \
       "${collection_dir}" \
       "${processed_file}" \
       "${pushed_dir}" \
@@ -180,7 +180,8 @@ plugin.main() {
     plugin.verify_files_exists \
       "${config_file}"
     plugin.verify_read_and_write \
-      "${download_dir}" \
+      "${download_dir}"
+    plugin.verify_read_only \
       "${config_file}"
     plugin.verify_network_acccess "true"
 
@@ -192,15 +193,14 @@ plugin.main() {
       "${pushed_dir}"
 
     plugin.verify_dirs_exists \
-      "${solos_dir}" \
+      "${scrubbed_dir}" \
       "${collection_dir}"
-    plugin.verify_files_exists \
-      "${config_file}"
+    plugin.verify_files_exists
     plugin.verify_read_only \
-      "${solos_dir}"
-    plugin.verify_read_and_write \
-      "${collection_dir}" \
+      "${scrubbed_dir}" \
       "${config_file}"
+    plugin.verify_read_and_write \
+      "${collection_dir}"
     plugin.verify_network_acccess "false"
 
   elif [[ ${1} = "--phase-process" ]]; then
@@ -209,31 +209,28 @@ plugin.main() {
       "${pushed_dir}"
 
     plugin.verify_dirs_exists \
-      "${solos_dir}" \
+      "${scrubbed_dir}" \
       "${collection_dir}"
     plugin.verify_files_exists \
-      "${processed_file}" \
-      "${config_file}"
+      "${processed_file}"
     plugin.verify_read_only \
-      "${solos_dir}" \
-      "${collection_dir}"
-    plugin.verify_read_and_write \
-      "${processed_file}" \
+      "${scrubbed_dir}" \
+      "${collection_dir}" \
       "${config_file}"
+    plugin.verify_read_and_write \
+      "${processed_file}"
     plugin.verify_network_acccess "false"
 
   elif [[ ${1} = "--phase-push" ]]; then
     plugin.verify_absence \
       "${download_dir}" \
       "${collection_dir}" \
-      "${solos_dir}"
+      "${scrubbed_dir}"
 
     plugin.verify_files_exists \
-      "${processed_file}" \
-      "${config_file}"
-    plugin.verify_read_only \
       "${processed_file}"
-    plugin.verify_read_and_write \
+    plugin.verify_read_only \
+      "${processed_file}" \
       "${config_file}"
     plugin.verify_network_acccess "true"
 

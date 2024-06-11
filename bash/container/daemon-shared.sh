@@ -105,6 +105,9 @@ daemon_shared.firejail() {
       if [[ -f ${plugin_config_file} ]]; then
         cp "${plugin_config_file}" "${firejailed_home_dir}/solos.json"
       fi
+      if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
+        chmod 444 "${firejailed_home_dir}/solos.json"
+      fi
       if [[ ${permissions} = "ro" ]]; then
         chmod -R 555 "${firejailed_home_dir}/${mount_path}"
       elif [[ ${permissions} = "rw" ]]; then
