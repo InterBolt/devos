@@ -30,7 +30,6 @@ daemon_phase_push.exec() {
     "--" \
     "${@}" \
     "--" \
-    --net=none \
     "--" \
     "--phase-push"
 }

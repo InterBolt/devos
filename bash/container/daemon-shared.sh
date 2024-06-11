@@ -2,36 +2,6 @@
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
-daemon_shared__internal_plugins_dir="${HOME}/.solos/src/plugins"
-daemon_shared__installed_plugins_dir="${HOME}/.solos/plugins"
-daemon_shared__precheck_plugin="${daemon_shared__internal_plugins_dir}/precheck"
-
-# TODO: go back and refactor some things to use this new idea of having every script
-# TODO[c]: implement a __LIB_PREFIX.panic_conditions__ that gets called immediately when sourced.
-__daemon_shared.panic_conditions__() {
-  local panicked=false
-  if [[ ! -d ${daemon_shared__precheck_plugin} ]]; then
-    lib.panics_add "missing_precheck_plugin" <<EOF
-The "precheck" plugin was not found at ${daemon_shared__precheck_plugin}. \
-This plugin is NOT something that needs to be installed by the user. It should always \
-run as part of the daemon that executes the plugins.
-EOF
-    panicked=true
-  fi
-  if [[ ! -d ${daemon_shared__internal_plugins_dir} ]]; then
-    lib.panics_add "missing_internal_plugins" <<EOF
-The "precheck" plugin was not found at ${daemon_shared__precheck_plugin}. \
-This plugin is NOT something that needs to be installed by the user. It should always \
-run as part of the daemon that executes the plugins.
-EOF
-    panicked=true
-  fi
-  if [[ ${panicked} = true ]]; then
-    log.error "Panic condition detected. Review panic files. Exiting."
-    exit 1
-  fi
-}
-
 # SHARED/SOURCED FUNCTIONS:
 
 daemon_shared.merged_namespaced_fs() {
@@ -79,11 +49,9 @@ daemon_shared.firejail() {
     shift
   done
   shift
-  # Kick off a firejailed process for each executable and collect the pids
-  # for each backgrounded process. We'll wait on them later.
-  local src_plugins=()
+  local plugins=()
   while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
-    src_plugins+=("${1}")
+    plugins+=("${1}")
     shift
   done
   shift
@@ -114,7 +82,7 @@ daemon_shared.firejail() {
   local firejailed_home_dirs=()
   local firejailed_stdout_files=()
   local firejailed_stderr_files=()
-  for src_plugin in "${src_plugins[@]}"; do
+  for plugin in "${plugins[@]}"; do
     local firejailed_home_dir="$(mktemp -d)"
     for ((i = 0; i < ${asset_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
@@ -132,10 +100,15 @@ daemon_shared.firejail() {
         echo "Firejailed plugin error - invalid asset path supplied to the daemon's shared firejail function" >&2
         return 1
       fi
-      cp -a "${src_plugin}" "${firejailed_home_dir}/plugin"
-      local src_plugin_config_file="${src_plugin}/solos.json"
-      if [[ -f ${src_plugin_config_file} ]]; then
-        cp "${src_plugin_config_file}" "${firejailed_home_dir}/solos.json"
+      cp -a "${plugin}" "${firejailed_home_dir}/plugin"
+      local plugin_config_file="${plugin}/solos.json"
+      if [[ -f ${plugin_config_file} ]]; then
+        cp "${plugin_config_file}" "${firejailed_home_dir}/solos.json"
+      fi
+      if [[ ${permissions} = "ro" ]]; then
+        chmod -R 555 "${firejailed_home_dir}/${mount_path}"
+      elif [[ ${permissions} = "rw" ]]; then
+        chmod -R 777 "${firejailed_home_dir}/${mount_path}"
       fi
       firejail \
         --quiet \
@@ -160,8 +133,9 @@ daemon_shared.firejail() {
     # output that indicates the collection was killed by SolOS.
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
-    local executable_path="${src_plugins[${i}]}"
+    local executable_path="${plugins[${i}]}"
     local firejailed_home_dir="${firejailed_home_dirs[${i}]}"
+    chmod -R 777 "${firejailed_home_dir}"
     local firejailed_stdout_file="${firejailed_stdout_files[${i}]}"
     local firejailed_stderr_file="${firejailed_stderr_files[${i}]}"
     if [[ -f ${firejailed_stderr_file} ]]; then
@@ -200,5 +174,3 @@ daemon_shared.firejail() {
   done
   return "${return_code}"
 }
-
-__daemon_shared.panic_conditions__

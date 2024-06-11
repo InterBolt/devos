@@ -28,7 +28,6 @@ daemon_phase_download.exec() {
     "--" \
     "${plugins[@]}" \
     "--" \
-    --net=none \
     "--" \
     "--phase-download"
 }
