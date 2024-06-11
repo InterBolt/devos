@@ -66,17 +66,9 @@
 # And the push phase can only access the processed data, which is far less likely to contain accidentally leaked sensitive data. SolOS can add
 # intermediate scrubbing to the processed data anyways to further mitigate leakage risks.
 #
-# FILESYSTEM COMPONENTS
-#
-run__config_file="/root/config.json"
-run__download_dir="/root/download"
-run__collection_dir="/root/collection"
-run__processed_file="/root/processed.json"
-run__solos_dir="/root/.solos"
-#
 # HELPER FUNCTIONS
 #
-verify.absence() {
+daemon_firejailed_validate_phases.verify_absence() {
   for path in "${@}"; do
     if [[ -e ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should not exist."
@@ -84,7 +76,7 @@ verify.absence() {
     fi
   done
 }
-verify.read_and_write() {
+daemon_firejailed_validate_phases.verify_read_and_write() {
   for path in "${@}"; do
     if [[ ! -w ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should be set to read/write."
@@ -92,7 +84,7 @@ verify.read_and_write() {
     fi
   done
 }
-verify.read_only() {
+daemon_firejailed_validate_phases.verify_read_only() {
   for path in "${@}"; do
     if [[ -w ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should be set to read only."
@@ -100,7 +92,7 @@ verify.read_only() {
     fi
   done
 }
-verify.files_exists() {
+daemon_firejailed_validate_phases.verify_files_exists() {
   for path in "${@}"; do
     if [[ ! -f ${path} ]]; then
       echo "SOLOS_PANIC: ${path} file should exist."
@@ -108,7 +100,7 @@ verify.files_exists() {
     fi
   done
 }
-verify.dirs_exists() {
+daemon_firejailed_validate_phases.verify_dirs_exists() {
   for path in "${@}"; do
     if [[ ! -d ${path} ]]; then
       echo "SOLOS_PANIC: ${path} directory should exist."
@@ -116,7 +108,7 @@ verify.dirs_exists() {
     fi
   done
 }
-verify.network_acccess() {
+daemon_firejailed_validate_phases.verify_network_acccess() {
   local enabled="${1:-"true"}"
   local urls=(
     "https://www.google.com"
@@ -147,56 +139,94 @@ verify.network_acccess() {
 #
 # PHASE TESTS:
 #
-if [[ ${1} = "--phase-configure" ]]; then
-  verify.absence \
-    "${run__solos_dir}" \
-    "${run__download_dir}" \
-    "${run__collection_dir}" \
-    "${run__processed_file}"
-  verify.files_exists "${run__config_file}"
-  verify.read_and_write "${run__config_file}"
-  verify.network_acccess "false"
+daemon_firejailed_validate_phases.main() {
+  local solos_dir="/root/.solos"
+  local config_file="/root/config.json"
+  local download_dir="/root/download"
+  local collection_dir="/root/collection"
+  local processed_file="/root/processed.json"
 
-elif [[ ${1} = "--phase-download" ]]; then
-  verify.absence \
-    "${run__solos_dir}" \
-    "${run__collection_dir}" \
-    "${run__processed_file}"
-  verify.dirs_exists "${run__download_dir}"
-  verify.files_exists "${run__config_file}"
-  verify.read_and_write "${run__download_dir}"
-  verify.read_only "${run__config_file}"
-  verify.network_acccess "true"
+  if [[ ${1} = "--phase-configure" ]]; then
+    daemon_firejailed_validate_phases.verify_absence \
+      "${solos_dir}" \
+      "${download_dir}" \
+      "${collection_dir}" \
+      "${processed_file}"
+    daemon_firejailed_validate_phases.verify_files_exists \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_read_and_write \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_network_acccess "false"
 
-elif [[ ${1} = "--phase-collection" ]]; then
-  verify.absence \
-    "${run__download_dir}" \
-    "${run__processed_file}"
-  verify.files_exists "${run__config_file}"
-  verify.dirs_exists "${run__solos_dir}"
-  verify.read_only "${run__solos_dir}" "${run__config_file}"
-  verify.read_and_write "${run__collection_dir}"
-  verify.network_acccess "false"
+  elif [[ ${1} = "--phase-download" ]]; then
+    daemon_firejailed_validate_phases.verify_absence \
+      "${solos_dir}" \
+      "${collection_dir}" \
+      "${processed_file}"
 
-elif [[ ${1} = "--phase-process" ]]; then
-  verify.absence \
-    "${run__download_dir}"
-  verify.dirs_exists "${run__solos_dir}" "${run__collection_dir}"
-  verify.files_exists "${run__processed_file}" "${run__config_file}"
-  verify.read_only "${run__solos_dir}" "${run__collection_dir}" "${run__config_file}"
-  verify.read_and_write "${run__processed_file}"
-  verify.network_acccess "false"
+    daemon_firejailed_validate_phases.verify_dirs_exists \
+      "${download_dir}"
 
-elif [[ ${1} = "--phase-push" ]]; then
-  verify.absence \
-    "${run__download_dir}" \
-    "${run__collection_dir}" \
-    "${run__solos_dir}"
-  verify.files_exists "${run__processed_file}" "${run__config_file}"
-  verify.read_only "${run__processed_file}" "${run__config_file}"
-  verify.network_acccess "true"
+    daemon_firejailed_validate_phases.verify_files_exists \
+      "${config_file}"
 
-else
-  echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push."
-  exit 1
-fi
+    daemon_firejailed_validate_phases.verify_read_and_write \
+      "${download_dir}"
+
+    daemon_firejailed_validate_phases.verify_read_only \
+      "${config_file}"
+
+    daemon_firejailed_validate_phases.verify_network_acccess "true"
+
+  elif [[ ${1} = "--phase-collection" ]]; then
+    daemon_firejailed_validate_phases.verify_absence \
+      "${download_dir}" \
+      "${processed_file}"
+    daemon_firejailed_validate_phases.verify_files_exists \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_dirs_exists \
+      "${solos_dir}"
+    daemon_firejailed_validate_phases.verify_read_only \
+      "${solos_dir}" \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_read_and_write \
+      "${collection_dir}"
+    daemon_firejailed_validate_phases.verify_network_acccess "false"
+
+  elif [[ ${1} = "--phase-process" ]]; then
+    daemon_firejailed_validate_phases.verify_absence \
+      "${download_dir}"
+    daemon_firejailed_validate_phases.verify_dirs_exists \
+      "${solos_dir}" \
+      "${collection_dir}"
+    daemon_firejailed_validate_phases.verify_files_exists \
+      "${processed_file}" \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_read_only \
+      "${solos_dir}" \
+      "${collection_dir}" \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_read_and_write \
+      "${processed_file}"
+    daemon_firejailed_validate_phases.verify_network_acccess "false"
+
+  elif [[ ${1} = "--phase-push" ]]; then
+    daemon_firejailed_validate_phases.verify_absence \
+      "${download_dir}" \
+      "${collection_dir}" \
+      "${solos_dir}"
+    daemon_firejailed_validate_phases.verify_files_exists \
+      "${processed_file}" \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_read_only \
+      "${processed_file}" \
+      "${config_file}"
+    daemon_firejailed_validate_phases.verify_network_acccess "true"
+
+  else
+    echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push."
+    exit 1
+  fi
+}
+
+daemon_firejailed_validate_phases.main "$@"

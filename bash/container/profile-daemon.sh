@@ -6,9 +6,9 @@ profile_daemon__data_dir="${HOME}/.solos/data/daemon"
 profile_daemon__users_home_dir="$(lib.home_dir_path)"
 profile_daemon__status_file="${profile_daemon__data_dir}/status"
 profile_daemon__pid_file="${profile_daemon__data_dir}/pid"
-profile_daemon__kill_file="${profile_daemon__data_dir}/kill"
+profile_daemon__request_file="${profile_daemon__data_dir}/request"
 profile_daemon__log_file="${profile_daemon__data_dir}/master.log"
-profile_daemon__mounted_script="/root/.solos/src/bash/container/daemon-main.sh"
+profile_daemon__mounted_script="/root/.solos/src/bash/container/daemon.sh"
 
 . "${HOME}/.solos/src/bash/log.sh" || exit 1
 . "${HOME}/.solos/src/bash/gum.sh" || exit 1
@@ -25,7 +25,7 @@ profile_daemon.install() {
 
   while true; do
     local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    if [[ ${status} = "UP" ]] || [[ ${status} = "USER_KILLED" ]]; then
+    if [[ ${status} = "UP" ]] || [[ ${status} = "KILLED" ]]; then
       break
     fi
     if [[ ${attempts} -ge ${max_attempts} ]]; then
@@ -138,10 +138,10 @@ EOF
       log.warn "No pid was found. Nothing to kill"
       return 0
     fi
-    echo "${pid}" >"${profile_daemon__kill_file}"
+    echo "${pid} KILL" >"${profile_daemon__request_file}"
     while true; do
       local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-      if [[ ${status} = "USER_KILLED" ]]; then
+      if [[ ${status} = "KILLED" ]]; then
         break
       fi
       sleep 0.5
@@ -162,7 +162,7 @@ EOF
       echo "${pid}" >"${profile_daemon__kill_file}"
       while true; do
         local status="$(cat "${profile_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-        if [[ ${status} = "USER_KILLED" ]]; then
+        if [[ ${status} = "KILLED" ]]; then
           break
         fi
         sleep 0.5

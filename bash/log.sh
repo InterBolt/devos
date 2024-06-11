@@ -82,13 +82,6 @@ log.use_file_only() {
 log.use_container_paths() {
   log__use_container_paths=true
 }
-log.tag() {
-  local filename="$(caller | cut -f 2 -d " ")"
-  local linenumber="$(caller | cut -f 1 -d " ")"
-  if ! log._base "tag" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
-    echo "log.tag failed"
-  fi
-}
 log.info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
@@ -121,6 +114,32 @@ log.warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
   if ! log._base "warn" "$(log._to_hostname "${filename}"):${linenumber}" "$@"; then
+    echo "log.warn failed"
+  fi
+}
+
+log.info_notrace() {
+  if ! log._base "info" "NULL" "$@"; then
+    echo "log.info failed"
+  fi
+}
+log.debug_notrace() {
+  if ! log._base "debug" "NULL" "$@"; then
+    echo "log.debug failed"
+  fi
+}
+log.error_notrace() {
+  if ! log._base "error" "NULL" "$@"; then
+    echo "log.error failed"
+  fi
+}
+log.fatal_notrace() {
+  if ! log._base "fatal" "NULL" "$@"; then
+    echo "log.fatal failed"
+  fi
+}
+log.warn_notrace() {
+  if ! log._base "warn" "NULL" "$@"; then
     echo "log.warn failed"
   fi
 }
