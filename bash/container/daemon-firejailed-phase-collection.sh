@@ -65,7 +65,7 @@ daemon_phase_collection.main() {
 
   # Every line of stashed_firejailed_home_dirs is path to a plugin's output directory.
   # The lines are in order of the plugin's order in the plugin_names array so we can access
-  # the unique_plugin_name for each plugin by index.
+  # the plugin_name for each plugin by index.
   local firejailed_home_dirs=()
   while read -r line; do
     firejailed_home_dirs+=("$(echo "${line}" | xargs)")
@@ -76,22 +76,22 @@ daemon_phase_collection.main() {
   local prefixed_stdout_file="$(mktemp)"
   local i=0
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
-    local unique_plugin_name="${plugin_names[${i}]}"
+    local plugin_name="${plugin_names[${i}]}"
     while IFS= read -r line; do
       if [[ ${line} =~ ^firejail-${i}: ]]; then
         line="${line//firejail-${i}: /}"
-        echo "(${unique_plugin_name}) ${line}" >>"${prefixed_stderr_file}"
+        echo "(${plugin_name}) ${line}" >>"${prefixed_stderr_file}"
       fi
     done <"${stderr_file}"
     while IFS= read -r line; do
       if [[ ${line} =~ ^firejail-${i}: ]]; then
         line="${line//firejail-${i}: /}"
-        echo "(${unique_plugin_name}) ${line}" >>"${prefixed_stdout_file}"
+        echo "(${plugin_name}) ${line}" >>"${prefixed_stdout_file}"
       fi
     done <"${stdout_file}"
     if [[ ${firejailed_home_dir} != "-" ]]; then
       daemon_shared.merged_namespaced_fs \
-        "${unique_plugin_name}" \
+        "${plugin_name}" \
         "${firejailed_home_dir}/collection" \
         "${merged_collection_dir}"
     fi

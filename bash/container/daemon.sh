@@ -129,27 +129,42 @@ daemon.handle_request() {
 }
 daemon.update_configs() {
   local merged_configure_dir="${1}"
-  for file in "${merged_configure_dir}"/*; do
-    if [[ ${file} =~ ^.*installed-.*$ ]]; then
-      local plugin_config_file_name="$(basename "${file}")"
-      local plugin_name="${plugin_config_file_name/installed-/}"
-      plugin_name="${plugin_name/solos.json/}"
-      local config_path="${daemon__installed_plugins_dir}/${plugin_name}/solos.json"
-      if ! jq . "${file}" >/dev/null; then
-        if [[ ! -f "${config_path}" ]]; then
-          daemon.log_error "Fatal - failed to initialize a config for the installed plugin: ${plugin_name}"
-          lib.panics_add "daemon_failed_to_initialize_config" <<EOF
-The daemon failed to initialize a config for the installed plugin: ${plugin_name}. \
-Time of failure: $(date).
-EOF
-          exit 1
-        fi
-      fi
-      cp "${file}" "${config_path}"
+  local internal_plugins=($(daemon.get_plugins "internal"))
+  local installed_plugins=($(daemon.get_plugins "installed"))
+  local precheck_plugins=($(daemon.get_plugins "precheck"))
+  for plugin in "${internal_plugins[@]}"; do
+    local plugin_name="$(basename "${plugin}")"
+    local plugin_dir="$(dirname "${plugin}")"
+    local config_path="${plugin_dir}/solos.json"
+    local updated_config_path="${merged_configure_dir}/internal-${plugin_name}-solos.json"
+    if [[ -f ${updated_config_path} ]]; then
+      rm -f "${config_path}"
+      cp "${updated_config_path}" "${config_path}"
       daemon.log_info "Config - updated the config at ${config_path}."
     fi
   done
-
+  for plugin in "${installed_plugins[@]}"; do
+    local plugin_name="$(basename "${plugin}")"
+    local plugin_dir="$(dirname "${plugin}")"
+    local config_path="${plugin_dir}/solos.json"
+    local updated_config_path="${merged_configure_dir}/installed-${plugin_name}-solos.json"
+    if [[ -f ${updated_config_path} ]]; then
+      rm -f "${config_path}"
+      cp "${updated_config_path}" "${config_path}"
+      daemon.log_info "Config - updated the config at ${config_path}."
+    fi
+  done
+  for plugin in "${precheck_plugins[@]}"; do
+    local plugin_name="$(basename "${plugin}")"
+    local plugin_dir="$(dirname "${plugin}")"
+    local config_path="${plugin_dir}/solos.json"
+    local updated_config_path="${merged_configure_dir}/precheck-${plugin_name}-solos.json"
+    if [[ -f ${updated_config_path} ]]; then
+      rm -f "${config_path}"
+      cp "${updated_config_path}" "${config_path}"
+      daemon.log_info "Config - updated the config at ${config_path}."
+    fi
+  done
 }
 daemon.dump() {
   local dump_stdout_file="${1}"
@@ -292,10 +307,10 @@ daemon.run_plugins() {
   echo "${archive_dir}"
 }
 daemon.get_plugins() {
-  local is_precheck="${1}"
+  local type="${1}"
   local plugins=()
-  if [[ ${is_precheck} = true ]]; then
-    local precheck_plugin_path="${HOME}/.solos/src/plugins/precheck"
+  if [[ ${type} = "precheck" ]]; then
+    local precheck_plugin_path="${HOME}/.solos/src/plugins/precheck/plugin"
     if [[ ! -f ${precheck_plugin_path} ]]; then
       daemon.log_error "Fatal - no precheck found at: ${precheck_plugin_path}"
       daemon.update_status "RUN_FAILED"
@@ -307,35 +322,31 @@ EOF
       exit 1
     fi
     plugins+=("${precheck_plugin_path}")
-  else
+  elif [[ ${type} = "internal" ]]; then
     while IFS= read -r internal_plugin; do
       if [[ ${internal_plugin} = "precheck" ]]; then
         continue
       fi
       plugins+=("${daemon__internal_plugins_dir}/${internal_plugin}/plugin")
     done < <(ls -1 "${daemon__internal_plugins_dir}")
+  elif [[ ${type} = "installed" ]]; then
     while IFS= read -r installed_plugin; do
       plugins+=("${daemon__installed_plugins_dir}/${installed_plugin}/plugin")
     done < <(ls -1 "${daemon__installed_plugins_dir}")
-    for plugin in "${plugins[@]}"; do
-      if [[ ! -f ${plugin} ]]; then
-        daemon.log_error "Fatal - plugin not found at: ${plugin}"
-        daemon.update_status "RUN_FAILED"
-        lib.panics_add "daemon_missing_plugin" <<EOF
-The daemon failed to run because a plugin was not found. Time of failure: $(date). \
-The plugin was expected to exist at: ${plugin}.
-EOF
-        return 1
-      fi
-      chmod +x "${plugin}"
-    done
   fi
   echo "${plugins[*]}"
 }
 daemon.run() {
   local is_precheck=true
   while true; do
-    local plugins=($(daemon.get_plugins "${is_precheck}"))
+    plugins=()
+    if [[ ${is_precheck} = true ]]; then
+      plugins=($(daemon.get_plugins "precheck"))
+    else
+      local internal_plugins=($(daemon.get_plugins "internal"))
+      local installed_plugins=($(daemon.get_plugins "installed"))
+      plugins=("${internal_plugins[@]}" "${installed_plugins[@]}")
+    fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then
       daemon.log_warn "Halting - no plugins were found. Waiting 10 seconds before the next run."
