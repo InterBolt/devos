@@ -96,7 +96,7 @@ profile.run_checked_out_project_script() {
 }
 profile.print_info() {
   local checked_out_project="$(lib.checked_out_project)"
-  local installed_plugins_dir="${HOME}/.solos/installed"
+  local installed_plugins_dir="${HOME}/.solos/plugins"
   local installed_plugins=()
   if [[ -d ${installed_plugins_dir} ]]; then
     while IFS= read -r installed_plugin; do
@@ -144,7 +144,7 @@ $(
       'Config' "$(profile.users_home_dir)/.solos/config" \
       'Secrets' "$(profile.users_home_dir)/.solos/secrets" \
       'Data' "$(profile.users_home_dir)/.solos/data" \
-      'Installed Plugins' "$(profile.users_home_dir)/.solos/installed"
+      'Installed Plugins' "$(profile.users_home_dir)/.solos/plugins"
   )
 
 $(

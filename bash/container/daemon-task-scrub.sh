@@ -49,52 +49,52 @@ daemon_scrub__suspect_extensions=(
 
 trap 'rm -rf /root/.solos/data/daemon/tmp' EXIT
 
-daemon_scrub.log_info() {
-  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
+daemon_task_scrub.log_info() {
+  local message="(TASK:SCRUB) ${1}"
   shift
   log.info "${message}" "$@"
 }
-daemon_scrub.log_error() {
-  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
+daemon_task_scrub.log_error() {
+  local message="(TASK:SCRUB) ${1}"
   shift
   log.error "${message}" "$@"
 }
-daemon_scrub.log_warn() {
-  local message="(SCRUB) ${1} pid=\"${daemon_main__pid}\""
+daemon_task_scrub.log_warn() {
+  local message="(TASK:SCRUB) ${1}"
   shift
   log.warn "${message}" "$@"
 }
 
 # A little extra validation before we start copying stuff around.
-daemon_scrub.project_dir_exists() {
+daemon_task_scrub.project_dir_exists() {
   if [[ -z ${daemon_scrub__checked_out_project} ]]; then
-    daemon_scrub.log_error "No project is checked out. Cannot determine which project to include in the daemon's copied .solos directory."
+    daemon_task_scrub.log_error "No project is checked out. Cannot determine which project to include in the daemon's copied .solos directory."
     return 1
   fi
   if [[ ! -d ${daemon_scrub__project_dir} ]]; then
-    daemon_scrub.log_error "The checked out project directory does not exist: \"${daemon_scrub__users_home_dir}/.solos/projects/${daemon_scrub__checked_out_project}\""
+    daemon_task_scrub.log_error "The checked out project directory does not exist: \"${daemon_scrub__users_home_dir}/.solos/projects/${daemon_scrub__checked_out_project}\""
     return 1
   fi
 }
 # Create a copy of the entire .solos directory minus projects that are not the checked out project.
 # Copy and echo tmp dir only.
-daemon_scrub.copy_to_tmp() {
+daemon_task_scrub.copy_to_tmp() {
   local cp_tmp_dir="$(mktemp -d)"
   local tmp_dir="/root/.solos/data/daemon/tmp"
   if rm -rf "${tmp_dir}"; then
-    daemon_scrub.log_info "Process - cleared the previous temporary directory: \"${tmp_dir}\""
+    daemon_task_scrub.log_info "Prepared - cleared the previous temporary directory: \"${tmp_dir}\""
   fi
   mkdir -p "${tmp_dir}"
   if [[ -z ${tmp_dir} ]]; then
-    daemon_scrub.log_error "Failed to create a temporary directory for the safe copy."
+    daemon_task_scrub.log_error "Unexpected error - failed to create a temporary directory for the safe copy."
     return 1
   fi
   if ! mkdir -p "${cp_tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
-    daemon_scrub.log_error "Failed to create the projects directory in the temporary directory."
+    daemon_task_scrub.log_error "Unexpected error - failed to create the projects directory in the temporary directory."
     return 1
   fi
   if ! cp -r "${daemon_scrub__project_dir}/." "${cp_tmp_dir}/projects/${daemon_scrub__checked_out_project}"; then
-    daemon_scrub.log_error "Failed to copy the project directory: \"${daemon_scrub__project_dir}\" to: \"${tmp_dir}/projects/${daemon_scrub__checked_out_project}\""
+    daemon_task_scrub.log_error "Unexpected error - failed to copy the project directory: \"${daemon_scrub__project_dir}\" to: \"${tmp_dir}/projects/${daemon_scrub__checked_out_project}\""
     return 1
   fi
   local root_paths="$(find /root/.solos -maxdepth 1)"
@@ -109,17 +109,17 @@ daemon_scrub.copy_to_tmp() {
       continue
     fi
     if ! mkdir -p "${cp_tmp_dir}/${base}"; then
-      daemon_scrub.log_error "Failed to create the directory: \"${cp_tmp_dir}/${base}\""
+      daemon_task_scrub.log_error "Unexpected error - failed to create the directory: \"${cp_tmp_dir}/${base}\""
       return 1
     fi
     if [[ -d ${root_path} ]]; then
       if ! cp -r "${root_path}/." "${cp_tmp_dir}/${base}"; then
-        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
+        daemon_task_scrub.log_error "Unexpected error - failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
         return 1
       fi
     else
       if ! cp "${root_path}" "${cp_tmp_dir}/${base}"; then
-        daemon_scrub.log_error "Failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
+        daemon_task_scrub.log_error "Unexpected error - failed to copy: \"${root_path}\" to: \"${cp_tmp_dir}/${base}\""
         return 1
       fi
     fi
@@ -129,19 +129,19 @@ daemon_scrub.copy_to_tmp() {
   echo "${tmp_dir}/${random_dirname}"
 }
 # Anything that looks like an SSH key directory is removed.
-daemon_scrub.remove_ssh() {
+daemon_task_scrub.remove_ssh() {
   local tmp_dir="${1}"
   local ssh_dirpaths="$(find "${tmp_dir}" -type d -name ".ssh" -o -name "ssh")"
   for ssh_dirpath in ${ssh_dirpaths[@]}; do
     if ! rm -rf "${ssh_dirpath}"; then
-      daemon_scrub.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
+      daemon_task_scrub.log_error "Unexpected error - failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
       return 1
     fi
-    daemon_scrub.log_info "Pruned - \"${ssh_dirpath}\""
+    daemon_task_scrub.log_info "Deleted - \"${ssh_dirpath}\""
   done
 }
 # Not an exact science but we do our best to get rid of any files that look like they might be secret files.
-daemon_scrub.remove_suspect_secretfiles() {
+daemon_task_scrub.remove_suspect_secretfiles() {
   local tmp_dir="${1}"
   # map daemon_scrub__suspect_extensions to a list of args likeso: (-o -name "*.key" -o -name "*.pem" ...)
   local find_args=()
@@ -155,35 +155,35 @@ daemon_scrub.remove_suspect_secretfiles() {
   local secret_filepaths="$(find "${tmp_dir}" -type f "${find_args[@]}")"
   for secret_filepath in ${secret_filepaths[@]}; do
     if ! rm -f "${secret_filepath}"; then
-      daemon_scrub.log_error "Failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
+      daemon_task_scrub.log_error "Unexpected error - failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
       return 1
     fi
-    daemon_scrub.log_info "Scrubbed - \"${secret_filepath}\""
+    daemon_task_scrub.log_info "Deleted - \"${secret_filepath}\""
   done
 }
 # Scrub anything we find in the gitignored paths.
-daemon_scrub.remove_gitignored_paths() {
+daemon_task_scrub.remove_gitignored_paths() {
   local tmp_dir="${1}"
   local git_dirs="$(find "${tmp_dir}" -type d -name ".git")"
   for git_dir in ${git_dirs[@]}; do
     local git_project_path="$(dirname "${git_dir}")"
     local gitignore_path="${git_project_path}/.gitignore"
     if [[ ! -f "${gitignore_path}" ]]; then
-      daemon_scrub.log_warn "No .gitignore file found in git repo: \"${git_project_path}\""
+      daemon_task_scrub.log_warn "Skipping - no .gitignore file found in git repo: \"${git_project_path}\""
       continue
     fi
     local gitignored_paths_to_delete="$(git -C "${git_project_path}" status -s --ignored | grep "^\!\!" | cut -d' ' -f2 | xargs)"
     for gitignored_path_to_delete in ${gitignored_paths_to_delete}; do
       gitignored_path_to_delete="${git_project_path}/${gitignored_path_to_delete}"
       if ! rm -rf "${gitignored_path_to_delete}"; then
-        daemon_scrub.log_error "Failed to remove the gitignored path: \"${gitignored_path_to_delete}\" from the temporary directory."
+        daemon_task_scrub.log_error "Unexpected error - \"${gitignored_path_to_delete}\" from the temporary directory."
         return 1
       fi
-      daemon_scrub.log_info "Pruned - \"${gitignored_path_to_delete}\""
+      daemon_task_scrub.log_info "Deleted - \"${gitignored_path_to_delete}\""
     done
   done
 }
-daemon_scrub.scrub_secrets() {
+daemon_task_scrub.scrub_secrets() {
   local tmp_dir="${1}"
   # We'll build this array with several sources of secrets.
   local secrets=()
@@ -198,7 +198,7 @@ daemon_scrub.scrub_secrets() {
     secrets+=("$(cat "${global_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
     i=$((i + 1))
   done
-  daemon_scrub.log_info "Process - found ${i} secrets in global secret dir: ${tmp_dir}/secrets"
+  daemon_task_scrub.log_info "Found - extracted ${i} secrets in global secret dir: ${tmp_dir}/secrets"
 
   # Find secret files in each project.
   local project_paths="$(find "${tmp_dir}"/projects -maxdepth 1)"
@@ -216,7 +216,7 @@ daemon_scrub.scrub_secrets() {
       secrets+=("$(cat "${project_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
       i=$((i + 1))
     done
-    daemon_scrub.log_info "Process - found ${i} secrets in project secret dir: ${project_secrets_path}"
+    daemon_task_scrub.log_info "Found - extracted ${i} secrets in project secret dir: ${project_secrets_path}"
   done
 
   # First, look for any .env.* files across all of .solos and extract the secrets.
@@ -231,7 +231,7 @@ daemon_scrub.scrub_secrets() {
       secrets+=("${env_secret}")
       i=$((i + 1))
     done
-    daemon_scrub.log_info "Process - extracted ${i} secrets from file: ${env_filepath}"
+    daemon_task_scrub.log_info "Found - extracted ${i} secrets from file: ${env_filepath}"
   done
 
   # Remove the duplicate secrets and scrub the secrets from all the files left in the tmp dir.
@@ -243,38 +243,38 @@ daemon_scrub.scrub_secrets() {
     fi
     while IFS= read -r input_file; do
       if ! sed -E -i "s@${secret}@[REDACTED]@g" "${input_file}"; then
-        daemon_scrub.log_error "Failed to scrub - \"${secret}\" from ${input_file}."
+        daemon_task_scrub.log_error "Unexpected error - \"${secret}\" from ${input_file}."
         return 1
       fi
     done <<<"${input_files}"
-    daemon_scrub.log_info "Scrubbed - \"${secret}\""
+    daemon_task_scrub.log_info "Scrubbed - \"${secret}\""
   done
 }
 # Validate, copy, scrub, and echo the tmp dir path.
-daemon_scrub.main() {
-  if ! daemon_scrub.project_dir_exists; then
+daemon_task_scrub.main() {
+  if ! daemon_task_scrub.project_dir_exists; then
     return 1
   fi
-  local tmp_dir="$(daemon_scrub.copy_to_tmp)"
-  # if [[ ! -d ${tmp_dir} ]]; then
-  #   return 1
-  # fi
-  # daemon_scrub.log_info "Checkpoint - copied solos to: ${tmp_dir}"
-  # if ! daemon_scrub.remove_gitignored_paths "${tmp_dir}"; then
-  #   return 1
-  # fi
-  # daemon_scrub.log_info "Checkpoint - removed gitignored paths from: ${tmp_dir}"
-  # if ! daemon_scrub.remove_ssh "${tmp_dir}"; then
-  #   return 1
-  # fi
-  # daemon_scrub.log_info "Checkpoint - removed SSH directories from: ${tmp_dir}"
-  # if ! daemon_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
-  #   return 1
-  # fi
-  # daemon_scrub.log_info "Checkpoint - deleted potentially sensitive files based on an extension blacklist."
-  # if ! daemon_scrub.scrub_secrets "${tmp_dir}"; then
-  #   return 1
-  # fi
-  # daemon_scrub.log_info "Checkpoint - scrubbed known secrets."
+  local tmp_dir="$(daemon_task_scrub.copy_to_tmp)"
+  if [[ ! -d ${tmp_dir} ]]; then
+    return 1
+  fi
+  daemon_task_scrub.log_info "Preparing - copied solos to: ${tmp_dir}"
+  if ! daemon_task_scrub.remove_gitignored_paths "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_task_scrub.log_info "Cleaned - removed gitignored paths from: ${tmp_dir}"
+  if ! daemon_task_scrub.remove_ssh "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_task_scrub.log_info "Cleaned - removed SSH directories from: ${tmp_dir}"
+  if ! daemon_task_scrub.remove_suspect_secretfiles "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_task_scrub.log_info "Cleaned - deleted potentially sensitive files based on an extension blacklist."
+  if ! daemon_task_scrub.scrub_secrets "${tmp_dir}"; then
+    return 1
+  fi
+  daemon_task_scrub.log_info "Complete - scrubbed known secrets."
   echo "${tmp_dir}"
 }

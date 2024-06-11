@@ -11,8 +11,8 @@
       "profile": "shell"
     },
     {
-      "name": "solos.installed",
-      "uri": "___cli__users_home_dir___/.solos/installed",
+      "name": "solos.plugins",
+      "uri": "___cli__users_home_dir___/.solos/plugins",
       "profile": "shell"
     },
     {

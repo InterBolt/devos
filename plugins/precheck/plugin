@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 
+# TODO: rework our design a bit so that we can arbitrarily include scripts as full on
+# TODO[c]: plugins. This will allow us to have a more robust way of testing the plugins and
+# TODO[c]: the daemon itself. We can also use this to test the plugins in a CI/CD pipeline.
+
 # What is this script?
 # ---------------------
 # This script will run before any installed plugins are executed in order to validate some set of assumptions around
 # files, networking, and other such things. If this script fails, SolOS will enter a "panicked" state and will not
 # execute any further plugins. This script should be as simple as possible and should not rely on any external dependencies.
-# Note: installed plugins cannot be shell scripts, they should be statically linked binaries. This precheck plugin script is the
+# Note: installed plugins cannot be shell scripts, they should be statically linked binaries. This plugin plugin script is the
 # exception.
 
 # SolOS Plugin API:
@@ -18,27 +22,27 @@
 # Rules for each --[phase] are as follows:
 # ----------------------------------------
 # --phase-configure
-#   - available filesystem [file:/root/config.json (read/write)]
-#       - file:/root/config.json is a file that may or may not exist. If it does that means the user
+#   - available filesystem [file:/root/solos.json (read/write)]
+#       - file:/root/solos.json is a file that may or may not exist. If it does that means the user
 #         has configured the plugin in some other step. A plugin should validate the config file if it
 #         exists and if it doesn't, it should create a default one.
 #   - networking [none]
 # --phase-download
-#   - available filesystem [file:/root/config.json (read only), dir:/root/download (read/write)]
-#       - file:/root/config.json is a file that may or may not exist. If it does that means the user
+#   - available filesystem [file:/root/solos.json (read only), dir:/root/download (read/write)]
+#       - file:/root/solos.json is a file that may or may not exist. If it does that means the user
 #         has configured the plugin in some other step. A plugin should validate the config file if it
 #         exists and if it doesn't, it should create a default one.
 #       - dir:/root/download is an empty directory where the plugin will store any downloaded files.
 #   - networking [allowed]
 # --phase-collection
-#   - available filesystem [file:/root/config.json (read only), dir:/root/collection (read/write), dir:/root/.solos (read only)]
+#   - available filesystem [file:/root/solos.json (read only), dir:/root/collection (read/write), dir:/root/.solos (read only)]
 #       - dir:/root/.solos contains all of the users config, projects, app, everything
 #         related to SolOS and their development environment.
 #       - dir:/root/collection is an empty directory where the plugin will store "collected" data that
 #         it downloads/extracts from the internet and the user's .solos directory.
 #   - networking [none]
 # --phase-process
-#   - available filesystem [file:/root/config.json (read only), dir:/root/collection (read only), dir:/root/.solos (read only), file:/root/processed.json (read/write)]
+#   - available filesystem [file:/root/solos.json (read only), dir:/root/collection (read only), dir:/root/.solos (read only), file:/root/processed.json (read/write)]
 #       - dir:/root/collection files from the collection phase.
 #       - dir:/root/.solos same as above.
 #       - file:/root/processed.json stores the "processed" data that the plugin generates. Since plugin authors will write their plugins using "real"
@@ -46,7 +50,7 @@
 #         JSON array where objects are in the format: { "plugin": "plugin-name", "data": { ... } }.
 #   - networking [none]
 # --phase-push
-#   - available filesystem [file:/root/config.json (read only), file:/root/processed.json (read only)]
+#   - available filesystem [file:/root/solos.json (read only), file:/root/processed.json (read only)]
 #       - file:/root/processed.log is a file where each line is the encoded json from the processed.json files produced by all the plugins.
 #   - networking [allowed]
 #
@@ -68,7 +72,7 @@
 #
 # HELPER FUNCTIONS
 #
-daemon_firejailed_validate_phases.verify_absence() {
+plugin.verify_absence() {
   for path in "${@}"; do
     if [[ -e ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should not exist."
@@ -76,7 +80,7 @@ daemon_firejailed_validate_phases.verify_absence() {
     fi
   done
 }
-daemon_firejailed_validate_phases.verify_read_and_write() {
+plugin.verify_read_and_write() {
   for path in "${@}"; do
     if [[ ! -w ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should be set to read/write."
@@ -84,7 +88,7 @@ daemon_firejailed_validate_phases.verify_read_and_write() {
     fi
   done
 }
-daemon_firejailed_validate_phases.verify_read_only() {
+plugin.verify_read_only() {
   for path in "${@}"; do
     if [[ -w ${path} ]]; then
       echo "SOLOS_PANIC: ${path} should be set to read only."
@@ -92,7 +96,7 @@ daemon_firejailed_validate_phases.verify_read_only() {
     fi
   done
 }
-daemon_firejailed_validate_phases.verify_files_exists() {
+plugin.verify_files_exists() {
   for path in "${@}"; do
     if [[ ! -f ${path} ]]; then
       echo "SOLOS_PANIC: ${path} file should exist."
@@ -100,7 +104,7 @@ daemon_firejailed_validate_phases.verify_files_exists() {
     fi
   done
 }
-daemon_firejailed_validate_phases.verify_dirs_exists() {
+plugin.verify_dirs_exists() {
   for path in "${@}"; do
     if [[ ! -d ${path} ]]; then
       echo "SOLOS_PANIC: ${path} directory should exist."
@@ -108,7 +112,7 @@ daemon_firejailed_validate_phases.verify_dirs_exists() {
     fi
   done
 }
-daemon_firejailed_validate_phases.verify_network_acccess() {
+plugin.verify_network_acccess() {
   local enabled="${1:-"true"}"
   local urls=(
     "https://www.google.com"
@@ -139,89 +143,99 @@ daemon_firejailed_validate_phases.verify_network_acccess() {
 #
 # PHASE TESTS:
 #
-daemon_firejailed_validate_phases.main() {
+plugin.main() {
   local solos_dir="/root/.solos"
-  local config_file="/root/config.json"
+  local config_file="/root/solos.json"
   local download_dir="/root/download"
   local collection_dir="/root/collection"
+  local pushed_dir="/root/pushed"
+  local processed_dir="/root/processed"
   local processed_file="/root/processed.json"
 
   if [[ ${1} = "--phase-configure" ]]; then
-    daemon_firejailed_validate_phases.verify_absence \
+    plugin.verify_absence \
       "${solos_dir}" \
       "${download_dir}" \
       "${collection_dir}" \
-      "${processed_file}"
-    daemon_firejailed_validate_phases.verify_files_exists \
+      "${processed_file}" \
+      "${pushed_dir}" \
+      "${processed_dir}"
+
+    plugin.verify_files_exists \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_read_and_write \
+    plugin.verify_read_and_write \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_network_acccess "false"
+    plugin.verify_network_acccess "false"
 
   elif [[ ${1} = "--phase-download" ]]; then
-    daemon_firejailed_validate_phases.verify_absence \
+    plugin.verify_absence \
       "${solos_dir}" \
       "${collection_dir}" \
-      "${processed_file}"
+      "${processed_file}" \
+      "${pushed_dir}" \
+      "${processed_dir}"
 
-    daemon_firejailed_validate_phases.verify_dirs_exists \
+    plugin.verify_dirs_exists \
       "${download_dir}"
-
-    daemon_firejailed_validate_phases.verify_files_exists \
+    plugin.verify_files_exists \
       "${config_file}"
-
-    daemon_firejailed_validate_phases.verify_read_and_write \
-      "${download_dir}"
-
-    daemon_firejailed_validate_phases.verify_read_only \
+    plugin.verify_read_and_write \
+      "${download_dir}" \
       "${config_file}"
-
-    daemon_firejailed_validate_phases.verify_network_acccess "true"
+    plugin.verify_network_acccess "true"
 
   elif [[ ${1} = "--phase-collection" ]]; then
-    daemon_firejailed_validate_phases.verify_absence \
+    plugin.verify_absence \
       "${download_dir}" \
-      "${processed_file}"
-    daemon_firejailed_validate_phases.verify_files_exists \
-      "${config_file}"
-    daemon_firejailed_validate_phases.verify_dirs_exists \
-      "${solos_dir}"
-    daemon_firejailed_validate_phases.verify_read_only \
+      "${processed_file}" \
+      "${processed_dir}" \
+      "${pushed_dir}"
+
+    plugin.verify_dirs_exists \
       "${solos_dir}" \
-      "${config_file}"
-    daemon_firejailed_validate_phases.verify_read_and_write \
       "${collection_dir}"
-    daemon_firejailed_validate_phases.verify_network_acccess "false"
+    plugin.verify_files_exists \
+      "${config_file}"
+    plugin.verify_read_only \
+      "${solos_dir}"
+    plugin.verify_read_and_write \
+      "${collection_dir}" \
+      "${config_file}"
+    plugin.verify_network_acccess "false"
 
   elif [[ ${1} = "--phase-process" ]]; then
-    daemon_firejailed_validate_phases.verify_absence \
-      "${download_dir}"
-    daemon_firejailed_validate_phases.verify_dirs_exists \
+    plugin.verify_absence \
+      "${download_dir}" \
+      "${pushed_dir}"
+
+    plugin.verify_dirs_exists \
       "${solos_dir}" \
       "${collection_dir}"
-    daemon_firejailed_validate_phases.verify_files_exists \
+    plugin.verify_files_exists \
       "${processed_file}" \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_read_only \
+    plugin.verify_read_only \
       "${solos_dir}" \
-      "${collection_dir}" \
+      "${collection_dir}"
+    plugin.verify_read_and_write \
+      "${processed_file}" \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_read_and_write \
-      "${processed_file}"
-    daemon_firejailed_validate_phases.verify_network_acccess "false"
+    plugin.verify_network_acccess "false"
 
   elif [[ ${1} = "--phase-push" ]]; then
-    daemon_firejailed_validate_phases.verify_absence \
+    plugin.verify_absence \
       "${download_dir}" \
       "${collection_dir}" \
       "${solos_dir}"
-    daemon_firejailed_validate_phases.verify_files_exists \
+
+    plugin.verify_files_exists \
       "${processed_file}" \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_read_only \
-      "${processed_file}" \
+    plugin.verify_read_only \
+      "${processed_file}"
+    plugin.verify_read_and_write \
       "${config_file}"
-    daemon_firejailed_validate_phases.verify_network_acccess "true"
+    plugin.verify_network_acccess "true"
 
   else
     echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push."
@@ -229,4 +243,4 @@ daemon_firejailed_validate_phases.main() {
   fi
 }
 
-daemon_firejailed_validate_phases.main "$@"
+plugin.main "$@"

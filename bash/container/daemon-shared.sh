@@ -3,7 +3,7 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
 daemon_shared__internal_plugins_dir="${HOME}/.solos/src/plugins"
-daemon_shared__installed_plugins_dir="${HOME}/.solos/installed"
+daemon_shared__installed_plugins_dir="${HOME}/.solos/plugins"
 daemon_shared__precheck_plugin="${daemon_shared__internal_plugins_dir}/precheck"
 
 # TODO: go back and refactor some things to use this new idea of having every script
@@ -34,28 +34,6 @@ EOF
 
 # SHARED/SOURCED FUNCTIONS:
 
-daemon_shared.get_internal_plugins() {
-  local installed_plugins=()
-  while IFS= read -r installed_plugin; do
-    installed_plugins+=("${daemon_shared__installed_plugins_dir}/${installed_plugin}")
-  done < <(ls -1 "${daemon_shared__installed_plugins_dir}")
-  if [[ ${#installed_plugins[@]} -eq 0 ]]; then
-    echo ""
-    return 0
-  fi
-  echo "${installed_plugins[*]}"
-}
-daemon_shared.get_installed_plugins() {
-  local internal_plugins=()
-  while IFS= read -r internal_plugin; do
-    internal_plugins+=("${daemon_shared__internal_plugins_dir}/${internal_plugin}")
-  done < <(ls -1 "${daemon_shared__internal_plugins_dir}")
-  if [[ ${#internal_plugins[@]} -eq 0 ]]; then
-    echo ""
-    return 0
-  fi
-  echo "${internal_plugins[*]}"
-}
 daemon_shared.merged_namespaced_fs() {
   local namespace="${1}"
   local partial_dir="${2}"
@@ -87,7 +65,7 @@ daemon_shared.firejail() {
     echo "Firejailed plugin error - invalid argument list. No seperator '--' found in the firejail function." >&2
     return 1
   fi
-  while [[ ${1} != "--" ]]; do
+  while [[ -z ${1} ]] && [[ ${1} != "--" ]]; do
     asset_args_count=$((asset_args_count + 1))
     local divider_arg_is_next=false
     if [[ ${2} = "--" ]]; then
@@ -103,15 +81,21 @@ daemon_shared.firejail() {
   shift
   # Kick off a firejailed process for each executable and collect the pids
   # for each backgrounded process. We'll wait on them later.
-  local executable_paths=()
-  while [[ ${1} != "--" ]]; do
-    executable_paths+=("${1}")
+  local src_plugins=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    src_plugins+=("${1}")
     shift
   done
   shift
   local firejail_options=()
-  while [[ ${1} != "--" ]]; do
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
     firejail_options+=("${1}")
+    shift
+  done
+  shift
+  local executable_options=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    executable_options+=("${1}")
     shift
   done
   shift
@@ -130,7 +114,7 @@ daemon_shared.firejail() {
   local firejailed_home_dirs=()
   local firejailed_stdout_files=()
   local firejailed_stderr_files=()
-  for executable_path in "${executable_paths[@]}"; do
+  for src_plugin in "${src_plugins[@]}"; do
     local firejailed_home_dir="$(mktemp -d)"
     for ((i = 0; i < ${asset_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
@@ -139,7 +123,6 @@ daemon_shared.firejail() {
       local mount_path="${assets[${i}]}"
       local src_path="${assets[$((i + 1))]}"
       local permissions="${assets[$((i + 2))]}"
-      # TODO: implement permissions for "ro" and "rw"
       if [[ -f ${src_path} ]]; then
         cp "${src_path}" "${firejailed_home_dir}/${mount_path}"
       elif [[ -d ${src_path} ]]; then
@@ -149,13 +132,17 @@ daemon_shared.firejail() {
         echo "Firejailed plugin error - invalid asset path supplied to the daemon's shared firejail function" >&2
         return 1
       fi
-      cp -a "${executable_path}" "${firejailed_home_dir}/executable"
+      cp -a "${src_plugin}" "${firejailed_home_dir}/plugin"
+      local src_plugin_config_file="${src_plugin}/solos.json"
+      if [[ -f ${src_plugin_config_file} ]]; then
+        cp "${src_plugin_config_file}" "${firejailed_home_dir}/solos.json"
+      fi
       firejail \
         --quiet \
         --noprofile \
         --private="${firejailed_home_dir}" \
         "${firejail_options[@]}" \
-        /root/executable >>"${firejailed_stdout_file}" 2>>"${firejailed_stderr_file}" &
+        /root/plugin "${executable_options[@]}" >>"${firejailed_stdout_file}" 2>>"${firejailed_stderr_file}" &
       local firejailed_pid=$!
       firejailed_pids+=("${firejailed_pid}")
       firejailed_home_dirs+=("${firejailed_home_dir}")
@@ -173,7 +160,7 @@ daemon_shared.firejail() {
     # output that indicates the collection was killed by SolOS.
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
-    local executable_path="${executable_paths[${i}]}"
+    local executable_path="${src_plugins[${i}]}"
     local firejailed_home_dir="${firejailed_home_dirs[${i}]}"
     local firejailed_stdout_file="${firejailed_stdout_files[${i}]}"
     local firejailed_stderr_file="${firejailed_stderr_files[${i}]}"
@@ -212,20 +199,6 @@ daemon_shared.firejail() {
     echo "${successful_home_dir}"
   done
   return "${return_code}"
-}
-daemon_shared.executables() {
-  local plugin_executables=()
-  local plugins="${*}"
-  for plugin in ${plugins}; do
-    if [[ -f "${plugin}/bin" ]]; then
-      chmod +x "${plugin}/bin"
-      plugin_executables+=("${plugin}/bin")
-    else
-      echo "Plugin executable not found: ${plugin}/bin" >&2
-      return 1
-    fi
-  done
-  echo "${plugin_executables[*]}"
 }
 
 __daemon_shared.panic_conditions__

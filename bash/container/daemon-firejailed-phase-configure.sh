@@ -3,41 +3,34 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 
-daemon_phase_push.log_info() {
-  local message="(PHASE:PUSH) ${1}"
+daemon_phase_configure.log_info() {
+  local message="(PHASE:CONFIGURE) ${1}"
   shift
   log.info "${message}" "$@"
 }
-daemon_phase_push.log_error() {
-  local message="(PHASE:PUSH) ${1}"
+daemon_phase_configure.log_error() {
+  local message="(PHASE:CONFIGURE) ${1}"
   shift
   log.error "${message}" "$@"
 }
-daemon_phase_push.log_warn() {
-  local message="(PHASE:PUSH) ${1}"
+daemon_phase_configure.log_warn() {
+  local message="(PHASE:CONFIGURE) ${1}"
   shift
   log.warn "${message}" "$@"
 }
-
-daemon_phase_push.exec() {
-  local merged_process_dir="${1}"
-  local stdout_file="${2}"
-  local stderr_file="${3}"
-  shift 3
+daemon_phase_configure.exec() {
+  local stdout_file="${1}"
+  local stderr_file="${2}"
+  shift 2
   daemon_shared.firejail \
-    "${merged_process_dir}" "/processed" "ro" \
-    "$(mktemp -d)" "/pushed" "rw" \
     "--" \
     "${@}" \
     "--" \
     --net=none \
     "--" \
-    "--phase-push"
+    "--phase-configure"
 }
-daemon_phase_push.main() {
-  local merged_configure_dir="${1}"
-  local merged_process_dir="${2}"
-  shift 2
+daemon_phase_configure.main() {
   local plugins="$@"
   local plugin_names=()
   for plugin in "${plugins[@]}"; do
@@ -53,20 +46,23 @@ daemon_phase_push.main() {
   local stdout_file="$(mktemp)"
   local stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
-  daemon_phase_push.exec \
-    "${merged_process_dir}" "${stdout_file}" "${stderr_file}" \
+  daemon_phase_configure.exec \
+    "${stdout_file}" "${stderr_file}" \
     "${plugins[@]}" >>"${stashed_firejailed_home_dirs}"
   local return_code="$?"
   if [[ ${return_code} -eq 151 ]]; then
     return "${return_code}"
   fi
 
+  # Every line of stashed_firejailed_home_dirs is path to a plugin's output directory.
+  # The lines are in order of the plugin's order in the plugin_names array so we can access
+  # the plugin_name for each plugin by index.
   local firejailed_home_dirs=()
   while read -r line; do
     firejailed_home_dirs+=("$(echo "${line}" | xargs)")
   done <"${stashed_firejailed_home_dirs}"
 
-  local merged_pushed_dir="$(mktemp -d)"
+  local merged_configure_dir="$(mktemp -d)"
   local prefixed_stderr_file="$(mktemp)"
   local prefixed_stdout_file="$(mktemp)"
   local i=0
@@ -85,13 +81,9 @@ daemon_phase_push.main() {
       fi
     done <"${stdout_file}"
     if [[ ${firejailed_home_dir} != "-" ]]; then
-      daemon_shared.merged_namespaced_fs \
-        "${plugin_name}" \
-        "${firejailed_home_dir}/pushed" \
-        "${merged_pushed_dir}"
+      cp -r "${firejailed_home_dir}/solos.json" "${merged_configure_dir}/${plugin_name}-solos.json"
     fi
     i=$((i + 1))
   done
-
-  echo "${prefixed_stdout_file} ${prefixed_stderr_file} ${merged_pushed_dir}"
+  echo "${prefixed_stdout_file} ${prefixed_stderr_file} ${merged_configure_dir}"
 }
