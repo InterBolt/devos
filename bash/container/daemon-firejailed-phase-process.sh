@@ -41,14 +41,14 @@ daemon_firejailed_phase_process.main() {
   local raw_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=("--net=none")
-  local plugin_specific_assets=()
+  local plugin_expanded_assets=()
   local i=0
   for plugin in "${plugins[@]}"; do
-    plugin_specific_assets+=("${plugin_collection_dirs[${i}]}" "/collection" "555")
+    plugin_expanded_assets+=("${plugin_collection_dirs[${i}]}" "/collection" "555")
     i=$((i + 1))
   done
   daemon_shared.firejail \
-    "${plugin_specific_assets[@]}" \
+    "${plugin_expanded_assets[@]}" \
     "--" \
     "${scrubbed_dir}" "/.solos" "555" \
     "${merged_collection_dir}" "/plugins/collection" "555" \

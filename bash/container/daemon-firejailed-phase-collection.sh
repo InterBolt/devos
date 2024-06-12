@@ -36,11 +36,11 @@ daemon_firejailed_phase_collection.main() {
   local firejail_options=("--net=none")
   local i=0
   for plugin in "${plugins[@]}"; do
-    plugin_specific_assets+=("${plugin_download_dirs[${i}]}" "/download" "555")
+    plugin_expanded_assets+=("${plugin_download_dirs[${i}]}" "/download" "555")
     i=$((i + 1))
   done
   daemon_shared.firejail \
-    "${plugin_specific_assets[@]}" \
+    "${plugin_expanded_assets[@]}" \
     "--" \
     "${scrubbed_dir}" "/.solos" "555" \
     "${merged_download_dir}" "/plugins/download" "555" \

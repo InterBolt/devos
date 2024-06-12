@@ -193,7 +193,7 @@ daemon_shared.merge_assets_args() {
   local asset_args=($(echo "${4}" | xargs))
   local plugin_expanded_asset_arg_count="${#plugin_expanded_asset_args[@]}"
   plugin_expanded_asset_arg_count=$((plugin_expanded_asset_arg_count / 3))
-  local divisor=$((plugin_expanded_asset_arg_count / plugin_count))
+
   local grouped_plugin_expanded_asset_args=()
   local i=0
   for plugin_expanded_asset_arg in "${plugin_expanded_asset_args[@]}"; do
@@ -208,7 +208,11 @@ daemon_shared.merge_assets_args() {
     grouped_plugin_expanded_asset_args+=("$(echo "${str}" | xargs)")
     i=$((i + 1))
   done
-
+  local grouped_plugin_expanded_asset_args_count="${#grouped_plugin_expanded_asset_args[@]}"
+  if [[ ${grouped_plugin_expanded_asset_args_count} -ne ${plugin_count} ]]; then
+    echo "Unexpected error - the number of plugin expanded assets does not match the number of plugins (warning, you'll need coffee and bravery for this one)." >&2
+    return 1
+  fi
   echo "${asset_args[*]}" "${grouped_plugin_expanded_asset_args[${plugin_index}]}" | xargs
 }
 daemon_shared.firejail() {

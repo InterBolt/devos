@@ -33,14 +33,14 @@ daemon_firejailed_phase_push.main() {
   local raw_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=()
-  local plugin_specific_assets=()
+  local plugin_expanded_assets=()
   local i=0
   for plugin in "${plugins[@]}"; do
-    plugin_specific_assets+=("${plugin_processed_files[${i}]}" "/processed.json" "555")
+    plugin_expanded_assets+=("${plugin_processed_files[${i}]}" "/processed.json" "555")
     i=$((i + 1))
   done
   daemon_shared.firejail \
-    "${plugin_specific_assets[@]}" \
+    "${plugin_expanded_assets[@]}" \
     "--" \
     "${merged_process_dir}" "/plugins/processed" "555" \
     "$(mktemp -d)" "/pushed" "777" \
