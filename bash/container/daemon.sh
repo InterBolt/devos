@@ -9,11 +9,8 @@ daemon__pid_file="${daemon__daemon_data_dir}/pid"
 daemon__status_file="${daemon__daemon_data_dir}/status"
 daemon__request_file="${daemon__daemon_data_dir}/request"
 daemon__log_file="${daemon__daemon_data_dir}/master.log"
-daemon__internal_plugins_dir="${HOME}/.solos/src/plugins"
-daemon__installed_plugins_dir="${HOME}/.solos/plugins"
 daemon__users_home_dir="$(lib.home_dir_path)"
 daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-daemon__report_string='Please report to https://github.com/InterBolt/solos/issues.'
 
 trap 'rm -f "'"${daemon__pid_file}"'"' EXIT
 
@@ -28,7 +25,6 @@ daemon.host_path() {
   local path="${1}"
   echo "${path/\/root\//${daemon__users_home_dir}\/}"
 }
-# Consider a more elegant way to enforce log prefixes for daemon components.
 daemon.log_info() {
   local message="(MAIN) ${1} pid=\"${daemon__pid}\""
   shift
@@ -43,11 +39,6 @@ daemon.log_warn() {
   local message="(MAIN) ${1} pid=\"${daemon__pid}\""
   shift
   log.warn "${message}" "$@"
-}
-daemon.log_dump() {
-  echo "[DUMP]" >>"${daemon__log_file}"
-  echo "${1}" >>"${daemon__log_file}"
-  echo "[DUMP]" >>"${daemon__log_file}"
 }
 declare -A statuses=(
   ["UP"]="The daemon is running."
@@ -70,8 +61,10 @@ daemon.archive() {
   local scrubbed_dir="${1}"
   local merged_download_dir="${2}"
   local merged_collection_dir="${3}"
-  local processed_file="${4}"
-  local pushed_dir="${5}"
+  local merged_processed_dir="${4}"
+  local merged_configure_dir="${5}"
+  local processed_file="${6}"
+  local merged_push_dir="${7}"
   local nanoseconds="$(date +%s%N)"
   local archives_dir="${daemon__daemon_data_dir}/archives"
   local curr_archive_dir="${archives_dir}/${nanoseconds}"
@@ -79,12 +72,14 @@ daemon.archive() {
   mv "${scrubbed_dir}" "${curr_archive_dir}/scrubbed" &
   mv "${merged_download_dir}" "${curr_archive_dir}/download" &
   mv "${merged_collection_dir}" "${curr_archive_dir}/collection" &
+  mv "${merged_processed_dir}" "${curr_archive_dir}/processed" &
+  mv "${merged_configure_dir}" "${curr_archive_dir}/configure" &
   mv "${processed_file}" "${curr_archive_dir}/processed.json" &
-  mv "${pushed_dir}" "${curr_archive_dir}/pushed" &
+  mv "${merged_push_dir}" "${curr_archive_dir}/pushed" &
   wait # Wait for all the moves to finish.
   local mv_return_code=$?
   if [[ ${mv_return_code} -ne 0 ]]; then
-    daemon.log_error "Unexpected error - failed to archive the previous cycle. The move command returned a non-zero exit code: ${mv_return_code}"
+    daemon.log_error "Unexpected error - failed to archive the previous cycle. The move commands returned a non-zero exit code: ${mv_return_code}"
     return 1
   fi
   local archives=($(ls -t "${archives_dir}"))
@@ -129,36 +124,16 @@ daemon.handle_request() {
 }
 daemon.update_configs() {
   local merged_configure_dir="${1}"
-  local internal_plugins=($(daemon.get_plugins "internal"))
-  local installed_plugins=($(daemon.get_plugins "installed"))
-  local precheck_plugins=($(daemon.get_plugins "precheck"))
-  for plugin in "${internal_plugins[@]}"; do
-    local plugin_name="$(basename "${plugin}")"
-    local plugin_dir="$(dirname "${plugin}")"
+  local solos_plugin_names=($(daemon_shared.get_solos_plugin_names))
+  local user_plugin_names=($(daemon_shared.get_user_plugin_names))
+  local precheck_plugin_names=($(daemon_shared.get_precheck_plugin_names))
+  local plugin_names=("${precheck_plugin_names[@]}" "${solos_plugin_names[@]}" "${user_plugin_names[@]}")
+  local plugin_paths=($(daemon_shared.plugin_names_to_paths "${plugin_names[@]}"))
+  for plugin_path in "${plugin_paths[@]}"; do
+    local plugin_name="${plugin_names[${i}]}"
+    local plugin_dir="$(dirname "${plugin_path}")"
     local config_path="${plugin_dir}/solos.json"
-    local updated_config_path="${merged_configure_dir}/internal-${plugin_name}-solos.json"
-    if [[ -f ${updated_config_path} ]]; then
-      rm -f "${config_path}"
-      cp "${updated_config_path}" "${config_path}"
-      daemon.log_info "Config - updated the config at ${config_path}."
-    fi
-  done
-  for plugin in "${installed_plugins[@]}"; do
-    local plugin_name="$(basename "${plugin}")"
-    local plugin_dir="$(dirname "${plugin}")"
-    local config_path="${plugin_dir}/solos.json"
-    local updated_config_path="${merged_configure_dir}/installed-${plugin_name}-solos.json"
-    if [[ -f ${updated_config_path} ]]; then
-      rm -f "${config_path}"
-      cp "${updated_config_path}" "${config_path}"
-      daemon.log_info "Config - updated the config at ${config_path}."
-    fi
-  done
-  for plugin in "${precheck_plugins[@]}"; do
-    local plugin_name="$(basename "${plugin}")"
-    local plugin_dir="$(dirname "${plugin}")"
-    local config_path="${plugin_dir}/solos.json"
-    local updated_config_path="${merged_configure_dir}/precheck-${plugin_name}-solos.json"
+    local updated_config_path="${merged_configure_dir}/${plugin_name}-solos.json"
     if [[ -f ${updated_config_path} ]]; then
       rm -f "${config_path}"
       cp "${updated_config_path}" "${config_path}"
@@ -169,15 +144,17 @@ daemon.update_configs() {
 daemon.dump() {
   local dump_stdout_file="${1}"
   local dump_stderr_file="${2}"
+  echo "[DUMP:STDOUT]" >>"${daemon__log_file}"
   while IFS= read -r line; do
-    daemon.log_dump "${line}"
+    echo "${line}" >>"${daemon__log_file}"
   done <"${dump_stdout_file}"
+  echo "[DUMP:STDERR]" >>"${daemon__log_file}"
   while IFS= read -r line; do
-    daemon.log_dump "${line}"
+    echo "${line}" >>"${daemon__log_file}"
   done <"${dump_stderr_file}"
 }
 daemon.run_plugins() {
-  local plugins="$@"
+  local plugins=("${@}")
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
     daemon.log_error "Unexpected error - failed to scrub the mounted volume."
@@ -190,8 +167,8 @@ daemon.run_plugins() {
   # one if it detects abnormalities.
   #
   # ------------------------------------------------------------------------------------
-  local configure_phase_stdout_file="$(mktemp)"
-  if ! daemon_phase_configure.main "${plugins[@]}" >"${configure_phase_stdout_file}"; then
+  local tmp_stdout="$(mktemp)"
+  if ! daemon_firejailed_phase_configure.main "${plugins[@]}" >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -200,10 +177,10 @@ daemon.run_plugins() {
   else
     daemon.log_info "Progress - the configure phase ran successfully."
   fi
-  local configure_phase_stdout="$(cat "${configure_phase_stdout_file}" 2>/dev/null || echo "")"
-  local configure_stdout_dump="$(echo "${configure_phase_stdout}" | xargs | cut -d' ' -f1)"
-  local configure_stderr_dump="$(echo "${configure_phase_stdout}" | xargs | cut -d' ' -f2)"
-  local merged_configure_dir="$(echo "${configure_phase_stdout}" | xargs | cut -d' ' -f3)"
+  local configure_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
+  local configure_stdout_dump="$(lib.line_to_args "0")"
+  local configure_stderr_dump="$(lib.line_to_args "1")"
+  local merged_configure_dir="$(lib.line_to_args "2")"
   daemon.dump "${configure_stdout_dump}" "${configure_stderr_dump}"
   daemon.update_configs "${merged_configure_dir}"
   # ------------------------------------------------------------------------------------
@@ -212,8 +189,10 @@ daemon.run_plugins() {
   # let plugins download anything they need before they gain access to the data.
   #
   # ------------------------------------------------------------------------------------
-  local download_phase_stdout_file="$(mktemp)"
-  if ! daemon_phase_download.main "${merged_configure_dir}" "${plugins[@]}" >"${download_phase_stdout_file}"; then
+  local tmp_stdout="$(mktemp)"
+  if ! daemon_firejailed_phase_download.main \
+    "${plugins[@]}" \
+    >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -222,10 +201,10 @@ daemon.run_plugins() {
   else
     daemon.log_info "Progress - the download phase ran successfully."
   fi
-  local download_phase_stdout="$(cat "${download_phase_stdout_file}" 2>/dev/null || echo "")"
-  local download_stdout_dump="$(echo "${download_phase_stdout}" | xargs | cut -d' ' -f1)"
-  local download_stderr_dump="$(echo "${download_phase_stdout}" | xargs | cut -d' ' -f2)"
-  local merged_download_dir="$(echo "${download_phase_stdout}" | xargs | cut -d' ' -f3)"
+  local download_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
+  local download_stdout_dump="$(lib.line_to_args "0")"
+  local download_stderr_dump="$(lib.line_to_args "1")"
+  local merged_download_dir="$(lib.line_to_args "2")"
   daemon.dump "${download_stdout_dump}" "${download_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -234,8 +213,10 @@ daemon.run_plugins() {
   # previously to generate a directory full of data.
   #
   # ------------------------------------------------------------------------------------
-  local collection_phase_stdout_file="$(mktemp)"
-  if ! daemon_phase_collection.main "${merged_configure_dir}" "${scrubbed_dir}" "${merged_download_dir}" "${plugins[@]}" >"${collection_phase_stdout_file}"; then
+  local tmp_stdout="$(mktemp)"
+  if ! daemon_firejailed_phase_collection.main \
+    "${scrubbed_dir}" "${merged_download_dir}" "${plugins[@]}" \
+    >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -244,10 +225,10 @@ daemon.run_plugins() {
   else
     daemon.log_info "Progress - the collection phase ran successfully."
   fi
-  local collection_phase_stdout="$(cat "${collection_phase_stdout_file}" 2>/dev/null || echo "")"
-  local collection_stdout_dump="$(echo "${collection_phase_stdout}" | xargs | cut -d' ' -f1)"
-  local collection_stderr_dump="$(echo "${collection_phase_stdout}" | xargs | cut -d' ' -f2)"
-  local merged_collection_dir="$(echo "${collection_phase_stdout}" | xargs | cut -d' ' -f3)"
+  local collection_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
+  local collection_stdout_dump="$(lib.line_to_args "0")"
+  local collection_stderr_dump="$(lib.line_to_args "1")"
+  local merged_collection_dir="$(lib.line_to_args "2")"
   daemon.dump "${collection_stdout_dump}" "${collection_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -256,8 +237,10 @@ daemon.run_plugins() {
   # generated by another plugin. This is key to allow plugins to work together.
   #
   # ------------------------------------------------------------------------------------
-  local process_phase_stdout_file="$(mktemp)"
-  if ! daemon_phase_process.main "${merged_configure_dir}" "${scrubbed_dir}" "${merged_download_dir}" "${merged_collection_dir}" "${plugins[@]}"; then
+  local tmp_stdout="$(mktemp)"
+  if ! daemon_firejailed_phase_process.main \
+    "${scrubbed_dir}" "${merged_download_dir}" "${merged_collection_dir}" "${plugins[@]}" \
+    >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -266,10 +249,10 @@ daemon.run_plugins() {
   else
     daemon.log_info "Progress - the process phase ran successfully."
   fi
-  local process_phase_stdout="$(cat "${process_phase_stdout_file}" 2>/dev/null || echo "")"
-  local process_stdout_dump="$(echo "${process_phase_stdout}" | xargs | cut -d' ' -f1)"
-  local process_stderr_dump="$(echo "${process_phase_stdout}" | xargs | cut -d' ' -f2)"
-  local merged_processed_dir="$(echo "${process_phase_stdout}" | xargs | cut -d' ' -f3)"
+  local process_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
+  local process_stdout_dump="$(lib.line_to_args "0")"
+  local process_stderr_dump="$(lib.line_to_args "1")"
+  local merged_processed_dir="$(lib.line_to_args "2")"
   daemon.dump "${process_stdout_dump}" "${process_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -279,8 +262,10 @@ daemon.run_plugins() {
   # processed data to a RAG-as-a-service backend.
   #
   # ------------------------------------------------------------------------------------
-  local push_phase_stdout_file="$(mktemp)"
-  if ! daemon_phase_push.main "${merged_configure_dir}" "${merged_processed_dir}" "${plugins[@]}" >"${push_phase_stdout_file}"; then
+  local tmp_stdout="$(mktemp)"
+  if ! daemon_firejailed_phase_push.main \
+    "${merged_processed_dir}" "${plugins[@]}" \
+    >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -289,63 +274,45 @@ daemon.run_plugins() {
   else
     daemon.log_info "Progress - the push phase ran successfully."
   fi
-  local push_phase_stdout="$(cat "${push_phase_stdout_file}" 2>/dev/null || echo "")"
-  local push_stdout_dump="$(echo "${push_phase_stdout}" | xargs | cut -d' ' -f1)"
-  local push_stderr_dump="$(echo "${push_phase_stdout}" | xargs | cut -d' ' -f2)"
-  local merged_push_dir="$(echo "${push_phase_stdout}" | xargs | cut -d' ' -f3)"
+  local push_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
+  local push_stdout_dump="$(lib.line_to_args "0")"
+  local push_stderr_dump="$(lib.line_to_args "1")"
+  local merged_push_dir="$(lib.line_to_args "2")"
   daemon.dump "${push_stdout_dump}" "${push_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
   # POST RUN/ARCHIVE STUFF:
   #
   # ------------------------------------------------------------------------------------
-  local archive_dir="$(daemon.archive "${scrubbed_dir}" "${merged_download_dir}" "${merged_collection_dir}" "${processed_file}" "${merged_push_dir}")"
+  local archive_dir="$(
+    daemon.archive \
+      "${scrubbed_dir}" \
+      "${merged_download_dir}" \
+      "${merged_collection_dir}" \
+      "${merged_processed_dir}" \
+      "${merged_configure_dir}" \
+      "${processed_file}" \
+      "${merged_push_dir}"
+  )"
   if [[ ! -d ${archive_dir} ]]; then
     daemon.log_error "Unexpected error - something went wrong with the archiving step: ${archive_dir}"
     return 1
   fi
   echo "${archive_dir}"
 }
-daemon.get_plugins() {
-  local type="${1}"
-  local plugins=()
-  if [[ ${type} = "precheck" ]]; then
-    local precheck_plugin_path="${HOME}/.solos/src/plugins/precheck/plugin"
-    if [[ ! -f ${precheck_plugin_path} ]]; then
-      daemon.log_error "Fatal - no precheck found at: ${precheck_plugin_path}"
-      daemon.update_status "RUN_FAILED"
-      lib.panics_add "daemon_no_precheck" <<EOF
-The daemon failed to run because no precheck was found. Time of failure: $(date). \
-In the absence of a precheck plugin, the daemon cannot verify all sandboxing and security assumptions \
-related to running various phases of a plugin. The precheck is expected to exist at: ${precheck_plugin_path}.
-EOF
-      exit 1
-    fi
-    plugins+=("${precheck_plugin_path}")
-  elif [[ ${type} = "internal" ]]; then
-    while IFS= read -r internal_plugin; do
-      if [[ ${internal_plugin} = "precheck" ]]; then
-        continue
-      fi
-      plugins+=("${daemon__internal_plugins_dir}/${internal_plugin}/plugin")
-    done < <(ls -1 "${daemon__internal_plugins_dir}")
-  elif [[ ${type} = "installed" ]]; then
-    while IFS= read -r installed_plugin; do
-      plugins+=("${daemon__installed_plugins_dir}/${installed_plugin}/plugin")
-    done < <(ls -1 "${daemon__installed_plugins_dir}")
-  fi
-  echo "${plugins[*]}"
-}
 daemon.run() {
   local is_precheck=true
   while true; do
     plugins=()
     if [[ ${is_precheck} = true ]]; then
-      plugins=($(daemon.get_plugins "precheck"))
+      local precheck_plugin_names="$(daemon_shared.get_precheck_plugin_names)"
+      plugins=($(daemon_shared.plugin_names_to_paths "${precheck_plugin_names[@]}"))
     else
-      local internal_plugins=($(daemon.get_plugins "internal"))
-      local installed_plugins=($(daemon.get_plugins "installed"))
-      plugins=("${internal_plugins[@]}" "${installed_plugins[@]}")
+      local solos_plugin_names="$(daemon_shared.get_solos_plugin_names)"
+      local user_plugin_names="$(daemon_shared.get_user_plugin_names)"
+      local solos_plugins=($(daemon_shared.plugin_names_to_paths "${solos_plugin_names[@]}"))
+      local user_plugins=($(daemon_shared.plugin_names_to_paths "${user_plugin_names[@]}"))
+      plugins=("${solos_plugins[@]}" "${user_plugins[@]}")
     fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then

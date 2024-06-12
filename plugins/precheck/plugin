@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-# TODO: rework our design a bit so that we can arbitrarily include scripts as full on
-# TODO[c]: plugins. This will allow us to have a more robust way of testing the plugins and
-# TODO[c]: the daemon itself. We can also use this to test the plugins in a CI/CD pipeline.
-
 # What is this script?
 # ---------------------
 # This script will run before any installed plugins are executed in order to validate some set of assumptions around
@@ -75,7 +71,7 @@
 plugin.verify_absence() {
   for path in "${@}"; do
     if [[ -e ${path} ]]; then
-      echo "SOLOS_PANIC: ${path} should not exist."
+      echo "SOLOS_PANIC: ${path} should not exist." >&2
       exit 1
     fi
   done
@@ -83,7 +79,7 @@ plugin.verify_absence() {
 plugin.verify_read_and_write() {
   for path in "${@}"; do
     if [[ ! -w ${path} ]]; then
-      echo "SOLOS_PANIC: ${path} should be set to read/write."
+      echo "SOLOS_PANIC: ${path} should be set to read/write." >&2
       exit 1
     fi
   done
@@ -91,7 +87,7 @@ plugin.verify_read_and_write() {
 plugin.verify_read_only() {
   for path in "${@}"; do
     if [[ -w ${path} ]]; then
-      echo "SOLOS_PANIC: ${path} should be set to read only."
+      echo "SOLOS_PANIC: ${path} should be set to read only." >&2
       exit 1
     fi
   done
@@ -99,7 +95,7 @@ plugin.verify_read_only() {
 plugin.verify_files_exists() {
   for path in "${@}"; do
     if [[ ! -f ${path} ]]; then
-      echo "SOLOS_PANIC: ${path} file should exist."
+      echo "SOLOS_PANIC: ${path} file should exist." >&2
       exit 1
     fi
   done
@@ -107,7 +103,7 @@ plugin.verify_files_exists() {
 plugin.verify_dirs_exists() {
   for path in "${@}"; do
     if [[ ! -d ${path} ]]; then
-      echo "SOLOS_PANIC: ${path} directory should exist."
+      echo "SOLOS_PANIC: ${path} directory should exist." >&2
       exit 1
     fi
   done
@@ -235,7 +231,7 @@ plugin.main() {
     plugin.verify_network_acccess "true"
 
   else
-    echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push."
+    echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push." >&2
     exit 1
   fi
 }

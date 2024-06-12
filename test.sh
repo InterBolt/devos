@@ -1,6 +1,9 @@
 #!/bin/bash
 
-merged_processed_logs="$(mktemp)"
-jq -c '.' "/root/.solos/src/processed.json" >>"${merged_processed_logs}"
+archives_dir="/root/.solos/data/daemon/archives"
 
-cat "${merged_processed_logs}"
+archives=($(ls -t "${archives_dir}"))
+archives_to_delete=("${archives[@]:5}")
+for archive in "${archives_to_delete[@]}"; do
+  echo "WOULD REMOVE ${archives_dir}/${archive}"
+done

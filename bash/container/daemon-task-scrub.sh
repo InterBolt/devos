@@ -5,7 +5,6 @@
 daemon_scrub__users_home_dir="$(lib.home_dir_path)"
 daemon_scrub__checked_out_project="$(lib.checked_out_project)"
 daemon_scrub__project_dir="/root/.solos/projects/${daemon_scrub__checked_out_project}"
-# While not an exhaustive list, it's a good start.
 daemon_scrub__suspect_extensions=(
   "pem"
   "key"
@@ -68,11 +67,11 @@ daemon_task_scrub.log_warn() {
 # A little extra validation before we start copying stuff around.
 daemon_task_scrub.project_dir_exists() {
   if [[ -z ${daemon_scrub__checked_out_project} ]]; then
-    daemon_task_scrub.log_error "No project is checked out. Cannot determine which project to include in the daemon's copied .solos directory."
+    daemon_task_scrub.log_error "Unexpected error - no project is checked out."
     return 1
   fi
   if [[ ! -d ${daemon_scrub__project_dir} ]]; then
-    daemon_task_scrub.log_error "The checked out project directory does not exist: \"${daemon_scrub__users_home_dir}/.solos/projects/${daemon_scrub__checked_out_project}\""
+    daemon_task_scrub.log_error "Unexpected error - \"${daemon_scrub__project_dir}\" does not exist."
     return 1
   fi
 }
@@ -100,8 +99,6 @@ daemon_task_scrub.copy_to_tmp() {
   local root_paths="$(find /root/.solos -maxdepth 1)"
   for root_path in ${root_paths[@]}; do
     local base="$(basename "${root_path}")"
-    # Ensure that plugins don't need target any project in particular. Instead they can just do their thing
-    # against all projects and we'll make sure that "all projects" is really just the checked out project.
     if [[ ${base} = "projects" ]]; then
       continue
     fi
@@ -140,10 +137,8 @@ daemon_task_scrub.remove_ssh() {
     daemon_task_scrub.log_info "Deleted - \"${ssh_dirpath}\""
   done
 }
-# Not an exact science but we do our best to get rid of any files that look like they might be secret files.
 daemon_task_scrub.remove_suspect_secretfiles() {
   local tmp_dir="${1}"
-  # map daemon_scrub__suspect_extensions to a list of args likeso: (-o -name "*.key" -o -name "*.pem" ...)
   local find_args=()
   for suspect_extension in "${daemon_scrub__suspect_extensions[@]}"; do
     if [[ ${#find_args[@]} -eq 0 ]]; then
@@ -161,7 +156,6 @@ daemon_task_scrub.remove_suspect_secretfiles() {
     daemon_task_scrub.log_info "Deleted - \"${secret_filepath}\""
   done
 }
-# Scrub anything we find in the gitignored paths.
 daemon_task_scrub.remove_gitignored_paths() {
   local tmp_dir="${1}"
   local git_dirs="$(find "${tmp_dir}" -type d -name ".git")"
@@ -185,10 +179,9 @@ daemon_task_scrub.remove_gitignored_paths() {
 }
 daemon_task_scrub.scrub_secrets() {
   local tmp_dir="${1}"
-  # We'll build this array with several sources of secrets.
   local secrets=()
 
-  # First up, the global secrets.
+  # Extract global secrets.
   local global_secret_filepaths="$(find "${tmp_dir}"/secrets -maxdepth 1)"
   local i=0
   for global_secret_filepath in ${global_secret_filepaths[@]}; do
@@ -200,7 +193,7 @@ daemon_task_scrub.scrub_secrets() {
   done
   daemon_task_scrub.log_info "Found - extracted ${i} secrets in global secret dir: ${tmp_dir}/secrets"
 
-  # Find secret files in each project.
+  # Extract project secrets.
   local project_paths="$(find "${tmp_dir}"/projects -maxdepth 1)"
   for project_path in ${project_paths[@]}; do
     local project_secrets_path="${project_path}/secrets"
@@ -219,12 +212,9 @@ daemon_task_scrub.scrub_secrets() {
     daemon_task_scrub.log_info "Found - extracted ${i} secrets in project secret dir: ${project_secrets_path}"
   done
 
-  # First, look for any .env.* files across all of .solos and extract the secrets.
-  # Note: we still want to encourage users to stuff everything into the secrets directory.
-  # But the extra cautiousness doesn't hurt and could save someone's ass.
+  # Extract .env secrets.
   local env_filepaths="$(find "${tmp_dir}" -type f -name ".env"* -o -name ".env")"
   for env_filepath in ${env_filepaths[@]}; do
-    # Filter away comments, blank lines, and then strip quotations.
     local env_secrets="$(cat "${env_filepath}" | grep -v '^#' | grep -v '^$' | sed 's/^[^=]*=//g' | sed 's/"//g' | sed "s/'//g" | xargs)"
     local i=0
     for env_secret in ${env_secrets[@]}; do
@@ -234,7 +224,7 @@ daemon_task_scrub.scrub_secrets() {
     daemon_task_scrub.log_info "Found - extracted ${i} secrets from file: ${env_filepath}"
   done
 
-  # Remove the duplicate secrets and scrub the secrets from all the files left in the tmp dir.
+  # Remove duplicates and scrub.
   secrets=($(printf "%s\n" "${secrets[@]}" | sort -u))
   for secret in "${secrets[@]}"; do
     input_files=$(grep -rl "${secret}" "${tmp_dir}")
@@ -250,7 +240,6 @@ daemon_task_scrub.scrub_secrets() {
     daemon_task_scrub.log_info "Scrubbed - \"${secret}\""
   done
 }
-# Validate, copy, scrub, and echo the tmp dir path.
 daemon_task_scrub.main() {
   if ! daemon_task_scrub.project_dir_exists; then
     return 1

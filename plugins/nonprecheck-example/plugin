@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+plugin.main() {
+  if [[ ${1} = "--phase-configure" ]]; then
+    echo "Running phase=configure"
+  elif [[ ${1} = "--phase-download" ]]; then
+    echo "Running phase=download"
+  elif [[ ${1} = "--phase-collection" ]]; then
+    echo "Running phase=collection"
+  elif [[ ${1} = "--phase-process" ]]; then
+    echo "Running phase=process"
+  elif [[ ${1} = "--phase-push" ]]; then
+    echo "Running phase=push"
+  else
+    echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push." >&2
+    exit 1
+  fi
+}
+
+plugin.main "$@"

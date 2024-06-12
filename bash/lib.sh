@@ -39,6 +39,16 @@ lib__data_dir="${HOME}/.solos/data"
 lib__panics_dir="${lib__data_dir}/panics"
 lib__store_dir="${lib__data_dir}/store"
 
+lib.line_to_args() {
+  local lines="${1}"
+  local index="${2}"
+  if [[ ${index} -eq 0 ]]; then
+    echo "${lines}" | head -n 1 | xargs
+  else
+    echo "${lines}" | head -n "$((index + 1))" | tail -n 1 | xargs
+  fi
+}
+export -f lib.line_to_args
 lib.data_dir_path() {
   echo "${lib__data_dir}"
 }

@@ -96,26 +96,26 @@ profile.run_checked_out_project_script() {
 }
 profile.print_info() {
   local checked_out_project="$(lib.checked_out_project)"
-  local installed_plugins_dir="${HOME}/.solos/plugins"
-  local installed_plugins=()
-  if [[ -d ${installed_plugins_dir} ]]; then
-    while IFS= read -r installed_plugin; do
-      installed_plugins+=("${installed_plugin}")
-    done < <(ls -1 "${installed_plugins_dir}")
-    if [[ ${#installed_plugins[@]} -gt 0 ]]; then
-      for installed_plugin in "${installed_plugins[@]}"; do
-        installed_plugins+=("${installed_plugin}" "${installed_plugins_dir}/${installed_plugin}/config.json")
+  local user_plugins_dir="${HOME}/.solos/plugins"
+  local user_plugins=()
+  if [[ -d ${user_plugins_dir} ]]; then
+    while IFS= read -r user_plugin; do
+      user_plugins+=("${user_plugin}")
+    done < <(ls -1 "${user_plugins_dir}")
+    if [[ ${#user_plugins[@]} -gt 0 ]]; then
+      for user_plugin in "${user_plugins[@]}"; do
+        user_plugins+=("${user_plugin}" "${user_plugins_dir}/${user_plugin}/config.json")
       done
     fi
   fi
-  if [[ ${#installed_plugins[@]} -eq 0 ]]; then
-    local installed_plugins_sections=""
+  if [[ ${#user_plugins[@]} -eq 0 ]]; then
+    local user_plugins_sections=""
   else
     local newline=$'\n'
-    local installed_plugins_sections="${newline}$(
+    local user_plugins_sections="${newline}$(
       profile_table_outputs.format \
         "INSTALLED_PLUGIN,CONFIG_PATH" \
-        "${installed_plugins[@]}"
+        "${user_plugins[@]}"
     )"
   fi
   cat <<EOF
@@ -156,7 +156,7 @@ $(
       "Container OS" "Debian 12" \
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
-${installed_plugins_sections}
+${user_plugins_sections}
 
 $(
     profile_table_outputs.format \
