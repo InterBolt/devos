@@ -2,11 +2,31 @@
 
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 
+daemon_shared__pid=$$
 daemon_shared__user_plugins_dir="/root/.solos/plugins"
 daemon_shared__solos_plugins_dir="/root/.solos/src/plugins"
 daemon_shared__precheck_plugin_path="${daemon_shared__user_plugins_dir}/precheck/plugin"
+daemon_shared__users_home_dir="$(lib.home_dir_path)"
 
-# SHARED/SOURCED FUNCTIONS:
+daemon_shared.host_path() {
+  local path="${1}"
+  echo "${path/\/root\//${daemon_shared__users_home_dir}\/}"
+}
+daemon_shared.log_info() {
+  local message="(DAEMON) ${1} pid=\"${daemon_shared__pid}\""
+  shift
+  log.info "${message}" "$@"
+}
+daemon_shared.log_error() {
+  local message="(DAEMON) ${1} pid=\"${daemon_shared__pid}\""
+  shift
+  log.error "${message}" "$@"
+}
+daemon_shared.log_warn() {
+  local message="(DAEMON) ${1} pid=\"${daemon_shared__pid}\""
+  shift
+  log.warn "${message}" "$@"
+}
 daemon_shared.get_solos_plugin_names() {
   local solos_plugin_names=($(ls -A1 "${daemon_shared__solos_plugins_dir}" | sed 's/^/solos-/g' | xargs))
   local plugins=()
@@ -78,10 +98,9 @@ daemon_shared.parse_firejail_args() {
   done
   local expects_seperators=5
   if [[ ${seperators_count} -ne ${expects_seperators} ]]; then
-    echo "Unexpected error - expected ${expects_seperators} \"--\" seperators for each category of arguments and only found \"${seperators_count}\"" >&2
+    daemon_shared.log_error "Unexpected error - expected ${expects_seperators} \"--\" seperators for each category of arguments and only found \"${seperators_count}\""
     return 1
   fi
-  # "${plugin_download_dirs[*]}" "/download" "555"
   local plugin_expanded_assets=()
   while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
     plugin_expanded_assets+=("${1}")
@@ -115,18 +134,18 @@ daemon_shared.parse_firejail_args() {
   local stdout_dump_file="${1}"
   local stderr_dump_file="${2}"
   if [[ ! -f ${stdout_dump_file} ]]; then
-    echo "Unexpected error - no stdout file was provided to the shared firejail function" >&2
+    daemon_shared.log_error "Unexpected error - no stdout file was provided to the shared firejail function"
     return 1
   fi
   if [[ ! -f ${stderr_dump_file} ]]; then
-    echo "Unexpected error - no stderr file was provided to the shared firejail function" >&2
+    daemon_shared.log_error "Unexpected error - no stderr file was provided to the shared firejail function"
     return 1
   fi
-  echo "${plugin_expanded_assets[@]}"
-  echo "${assets[@]}"
-  echo "${plugins[@]}"
-  echo "${firejail_options[@]}"
-  echo "${executable_options[@]}"
+  echo "${plugin_expanded_assets[*]}"
+  echo "${assets[*]}"
+  echo "${plugins[*]}"
+  echo "${firejail_options[*]}"
+  echo "${executable_options[*]}"
   echo "${stdout_dump_file}"
   echo "${stderr_dump_file}"
 }
@@ -135,54 +154,55 @@ daemon_shared.validate_firejailed_assets() {
   local asset_host_path="${2}"
   local chmod_permission="${3}"
   if [[ -z "${asset_firejailed_rel_path}" ]]; then
-    echo "Unexpected error - empty asset firejailed path." >&2
+    daemon_shared.log_error "Unexpected error - empty asset firejailed path."
     return 1
   fi
   if [[ "${asset_firejailed_rel_path}" =~ ^/ ]]; then
-    echo "Unexpected error - asset firejailed path must not start with a \"/\"" >&2
+    daemon_shared.log_error "Unexpected error - asset firejailed path must not start with a \"/\""
     return 1
   fi
   if [[ ! "${chmod_permission}" =~ ^[0-7]{3}$ ]]; then
-    echo "Unexpected error - invalid chmod permission." >&2
+    daemon_shared.log_error "Unexpected error - invalid chmod permission."
     return 1
   fi
   if [[ ! -e ${asset_host_path} ]]; then
-    echo "Unexpected error - invalid asset host path." >&2
+    daemon_shared.log_error "Unexpected error - invalid asset host path."
     return 1
   fi
 }
 daemon_shared.encode_dumped_output() {
-  local stderr_file="${1}"
-  local stdout_file="${2}"
-  local stderr_dump_file="${3}"
-  local stdout_dump_file="${4}"
+  local plugin_name="${1}"
+  local stderr_file="${2}"
+  local stdout_file="${3}"
+  local stderr_dump_file="${4}"
+  local stdout_dump_file="${5}"
   if [[ -f ${stderr_file} ]]; then
     while IFS= read -r line; do
-      echo "DUMP-${i}: ${line}" >>"${stderr_dump_file}"
+      echo "DUMP-${plugin_name}: ${line}" >>"${stderr_dump_file}"
     done <"${stderr_file}"
   fi
   if [[ -f ${stdout_file} ]]; then
     while IFS= read -r line; do
-      echo "DUMP-${i}: ${line}" >>"${stdout_dump_file}"
+      echo "DUMP-${plugin_name}: ${line}" >>"${stdout_dump_file}"
     done <"${stdout_file}"
   fi
 }
 daemon_shared.decode_dumped_output() {
-  local prefix="${1}"
+  local plugin_name="${1}"
   local input_stdout_file="${2}"
   local input_stderr_file="${3}"
   local output_stdout_file="${4}"
   local output_stderr_file="${5}"
   while IFS= read -r line; do
-    if [[ ${line} =~ ^DUMP-${i}: ]]; then
-      line="${line//DUMP-${i}: /}"
-      echo "${prefix} ${line}" >>"${output_stderr_file}"
+    if [[ ${line} =~ ^DUMP-${plugin_name}: ]]; then
+      line="${line//DUMP-${plugin_name}: /}"
+      echo "(${plugin_name}) ${line}" >>"${output_stderr_file}"
     fi
   done <"${input_stderr_file}"
   while IFS= read -r line; do
-    if [[ ${line} =~ ^DUMP-${i}: ]]; then
-      line="${line//DUMP-${i}: /}"
-      echo "${prefix} ${line}" >>"${output_stdout_file}"
+    if [[ ${line} =~ ^DUMP-${plugin_name}: ]]; then
+      line="${line//DUMP-${plugin_name}: /}"
+      echo "(${plugin_name}) ${line}" >>"${output_stdout_file}"
     fi
   done <"${input_stdout_file}"
 }
@@ -210,18 +230,13 @@ daemon_shared.merge_assets_args() {
   done
   local grouped_plugin_expanded_asset_args_count="${#grouped_plugin_expanded_asset_args[@]}"
   if [[ ${grouped_plugin_expanded_asset_args_count} -ne ${plugin_count} ]]; then
-    echo "Unexpected error - the number of plugin expanded assets does not match the number of plugins (warning, you'll need coffee and bravery for this one)." >&2
+    daemon_shared.log_error "Unexpected error - the number of expanded assets does not match the number of plugins (warning, you'll need coffee and bravery for this one)."
     return 1
   fi
   echo "${asset_args[*]}" "${grouped_plugin_expanded_asset_args[${plugin_index}]}" | xargs
 }
 daemon_shared.firejail() {
   local args="$(daemon_shared.parse_firejail_args "${@}")"
-  # 'plugin_expanded_assets_args' is the same as the 'assets_args' variable, except instead of the first string
-  # representing a single host file or folder, it contains a list of files and folders
-  # in the order of the plugins.
-  # I admit that this is incredibly hard to read. But it was hard to write so for now
-  # it will stay like this.
   local plugin_expanded_asset_args=($(lib.line_to_args "${args}" "0"))
   local asset_args=($(lib.line_to_args "${args}" "1"))
   local plugins=($(lib.line_to_args "${args}" "2"))
@@ -236,12 +251,12 @@ daemon_shared.firejail() {
   local plugin_index=0
   local plugin_count="${#plugins[@]}"
   for plugin in "${plugins[@]}"; do
-    local merged_asset_args=($(daemon_shared.merge_assets_args "${plugin_count}" "${plugin_index}" "${plugin_expanded_asset_args[*]}" "${asset_args[*]}"))
-    local merged_asset_arg_count="${#merged_asset_args[@]}"
     if [[ ! -x ${plugin} ]]; then
-      echo "Unexpected error - ${plugin} is not an executable file." >&2
+      daemon_shared.log_error "Unexpected error - ${plugin} is not an executable file."
       return 1
     fi
+    local merged_asset_args=($(daemon_shared.merge_assets_args "${plugin_count}" "${plugin_index}" "${plugin_expanded_asset_args[*]}" "${asset_args[*]}"))
+    local merged_asset_arg_count="${#merged_asset_args[@]}"
     local firejailed_home_dir="$(mktemp -d)"
     local firejailed_raw_stdout_file="$(mktemp)"
     local firejailed_raw_stderr_file="$(mktemp)"
@@ -297,12 +312,15 @@ daemon_shared.firejail() {
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
     local executable_path="${plugins[${i}]}"
+    local plugin_name="$(daemon_shared.plugin_paths_to_names "${plugins[${i}]}")"
     local firejailed_home_dir="${firejailed_home_dirs[${i}]}"
-    # Blanket remove the restrictions placed on the firejailed files.
+    # Blanket remove the restrictions placed on the firejailed files so that
+    # our daemon can do what it needs to do with the files.
     chmod -R 777 "${firejailed_home_dir}"
     local firejailed_raw_stdout_file="${firejailed_raw_stdout_files[${i}]}"
     local firejailed_raw_stderr_file="${firejailed_raw_stderr_files[${i}]}"
     daemon_shared.encode_dumped_output \
+      "${plugin_name}" \
       "${firejailed_raw_stderr_file}" \
       "${firejailed_raw_stdout_file}" \
       "${stderr_dump_file}" \
@@ -317,15 +335,15 @@ daemon_shared.firejail() {
     firejailed_requesting_kill=true
   fi
   if grep -q "^SOLOS_PANIC" "${firejailed_raw_stdout_file}" >/dev/null 2>/dev/null; then
-    echo "Invalid usage - the plugin sent a panic message to stdout." >&2
+    daemon_shared.log_warn "Invalid usage - the plugin sent a panic message to stdout." >&2
   fi
   local return_code=0
   if [[ ${firejailed_failures} -gt 0 ]]; then
-    echo "Firejailed plugin error - there were ${firejailed_failures} plugin malfunctions." >&2
+    daemon_shared.log_error "Unexpected plugin error - there were ${firejailed_failures} malfunctions across all plugins."
     return_code=1
   fi
   if [[ ${firejailed_requesting_kill} = true ]]; then
-    echo "Firejailed plugin error - a collection made a kill request in it's output." >&2
+    daemon_shared.log_error "Unexpected plugin error - a collection made a kill request in it's output."
     return_code=151
   fi
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do

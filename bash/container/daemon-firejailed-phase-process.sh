@@ -3,21 +3,6 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 
-daemon_firejailed_phase_process.log_info() {
-  local message="(PHASE:PROCESS) ${1}"
-  shift
-  log.info "${message}" "$@"
-}
-daemon_firejailed_phase_process.log_error() {
-  local message="(PHASE:PROCESS) ${1}"
-  shift
-  log.error "${message}" "$@"
-}
-daemon_firejailed_phase_process.log_warn() {
-  local message="(PHASE:PROCESS) ${1}"
-  shift
-  log.warn "${message}" "$@"
-}
 daemon_firejailed_phase_process.main() {
   local scrubbed_dir="${1}"
   local merged_download_dir="${2}"
@@ -75,7 +60,7 @@ daemon_firejailed_phase_process.main() {
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     daemon_shared.decode_dumped_output \
-      "(${plugin_name})" \
+      "${plugin_name}" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
     processed_files+=("${firejailed_home_dir}/processed.json")

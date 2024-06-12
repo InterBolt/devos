@@ -3,21 +3,6 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 
-daemon_firejailed_phase_configure.log_info() {
-  local message="(PHASE:CONFIGURE) ${1}"
-  shift
-  log.info "${message}" "$@"
-}
-daemon_firejailed_phase_configure.log_error() {
-  local message="(PHASE:CONFIGURE) ${1}"
-  shift
-  log.error "${message}" "$@"
-}
-daemon_firejailed_phase_configure.log_warn() {
-  local message="(PHASE:CONFIGURE) ${1}"
-  shift
-  log.warn "${message}" "$@"
-}
 daemon_firejailed_phase_configure.main() {
   local plugins=("${@}")
   local plugin_names=($(daemon_shared.plugin_paths_to_names "${plugins[@]}"))
@@ -53,7 +38,7 @@ daemon_firejailed_phase_configure.main() {
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     daemon_shared.decode_dumped_output \
-      "(${plugin_name})" \
+      "${plugin_name}" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
     cp -r "${firejailed_home_dir}/solos.json" "${merged_configure_dir}/${plugin_name}-solos.json"

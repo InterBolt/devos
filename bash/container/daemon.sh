@@ -9,37 +9,19 @@ daemon__pid_file="${daemon__daemon_data_dir}/pid"
 daemon__status_file="${daemon__daemon_data_dir}/status"
 daemon__request_file="${daemon__daemon_data_dir}/request"
 daemon__log_file="${daemon__daemon_data_dir}/master.log"
-daemon__users_home_dir="$(lib.home_dir_path)"
 daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 
 trap 'rm -f "'"${daemon__pid_file}"'"' EXIT
 
 . "${HOME}/.solos/src/bash/log.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-task-scrub.sh" || exit 1
-. "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-download.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-collection.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-configure.sh" || exit 1
+. "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-download.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-process.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-firejailed-phase-push.sh" || exit 1
 
-daemon.host_path() {
-  local path="${1}"
-  echo "${path/\/root\//${daemon__users_home_dir}\/}"
-}
-daemon.log_info() {
-  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
-  shift
-  log.info "${message}" "$@"
-}
-daemon.log_error() {
-  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
-  shift
-  log.error "${message}" "$@"
-}
-daemon.log_warn() {
-  local message="(MAIN) ${1} pid=\"${daemon__pid}\""
-  shift
-  log.warn "${message}" "$@"
-}
 declare -A statuses=(
   ["UP"]="The daemon is running."
   ["RECOVERING"]="The daemon is recovering from a nonfatal error."
@@ -51,11 +33,11 @@ declare -A statuses=(
 daemon.update_status() {
   local status="$1"
   if [[ -z ${statuses[${status}]} ]]; then
-    daemon.log_error "Unexpected error - tried to update to an invalid status: \"${status}\""
+    daemon_shared.log_error "Unexpected error - tried to update to an invalid status: \"${status}\""
     exit 1
   fi
   echo "${status}" >"${daemon__status_file}"
-  daemon.log_info "Status - updated to: \"${status}\" - \"${statuses[${status}]}\""
+  daemon_shared.log_info "Status - updated to: \"${status}\" - \"${statuses[${status}]}\""
 }
 daemon.archive() {
   local scrubbed_dir="${1}"
@@ -67,19 +49,19 @@ daemon.archive() {
   local merged_push_dir="${7}"
   local nanoseconds="$(date +%s%N)"
   local archives_dir="${daemon__daemon_data_dir}/archives"
-  local curr_archive_dir="${archives_dir}/${nanoseconds}"
-  mkdir -p "${curr_archive_dir}"
-  mv "${scrubbed_dir}" "${curr_archive_dir}/scrubbed" &
-  mv "${merged_download_dir}" "${curr_archive_dir}/download" &
-  mv "${merged_collection_dir}" "${curr_archive_dir}/collection" &
-  mv "${merged_processed_dir}" "${curr_archive_dir}/processed" &
-  mv "${merged_configure_dir}" "${curr_archive_dir}/configure" &
-  mv "${processed_file}" "${curr_archive_dir}/processed.json" &
-  mv "${merged_push_dir}" "${curr_archive_dir}/pushed" &
+  local next_archive="${archives_dir}/${nanoseconds}"
+  mkdir -p "${next_archive}"
+  mv "${scrubbed_dir}" "${next_archive}/scrubbed" &
+  mv "${merged_download_dir}" "${next_archive}/download" &
+  mv "${merged_collection_dir}" "${next_archive}/collection" &
+  mv "${merged_processed_dir}" "${next_archive}/processed" &
+  mv "${merged_configure_dir}" "${next_archive}/configure" &
+  mv "${processed_file}" "${next_archive}/processed.json" &
+  mv "${merged_push_dir}" "${next_archive}/pushed" &
   wait # Wait for all the moves to finish.
   local mv_return_code=$?
   if [[ ${mv_return_code} -ne 0 ]]; then
-    daemon.log_error "Unexpected error - failed to archive the previous cycle. The move commands returned a non-zero exit code: ${mv_return_code}"
+    daemon_shared.log_error "Unexpected error - failed to archive the previous cycle. The move commands returned a non-zero exit code: ${mv_return_code}"
     return 1
   fi
   local archives=($(ls -t "${archives_dir}"))
@@ -87,7 +69,7 @@ daemon.archive() {
   for archive in "${archives_to_delete[@]}"; do
     rm -rf "${archives_dir}/${archive}"
   done
-  echo "${curr_archive_dir}"
+  echo "${next_archive}"
 }
 daemon.extract_request() {
   local request_file="${1}"
@@ -101,7 +83,7 @@ daemon.extract_request() {
       return 0
     fi
     if [[ -n ${requested_pid} ]]; then
-      daemon.log_error "Unexpected error - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${daemon__pid}."
+      daemon_shared.log_error "Unexpected error - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${daemon__pid}."
       exit 1
     fi
   else
@@ -112,12 +94,12 @@ daemon.handle_request() {
   local request="${1}"
   case "${request}" in
   "KILL")
-    daemon.log_info "Request - KILL signal received. Killing the daemon process."
+    daemon_shared.log_info "Request - KILL signal received. Killing the daemon process."
     daemon.update_status "KILLED"
     exit 0
     ;;
   *)
-    daemon.log_error "Unexpected error - unknown user request ${request}"
+    daemon_shared.log_error "Unexpected error - unknown user request ${request}"
     exit 1
     ;;
   esac
@@ -137,7 +119,7 @@ daemon.update_configs() {
     if [[ -f ${updated_config_path} ]]; then
       rm -f "${config_path}"
       cp "${updated_config_path}" "${config_path}"
-      daemon.log_info "Config - updated the config at ${config_path}."
+      daemon_shared.log_info "Config - updated the config at ${config_path}."
     fi
   done
 }
@@ -160,7 +142,7 @@ daemon.run_plugins() {
   local plugin_collection_dirs=()
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
-    daemon.log_error "Unexpected error - failed to scrub the mounted volume."
+    daemon_shared.log_error "Unexpected error - failed to scrub the mounted volume."
     return 1
   fi
   # ------------------------------------------------------------------------------------
@@ -176,9 +158,9 @@ daemon.run_plugins() {
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
     fi
-    daemon.log_error "Nonfatal - the configure phase failed with return code ${return_code}."
+    daemon_shared.log_error "Nonfatal - the configure phase failed with return code ${return_code}."
   else
-    daemon.log_info "Progress - the configure phase ran successfully."
+    daemon_shared.log_info "Progress - the configure phase ran successfully."
   fi
   local configure_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local configure_stdout_dump="$(lib.line_to_args "0")"
@@ -200,9 +182,9 @@ daemon.run_plugins() {
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
     fi
-    daemon.log_error "Nonfatal - the download phase failed with return code ${return_code}."
+    daemon_shared.log_error "Nonfatal - the download phase failed with return code ${return_code}."
   else
-    daemon.log_info "Progress - the download phase ran successfully."
+    daemon_shared.log_info "Progress - the download phase ran successfully."
   fi
   local download_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local download_stdout_dump="$(lib.line_to_args "0")"
@@ -225,9 +207,9 @@ daemon.run_plugins() {
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
     fi
-    daemon.log_error "Nonfatal - the collection phase failed with return code ${return_code}."
+    daemon_shared.log_error "Nonfatal - the collection phase failed with return code ${return_code}."
   else
-    daemon.log_info "Progress - the collection phase ran successfully."
+    daemon_shared.log_info "Progress - the collection phase ran successfully."
   fi
   local collection_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local collection_stdout_dump="$(lib.line_to_args "0")"
@@ -252,9 +234,9 @@ daemon.run_plugins() {
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
     fi
-    daemon.log_error "Nonfatal - the process phase failed with return code ${return_code}."
+    daemon_shared.log_error "Nonfatal - the process phase failed with return code ${return_code}."
   else
-    daemon.log_info "Progress - the process phase ran successfully."
+    daemon_shared.log_info "Progress - the process phase ran successfully."
   fi
   local process_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local process_stdout_dump="$(lib.line_to_args "0")"
@@ -279,9 +261,9 @@ daemon.run_plugins() {
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
     fi
-    daemon.log_error "Nonfatal - the push phase failed with return code ${return_code}."
+    daemon_shared.log_error "Nonfatal - the push phase failed with return code ${return_code}."
   else
-    daemon.log_info "Progress - the push phase ran successfully."
+    daemon_shared.log_info "Progress - the push phase ran successfully."
   fi
   local push_phase_stdout="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local push_stdout_dump="$(lib.line_to_args "0")"
@@ -304,7 +286,7 @@ daemon.run_plugins() {
       "${merged_push_dir}"
   )"
   if [[ ! -d ${archive_dir} ]]; then
-    daemon.log_error "Unexpected error - something went wrong with the archiving step: ${archive_dir}"
+    daemon_shared.log_error "Unexpected error - something went wrong with the archiving step: ${archive_dir}"
     return 1
   fi
   echo "${archive_dir}"
@@ -325,19 +307,19 @@ daemon.run() {
     fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then
-      daemon.log_warn "Halting - no plugins were found. Waiting 10 seconds before the next run."
+      daemon_shared.log_warn "Halting - no plugins were found. Waiting 10 seconds before the next run."
       sleep 10
       continue
     fi
-    daemon.log_info "Progress - starting a new cycle."
+    daemon_shared.log_info "Progress - starting a new cycle."
     daemon.run_plugins "${plugins[@]}"
-    daemon.log_info "Progress - archived phase results at \"$(daemon.host_path "${archive_dir}")\""
-    daemon.log_warn "Done - waiting for the next cycle."
+    daemon_shared.log_info "Progress - archived phase results at \"$(daemon_shared.host_path "${archive_dir}")\""
+    daemon_shared.log_warn "Done - waiting for the next cycle."
     daemon__remaining_retries=5
     sleep 2
     local request="$(daemon.extract_request "${daemon__request_file}")"
     if [[ -n ${request} ]]; then
-      daemon.log_info "Request - ${request} was dispatched to the daemon."
+      daemon_shared.log_info "Request - ${request} was dispatched to the daemon."
       daemon.handle_request "${request}"
     fi
   done
@@ -355,17 +337,17 @@ daemon.main_setup() {
   fi
   # Clean any old files that will interfere with the daemon's state assumptions.
   if rm -f "${daemon__pid_file}"; then
-    daemon.log_info "Setup - cleared previous pid file: \"$(daemon.host_path "${daemon__pid_file}")\""
+    daemon_shared.log_info "Setup - cleared previous pid file: \"$(daemon_shared.host_path "${daemon__pid_file}")\""
   fi
   if rm -f "${daemon__request_file}"; then
-    daemon.log_info "Setup - cleared previous request file: \"$(daemon.host_path "${daemon__request_file}")\""
+    daemon_shared.log_info "Setup - cleared previous request file: \"$(daemon_shared.host_path "${daemon__request_file}")\""
   fi
   # If the daemon is already running, we should abort the launch.
   # Important: abort but do not update the status. The status file should pertain
   # to the actually running daemon process, not this one.
   if [[ -n ${daemon__prev_pid} ]] && [[ ${daemon__prev_pid} -ne ${daemon__pid} ]]; then
     if ps -p "${daemon__prev_pid}" >/dev/null; then
-      daemon.log_error "Unexpected error - aborting launch due to existing daemon process with pid: ${daemon__prev_pid}"
+      daemon_shared.log_error "Unexpected error - aborting launch due to existing daemon process with pid: ${daemon__prev_pid}"
       exit 1
     fi
   fi
@@ -373,7 +355,7 @@ daemon.main_setup() {
 daemon.main() {
   daemon.update_status "LAUNCHING"
   if [[ -f ${daemon__pid_file} ]]; then
-    daemon.log_error "Unexpected error - \"$(daemon.host_path "${daemon__pid_file}")\" already exists. This should never happen."
+    daemon_shared.log_error "Unexpected error - \"$(daemon_shared.host_path "${daemon__pid_file}")\" already exists. This should never happen."
     daemon.update_status "START_FAILED"
     lib.panics_add "daemon_pid_file_already_exists" <<EOF
 The daemon failed to start up because the pid file already exists. Time of failure: $(date).
@@ -381,7 +363,7 @@ EOF
     return 1
   fi
   if [[ -z ${daemon__pid} ]]; then
-    daemon.log_error "Unexpected error - can't save an empty pid to the pid file: \"$(daemon.host_path "${daemon__pid_file}")\""
+    daemon_shared.log_error "Unexpected error - can't save an empty pid to the pid file: \"$(daemon_shared.host_path "${daemon__pid_file}")\""
     daemon.update_status "START_FAILED"
     lib.panics_add "daemon_empty_pid" <<EOF
 The daemon failed to start up because it could not determine it's PID. Time of failure: $(date).
@@ -393,7 +375,7 @@ EOF
   daemon.run
   local return_code=$?
   if [[ ${return_code} -eq 151 ]]; then
-    daemon.log_error "Fatal - killing the daemon due to a custom error code: 151."
+    daemon_shared.log_error "Fatal - killing the daemon due to a custom error code: 151."
     daemon.update_status "RUN_FAILED"
     lib.panics_add "daemon_plugins_failed" <<EOF
 The daemon failed and exited as a result of a SOLOS_PANIC signal from a running plugin. \
@@ -403,14 +385,14 @@ EOF
   else
     daemon__remaining_retries=$((daemon__remaining_retries - 1))
     if [[ ${daemon__remaining_retries} -eq 0 ]]; then
-      daemon.log_error "Fatal - killing the daemon due to too many failures."
+      daemon_shared.log_error "Fatal - killing the daemon due to too many failures."
       daemon.update_status "RUN_FAILED"
       lib.panics_add "daemon_max_recovery_attempts" <<EOF
 The daemon failed and exited after too many retries. Time of failure: $(date).
 EOF
       exit 1
     fi
-    daemon.log_info "Recover - restarting the lifecycle in 5 seconds."
+    daemon_shared.log_info "Recover - restarting the lifecycle in 5 seconds."
     daemon.update_status "RECOVERING"
     sleep 5
     daemon.main

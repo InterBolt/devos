@@ -3,21 +3,6 @@
 . "${HOME}/.solos/src/bash/lib.sh" || exit 1
 . "${HOME}/.solos/src/bash/container/daemon-shared.sh" || exit 1
 
-daemon_firejailed_phase_download.log_info() {
-  local message="(PHASE:PULL) ${1}"
-  shift
-  log.info "${message}" "$@"
-}
-daemon_firejailed_phase_download.log_error() {
-  local message="(PHASE:PULL) ${1}"
-  shift
-  log.error "${message}" "$@"
-}
-daemon_firejailed_phase_download.log_warn() {
-  local message="(PHASE:PULL) ${1}"
-  shift
-  log.warn "${message}" "$@"
-}
 daemon_firejailed_phase_download.main() {
   local plugins=("${@}")
   local plugin_names=($(daemon_shared.plugin_paths_to_names "${plugins[@]}"))
@@ -55,7 +40,7 @@ daemon_firejailed_phase_download.main() {
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     daemon_shared.decode_dumped_output \
-      "(${plugin_name})" \
+      "${plugin_name}" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
     plugin_download_dirs+=("${firejailed_home_dir}/download")
