@@ -104,7 +104,11 @@ profile.print_info() {
     done < <(ls -1 "${user_plugins_dir}")
     if [[ ${#user_plugins[@]} -gt 0 ]]; then
       for user_plugin in "${user_plugins[@]}"; do
-        user_plugins+=("${user_plugin}" "${user_plugins_dir}/${user_plugin}/config.json")
+        user_plugins+=("${user_plugin}")
+        local user_plugin_config_file="${user_plugins_dir}/${user_plugin}/solos.json"
+        if [[ -f ${user_plugin_config_file} ]]; then
+          user_plugins+=("${user_plugin_config_file}")
+        fi
       done
     fi
   fi
