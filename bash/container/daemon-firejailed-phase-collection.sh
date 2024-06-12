@@ -22,15 +22,28 @@ daemon_firejailed_phase_collection.main() {
   local scrubbed_dir="${1}"
   local merged_download_dir="${2}"
   shift 2
+  local plugin_download_dirs=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    plugin_download_dirs+=("${1}")
+    shift
+  done
+  shift
   local plugins=("${@}")
   local plugin_names=($(daemon_shared.plugin_paths_to_names "${plugins[@]}"))
   local raw_stdout_file="$(mktemp)"
   local raw_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=("--net=none")
+  local i=0
+  for plugin in "${plugins[@]}"; do
+    plugin_specific_assets+=("${plugin_download_dirs[${i}]}" "/download" "555")
+    i=$((i + 1))
+  done
   daemon_shared.firejail \
+    "${plugin_specific_assets[@]}" \
+    "--" \
     "${scrubbed_dir}" "/.solos" "555" \
-    "${merged_download_dir}" "/download" "555" \
+    "${merged_download_dir}" "/plugins/download" "555" \
     "$(mktemp -d)" "/collection" "777" \
     "--" \
     "${plugins[@]}" \
@@ -49,6 +62,7 @@ daemon_firejailed_phase_collection.main() {
   local merged_collection_dir="$(mktemp -d)"
   local decoded_stderr_file="$(mktemp)"
   local decoded_stdout_file="$(mktemp)"
+  local plugin_collection_dirs=()
   local i=0
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
@@ -56,15 +70,15 @@ daemon_firejailed_phase_collection.main() {
       "(${plugin_name})" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
-    if [[ ${firejailed_home_dir} != "-" ]]; then
-      daemon_shared.merged_namespaced_fs \
-        "${plugin_name}" \
-        "${firejailed_home_dir}/collection" \
-        "${merged_collection_dir}"
-    fi
+    plugin_collection_dirs+=("${firejailed_home_dir}/collection")
+    daemon_shared.merged_namespaced_fs \
+      "${plugin_name}" \
+      "${firejailed_home_dir}/collection" \
+      "${merged_collection_dir}"
     i=$((i + 1))
   done
   echo "${decoded_stdout_file}"
   echo "${decoded_stderr_file}"
   echo "${merged_collection_dir}"
+  echo "${plugin_collection_dirs[*]}"
 }

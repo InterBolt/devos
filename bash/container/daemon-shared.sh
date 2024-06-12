@@ -66,9 +66,7 @@ daemon_shared.merged_namespaced_fs() {
     local merged_abs_dirpath="${merged_dir}${merged_relative_path}"
     mkdir -p "${merged_abs_dirpath}"
     local merged_file_path="${merged_abs_dirpath}/${namespace}-${partial_file_name}"
-    # The result is if the plugin created a file sandboxed/foo/bar.txt, it will be moved to
-    # merged/sandboxed/foo/internal-plugin-name-bar.txt (or whatever the namespace is)
-    mv "${partial_file}" "${merged_file_path}"
+    cp "${partial_file}" "${merged_file_path}"
   done
 }
 daemon_shared.parse_firejail_args() {
@@ -78,22 +76,23 @@ daemon_shared.parse_firejail_args() {
       seperators_count=$((seperators_count + 1))
     fi
   done
-  local expects_seperators=4
+  local expects_seperators=5
   if [[ ${seperators_count} -ne ${expects_seperators} ]]; then
     echo "Unexpected error - expected ${expects_seperators} \"--\" seperators for each category of arguments and only found \"${seperators_count}\"" >&2
     return 1
   fi
-  local assets=()
-  local asset_args_count=0
+  # "${plugin_download_dirs[*]}" "/download" "555"
+  local plugin_expanded_assets=()
   while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
-    asset_args_count=$((asset_args_count + 1))
+    plugin_expanded_assets+=("${1}")
+    shift
+  done
+  shift
+  local assets=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
     assets+=("${1}")
     shift
   done
-  if [[ $((asset_args_count % 3)) -ne 0 ]]; then
-    echo "Unexpected error - expected the first set of asset arguments to come in threes but instead got ${asset_args_count}." >&2
-    return 1
-  fi
   shift
   local plugins=()
   while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
@@ -123,7 +122,7 @@ daemon_shared.parse_firejail_args() {
     echo "Unexpected error - no stderr file was provided to the shared firejail function" >&2
     return 1
   fi
-  local asset_count=$((asset_count / 3))
+  echo "${plugin_expanded_assets[@]}"
   echo "${assets[@]}"
   echo "${plugins[@]}"
   echo "${firejail_options[@]}"
@@ -187,22 +186,54 @@ daemon_shared.decode_dumped_output() {
     fi
   done <"${input_stdout_file}"
 }
-daemon_shared.firejail() {
-  local parsed_args="$(daemon_shared.parse_firejail_args "${@}")"
-  local assets=($(lib.line_to_args "${args}" "0"))
-  local plugins=($(lib.line_to_args "${args}" "1"))
-  local firejail_options=($(lib.line_to_args "${args}" "2"))
-  local executable_options=($(lib.line_to_args "${args}" "3"))
-  local stdout_dump_file="$(lib.line_to_args "${args}" "4")"
-  local stderr_dump_file="$(lib.line_to_args "${args}" "5")"
+daemon_shared.merge_assets_args() {
+  local plugin_count="${1}"
+  local plugin_index="${2}"
+  local plugin_expanded_asset_args=($(echo "${3}" | xargs))
+  local asset_args=($(echo "${4}" | xargs))
+  local plugin_expanded_asset_arg_count="${#plugin_expanded_asset_args[@]}"
+  plugin_expanded_asset_arg_count=$((plugin_expanded_asset_arg_count / 3))
+  local divisor=$((plugin_expanded_asset_arg_count / plugin_count))
+  local grouped_plugin_expanded_asset_args=()
+  local i=0
+  for plugin_expanded_asset_arg in "${plugin_expanded_asset_args[@]}"; do
+    if [[ $((i % 3)) -ne 0 ]]; then
+      i=$((i + 1))
+      continue
+    fi
+    local str=""
+    str="${str} ${plugin_expanded_asset_args[${i}]}"
+    str="${str} ${plugin_expanded_asset_args[$((i + 1))]}"
+    str="${str} ${plugin_expanded_asset_args[$((i + 2))]}"
+    grouped_plugin_expanded_asset_args+=("$(echo "${str}" | xargs)")
+    i=$((i + 1))
+  done
 
-  local asset_arg_count="${#assets[@]}"
-  local asset_count=$((asset_arg_count / 3))
+  echo "${asset_args[*]}" "${grouped_plugin_expanded_asset_args[${plugin_index}]}" | xargs
+}
+daemon_shared.firejail() {
+  local args="$(daemon_shared.parse_firejail_args "${@}")"
+  # 'plugin_expanded_assets_args' is the same as the 'assets_args' variable, except instead of the first string
+  # representing a single host file or folder, it contains a list of files and folders
+  # in the order of the plugins.
+  # I admit that this is incredibly hard to read. But it was hard to write so for now
+  # it will stay like this.
+  local plugin_expanded_asset_args=($(lib.line_to_args "${args}" "0"))
+  local asset_args=($(lib.line_to_args "${args}" "1"))
+  local plugins=($(lib.line_to_args "${args}" "2"))
+  local firejail_options=($(lib.line_to_args "${args}" "3"))
+  local executable_options=($(lib.line_to_args "${args}" "4"))
+  local stdout_dump_file="$(lib.line_to_args "${args}" "5")"
+  local stderr_dump_file="$(lib.line_to_args "${args}" "6")"
   local firejailed_pids=()
   local firejailed_home_dirs=()
   local firejailed_raw_stdout_files=()
   local firejailed_raw_stderr_files=()
+  local plugin_index=0
+  local plugin_count="${#plugins[@]}"
   for plugin in "${plugins[@]}"; do
+    local merged_asset_args=($(daemon_shared.merge_assets_args "${plugin_count}" "${plugin_index}" "${plugin_expanded_asset_args[*]}" "${asset_args[*]}"))
+    local merged_asset_arg_count="${#merged_asset_args[@]}"
     if [[ ! -x ${plugin} ]]; then
       echo "Unexpected error - ${plugin} is not an executable file." >&2
       return 1
@@ -210,17 +241,13 @@ daemon_shared.firejail() {
     local firejailed_home_dir="$(mktemp -d)"
     local firejailed_raw_stdout_file="$(mktemp)"
     local firejailed_raw_stderr_file="$(mktemp)"
-    for ((i = 0; i < ${asset_count}; i++)); do
+    for ((i = 0; i < ${merged_asset_arg_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
         continue
       fi
-      if [[ -z "${assets[${i}]}" ]]; then
-        echo "Unexpected error - empty asset firejailed path." >&2
-        return 1
-      fi
-      local asset_firejailed_rel_path="${assets[${i}]}"
-      local asset_host_path="${assets[$((i + 1))]}"
-      local chmod_permission="${assets[$((i + 2))]}"
+      local asset_firejailed_rel_path="${merged_asset_args[${i}]}"
+      local asset_host_path="${merged_asset_args[$((i + 1))]}"
+      local chmod_permission="${merged_asset_args[$((i + 2))]}"
       if ! daemon_shared.validate_firejailed_assets \
         "${asset_firejailed_rel_path}" \
         "${asset_host_path}" \
@@ -256,11 +283,11 @@ daemon_shared.firejail() {
       firejailed_raw_stdout_files+=("${firejailed_raw_stdout_file}")
       firejailed_raw_stderr_files+=("${firejailed_raw_stderr_file}")
     done
+    plugin_index=$((plugin_index + 1))
   done
 
   local firejailed_requesting_kill=false
   local firejailed_failures=0
-  local successful_home_dirs=()
   local i=0
   for firejailed_pid in "${firejailed_pids[@]}"; do
     wait "${firejailed_pid}"
@@ -279,9 +306,6 @@ daemon_shared.firejail() {
     if [[ ${firejailed_exit_code} -ne 0 ]]; then
       echo "Firejailed plugin error - ${executable_path} exited with status ${firejailed_exit_code}" >&2
       firejailed_failures=$((firejailed_failures + 1))
-      successful_home_dirs+=("-")
-    else
-      successful_home_dirs+=("${firejailed_home_dir}")
     fi
     i=$((i + 1))
   done
@@ -300,8 +324,8 @@ daemon_shared.firejail() {
     echo "Firejailed plugin error - a collection made a kill request in it's output." >&2
     return_code=151
   fi
-  for successful_home_dir in "${successful_home_dirs[@]}"; do
-    echo "${successful_home_dir}"
+  for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
+    echo "${firejailed_home_dir}"
   done
   return "${return_code}"
 }

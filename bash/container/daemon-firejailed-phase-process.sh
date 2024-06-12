@@ -23,16 +23,35 @@ daemon_firejailed_phase_process.main() {
   local merged_download_dir="${2}"
   local merged_collection_dir="${3}"
   shift 3
+  local plugin_collection_dirs=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    plugin_collection_dirs+=("${1}")
+    shift
+  done
+  shift
+  local plugin_download_dirs=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    plugin_download_dirs+=("${1}")
+    shift
+  done
+  shift
   local plugins=("${@}")
   local plugin_names=($(daemon_shared.plugin_paths_to_names "${plugins[@]}"))
   local raw_stdout_file="$(mktemp)"
   local raw_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=("--net=none")
+  local plugin_specific_assets=()
+  local i=0
+  for plugin in "${plugins[@]}"; do
+    plugin_specific_assets+=("${plugin_collection_dirs[${i}]}" "/collection" "555")
+    i=$((i + 1))
+  done
   daemon_shared.firejail \
+    "${plugin_specific_assets[@]}" \
+    "--" \
     "${scrubbed_dir}" "/.solos" "555" \
-    "${merged_download_dir}" "/download" "555" \
-    "${merged_collection_dir}" "/collection" "555" \
+    "${merged_collection_dir}" "/plugins/collection" "555" \
     "$(mktemp)" "/processed.json" "777" \
     "--" \
     "${plugins[@]}" \
@@ -51,6 +70,7 @@ daemon_firejailed_phase_process.main() {
   local merged_processed="$(mktemp -d)"
   local decoded_stderr_file="$(mktemp)"
   local decoded_stdout_file="$(mktemp)"
+  local processed_files=()
   local i=0
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
@@ -58,13 +78,12 @@ daemon_firejailed_phase_process.main() {
       "(${plugin_name})" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
-    if [[ ${firejailed_home_dir} != "-" ]]; then
-      local tmp_merge_dir="$(mktemp -d)"
-      cp "${firejailed_home_dir}/processed.json" "${merged_processed}/${plugin_name}-processed.json"
-    fi
+    processed_files+=("${firejailed_home_dir}/processed.json")
+    cp "${firejailed_home_dir}/processed.json" "${merged_processed}/${plugin_name}-processed.json"
     i=$((i + 1))
   done
   echo "${decoded_stdout_file}"
   echo "${decoded_stderr_file}"
   echo "${merged_processed}"
+  echo "${processed_files[*]}"
 }

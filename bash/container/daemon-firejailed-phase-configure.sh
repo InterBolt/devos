@@ -27,6 +27,7 @@ daemon_firejailed_phase_configure.main() {
   local firejail_options=("--net=none")
   daemon_shared.firejail \
     "--" \
+    "--" \
     "${plugins[@]}" \
     "--" \
     "${firejail_options[@]}" \
@@ -55,9 +56,7 @@ daemon_firejailed_phase_configure.main() {
       "(${plugin_name})" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
-    if [[ ${firejailed_home_dir} != "-" ]]; then
-      cp -r "${firejailed_home_dir}/solos.json" "${merged_configure_dir}/${plugin_name}-solos.json"
-    fi
+    cp -r "${firejailed_home_dir}/solos.json" "${merged_configure_dir}/${plugin_name}-solos.json"
     i=$((i + 1))
   done
   echo "${decoded_stdout_file}"

@@ -26,6 +26,7 @@ daemon_firejailed_phase_download.main() {
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=()
   daemon_shared.firejail \
+    "--" \
     "$(mktemp -d)" "/download" "777" \
     "--" \
     "${plugins[@]}" \
@@ -49,6 +50,7 @@ daemon_firejailed_phase_download.main() {
   local merged_download_dir="$(mktemp -d)"
   local decoded_stderr_file="$(mktemp)"
   local decoded_stdout_file="$(mktemp)"
+  local plugin_download_dirs=()
   local i=0
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
@@ -56,16 +58,16 @@ daemon_firejailed_phase_download.main() {
       "(${plugin_name})" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
-    if [[ ${firejailed_home_dir} != "-" ]]; then
-      daemon_shared.merged_namespaced_fs \
-        "${plugin_name}" \
-        "${firejailed_home_dir}/download" \
-        "${merged_download_dir}"
-    fi
+    plugin_download_dirs+=("${firejailed_home_dir}/download")
+    daemon_shared.merged_namespaced_fs \
+      "${plugin_name}" \
+      "${firejailed_home_dir}/download" \
+      "${merged_download_dir}"
     i=$((i + 1))
   done
 
   echo "${decoded_stdout_file}"
   echo "${decoded_stderr_file}"
   echo "${merged_download_dir}"
+  echo "${plugin_download_dirs[*]}"
 }

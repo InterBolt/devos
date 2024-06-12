@@ -145,8 +145,10 @@ plugin.main() {
   local download_dir="/root/download"
   local collection_dir="/root/collection"
   local pushed_dir="/root/pushed"
-  local processed_dir="/root/processed"
   local processed_file="/root/processed.json"
+  local all_download_dirs="/root/plugins/download"
+  local all_collection_dirs="/root/plugins/collection"
+  local all_processed_files="/root/plugins/processed"
 
   if [[ ${1} = "--phase-configure" ]]; then
     plugin.verify_absence \
@@ -155,7 +157,9 @@ plugin.main() {
       "${collection_dir}" \
       "${processed_file}" \
       "${pushed_dir}" \
-      "${processed_dir}"
+      "${all_collection_dirs}" \
+      "${all_processed_files}" \
+      "${all_download_dirs}"
 
     plugin.verify_files_exists \
       "${config_file}"
@@ -169,7 +173,9 @@ plugin.main() {
       "${collection_dir}" \
       "${processed_file}" \
       "${pushed_dir}" \
-      "${processed_dir}"
+      "${all_collection_dirs}" \
+      "${all_processed_files}" \
+      "${all_download_dirs}"
 
     plugin.verify_dirs_exists \
       "${download_dir}"
@@ -183,18 +189,22 @@ plugin.main() {
 
   elif [[ ${1} = "--phase-collection" ]]; then
     plugin.verify_absence \
-      "${download_dir}" \
       "${processed_file}" \
-      "${processed_dir}" \
-      "${pushed_dir}"
+      "${pushed_dir}" \
+      "${all_collection_dirs}" \
+      "${all_processed_files}"
 
     plugin.verify_dirs_exists \
       "${scrubbed_dir}" \
-      "${collection_dir}"
+      "${collection_dir}" \
+      "${download_dir}" \
+      "${all_download_dirs}"
     plugin.verify_files_exists
     plugin.verify_read_only \
       "${scrubbed_dir}" \
-      "${config_file}"
+      "${config_file}" \
+      "${download_dir}" \
+      "${all_download_dirs}"
     plugin.verify_read_and_write \
       "${collection_dir}"
     plugin.verify_network_acccess "false"
@@ -202,17 +212,21 @@ plugin.main() {
   elif [[ ${1} = "--phase-process" ]]; then
     plugin.verify_absence \
       "${download_dir}" \
-      "${pushed_dir}"
+      "${pushed_dir}" \
+      "${all_download_dirs}" \
+      "${all_processed_files}"
 
     plugin.verify_dirs_exists \
       "${scrubbed_dir}" \
-      "${collection_dir}"
+      "${collection_dir}" \
+      "${all_collection_dirs}"
     plugin.verify_files_exists \
       "${processed_file}"
     plugin.verify_read_only \
       "${scrubbed_dir}" \
       "${collection_dir}" \
-      "${config_file}"
+      "${config_file}" \
+      "${all_collection_dirs}"
     plugin.verify_read_and_write \
       "${processed_file}"
     plugin.verify_network_acccess "false"
@@ -221,13 +235,19 @@ plugin.main() {
     plugin.verify_absence \
       "${download_dir}" \
       "${collection_dir}" \
-      "${scrubbed_dir}"
+      "${scrubbed_dir}" \
+      "${all_download_dirs}" \
+      "${all_collection_dirs}"
 
+    plugin.verify_dirs_exists \
+      "${all_processed_files}"
     plugin.verify_files_exists \
-      "${processed_file}"
-    plugin.verify_read_only \
       "${processed_file}" \
       "${config_file}"
+    plugin.verify_read_only \
+      "${processed_file}" \
+      "${config_file}" \
+      "${all_processed_files}"
     plugin.verify_network_acccess "true"
 
   else

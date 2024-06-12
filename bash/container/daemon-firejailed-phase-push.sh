@@ -21,14 +21,28 @@ daemon_firejailed_phase_push.log_warn() {
 daemon_firejailed_phase_push.main() {
   local merged_process_dir="${1}"
   shift 1
+  local plugin_processed_files=()
+  while [[ -n ${1} ]] && [[ ${1} != "--" ]]; do
+    plugin_processed_files+=("${1}")
+    shift
+  done
+  shift
   local plugins=("${@}")
   local plugin_names=($(daemon_shared.plugin_paths_to_names "${plugins[@]}"))
   local raw_stdout_file="$(mktemp)"
   local raw_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   local firejail_options=()
+  local plugin_specific_assets=()
+  local i=0
+  for plugin in "${plugins[@]}"; do
+    plugin_specific_assets+=("${plugin_processed_files[${i}]}" "/processed.json" "555")
+    i=$((i + 1))
+  done
   daemon_shared.firejail \
-    "${merged_process_dir}" "/processed" "555" \
+    "${plugin_specific_assets[@]}" \
+    "--" \
+    "${merged_process_dir}" "/plugins/processed" "555" \
     "$(mktemp -d)" "/pushed" "777" \
     "--" \
     "${plugins[@]}" \
@@ -54,12 +68,10 @@ daemon_firejailed_phase_push.main() {
       "(${plugin_name})" \
       "${raw_stdout_file}" "${raw_stderr_file}" \
       "${decoded_stdout_file}" "${decoded_stderr_file}"
-    if [[ ${firejailed_home_dir} != "-" ]]; then
-      daemon_shared.merged_namespaced_fs \
-        "${plugin_name}" \
-        "${firejailed_home_dir}/pushed" \
-        "${merged_pushed_dir}"
-    fi
+    daemon_shared.merged_namespaced_fs \
+      "${plugin_name}" \
+      "${firejailed_home_dir}/pushed" \
+      "${merged_pushed_dir}"
     i=$((i + 1))
   done
   echo "${decoded_stdout_file}"

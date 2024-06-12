@@ -155,6 +155,9 @@ daemon.dump() {
 }
 daemon.run_plugins() {
   local plugins=("${@}")
+  local plugin_processed_files=()
+  local plugin_download_dirs=()
+  local plugin_collection_dirs=()
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
     daemon.log_error "Unexpected error - failed to scrub the mounted volume."
@@ -205,6 +208,7 @@ daemon.run_plugins() {
   local download_stdout_dump="$(lib.line_to_args "0")"
   local download_stderr_dump="$(lib.line_to_args "1")"
   local merged_download_dir="$(lib.line_to_args "2")"
+  plugin_download_dirs=($(lib.line_to_args "3"))
   daemon.dump "${download_stdout_dump}" "${download_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -215,7 +219,7 @@ daemon.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! daemon_firejailed_phase_collection.main \
-    "${scrubbed_dir}" "${merged_download_dir}" "${plugins[@]}" \
+    "${scrubbed_dir}" "${merged_download_dir}" "${plugin_download_dirs[@]}" -- "${plugins[@]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -229,6 +233,7 @@ daemon.run_plugins() {
   local collection_stdout_dump="$(lib.line_to_args "0")"
   local collection_stderr_dump="$(lib.line_to_args "1")"
   local merged_collection_dir="$(lib.line_to_args "2")"
+  plugin_collection_dirs=($(lib.line_to_args "3"))
   daemon.dump "${collection_stdout_dump}" "${collection_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -239,7 +244,9 @@ daemon.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! daemon_firejailed_phase_process.main \
-    "${scrubbed_dir}" "${merged_download_dir}" "${merged_collection_dir}" "${plugins[@]}" \
+    "${scrubbed_dir}" "${merged_download_dir}" "${merged_collection_dir}" \
+    "${plugin_collection_dirs[@]}" \
+    -- "${plugins[@]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -253,6 +260,7 @@ daemon.run_plugins() {
   local process_stdout_dump="$(lib.line_to_args "0")"
   local process_stderr_dump="$(lib.line_to_args "1")"
   local merged_processed_dir="$(lib.line_to_args "2")"
+  plugin_processed_files=($(lib.line_to_args "3"))
   daemon.dump "${process_stdout_dump}" "${process_stderr_dump}"
   # ------------------------------------------------------------------------------------
   #
@@ -264,7 +272,8 @@ daemon.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! daemon_firejailed_phase_push.main \
-    "${merged_processed_dir}" "${plugins[@]}" \
+    "${merged_processed_dir}" "${plugin_processed_files[@]}" \
+    -- "${plugins[@]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
