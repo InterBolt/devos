@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
 
-gum__self_dir="${HOME}/.solos/src/bash"
+gum__self_dir="${HOME}/.solos/src/shared"
 gum__self_dirname=".installs"
 
 gum._get_release_file() {

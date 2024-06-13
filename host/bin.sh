@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}"/.solos/src/bash/host/cli-posthooks.sh || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
+. "${HOME}"/.solos/src/host/cli-posthooks.sh || exit 1
 
 bridge__data_dir="$(lib.data_dir_path)"
 bridge__repo_dir="${HOME}/.solos/src"
@@ -9,8 +9,8 @@ bridge__store_dir="${HOME}/.solos/data/store"
 bridge__stored_users_home_dir="${bridge__store_dir}/users_home_dir"
 bridge__last_docker_build_hash="$(lib.last_docker_build_hash_path)"
 bridge__mount_dir="/root/.solos"
-bridge__mounted_daemon_path="/root/.solos/src/bash/container/daemon.sh"
-bridge__mounted_cli_path="/root/.solos/src/bash/container/cli.sh"
+bridge__mounted_daemon_path="/root/.solos/src/daemon/bin.sh"
+bridge__mounted_cli_path="/root/.solos/src/cli/bin.sh"
 bridge__users_bashrc_path="${HOME}/.solos/rcfiles/.bashrc"
 bridge__installer_no_tty_flag=false
 bridge__shell_minimal_flag=false

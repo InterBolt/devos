@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/gum.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
-profile_panic__dir="$(lib.panic_dir_path)"
-profile_panic__muted=false
+rc_panic__dir="$(lib.panic_dir_path)"
+rc_panic__muted=false
 
-profile_panics.print() {
-  if [[ ${profile_panic__muted} = true ]]; then
+bashrc_panics.print() {
+  if [[ ${rc_panic__muted} = true ]]; then
     echo ""
     return 0
   fi
@@ -20,8 +20,8 @@ profile_panics.print() {
   gum.danger_box "${panic_messages}${newline}${newline}Please report the issue at https://github.com/interbolt/solos/issues."
   return 0
 }
-profile_panics.install() {
-  if profile_panics.print; then
+bashrc_panics.install() {
+  if bashrc_panics.print; then
     local should_proceed="$(gum.confirm_ignore_panic)"
     if [[ ${should_proceed} = true ]]; then
       return 1
@@ -31,7 +31,7 @@ profile_panics.install() {
   fi
   return 0
 }
-profile_panics.print_help() {
+bashrc_panics.print_help() {
   cat <<EOF
 
 USAGE: panic <review|clear|mute>
@@ -41,7 +41,7 @@ DESCRIPTION:
 A command to review "panic" files. \
 A panic file contains a message, a severity level, and a timestamp.
 
-Panic files at: ${profile_panic__dir}
+Panic files at: ${rc_panic__dir}
 
 COMMANDS:
 
@@ -51,17 +51,17 @@ mute         - Mute the panic messages.
 
 EOF
 }
-profile_panics.main() {
+bashrc_panics.main() {
   if [[ $# -eq 0 ]]; then
-    profile_panics.print_help
+    bashrc_panics.print_help
     return 0
   fi
-  if profile.is_help_cmd "$1"; then
-    profile_panics.print_help
+  if rc.is_help_cmd "$1"; then
+    bashrc_panics.print_help
     return 0
   fi
   if [[ $1 = "review" ]]; then
-    if profile_panics.print; then
+    if bashrc_panics.print; then
       return 0
     else
       log.info "No panic message was found."
@@ -71,11 +71,11 @@ profile_panics.main() {
     lib.panics_clear
     return 0
   elif [[ $1 = "mute" ]]; then
-    profile_panic__muted=true
+    rc_panic__muted=true
     return 0
   else
     log.error "Invalid command: $1"
-    profile_panics.print_help
+    bashrc_panics.print_help
     return 1
   fi
 }

@@ -5,14 +5,14 @@ plugin.main() {
     echo "Running phase=configure"
   elif [[ ${1} = "--phase-download" ]]; then
     echo "Running phase=download"
-  elif [[ ${1} = "--phase-collection" ]]; then
-    echo "Running phase=collection"
   elif [[ ${1} = "--phase-process" ]]; then
     echo "Running phase=process"
-  elif [[ ${1} = "--phase-push" ]]; then
-    echo "Running phase=push"
+  elif [[ ${1} = "--phase-chunk" ]]; then
+    echo "Running phase=chunk"
+  elif [[ ${1} = "--phase-publish" ]]; then
+    echo "Running phase=publish"
   else
-    echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-collection, --phase-process, or --phase-push." >&2
+    echo "SOLOS_PANIC: unknown phase in arg ${1}" >&2
     exit 1
   fi
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/gum.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
 log__will_print=true
 log__use_container_paths=false

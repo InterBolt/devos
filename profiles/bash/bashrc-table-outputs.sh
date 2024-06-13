@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
 
 # Fixes aligment and word wrapping issues with the built-in table command.
-profile_table_outputs.format() {
+bashrc_table_outputs.format() {
   local headers="$1"
   shift
   local newline=$'\n'

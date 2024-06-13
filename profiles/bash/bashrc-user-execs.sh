@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
-. "${HOME}/.solos/src/bash/log.sh" || exit 1
-. "${HOME}/.solos/src/bash/gum.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
-profile_user_execs.install() {
+bashrc_user_execs.install() {
   local failed=false
   if ! declare -p user_preexecs >/dev/null 2>&1; then
     log.error "Unexpected error: \`user_preexecs\` is not defined"
@@ -15,11 +15,11 @@ profile_user_execs.install() {
     failed=true
   fi
   if [[ ${failed} = true ]]; then
-    profile.error_press_enter
+    rc.error_press_enter
   fi
 }
-profile_user_execs.pre() {
-  if profile.is_help_cmd "${1}"; then
+bashrc_user_execs.pre() {
+  if rc.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: preexex <add|remove|list>
 
@@ -32,7 +32,6 @@ exec functions.
 EOF
     return 0
   fi
-
   local cmd="${1}"
   if [[ -z ${cmd} ]]; then
     log.error "No command supplied to \`preexec\`."
@@ -70,8 +69,8 @@ EOF
   fi
   log.error "Invalid usage: unknown command: ${cmd} supplied to \`preexec\`."
 }
-profile_user_execs.post() {
-  if profile.is_help_cmd "${1}"; then
+bashrc_user_execs.post() {
+  if rc.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: postexec <add|remove|list>
 
@@ -123,20 +122,20 @@ EOF
   fi
   log.error "Invalid usage: unknown command: ${cmd} supplied to \`postexec\`." >&2
 }
-profile_user_execs.main() {
+bashrc_user_execs.main() {
   local lifecycle="${1}"
   if [[ -z ${lifecycle} ]]; then
-    log.error "Unexpected error: missing lifecycle arg (\"pre\" or \"post\") in profile_user_execs.main."
+    log.error "Unexpected error: missing lifecycle arg (\"pre\" or \"post\") in bashrc_user_execs.main."
     return 1
   fi
   shift
   if [[ ${lifecycle} = "pre" ]]; then
-    profile_user_execs.pre "${@}"
+    bashrc_user_execs.pre "${@}"
     return $?
   fi
   if [[ ${lifecycle} = "post" ]]; then
-    profile_user_execs.post "${@}"
+    bashrc_user_execs.post "${@}"
     return $?
   fi
-  log.error "Unexpected error: unknown lifecycle arg (${lifecycle}) in profile_user_execs.main."
+  log.error "Unexpected error: unknown lifecycle arg (${lifecycle}) in bashrc_user_execs.main."
 }

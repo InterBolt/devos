@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/bash/lib.sh" || exit 1
+. "${HOME}/.solos/src/shared/lib.sh" || exit 1
 
 # This script defines some behavior associated with the *success* of various CLI commands when run on the host.
 # Ex: when we run `solos app <app_name>`, we want to invoke the `code` command on the host.
