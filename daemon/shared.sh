@@ -140,13 +140,14 @@ shared.merge_assets_args() {
   echo "${asset_args[*]}" "${grouped_plugin_expanded_asset_args[${plugin_index}]}" | xargs
 }
 shared.firejail() {
-  local plugin_expanded_assets=($(echo "${1}" | xargs))
-  local asset_args=($(echo "${2}" | xargs))
-  local plugins=($(echo "${3}" | xargs))
-  local firejail_options=($(echo "${4}" | xargs))
-  local executable_options=($(echo "${5}" | xargs))
-  local aggregated_stdout_file="${6}"
-  local aggregated_stderr_file="${7}"
+  local phase_cache="${1}"
+  local plugin_expanded_assets=($(echo "${2}" | xargs))
+  local asset_args=($(echo "${3}" | xargs))
+  local plugins=($(echo "${4}" | xargs))
+  local firejail_options=($(echo "${5}" | xargs))
+  local executable_options=($(echo "${6}" | xargs))
+  local aggregated_stdout_file="${7}"
+  local aggregated_stderr_file="${8}"
   local firejailed_pids=()
   local firejailed_home_dirs=()
   local plugin_stdout_files=()
@@ -158,6 +159,9 @@ shared.firejail() {
       shared.log_error "Unexpected error - ${plugin} is not an executable file."
       return 1
     fi
+    local plugin_name="$(shared.plugin_paths_to_names "${plugins[${plugin_index}]}")"
+    local plugin_phase_cache="${phase_cache}/${plugin_name}"
+    mkdir -p "${plugin_phase_cache}"
     local merged_asset_args=($(shared.merge_assets_args "${plugin_count}" "${plugin_index}" "${plugin_expanded_asset_args[*]}" "${asset_args[*]}"))
     local merged_asset_arg_count="${#merged_asset_args[@]}"
     local firejailed_home_dir="$(mktemp -d)"
@@ -176,6 +180,7 @@ shared.firejail() {
         "${chmod_permission}"; then
         return 1
       fi
+      cp -r "${plugin_phase_cache}" "${firejailed_home_dir}/cache"
       local asset_firejailed_path="${firejailed_home_dir}/${asset_firejailed_rel_path}"
       if [[ -f ${asset_host_path} ]]; then
         cp "${asset_host_path}" "${asset_firejailed_path}"

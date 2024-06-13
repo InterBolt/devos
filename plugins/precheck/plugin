@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 ALLOWED_PATHS=(
+  "/root/cache"             # A cache directory that persists between plugin phases.
   "/root/.solos"            # The scrubbed solos directory.
   "/root/solos.json"        # A plugin's config file.
   "/root/download"          # The downloaded data from the plugin's download phase.
@@ -19,16 +20,16 @@ plugin.main() {
   if [[ ${1} = "--phase-configure" ]]; then
     plugin.verify_fs \
       "configure" \
-      "file:/root/solos.json:777"
+      "file:/root/solos.json:777" \
+      "dir:/root/cache:777"
     plugin.verify_network_acccess "false"
-
   elif [[ ${1} = "--phase-download" ]]; then
     plugin.verify_fs \
       "download" \
       "dir:/root/download:777" \
-      "file:/root/solos.json:555"
+      "file:/root/solos.json:555" \
+      "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
-
   elif [[ ${1} = "--phase-process" ]]; then
     plugin.verify_fs \
       "process" \
@@ -36,26 +37,26 @@ plugin.main() {
       "dir:/root/plugins/download:555" \
       "dir:/root/.solos:555" \
       "file:/root/processed.json:777" \
-      "file:/root/solos.json:555"
+      "file:/root/solos.json:555" \
+      "dir:/root/cache:777"
     plugin.verify_network_acccess "false"
-
   elif [[ ${1} = "--phase-chunk" ]]; then
     plugin.verify_fs \
       "chunk" \
       "file:/root/processed.json:555" \
       "dir:/root/plugins/processed:555" \
       "file:/root/chunks.log:777" \
-      "file:/root/solos.json:555"
+      "file:/root/solos.json:555" \
+      "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
-
   elif [[ ${1} = "--phase-publish" ]]; then
     plugin.verify_fs \
       "publish" \
       "file:/root/chunks.log:555" \
       "file:/root/plugins/chunks.log:555" \
-      "file:/root/solos.json:555"
+      "file:/root/solos.json:555" \
+      "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
-
   else
     echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-process, --phase-chunk, or --phase-publish." >&2
     exit 1

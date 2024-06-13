@@ -27,16 +27,18 @@ plugin_phases.subphase_expanded_assets() {
   echo "${expanded_asset_args[*]}" | xargs
 }
 plugin_phases.subphase_firejail() {
-  local plugins=($(echo "${1}" | xargs))
-  local assets_args=($(echo "${2}" | xargs))
-  local expanded_asset_args=($(echo "${3}" | xargs))
-  local executable_args=($(echo "${4}" | xargs))
-  local merge_path="${5}"
-  local firejail_options=($(echo "${6}" | xargs))
+  local phase_cache="${1}"
+  local plugins=($(echo "${2}" | xargs))
+  local assets_args=($(echo "${3}" | xargs))
+  local expanded_asset_args=($(echo "${4}" | xargs))
+  local executable_args=($(echo "${5}" | xargs))
+  local merge_path="${6}"
+  local firejail_options=($(echo "${7}" | xargs))
   local aggregated_stdout_file="$(mktemp)"
   local aggregated_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
   shared.firejail \
+    "${phase_cache}" \
     "${expanded_asset_args[*]}" \
     "${assets_args[*]}" \
     "${plugins[*]}" \
@@ -53,11 +55,14 @@ plugin_phases.subphase_firejail() {
     firejailed_home_dirs+=("$(echo "${line}" | xargs)")
   done <"${stashed_firejailed_home_dirs}"
   local assets_created_by_plugins=()
+  local plugin_phase_caches=()
   local i=0
   if [[ -n ${merge_path} ]]; then
     for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
       local plugin_name="${plugin_names[${i}]}"
       assets_created_by_plugins+=("${firejailed_home_dir}${merge_path}")
+      rm -rf "${phase_cache}/${plugin_name}"
+      mv "${firejailed_home_dir}/cache" "${phase_cache}/${plugin_name}"
       i=$((i + 1))
     done
   fi
@@ -72,12 +77,13 @@ plugin_phases.subphase_firejail() {
 # with the plugins. This allows for a simple upgrade path for plugins that need to make changes
 # to the way they configs are structured but don't want to depend on users to manually update them.
 plugin_phases.configure() {
+  local phase_cache="${1}"
   local subphase_result="$(
     plugin_phases.subphase_expanded_assets \
       "" \
       "" \
       "" \
-      "${*}" || echo "$?"
+      "${2}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then
     return "${subphase_result}"
@@ -90,6 +96,7 @@ plugin_phases.configure() {
   local asset_args=()
   local subphase_result="$(
     plugin_phases.subphase_firejail \
+      "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
@@ -118,12 +125,13 @@ plugin_phases.configure() {
 # The download phase is where plugin authors can pull information from remote resources that they might
 # need to process the user's data. This could be anything from downloading a file to making an API request.
 plugin_phases.download() {
+  local phase_cache="${1}"
   local subphase_result="$(
     plugin_phases.subphase_expanded_assets \
       "" \
       "" \
       "" \
-      ${*} || echo "$?"
+      "${2}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then
     return "${subphase_result}"
@@ -138,6 +146,7 @@ plugin_phases.download() {
   )
   local subphase_result="$(
     plugin_phases.subphase_firejail \
+      "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
@@ -170,15 +179,16 @@ plugin_phases.download() {
 # and the downloaded data from the download phase. During this phase, we cut off access to the network to
 # prevent any data exfiltration.
 plugin_phases.process() {
-  local scrubbed_dir="${1}"
-  local merged_download_dir="${2}"
-  local plugin_download_dirs=($(echo "${3}" | xargs))
+  local phase_cache="${1}"
+  local scrubbed_dir="${2}"
+  local merged_download_dir="${3}"
+  local plugin_download_dirs=($(echo "${4}" | xargs))
   local subphase_result="$(
     plugin_phases.subphase_expanded_assets \
       "${plugin_download_dirs[*]}" \
       "/download" \
       "555" \
-      ${*} || echo "$?"
+      "${5}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then
     return "${subphase_result}"
@@ -195,6 +205,7 @@ plugin_phases.process() {
   )
   local subphase_result="$(
     plugin_phases.subphase_firejail \
+      "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
@@ -223,14 +234,15 @@ plugin_phases.process() {
 # The chunking phase is where processed data gets converted into text chunks. This is useful when
 # designing a RAG query system or a search index.
 plugin_phases.chunk() {
-  local merged_processed_dir="${1}"
-  local processed_files=("$(echo "${2}" | xargs)")
+  local phase_cache="${1}"
+  local merged_processed_dir="${2}"
+  local processed_files=("$(echo "${3}" | xargs)")
   local subphase_result="$(
     plugin_phases.subphase_expanded_assets \
       "${processed_files[*]}" \
       "/processed.json" \
       "555" \
-      ${*} || echo "$?"
+      "${4}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then
     return "${subphase_result}"
@@ -246,6 +258,7 @@ plugin_phases.chunk() {
   )
   local subphase_result="$(
     plugin_phases.subphase_firejail \
+      "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
@@ -278,14 +291,15 @@ plugin_phases.chunk() {
 # can be done in the chunk phase. I'm not merging the phases because I want the publish phase to allow
 # plugin authors to use all chunks, regardless of which plugin created them.
 plugin_phases.publish() {
-  local merged_chunks="${1}"
-  local chunk_log_files=("$(echo "${2}" | xargs)")
+  local phase_cache="${1}"
+  local merged_chunks="${2}"
+  local chunk_log_files=("$(echo "${3}" | xargs)")
   local subphase_result="$(
     plugin_phases.subphase_expanded_assets \
       "${chunk_log_files[*]}" \
       "/chunks.log" \
       "555" \
-      ${*} || echo "$?"
+      "${4}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then
     return "${subphase_result}"
@@ -300,6 +314,7 @@ plugin_phases.publish() {
   )
   local subphase_result="$(
     plugin_phases.subphase_firejail \
+      "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \

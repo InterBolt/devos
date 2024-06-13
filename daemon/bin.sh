@@ -110,6 +110,13 @@ bin.run_plugins() {
   local archive_log_file="${next_archive_dir}/dump.log"
   touch "${archive_log_file}"
 
+  local configure_cache="${HOME}/.solos/data/daemon/cache/configure"
+  local download_cache="${HOME}/.solos/data/daemon/cache/download"
+  local process_cache="${HOME}/.solos/data/daemon/cache/process"
+  local chunk_cache="${HOME}/.solos/data/daemon/cache/chunk"
+  local publish_cache="${HOME}/.solos/data/daemon/cache/publish"
+  mkdir -p "${configure_cache}" "${download_cache}" "${process_cache}" "${chunk_cache}" "${publish_cache}"
+
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
     shared.log_error "Unexpected error - failed to scrub the mounted volume."
@@ -125,7 +132,7 @@ bin.run_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.configure "${plugins[@]}" >"${tmp_stdout}"; then
+  if ! plugin_phases.configure "${configure_cache}" "${plugins[*]}" >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -151,7 +158,8 @@ bin.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! plugin_phases.download \
-    "${plugins[@]}" \
+    "${download_cache}" \
+    "${plugins[*]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -178,8 +186,9 @@ bin.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! plugin_phases.process \
+    "${process_cache}" \
     "${scrubbed_dir}" "${merged_download_dir}" "${plugin_download_dirs[*]}" \
-    "${plugins[@]}" \
+    "${plugins[*]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -205,8 +214,9 @@ bin.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! plugin_phases.chunk \
+    "${chunk_cache}" \
     "${merged_processed_dir}" "${plugin_processed_files[*]}" \
-    "${plugins[@]}" \
+    "${plugins[*]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -234,8 +244,9 @@ bin.run_plugins() {
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
   if ! plugin_phases.publish \
+    "${publish_cache}" \
     "${merged_chunks_dir}" "${plugin_chunk_files[*]}" \
-    "${plugins[@]}" \
+    "${plugins[*]}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
