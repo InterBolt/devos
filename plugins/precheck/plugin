@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
 
-ALLOWED_PATHS=(
-  "/root/cache"             # A cache directory that persists between plugin phases.
-  "/root/.solos"            # The scrubbed solos directory.
-  "/root/solos.json"        # A plugin's config file.
-  "/root/download"          # The downloaded data from the plugin's download phase.
-  "/root/plugins/download"  # The downloaded data from all plugins' download phases.
-  "/root/chunks.log"        # The rag-friendly log file containing text chunks for a plugin.
-  "/root/plugins/chunks"    # A dir of rag-friendly log files containing text chunks for all plugins.
-  "/root/processed.json"    # The processed data from the plugin's process phase.
-  "/root/plugins/processed" # The processed data from all plugins' process phases.
+# All FS paths supported inside the firejailed sandbox that any
+# given plugin phase runs in.
+SUPPORTED_FS_PATHS=(
+  # A cache directory that persists between plugin phases. Caches are not
+  # shared between plugins. This is a good place to store large files that
+  # are expensive to download or generate.
+  "/root/cache"
+  # The entire mounted .solos directory scrubbed of sensitive data.
+  "/root/.solos"
+  # The solos.json file containing the plugin's configuration.
+  "/root/solos.json"
+  # The downloaded data from the plugin's download phase.
+  "/root/download"
+  # The downloaded data from all plugins' download phases.
+  "/root/plugins/download"
+  # The processed data from the plugin's process phase.
+  "/root/processed.json"
+  # The processed data from all plugins' process phases.
+  "/root/plugins/processed"
+  # A log of text chunks that plugin authors can use to bootstrap RAG AI services.
+  "/root/chunks.log"
+  # All chunks from all plugins' chunk phases. Allows plugin authors to aggregate data from
+  # services they have no control over.
+  "/root/plugins/chunks"
 )
 ######################################################################
 ##
@@ -71,7 +85,7 @@ plugin.main() {
 plugin.verify_fs() {
   local phase="${1}"
   shift
-  local expect_absence=("${ALLOWED_PATHS[@]}")
+  local expect_absence=("${SUPPORTED_FS_PATHS[@]}")
   local dirs=()
   local files=()
   local args=("${@}")
@@ -87,7 +101,7 @@ plugin.verify_fs() {
       echo "SOLOS_PANIC: ${type} is not a valid type. Use 'dir' for directories and 'file' for files." >&2
       exit 1
     fi
-    if [[ ! "${ALLOWED_PATHS[@]}" =~ "${path}" ]]; then
+    if [[ ! "${SUPPORTED_FS_PATHS[@]}" =~ "${path}" ]]; then
       echo "SOLOS_PANIC: ${path} is not an allowed path." >&2
       exit 1
     fi
