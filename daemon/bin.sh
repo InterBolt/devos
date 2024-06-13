@@ -107,6 +107,7 @@ bin.run_plugins() {
   local nano_seconds="$(date +%s%N)"
   local next_archive_dir="${HOME}/.solos/data/daemon/archives/${nano_seconds}"
   mkdir -p "${next_archive_dir}"
+  mkdir -p "${next_archive_dir}/caches"
   local archive_log_file="${next_archive_dir}/dump.log"
   touch "${archive_log_file}"
 
@@ -149,6 +150,7 @@ bin.run_plugins() {
   bin.update_configs "${merged_configure_dir}"
   shared.log_info "Progress - updated configs based on the configure phase."
   cp -r "${merged_configure_dir}" "${next_archive_dir}/configure"
+  cp -r "${configure_cache}" "${next_archive_dir}/caches/configure"
   shared.log_info "Progress - archived the configure data at \"$(shared.host_path "${next_archive_dir}/configure")\""
   # ------------------------------------------------------------------------------------
   #
@@ -176,6 +178,7 @@ bin.run_plugins() {
   local plugin_download_dirs=($(lib.line_to_args "${result}" "3"))
   bin.dump "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_download_dir}" "${next_archive_dir}/download"
+  cp -r "${download_cache}" "${next_archive_dir}/caches/download"
   shared.log_info "Progress - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
   # ------------------------------------------------------------------------------------
   #
@@ -205,6 +208,7 @@ bin.run_plugins() {
   local plugin_processed_files=($(lib.line_to_args "${result}" "3"))
   bin.dump "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_processed_dir}" "${next_archive_dir}/processed"
+  cp -r "${process_cache}" "${next_archive_dir}/caches/process"
   shared.log_info "Progress - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
   # ------------------------------------------------------------------------------------
   #
@@ -233,6 +237,7 @@ bin.run_plugins() {
   local plugin_chunk_files=($(lib.line_to_args "${result}" "3"))
   bin.dump "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_chunks_dir}" "${next_archive_dir}/chunks"
+  cp -r "${chunk_cache}" "${next_archive_dir}/caches/chunk"
   shared.log_info "Progress - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
   # ------------------------------------------------------------------------------------
   #
@@ -260,6 +265,7 @@ bin.run_plugins() {
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   bin.dump "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
   shared.log_info "Progress - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
 bin.run() {
