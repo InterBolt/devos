@@ -55,7 +55,6 @@ plugin_phases.subphase_firejail() {
     firejailed_home_dirs+=("$(echo "${line}" | xargs)")
   done <"${stashed_firejailed_home_dirs}"
   local assets_created_by_plugins=()
-  local plugin_phase_caches=()
   local i=0
   if [[ -n ${merge_path} ]]; then
     for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
