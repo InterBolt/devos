@@ -101,11 +101,11 @@ bin.save_plugin_logs() {
     echo "${line}" >>"${log_file}"
   done <"${aggregated_stderr_file}"
 }
-bin.plugins_validate_fs() {
+bin.manifest_validate_user_fs() {
   # TODO: Implement this function.
   return 0
 }
-bin.plugins_validate() {
+bin.manifest_validate_file() {
   if [[ ! -f ${bin__manifest_file} ]]; then
     shared.log_error "Managing plugins - does not exist at ${bin__manifest_file}"
     return 1
@@ -147,7 +147,7 @@ bin.plugins_validate() {
   echo "${missing_plugins[*]}"
   echo "${changed_plugins[*]}"
 }
-bin.plugins_new_config() {
+bin.manifest_init_config() {
   local source="${1}"
   local path="${2}"
   cat <<EOF >"${path}"
@@ -157,7 +157,7 @@ bin.plugins_new_config() {
 }
 EOF
 }
-bin.plugins_download() {
+bin.manifest_download_sources() {
   local plugin_source="${1}"
   local output_path="${2}"
   if ! curl -o "${output_path}" "${plugin_source}"; then
@@ -169,7 +169,7 @@ bin.plugins_download() {
     return 1
   fi
 }
-bin.plugins_mv_dirs() {
+bin.manifest_mv_dirs() {
   local plugins_dir="${1}"
   local dirs=($(echo "${2}" | xargs))
   for dir in ${dirs[@]}; do
@@ -182,7 +182,7 @@ bin.plugins_mv_dirs() {
     mv "${dir}" "${plugin_path}"
   done
 }
-bin.plugins_add() {
+bin.manifest_create_plugins() {
   local plugins_dir="${1}"
   local plugins_and_sources=($(echo "${2}" | xargs))
   local plugin_tmp_dirs=()
@@ -193,15 +193,15 @@ bin.plugins_add() {
       local missing_plugin_source="${plugins_and_sources[$((i + 1))]}"
       local tmp_config_path="${tmp_dir}/config.json"
       local tmp_executable_path="${tmp_dir}/plugin"
-      bin.plugins_new_config "${missing_plugin_source}" "${tmp_config_path}" || return 1
-      bin.plugins_download "${missing_plugin_source}" "${tmp_executable_path}" || return 1
+      bin.manifest_init_config "${missing_plugin_source}" "${tmp_config_path}" || return 1
+      bin.manifest_download_sources "${missing_plugin_source}" "${tmp_executable_path}" || return 1
       plugin_tmp_dirs+=("${tmp_dir}")
     fi
     i=$((i + 1))
   done
-  bin.plugins_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
+  bin.manifest_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
 }
-bin.plugins_update() {
+bin.manifest_update_sources() {
   local plugins_dir="${1}"
   local plugins_and_sources=($(echo "${2}" | xargs))
   local plugin_tmp_dirs=()
@@ -213,29 +213,24 @@ bin.plugins_update() {
       local tmp_config_path="${tmp_dir}/config.json"
       local current_config_path="${plugins_dir}/${changed_plugin_name}/config.json"
       if [[ ! -d ${current_config_path} ]]; then
-        bin.plugins_new_config "${changed_plugin_source}" "${tmp_config_path}"
+        bin.manifest_init_config "${changed_plugin_source}" "${tmp_config_path}"
       fi
       cp -f "${current_config_path}" "${tmp_config_path}"
       rm -f "${tmp_dir}/plugin"
-      bin.plugins_download "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
+      bin.manifest_download_sources "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
     fi
   done
-  bin.plugins_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
+  bin.manifest_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
 }
-bin.plugins_commit() {
-  local next_dir="${1}"
-  rm -rf "${HOME}/.solos/plugins" || return 1
-  mv "${next_dir}" "${HOME}/.solos/plugins" || return 1
-}
-bin.plugins_prerun() {
+bin.prerun() {
   local plugins_dir="${HOME}/.solos/plugins"
-  if ! bin.plugins_validate_fs "${plugins_dir}"; then
+  if ! bin.manifest_validate_user_fs "${plugins_dir}"; then
     shared.log_error "Managing plugins - invalid plugin directory at ${plugins_dir}"
     return 1
   fi
   local tmp_backup="$(mktemp -d)"
   local return_file="$(mktemp)"
-  bin.plugins_validate >"${return_file}" || return 1
+  bin.manifest_validate_file >"${return_file}" || return 1
   local returned="$(cat ${return_file})"
   local missing_plugins_and_sources=($(lib.line_to_args "${returned}" 0))
   local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
@@ -244,13 +239,13 @@ bin.plugins_prerun() {
     shared.log_error "Managing plugins - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
     return 1
   fi
-  bin.plugins_add "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
-  bin.plugins_update "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
+  bin.manifest_create_plugins "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
+  bin.manifest_update_sources "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
   cp -rfa "${plugins_dir}/" "${tmp_backup}/"
   rm -rf "${plugins_dir}"
   mkdir -p "${plugins_dir}"
   cp -rfa "${tmp_plugins_dir}/" "${plugins_dir}/"
-  if ! bin.plugins_validate_fs "${plugins_dir}"; then
+  if ! bin.manifest_validate_user_fs "${plugins_dir}"; then
     rm -rf "${plugins_dir}"
     mkdir -p "${plugins_dir}"
     cp -rfa "${tmp_backup}/" "${plugins_dir}/"
@@ -258,7 +253,7 @@ bin.plugins_prerun() {
     shared.log_info "Managing plugins - successfully applied the manifest."
   fi
 }
-bin.plugins_run() {
+bin.run() {
   local plugins=("${@}")
 
   # Prep the archive directory.
@@ -429,7 +424,7 @@ bin.plugins_run() {
 bin.run() {
   local is_precheck=true
   while true; do
-    if ! bin.plugins_prerun; then
+    if ! bin.prerun; then
       shared.log_error "Fatal - failed to manifest the plugins. Waiting 20 seconds before the next run."
       lib.panics_add "daemon_manifest_failed" <<EOF
 The daemon failed to prepare the plugins using the manifest.json file. \
@@ -457,7 +452,7 @@ EOF
       continue
     fi
     shared.log_info "Progress - starting a new cycle."
-    bin.plugins_run "${plugins[@]}"
+    bin.run "${plugins[@]}"
     shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
     shared.log_warn "Done - waiting for the next cycle."
     bin__remaining_retries=5
