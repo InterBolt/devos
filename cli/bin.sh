@@ -628,7 +628,7 @@ echo "Hello from the post-exec script for app: ${bin__project_app}"
 EOF
   log.info "${bin__project_name}:${bin__project_app} - Created the pre-exec script."
   local app_dir="$(bin.cmd.app._get_path_to_app)"
-  local vscode_workspace_file="${HOME}/.solos/projects/${bin__project_name}/.vscode/solos-${bin__project_name}.code-workspace"
+  local vscode_workspace_file="${HOME}/.solos/projects/${bin__project_name}/.vscode/${bin__project_name}.code-workspace"
   local tmp_vscode_workspace_file="${tmp_misc_dir}/$(basename ${vscode_workspace_file})"
   if [[ ! -f "${vscode_workspace_file}" ]]; then
     log.error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
@@ -708,9 +708,9 @@ bin.cmd.checkout() {
     local vscode_dir="${HOME}/.solos/projects/${bin__project_name}/.vscode"
     mkdir -p "${vscode_dir}"
     local tmp_dir="$(mktemp -d -q)"
-    cp "${HOME}/.solos/src/cli/solos-template.code-workspace" "${tmp_dir}/solos-${bin__project_name}.code-workspace"
-    if bin.utils.template_variables "${tmp_dir}/solos-${bin__project_name}.code-workspace"; then
-      cp -f "${tmp_dir}/solos-${bin__project_name}.code-workspace" "${vscode_dir}/solos-${bin__project_name}.code-workspace"
+    cp "${HOME}/.solos/src/cli/project.code-workspace" "${tmp_dir}/${bin__project_name}.code-workspace"
+    if bin.utils.template_variables "${tmp_dir}/${bin__project_name}.code-workspace"; then
+      cp -f "${tmp_dir}/${bin__project_name}.code-workspace" "${vscode_dir}/${bin__project_name}.code-workspace"
       log.info "${bin__project_name} - Successfully templated the Visual Studio Code workspace file."
     else
       log.error "${bin__project_name} - Failed to build the code workspace file."
@@ -823,28 +823,6 @@ bin.cmd.setup._gh_name() {
     fi
   fi
 }
-bin.cmd.setup._openai_api_key() {
-  local tmp_file="$1"
-  gum.optional_openai_api_key_input >"${tmp_file}" || exit 1
-  local openai_api_key=$(cat "${tmp_file}" 2>/dev/null || echo "")
-  if [[ -z ${openai_api_key} ]]; then
-    log.warn "Local AI features will be turned off."
-    return 0
-  fi
-  if curl -s -o /dev/null -w "%{http_code}" https://api.openai.com/v1/models -H "Authorization: Bearer ${openai_api_key}" | grep -q "200"; then
-    log.info "Updated and confirmed OpenAI API key."
-  else
-    log.error "Failed to authenticate with: ${openai_api_key}"
-    local should_retry="$(gum.confirm_retry)"
-    if [[ ${should_retry} = true ]]; then
-      echo "" >"${tmp_file}"
-      bin.cmd.setup._openai_api_key "${tmp_file}"
-    else
-      log.error "Exiting the setup process."
-      exit 1
-    fi
-  fi
-}
 bin.cmd.setup._checkout_project() {
   local checked_out=""
   local should_checkout_project="$(gum.confirm_checkout_project)"
@@ -904,20 +882,14 @@ bin.cmd.setup() {
   local gh_token_tmp_file="$(mktemp -q)"
   local gh_email_tmp_file="$(mktemp -q)"
   local gh_name_tmp_file="$(mktemp -q)"
-  local openai_api_key_tmp_file="$(mktemp -q)"
   bin.cmd.setup._gh_token "${gh_token_tmp_file}"
   bin.cmd.setup._gh_email "${gh_email_tmp_file}"
   bin.cmd.setup._gh_name "${gh_name_tmp_file}"
-  bin.cmd.setup._openai_api_key "${openai_api_key_tmp_file}"
   rm -rf "${HOME}/.solos/config"
   rm -rf "${HOME}/.solos/secrets"
   bin.config_store.set "gh_email" "$(cat "${gh_email_tmp_file}")"
   bin.config_store.set "gh_name" "$(cat "${gh_name_tmp_file}")"
   bin.secrets_store.set "gh_token" "$(cat "${gh_token_tmp_file}")"
-  local openai_api_key="$(cat "${openai_api_key_tmp_file}" || echo "")"
-  if [[ -n ${openai_api_key} ]]; then
-    bin.secrets_store.set "openai_api_key" "${openai_api_key}"
-  fi
   bin.global_store.set "setup_at_git_hash" "${curr_git_hash}"
   if [[ ${bin__is_running_in_shell} = false ]]; then
     bin.cmd.setup._checkout_project
@@ -928,7 +900,7 @@ bin.cmd.setup() {
 #---------------------------------------------
 bin.project.prune() {
   local tmp_dir="$(mktemp -d -q)"
-  local vscode_workspace_file="${HOME}/.solos/projects/${bin__project_name}/.vscode/solos-${bin__project_name}.code-workspace"
+  local vscode_workspace_file="${HOME}/.solos/projects/${bin__project_name}/.vscode/${bin__project_name}.code-workspace"
   if [[ ! -f ${vscode_workspace_file} ]]; then
     log.error "Unexpected error: no code workspace file: ${vscode_workspace_file}"
     exit 1

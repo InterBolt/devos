@@ -2,6 +2,7 @@
 
 bin__pid=$$
 bin__remaining_retries=5
+bin__manifest_file="${HOME}/.solos/plugins/manifest.json"
 bin__daemon_data_dir="${HOME}/.solos/data/daemon"
 bin__pid_file="${bin__daemon_data_dir}/pid"
 bin__status_file="${bin__daemon_data_dir}/status"
@@ -77,7 +78,7 @@ bin.update_configs() {
   for plugin_path in "${plugin_paths[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     local plugin_dir="$(dirname "${plugin_path}")"
-    local config_path="${plugin_dir}/solos.json"
+    local config_path="${plugin_dir}/config.json"
     local updated_config_path="${merged_configure_dir}/${plugin_name}.json"
     if [[ -f ${updated_config_path} ]]; then
       rm -f "${config_path}"
@@ -86,7 +87,7 @@ bin.update_configs() {
     fi
   done
 }
-bin.dump() {
+bin.save_plugin_logs() {
   local phase="${1}"
   local log_file="${2}"
   local aggregated_stdout_file="${3}"
@@ -100,7 +101,164 @@ bin.dump() {
     echo "${line}" >>"${log_file}"
   done <"${aggregated_stderr_file}"
 }
-bin.run_plugins() {
+bin.plugins_validate_fs() {
+  # TODO: Implement this function.
+  return 0
+}
+bin.plugins_validate() {
+  if [[ ! -f ${bin__manifest_file} ]]; then
+    shared.log_error "Managing plugins - does not exist at ${bin__manifest_file}"
+    return 1
+  fi
+  local manifest="$(cat ${bin__manifest_file})"
+  if [[ ! $(jq '.' <<<"${manifest}") ]]; then
+    shared.log_error "Managing plugins - not valid json at ${bin__manifest_file}"
+    return 1
+  fi
+  local missing_plugins=()
+  local changed_plugins=()
+  local plugin_names=($(jq -r '.[].name' <<<"${manifest}"))
+  local plugin_sources=($(jq -r '.[].source' <<<"${manifest}"))
+  local i=0
+  for plugin_name in ${plugin_names[@]}; do
+    local plugin_path="${HOME}/.solos/plugins/${plugin_name}"
+    local plugin_executable_path="${plugin_path}/plugin"
+    local plugin_config_path="${plugin_path}/config.json"
+    local plugin_source="${plugin_sources[${i}]}"
+    if [[ ! -d ${plugin_path} ]]; then
+      missing_plugins+=("${plugin_name}" "${plugin_source}")
+      i=$((i + 1))
+      continue
+    fi
+    if [[ ! -f ${plugin_executable_path} ]]; then
+      shared.log_error "Managing plugins - plugin ${plugin_name} does not exist at: ${plugin_path}"
+      return 1
+    fi
+    if [[ ! -f ${plugin_config_path} ]]; then
+      shared.log_error "Managing plugins - plugin ${plugin_name} does not have a config file at: ${plugin_config_path}"
+      return 1
+    fi
+    local plugin_config_source="$(jq -r '.source' ${plugin_config_path})"
+    if [[ ${plugin_config_source} != "${plugin_source}" ]]; then
+      changed_plugins+=("${plugin_name}" "${plugin_source}")
+    fi
+    i=$((i + 1))
+  done
+  echo "${missing_plugins[*]}"
+  echo "${changed_plugins[*]}"
+}
+bin.plugins_new_config() {
+  local source="${1}"
+  local path="${2}"
+  cat <<EOF >"${path}"
+{
+  "source": "${missing_plugin_source}"
+  "config": {}
+}
+EOF
+}
+bin.plugins_download() {
+  local plugin_source="${1}"
+  local output_path="${2}"
+  if ! curl -o "${output_path}" "${plugin_source}"; then
+    shared.log_error "Managing plugins - curl unable to download ${plugin_source}"
+    return 1
+  fi
+  if ! chmod +x "${output_path}"; then
+    shared.log_error "Managing plugins - unable to make ${output_path} executable"
+    return 1
+  fi
+}
+bin.plugins_mv_dirs() {
+  local plugins_dir="${1}"
+  local dirs=($(echo "${2}" | xargs))
+  for dir in ${dirs[@]}; do
+    local plugin_name="$(basename ${dir})"
+    local plugin_path="${plugins_dir}/${plugin_name}"
+    if [[ -d ${plugin_path} ]]; then
+      shared.log_error "Managing plugins - plugin ${plugin_name} already exists at ${plugin_path}"
+      return 1
+    fi
+    mv "${dir}" "${plugin_path}"
+  done
+}
+bin.plugins_add() {
+  local plugins_dir="${1}"
+  local plugins_and_sources=($(echo "${2}" | xargs))
+  local plugin_tmp_dirs=()
+  local i=0
+  for missing_plugin_name in ${plugins_and_sources[@]}; do
+    if [[ $((i % 2)) -eq 0 ]]; then
+      local tmp_dir="$(mktemp -d)"
+      local missing_plugin_source="${plugins_and_sources[$((i + 1))]}"
+      local tmp_config_path="${tmp_dir}/config.json"
+      local tmp_executable_path="${tmp_dir}/plugin"
+      bin.plugins_new_config "${missing_plugin_source}" "${tmp_config_path}" || return 1
+      bin.plugins_download "${missing_plugin_source}" "${tmp_executable_path}" || return 1
+      plugin_tmp_dirs+=("${tmp_dir}")
+    fi
+    i=$((i + 1))
+  done
+  bin.plugins_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
+}
+bin.plugins_update() {
+  local plugins_dir="${1}"
+  local plugins_and_sources=($(echo "${2}" | xargs))
+  local plugin_tmp_dirs=()
+  local i=0
+  for changed_plugin_name in ${plugins_and_sources[@]}; do
+    if [[ $((i % 2)) -eq 0 ]]; then
+      local tmp_dir="$(mktemp -d)"
+      local changed_plugin_source="${plugins_and_sources[$((i + 1))]}"
+      local tmp_config_path="${tmp_dir}/config.json"
+      local current_config_path="${plugins_dir}/${changed_plugin_name}/config.json"
+      if [[ ! -d ${current_config_path} ]]; then
+        bin.plugins_new_config "${changed_plugin_source}" "${tmp_config_path}"
+      fi
+      cp -f "${current_config_path}" "${tmp_config_path}"
+      rm -f "${tmp_dir}/plugin"
+      bin.plugins_download "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
+    fi
+  done
+  bin.plugins_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
+}
+bin.plugins_commit() {
+  local next_dir="${1}"
+  rm -rf "${HOME}/.solos/plugins" || return 1
+  mv "${next_dir}" "${HOME}/.solos/plugins" || return 1
+}
+bin.plugins_prerun() {
+  local plugins_dir="${HOME}/.solos/plugins"
+  if ! bin.plugins_validate_fs "${plugins_dir}"; then
+    shared.log_error "Managing plugins - invalid plugin directory at ${plugins_dir}"
+    return 1
+  fi
+  local tmp_backup="$(mktemp -d)"
+  local return_file="$(mktemp)"
+  bin.plugins_validate >"${return_file}" || return 1
+  local returned="$(cat ${return_file})"
+  local missing_plugins_and_sources=($(lib.line_to_args "${returned}" 0))
+  local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
+  local tmp_plugins_dir="$(mktemp -d)/plugins"
+  if ! cp -rfa "${plugins_dir}/" "${tmp_plugins_dir}/"; then
+    shared.log_error "Managing plugins - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
+    return 1
+  fi
+  bin.plugins_add "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
+  bin.plugins_update "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
+  cp -rfa "${plugins_dir}/" "${tmp_backup}/"
+  rm -rf "${plugins_dir}"
+  mkdir -p "${plugins_dir}"
+  cp -rfa "${tmp_plugins_dir}/" "${plugins_dir}/"
+  if ! bin.plugins_validate_fs "${plugins_dir}"; then
+    rm -rf "${plugins_dir}"
+    mkdir -p "${plugins_dir}"
+    cp -rfa "${tmp_backup}/" "${plugins_dir}/"
+  else
+    shared.log_info "Managing plugins - successfully applied the manifest."
+  fi
+}
+bin.plugins_run() {
   local plugins=("${@}")
 
   # Prep the archive directory.
@@ -146,7 +304,7 @@ bin.run_plugins() {
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_configure_dir="$(lib.line_to_args "${result}" "2")"
-  bin.dump "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.save_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   bin.update_configs "${merged_configure_dir}"
   shared.log_info "Progress - updated configs based on the configure phase."
   cp -r "${merged_configure_dir}" "${next_archive_dir}/configure"
@@ -176,7 +334,7 @@ bin.run_plugins() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_download_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_download_dirs=($(lib.line_to_args "${result}" "3"))
-  bin.dump "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.save_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_download_dir}" "${next_archive_dir}/download"
   cp -r "${download_cache}" "${next_archive_dir}/caches/download"
   shared.log_info "Progress - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
@@ -206,7 +364,7 @@ bin.run_plugins() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_processed_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_processed_files=($(lib.line_to_args "${result}" "3"))
-  bin.dump "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.save_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_processed_dir}" "${next_archive_dir}/processed"
   cp -r "${process_cache}" "${next_archive_dir}/caches/process"
   shared.log_info "Progress - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
@@ -235,7 +393,7 @@ bin.run_plugins() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_chunks_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_chunk_files=($(lib.line_to_args "${result}" "3"))
-  bin.dump "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.save_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_chunks_dir}" "${next_archive_dir}/chunks"
   cp -r "${chunk_cache}" "${next_archive_dir}/caches/chunk"
   shared.log_info "Progress - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
@@ -264,13 +422,23 @@ bin.run_plugins() {
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
-  bin.dump "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.save_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
   shared.log_info "Progress - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
 bin.run() {
   local is_precheck=true
   while true; do
+    if ! bin.plugins_prerun; then
+      shared.log_error "Fatal - failed to manifest the plugins. Waiting 20 seconds before the next run."
+      lib.panics_add "daemon_manifest_failed" <<EOF
+The daemon failed to prepare the plugins using the manifest.json file. \
+Please fix to enable the daemon. \
+Time of failure: $(date).
+EOF
+      sleep 20
+      return 1
+    fi
     plugins=()
     if [[ ${is_precheck} = true ]]; then
       local precheck_plugin_names="$(shared.get_precheck_plugin_names)"
@@ -289,7 +457,7 @@ bin.run() {
       continue
     fi
     shared.log_info "Progress - starting a new cycle."
-    bin.run_plugins "${plugins[@]}"
+    bin.plugins_run "${plugins[@]}"
     shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
     shared.log_warn "Done - waiting for the next cycle."
     bin__remaining_retries=5

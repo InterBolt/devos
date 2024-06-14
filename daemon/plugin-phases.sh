@@ -100,7 +100,7 @@ plugin_phases.configure() {
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
-      "/solos.json" \
+      "/config.json" \
       "${firejail_args[*]}" || echo "$?"
   )"
   if [[ ${subphase_result} -eq 151 ]]; then

@@ -24,7 +24,7 @@ cli_posthooks.checkout() {
     exit 1
   fi
   local project="${1}"
-  local code_workspace_file="${HOME}/.solos/projects/${project}/.vscode/solos-${project}.code-workspace"
+  local code_workspace_file="${HOME}/.solos/projects/${project}/.vscode/${project}.code-workspace"
   if [[ ! -f "${code_workspace_file}" ]]; then
     echo "Unexpected error: no code workspace file found for project ${project}." >&2
     exit 1

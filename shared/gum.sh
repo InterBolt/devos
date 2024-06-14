@@ -195,9 +195,6 @@ gum.confirm_ignore_panic() {
     echo "false"
   fi
 }
-gum.optional_openai_api_key_input() {
-  gum._bin input --password --placeholder "Enter an API key associated with your OpenAI account (leave blank to opt-out of AI features):"
-}
 gum.danger_box() {
   local terminal_width=$(tput cols)
   gum._bin style \

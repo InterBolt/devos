@@ -189,16 +189,16 @@ shared.firejail() {
         cp -r "${asset_host_path}" "${asset_firejailed_path}/"
       fi
       cp -a "${plugin}" "${firejailed_home_dir}/plugin"
-      local plugin_config_file="${plugin}/solos.json"
+      local plugin_config_file="${plugin}/config.json"
       if [[ -f ${plugin_config_file} ]]; then
-        cp "${plugin_config_file}" "${firejailed_home_dir}/solos.json"
+        cp "${plugin_config_file}" "${firejailed_home_dir}/config.json"
       else
-        echo "{}" >"${firejailed_home_dir}/solos.json"
+        echo "{}" >"${firejailed_home_dir}/config.json"
       fi
       if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
-        chmod 555 "${firejailed_home_dir}/solos.json"
+        chmod 555 "${firejailed_home_dir}/config.json"
       else
-        chmod 777 "${firejailed_home_dir}/solos.json"
+        chmod 777 "${firejailed_home_dir}/config.json"
       fi
       chmod -R "${chmod_permission}" "${asset_firejailed_path}"
       firejail \

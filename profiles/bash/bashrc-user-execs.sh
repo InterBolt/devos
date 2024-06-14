@@ -15,11 +15,11 @@ bashrc_user_execs.install() {
     failed=true
   fi
   if [[ ${failed} = true ]]; then
-    rc.error_press_enter
+    bashrc.error_press_enter
   fi
 }
 bashrc_user_execs.pre() {
-  if rc.is_help_cmd "${1}"; then
+  if bashrc.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: preexex <add|remove|list>
 
@@ -70,7 +70,7 @@ EOF
   log.error "Invalid usage: unknown command: ${cmd} supplied to \`preexec\`."
 }
 bashrc_user_execs.post() {
-  if rc.is_help_cmd "${1}"; then
+  if bashrc.is_help_cmd "${1}"; then
     cat <<EOF
 USAGE: postexec <add|remove|list>
 

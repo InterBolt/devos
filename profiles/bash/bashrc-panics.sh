@@ -56,7 +56,7 @@ bashrc_panics.main() {
     bashrc_panics.print_help
     return 0
   fi
-  if rc.is_help_cmd "$1"; then
+  if bashrc.is_help_cmd "$1"; then
     bashrc_panics.print_help
     return 0
   fi

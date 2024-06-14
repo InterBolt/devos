@@ -30,7 +30,7 @@ bashrc_daemon.install() {
     if [[ ${attempts} -ge ${max_attempts} ]]; then
       log.error "Unexpected error: the daemon process failed to start. It's status is: ${status}"
       bashrc_daemon.suggested_action_on_error
-      rc.error_press_enter
+      bashrc.error_press_enter
     fi
     sleep "${timeout}"
     attempts=$((attempts + 1))
@@ -52,7 +52,7 @@ bashrc_daemon.main() {
     bashrc_daemon.print_help
     return 0
   fi
-  if rc.is_help_cmd "$1"; then
+  if bashrc.is_help_cmd "$1"; then
     bashrc_daemon.print_help
     return 0
   fi

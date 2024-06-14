@@ -9,8 +9,8 @@ SUPPORTED_FS_PATHS=(
   "/root/cache"
   # The entire mounted .solos directory scrubbed of sensitive data.
   "/root/.solos"
-  # The solos.json file containing the plugin's configuration.
-  "/root/solos.json"
+  # The config.json file containing the plugin's configuration.
+  "/root/config.json"
   # The downloaded data from the plugin's download phase.
   "/root/download"
   # The downloaded data from all plugins' download phases.
@@ -34,14 +34,14 @@ plugin.main() {
   if [[ ${1} = "--phase-configure" ]]; then
     plugin.verify_fs \
       "configure" \
-      "file:/root/solos.json:777" \
+      "file:/root/config.json:777" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "false"
   elif [[ ${1} = "--phase-download" ]]; then
     plugin.verify_fs \
       "download" \
       "dir:/root/download:777" \
-      "file:/root/solos.json:555" \
+      "file:/root/config.json:555" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
   elif [[ ${1} = "--phase-process" ]]; then
@@ -51,7 +51,7 @@ plugin.main() {
       "dir:/root/plugins/download:555" \
       "dir:/root/.solos:555" \
       "file:/root/processed.json:777" \
-      "file:/root/solos.json:555" \
+      "file:/root/config.json:555" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "false"
   elif [[ ${1} = "--phase-chunk" ]]; then
@@ -60,7 +60,7 @@ plugin.main() {
       "file:/root/processed.json:555" \
       "dir:/root/plugins/processed:555" \
       "file:/root/chunks.log:777" \
-      "file:/root/solos.json:555" \
+      "file:/root/config.json:555" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
   elif [[ ${1} = "--phase-publish" ]]; then
@@ -68,7 +68,7 @@ plugin.main() {
       "publish" \
       "file:/root/chunks.log:555" \
       "file:/root/plugins/chunks.log:555" \
-      "file:/root/solos.json:555" \
+      "file:/root/config.json:555" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "true"
   else

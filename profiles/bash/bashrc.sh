@@ -97,18 +97,19 @@ bashrc.run_checked_out_project_script() {
 bashrc.print_info() {
   local checked_out_project="$(lib.checked_out_project)"
   local user_plugins_dir="${HOME}/.solos/plugins"
+  local user_plugin_paths=()
   local user_plugins=()
   if [[ -d ${user_plugins_dir} ]]; then
-    while IFS= read -r user_plugin; do
-      user_plugins+=("${user_plugin}")
-    done < <(ls -1 "${user_plugins_dir}")
-    if [[ ${#user_plugins[@]} -gt 0 ]]; then
-      for user_plugin in "${user_plugins[@]}"; do
-        user_plugins+=("${user_plugin}")
-        local user_plugin_config_file="${user_plugins_dir}/${user_plugin}/solos.json"
-        if [[ -f ${user_plugin_config_file} ]]; then
-          user_plugins+=("${user_plugin_config_file}")
-        fi
+    while IFS= read -r user_plugin_path; do
+      if [[ ${user_plugin_path} != "${user_plugins_dir}" ]]; then
+        user_plugin_paths+=("${user_plugin_path}")
+      fi
+    done < <(find "${user_plugins_dir}" -maxdepth 1 -type d)
+    if [[ ${#user_plugin_paths[@]} -gt 0 ]]; then
+      local home_dir_path="$(bashrc.users_home_dir)"
+      for user_plugin_path in "${user_plugin_paths[@]}"; do
+        user_plugin_path="${user_plugin_path/\/root\//${home_dir_path}/}"
+        user_plugins+=("$(basename "${user_plugin_path}")" "${user_plugin_path}/config.json")
       done
     fi
   fi
@@ -117,7 +118,7 @@ bashrc.print_info() {
   else
     local newline=$'\n'
     local user_plugins_sections="${newline}$(
-      bashbashrc_table_outputs.format \
+      bashrc_table_outputs.format \
         "INSTALLED_PLUGIN,CONFIG_PATH" \
         "${user_plugins[@]}"
     )"
@@ -125,7 +126,7 @@ bashrc.print_info() {
   cat <<EOF
 
 $(
-    bashbashrc_table_outputs.format \
+    bashrc_table_outputs.format \
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command. Avoids pre/post exec functions and output tracking." \
       info "Print info about this shell." \
@@ -140,7 +141,7 @@ $(
   )
 
 $(
-    bashbashrc_table_outputs.format \
+    bashrc_table_outputs.format \
       "RESOURCE,PATH" \
       'Checked out project' "$(bashrc.users_home_dir)/.solos/projects/${checked_out_project}" \
       'User managed rcfile' "$(bashrc.users_home_dir)/.solos/rcfiles/.bashrc" \
@@ -152,18 +153,18 @@ $(
   )
 
 $(
-    bashbashrc_table_outputs.format \
+    bashrc_table_outputs.format \
       "SHELL_PROPERTY,VALUE" \
       "Shell" "BASH" \
       "Mounted Volume" "$(bashrc.users_home_dir)/.solos" \
       "Bash Version" "${BASH_VERSION}" \
-      "Container OS" "Debian 12" \
+      "Distro" "Debian 12" \
       "SolOS Repo" "https://github.com/interbolt/solos"
   )
 ${user_plugins_sections}
 
 $(
-    bashbashrc_table_outputs.format \
+    bashrc_table_outputs.format \
       "LEGEND_KEY,LEGEND_DESCRIPTION" \
       "SHELL_COMMAND" "Commands available when sourcing the RC file at $(bashrc.users_home_dir)/.solos/rcfiles/.bashrc" \
       "RESOURCE" "Relevant directories and files managed by SolOS." \
@@ -290,8 +291,8 @@ EOF
     bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
     log.info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
-    trap 'trap "bashbashrc_track.trap" DEBUG; exit 1;' SIGINT
-    trap 'bashbashrc_track.trap' DEBUG
+    trap 'trap "bashrc_track.trap" DEBUG; exit 1;' SIGINT
+    trap 'bashrc_track.trap' DEBUG
   fi
 }
 bashrc.public_ask_docs() {
@@ -311,14 +312,10 @@ EOF
     log.error "No question provided."
     return 1
   fi
-  if [[ ! -f ${HOME}/.solos/secrets/openai_api_key ]]; then
-    log.error "This feature is disabled since you did not provide SolOS with an OpenAI API key during the setup process. Use \`solos setup\` to add one."
-    return 1
-  fi
   log.warn "TODO: No implementation exists yet. Stay tuned."
 }
 bashrc.public_track() {
-  bashbashrc_track.main "$@"
+  bashrc_track.main "$@"
 }
 bashrc.public_solos() {
   local executable_path="${HOME}/.solos/src/cli/bin.sh"
@@ -356,7 +353,7 @@ bashrc.public_install_solos() {
   bashrc_panics.install
   bashrc_daemon.install
   bashrc.install
-  bashbashrc_track.install
+  bashrc_track.install
   bashrc_user_execs.install
 }
 bashrc.export_and_readonly
