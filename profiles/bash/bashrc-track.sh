@@ -47,12 +47,13 @@ DESCRIPTION:
 
 Prompts the user to write a note. Any positional arguments supplied that are not \
 valid options will be eval'd. The output of the eval'd arguments and any \
-notes or category selections will be saved in ${bashrc_track__base_dir/\/root\//~\/}.
+notes or tag selections will be saved in ${bashrc_track__base_dir/\/root\//~\/}.
 
 OPTIONS:
 
--n               Note only. Will not prompt for a category.
--c               Category only. Will not prompt for a note
+-n               Note only. Will not prompt for a tag.
+-t               Tag only. Will not prompt for a note.
+-c               Command only. Will not prompt for a tag or note.
 
 --help           Print this help message.
 
@@ -61,11 +62,11 @@ EOF
 bashrc_track.init_fs() {
   mkdir -p "${bashrc_track__config_dir}"
   mkdir -p "${bashrc_track__std_dir}"
-  if [[ ! -f "${bashrc_track__config_dir}/categories" ]]; then
+  if [[ ! -f "${bashrc_track__config_dir}/tags" ]]; then
     {
       echo "<none>"
       echo "<create>"
-    } >"${bashrc_track__config_dir}/categories"
+    } >"${bashrc_track__config_dir}/tags"
   fi
 }
 bashrc_track.disgest_save() {
@@ -103,7 +104,7 @@ bashrc_track.create_tmp_files() {
 bashrc_track.digest() {
   local track_id="${1:-""}"
   local user_note="${2:-""}"
-  local user_category="${3:-""}"
+  local user_tag="${3:-""}"
   local should_collect_post_note="${3:-false}"
 
   local stdout_file="${bashrc_track__working_tmp_dir}/stdout"
@@ -116,8 +117,8 @@ bashrc_track.digest() {
     "id": "'"${track_id}"'",
     "date": "'"$(date)"'"
   }' | jq '.' >"${tmp_jq_output_file}"
-  if [[ -n "${user_category}" ]]; then
-    jq '.user_category = '"$(echo ''"${user_category}"'' | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
+  if [[ -n "${user_tag}" ]]; then
+    jq '.user_tag = '"$(echo ''"${user_tag}"'' | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
     mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
   fi
   if [[ -n "${user_pre_note}" ]]; then
@@ -353,27 +354,27 @@ bashrc_track.install() {
   PROMPT_COMMAND='bashrc_track__trap_gate_open=t'
   trap 'bashrc_track.trap' DEBUG
 }
-bashrc_track.apply_category() {
+bashrc_track.apply_tag() {
   local newline=$'\n'
-  local category_choice="$(gum.tag_category_choice "${bashrc_track__config_dir}/categories")"
-  if [[ ${category_choice} = "<none>" ]] || [[ -z ${category_choice} ]]; then
+  local tag_choice="$(gum.track_tag_choice "${bashrc_track__config_dir}/tags")"
+  if [[ ${tag_choice} = "<none>" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
-  elif [[ ${category_choice} = "<create>" ]]; then
-    local new_category="$(gum.tag_category_input || echo "")"
-    if [[ -n "${new_category}" ]]; then
-      sed -i '1s/^/'"${new_category}"'\n/' "${bashrc_track__config_dir}/categories"
-      echo "${new_category}"
+  elif [[ ${tag_choice} = "<create>" ]]; then
+    local new_tag="$(gum.track_tag_input || echo "")"
+    if [[ -n "${new_tag}" ]]; then
+      sed -i '1s/^/'"${new_tag}"'\n/' "${bashrc_track__config_dir}/tags"
+      echo "${new_tag}"
     else
-      bashrc_track.apply_category
+      bashrc_track.apply_tag
     fi
   else
-    echo "${category_choice}"
+    echo "${tag_choice}"
   fi
 }
 bashrc_track.main() {
   local no_more_opts=false
   local opt_command_only=false
-  local opt_category_only=false
+  local opt_tag_only=false
   local opt_note_only=false
   while [[ ${no_more_opts} = false ]]; do
     case $1 in
@@ -389,8 +390,12 @@ bashrc_track.main() {
       bashrc_track.print_help
       return 0
       ;;
+    -t)
+      opt_tag_only=true
+      shift
+      ;;
     -c)
-      opt_category_only=true
+      opt_command_only=true
       shift
       ;;
     -n)
@@ -412,22 +417,22 @@ bashrc_track.main() {
     cmd=''"${*}"''
   fi
   local user_pre_note=""
-  if [[ ${opt_category_only} = false ]]; then
+  if [[ ${opt_tag_only} = false ]] && [[ ${opt_command_only} = false ]]; then
     user_pre_note="$(gum.pre_cmd_note_input || echo "SOLOS:EXIT:1")"
     if [[ ${user_pre_note} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi
   fi
-  local user_category=""
-  if [[ ${opt_note_only} = false ]]; then
-    user_category="$(bashrc_track.apply_category)"
-    if [[ ${user_category} = "SOLOS:EXIT:1" ]]; then
+  local user_tag=""
+  if [[ ${opt_note_only} = false ]] && [[ ${opt_command_only} = false ]]; then
+    user_tag="$(bashrc_track.apply_tag)"
+    if [[ ${user_tag} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi
   fi
   local digest_args=(
     "${user_pre_note}"
-    "${user_category}"
+    "${user_tag}"
     true # tells the digest function to collect a post note
   )
   bashrc_track.create_tmp_files

@@ -2,7 +2,6 @@
 
 bin__pid=$$
 bin__remaining_retries=5
-bin__manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
 bin__daemon_data_dir="${HOME}/.solos/data/daemon"
 bin__pid_file="${bin__daemon_data_dir}/pid"
 bin__status_file="${bin__daemon_data_dir}/status"
@@ -16,6 +15,7 @@ trap 'rm -f "'"${bin__pid_file}"'"' EXIT
 . "${HOME}/.solos/src/shared/log.sh" || exit 1
 . "${HOME}/.solos/src/daemon/shared.sh" || exit 1
 . "${HOME}/.solos/src/daemon/task-scrub.sh" || exit 1
+. "${HOME}/.solos/src/daemon/apply-manifest.sh" || exit 1
 . "${HOME}/.solos/src/daemon/plugin-phases.sh" || exit 1
 
 declare -A statuses=(
@@ -35,7 +35,7 @@ bin.update_status() {
   echo "${status}" >"${bin__status_file}"
   shared.log_info "Status - updated to: \"${status}\" - \"${statuses[${status}]}\""
 }
-bin.extract_request() {
+bin.request_extract() {
   local request_file="${1}"
   if [[ -f ${request_file} ]]; then
     local contents="$(cat "${request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -54,7 +54,7 @@ bin.extract_request() {
     return 1
   fi
 }
-bin.handle_request() {
+bin.request_handler() {
   local request="${1}"
   case "${request}" in
   "KILL")
@@ -68,7 +68,7 @@ bin.handle_request() {
     ;;
   esac
 }
-bin.update_configs() {
+bin.post_configure_phase() {
   local merged_configure_dir="${1}"
   local solos_plugin_names=($(shared.get_solos_plugin_names))
   local user_plugin_names=($(shared.get_user_plugin_names))
@@ -86,7 +86,7 @@ bin.update_configs() {
     fi
   done
 }
-bin.save_plugin_logs() {
+bin.stash_plugin_logs() {
   local phase="${1}"
   local log_file="${2}"
   local aggregated_stdout_file="${3}"
@@ -100,173 +100,12 @@ bin.save_plugin_logs() {
     echo "${line}" >>"${log_file}"
   done <"${aggregated_stderr_file}"
 }
-bin.manifest_validate_user_fs() {
-  # TODO: Implement this function.
-  return 0
-}
-bin.manifest_validate_file() {
-  if [[ ! -f ${bin__manifest_file} ]]; then
-    shared.log_error "Applying manifest - does not exist at ${bin__manifest_file}"
-    return 1
-  fi
-  local manifest="$(cat ${bin__manifest_file})"
-  if [[ ! $(jq '.' <<<"${manifest}") ]]; then
-    shared.log_error "Applying manifest - not valid json at ${bin__manifest_file}"
-    return 1
-  fi
-  local missing_plugins=()
-  local changed_plugins=()
-  local plugin_names=($(jq -r '.[].name' <<<"${manifest}"))
-  local plugin_sources=($(jq -r '.[].source' <<<"${manifest}"))
-  local i=0
-  for plugin_name in ${plugin_names[@]}; do
-    local plugin_path="${HOME}/.solos/plugins/${plugin_name}"
-    local plugin_executable_path="${plugin_path}/plugin"
-    local plugin_config_path="${plugin_path}/solos.config.json"
-    local plugin_source="${plugin_sources[${i}]}"
-    if [[ ! -d ${plugin_path} ]]; then
-      missing_plugins+=("${plugin_name}" "${plugin_source}")
-      i=$((i + 1))
-      continue
-    fi
-    if [[ ! -f ${plugin_executable_path} ]]; then
-      shared.log_error "Applying manifest - plugin ${plugin_name} does not exist at: ${plugin_path}"
-      return 1
-    fi
-    if [[ ! -f ${plugin_config_path} ]]; then
-      shared.log_error "Applying manifest - plugin ${plugin_name} does not have a config file at: ${plugin_config_path}"
-      return 1
-    fi
-    local plugin_config_source="$(jq -r '.source' ${plugin_config_path})"
-    if [[ ${plugin_config_source} != "${plugin_source}" ]]; then
-      changed_plugins+=("${plugin_name}" "${plugin_source}")
-    fi
-    i=$((i + 1))
-  done
-  echo "${missing_plugins[*]}"
-  echo "${changed_plugins[*]}"
-}
-bin.manifest_init_config() {
-  local source="${1}"
-  local path="${2}"
-  cat <<EOF >"${path}"
-{
-  "source": "${missing_plugin_source}"
-  "config": {}
-}
-EOF
-}
-bin.manifest_download_sources() {
-  local plugin_source="${1}"
-  local output_path="${2}"
-  if ! curl -o "${output_path}" "${plugin_source}"; then
-    shared.log_error "Applying manifest - curl unable to download ${plugin_source}"
-    return 1
-  fi
-  if ! chmod +x "${output_path}"; then
-    shared.log_error "Applying manifest - unable to make ${output_path} executable"
-    return 1
-  fi
-}
-bin.manifest_mv_dirs() {
-  local plugins_dir="${1}"
-  local dirs=($(echo "${2}" | xargs))
-  for dir in ${dirs[@]}; do
-    local plugin_name="$(basename ${dir})"
-    local plugin_path="${plugins_dir}/${plugin_name}"
-    if [[ -d ${plugin_path} ]]; then
-      shared.log_error "Applying manifest - plugin ${plugin_name} already exists at ${plugin_path}"
-      return 1
-    fi
-    mv "${dir}" "${plugin_path}"
-  done
-}
-bin.manifest_create_plugins() {
-  local plugins_dir="${1}"
-  local plugins_and_sources=($(echo "${2}" | xargs))
-  local plugin_tmp_dirs=()
-  local i=0
-  for missing_plugin_name in ${plugins_and_sources[@]}; do
-    if [[ $((i % 2)) -eq 0 ]]; then
-      local tmp_dir="$(mktemp -d)"
-      local missing_plugin_source="${plugins_and_sources[$((i + 1))]}"
-      local tmp_config_path="${tmp_dir}/solos.config.json"
-      local tmp_executable_path="${tmp_dir}/plugin"
-      bin.manifest_init_config "${missing_plugin_source}" "${tmp_config_path}" || return 1
-      bin.manifest_download_sources "${missing_plugin_source}" "${tmp_executable_path}" || return 1
-      plugin_tmp_dirs+=("${tmp_dir}")
-    fi
-    i=$((i + 1))
-  done
-  bin.manifest_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
-}
-bin.manifest_update_sources() {
-  local plugins_dir="${1}"
-  local plugins_and_sources=($(echo "${2}" | xargs))
-  local plugin_tmp_dirs=()
-  local i=0
-  for changed_plugin_name in ${plugins_and_sources[@]}; do
-    if [[ $((i % 2)) -eq 0 ]]; then
-      local tmp_dir="$(mktemp -d)"
-      local changed_plugin_source="${plugins_and_sources[$((i + 1))]}"
-      local tmp_config_path="${tmp_dir}/solos.config.json"
-      local current_config_path="${plugins_dir}/${changed_plugin_name}/solos.config.json"
-      if [[ ! -d ${current_config_path} ]]; then
-        bin.manifest_init_config "${changed_plugin_source}" "${tmp_config_path}"
-      fi
-      cp -f "${current_config_path}" "${tmp_config_path}"
-      jq ".source = \"${changed_plugin_source}\"" "${tmp_config_path}" >"${tmp_config_path}.tmp"
-      mv "${tmp_config_path}.tmp" "${tmp_config_path}"
-      rm -f "${tmp_dir}/plugin"
-      bin.manifest_download_sources "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
-      plugin_tmp_dirs+=("${tmp_dir}")
-    fi
-  done
-  bin.manifest_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
-}
-bin.prerun() {
-  local plugins_dir="${HOME}/.solos/plugins"
-  if ! bin.manifest_validate_user_fs "${plugins_dir}"; then
-    shared.log_error "Applying manifest - invalid plugin directory at ${plugins_dir}"
-    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
-The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
-EOF
-    return 1
-  else
-    shared.log_info "Applying manifest - detected valid plugins directory."
-    lib.panics_remove "daemon_invalid_plugin_dir"
-  fi
-  local tmp_backup="$(mktemp -d)"
-  local return_file="$(mktemp)"
-  bin.manifest_validate_file >"${return_file}" || return 1
-  local returned="$(cat ${return_file})"
-  local missing_plugins_and_sources=($(lib.line_to_args "${returned}" 0))
-  local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
-  local tmp_plugins_dir="$(mktemp -d)/plugins"
-  if ! cp -rfa "${plugins_dir}/" "${tmp_plugins_dir}/"; then
-    shared.log_error "Applying manifest - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
-    return 1
-  fi
-  bin.manifest_create_plugins "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
-  bin.manifest_update_sources "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
-  if ! bin.manifest_validate_user_fs "${tmp_plugins_dir}"; then
-    shared.log_error "Applying manifest - invalid plugin directory at ${tmp_plugins_dir}"
-    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
-The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
-EOF
-    return 1
-  else
-    lib.panics_remove "daemon_invalid_plugin_dir"
-    shared.log_info "Applying manifest - committing changes to the plugins directory."
-  fi
-  rm -rf "${plugins_dir}"
-  mkdir -p "${plugins_dir}"
-  cp -rfa "${tmp_plugins_dir}/" "${plugins_dir}/"
-}
 bin.run() {
   local plugins=("${@}")
 
   # Prep the archive directory.
+  # We'll build the archive directory continuously as we progress through the phases.
+  # So if the daemon crashes, we'll have a snapshot of everything up to that point.
   local nano_seconds="$(date +%s%N)"
   local next_archive_dir="${HOME}/.solos/data/daemon/archives/${nano_seconds}"
   mkdir -p "${next_archive_dir}"
@@ -274,14 +113,22 @@ bin.run() {
   local archive_log_file="${next_archive_dir}/dump.log"
   touch "${archive_log_file}"
 
+  # Define cache directories.
+  # Each plugin will get it's own cache dir, which will be a subdirectory of the
+  # of the phase's cache directory. If the plugin name changes, the cache will be
+  # broken.
   local configure_cache="${HOME}/.solos/data/daemon/cache/configure"
   local download_cache="${HOME}/.solos/data/daemon/cache/download"
   local process_cache="${HOME}/.solos/data/daemon/cache/process"
   local chunk_cache="${HOME}/.solos/data/daemon/cache/chunk"
   local publish_cache="${HOME}/.solos/data/daemon/cache/publish"
   mkdir -p "${configure_cache}" "${download_cache}" "${process_cache}" "${chunk_cache}" "${publish_cache}"
+
+  # We'll pass this to each phase as an argument so that they can access the manifest
+  # in their firejailed sandbox environment.
   local manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
 
+  # Remove secrets from all files/dirs in the user's workspace.
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
     shared.log_error "Unexpected error - failed to scrub the mounted volume."
@@ -314,8 +161,8 @@ bin.run() {
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_configure_dir="$(lib.line_to_args "${result}" "2")"
-  bin.save_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
-  bin.update_configs "${merged_configure_dir}"
+  bin.stash_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.post_configure_phase "${merged_configure_dir}"
   shared.log_info "Progress - updated configs based on the configure phase."
   cp -r "${merged_configure_dir}" "${next_archive_dir}/configure"
   cp -r "${configure_cache}" "${next_archive_dir}/caches/configure"
@@ -345,7 +192,7 @@ bin.run() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_download_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_download_dirs=($(lib.line_to_args "${result}" "3"))
-  bin.save_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.stash_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_download_dir}" "${next_archive_dir}/download"
   cp -r "${download_cache}" "${next_archive_dir}/caches/download"
   shared.log_info "Progress - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
@@ -378,7 +225,7 @@ bin.run() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_processed_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_processed_files=($(lib.line_to_args "${result}" "3"))
-  bin.save_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.stash_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_processed_dir}" "${next_archive_dir}/processed"
   cp -r "${process_cache}" "${next_archive_dir}/caches/process"
   shared.log_info "Progress - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
@@ -408,7 +255,7 @@ bin.run() {
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   local merged_chunks_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_chunk_files=($(lib.line_to_args "${result}" "3"))
-  bin.save_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.stash_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_chunks_dir}" "${next_archive_dir}/chunks"
   cp -r "${chunk_cache}" "${next_archive_dir}/caches/chunk"
   shared.log_info "Progress - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
@@ -438,15 +285,15 @@ bin.run() {
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
-  bin.save_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
+  bin.stash_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
   shared.log_info "Progress - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
 bin.run() {
   local is_precheck=true
   while true; do
-    if ! bin.prerun; then
-      shared.log_error "Fatal - failed to run the prerun phase. Waiting 20 seconds before the next run."
+    if ! apply_manifest.main; then
+      shared.log_error "Fatal - failed to apply the manifest. Waiting 20 seconds before the next run."
       sleep 20
       return 1
     fi
@@ -473,10 +320,10 @@ bin.run() {
     shared.log_warn "Done - waiting for the next cycle."
     bin__remaining_retries=5
     sleep 2
-    local request="$(bin.extract_request "${bin__request_file}")"
+    local request="$(bin.request_extract "${bin__request_file}")"
     if [[ -n ${request} ]]; then
       shared.log_info "Request - ${request} was dispatched to the bin."
-      bin.handle_request "${request}"
+      bin.request_handler "${request}"
     fi
   done
   return 0
@@ -511,10 +358,11 @@ bin.main_setup() {
 }
 bin.main() {
   bin.update_status "LAUNCHING"
+  lib.panics_remove "daemon_unrecoverable_error"
   if [[ -f ${bin__pid_file} ]]; then
     shared.log_error "Unexpected error - \"$(shared.host_path "${bin__pid_file}")\" already exists. This should never happen."
     bin.update_status "START_FAILED"
-    lib.panics_add "daemon_pid_file_already_exists" <<EOF
+    lib.panics_add "daemon_startup_failure" <<EOF
 The daemon failed to start up because the pid file already exists. Time of failure: $(date).
 EOF
     return 1
@@ -522,32 +370,35 @@ EOF
   if [[ -z ${bin__pid} ]]; then
     shared.log_error "Unexpected error - can't save an empty pid to the pid file: \"$(shared.host_path "${bin__pid_file}")\""
     bin.update_status "START_FAILED"
-    lib.panics_add "daemon_empty_pid" <<EOF
+    lib.panics_add "daemon_startup_failure" <<EOF
 The daemon failed to start up because it could not determine it's PID. Time of failure: $(date).
 EOF 
     return 1
   fi
   echo "${bin__pid}" >"${bin__pid_file}"
   bin.update_status "UP"
-  lib.panics_remove "daemon_pid_file_already_exists"
-  lib.panics_remove "daemon_empty_pid"
+  lib.panics_remove "daemon_startup_failure"
   bin.run
+  # When the daemon exits with a 151 that means we need to exit the process without
+  # attempting a recovery. All other exit codes indicate an error but we can attempt
+  # to recover from them at least.
   local return_code=$?
+  # Unrecoverable error (151):
   if [[ ${return_code} -eq 151 ]]; then
     shared.log_error "Fatal - killing the daemon due to a custom error code: 151."
     bin.update_status "RUN_FAILED"
-    lib.panics_add "daemon_plugins_failed" <<EOF
-The daemon failed and exited as a result of a SOLOS_PANIC signal from a running plugin. \
+    lib.panics_add "daemon_unrecoverable_error" <<EOF
+The daemon encountered an error that it cannot or will not recover from. \
 Time of failure: $(date).
 EOF
     exit 151
+  # Recoverable error (0-255):
   else
-    lib.panics_remove "daemon_plugins_failed"
     bin__remaining_retries=$((bin__remaining_retries - 1))
     if [[ ${bin__remaining_retries} -eq 0 ]]; then
       shared.log_error "Fatal - killing the daemon due to too many failures."
       bin.update_status "RUN_FAILED"
-      lib.panics_add "daemon_max_recovery_attempts" <<EOF
+      lib.panics_add "daemon_unrecoverable_error" <<EOF
 The daemon failed and exited after too many retries. Time of failure: $(date).
 EOF
       exit 1

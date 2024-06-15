@@ -46,29 +46,29 @@ gum._bin() {
 
 # PUBLIC FUNCTIONS:
 
-gum.tag_category_choice() {
-  local categories_file="$1"
-  local categories="$(cat "${categories_file}")"
-  local categories_file=""
+gum.track_tag_choice() {
+  local tags_file="$1"
+  local tags="$(cat "${tags_file}")"
+  local tags_file=""
   local i=0
   while IFS= read -r line; do
     if [[ -n "${line}" ]]; then
       if [[ ${i} -gt 0 ]]; then
-        categories_file+="${newline}${line}"
+        tags_file+="${newline}${line}"
       else
-        categories_file+="${line}"
+        tags_file+="${line}"
       fi
       i=$((i + 1))
     fi
-  done <<<"${categories}"
+  done <<<"${tags}"
   unset IFS
   local user_exit_str="SOLOS:EXIT:1"
-  echo "${categories_file}" | gum._bin choose --limit 1 || echo "SOLOS:EXIT:1"
+  echo "${tags_file}" | gum._bin choose --limit 1 || echo "SOLOS:EXIT:1"
 }
 gum.post_cmd_note() {
   gum._bin input --placeholder "Post-command note:"
 }
-gum.tag_category_input() {
+gum.track_tag_input() {
   gum._bin input --placeholder "Enter new tag:"
 }
 gum.pre_cmd_note_input() {

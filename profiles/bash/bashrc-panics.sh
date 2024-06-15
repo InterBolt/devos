@@ -4,11 +4,11 @@
 . "${HOME}/.solos/src/shared/log.sh" || exit 1
 . "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
-rc_panic__dir="$(lib.panic_dir_path)"
-rc_panic__muted=false
+bashrc_panic__dir="$(lib.panic_dir_path)"
+bashrc_panic__muted=false
 
 bashrc_panics.print() {
-  if [[ ${rc_panic__muted} = true ]]; then
+  if [[ ${bashrc_panic__muted} = true ]]; then
     echo ""
     return 0
   fi
@@ -41,7 +41,7 @@ DESCRIPTION:
 A command to review "panic" files. \
 A panic file contains a message, a severity level, and a timestamp.
 
-Panic files at: ${rc_panic__dir}
+Panic files at: ${bashrc_panic__dir}
 
 COMMANDS:
 
@@ -71,7 +71,7 @@ bashrc_panics.main() {
     lib.panics_clear
     return 0
   elif [[ $1 = "mute" ]]; then
-    rc_panic__muted=true
+    bashrc_panic__muted=true
     return 0
   else
     log.error "Invalid command: $1"
