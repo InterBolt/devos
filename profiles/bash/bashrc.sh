@@ -11,6 +11,7 @@ history -r
 . "${HOME}/.solos/src/shared/log.sh" || exit 1
 . "${HOME}/.solos/src/shared/gum.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-panics.sh" || exit 1
+. "${HOME}/.solos/src/profiles/bash/bashrc-plugins.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-daemon.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-user-execs.sh" || exit 1
@@ -131,12 +132,13 @@ $(
       '-' "Runs its arguments as a command. Avoids pre/post exec functions and output tracking." \
       info "Print info about this shell." \
       track "$(track --help | bashrc.extract_help_description)" \
-      solos "$(solos --help | bashrc.extract_help_description)" \
+      plugins "$(plugins --help | bashrc.extract_help_description)" \
+      daemon "$(daemon --help | bashrc.extract_help_description)" \
       preexec "$(preexec --help | bashrc.extract_help_description)" \
       postexec "$(postexec --help | bashrc.extract_help_description)" \
-      daemon "$(daemon --help | bashrc.extract_help_description)" \
       reload "$(reload --help | bashrc.extract_help_description)" \
-      panics "$(panics --help | bashrc.extract_help_description)"
+      panics "$(panics --help | bashrc.extract_help_description)" \
+      solos "$(solos --help | bashrc.extract_help_description)"
   )
 
 $(
@@ -322,6 +324,9 @@ bashrc.public_preexec() {
 }
 bashrc.public_postexec() {
   bashrc_user_execs.main "post" "$@"
+}
+bashrc.public_plugins() {
+  bashrc_plugins.main "$@"
 }
 bashrc.public_daemon() {
   bashrc_daemon.main "$@"

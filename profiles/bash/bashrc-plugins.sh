@@ -10,7 +10,7 @@ bashrc_plugins__manifest_file="${bashrc_plugins__dir}/solos.manifest.json"
 bashrc_plugins.print_help() {
   cat <<EOF
 
-USAGE: plugins <add|remove|list>
+USAGE: plugins <add|remove>
 
 DESCRIPTION:
 
