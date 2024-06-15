@@ -280,6 +280,7 @@ bin.run() {
   local chunk_cache="${HOME}/.solos/data/daemon/cache/chunk"
   local publish_cache="${HOME}/.solos/data/daemon/cache/publish"
   mkdir -p "${configure_cache}" "${download_cache}" "${process_cache}" "${chunk_cache}" "${publish_cache}"
+  local manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
 
   local scrubbed_dir="$(daemon_task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
@@ -296,7 +297,11 @@ bin.run() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.configure "${configure_cache}" "${plugins[*]}" >"${tmp_stdout}"; then
+  if ! plugin_phases.configure \
+    "${configure_cache}" \
+    "${plugins[*]}" \
+    "${manifest_file}" \
+    >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
       return "${return_code}"
@@ -325,6 +330,7 @@ bin.run() {
   if ! plugin_phases.download \
     "${download_cache}" \
     "${plugins[*]}" \
+    "${manifest_file}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -353,8 +359,11 @@ bin.run() {
   local tmp_stdout="$(mktemp)"
   if ! plugin_phases.process \
     "${process_cache}" \
-    "${scrubbed_dir}" "${merged_download_dir}" "${plugin_download_dirs[*]}" \
+    "${scrubbed_dir}" \
+    "${merged_download_dir}" \
+    "${plugin_download_dirs[*]}" \
     "${plugins[*]}" \
+    "${manifest_file}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -384,6 +393,7 @@ bin.run() {
     "${chunk_cache}" \
     "${merged_processed_dir}" "${plugin_processed_files[*]}" \
     "${plugins[*]}" \
+    "${manifest_file}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then
@@ -415,6 +425,7 @@ bin.run() {
     "${publish_cache}" \
     "${merged_chunks_dir}" "${plugin_chunk_files[*]}" \
     "${plugins[*]}" \
+    "${manifest_file}" \
     >"${tmp_stdout}"; then
     local return_code="$?"
     if [[ ${return_code} -eq 151 ]]; then

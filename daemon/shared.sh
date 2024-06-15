@@ -148,6 +148,7 @@ shared.firejail() {
   local executable_options=($(echo "${6}" | xargs))
   local aggregated_stdout_file="${7}"
   local aggregated_stderr_file="${8}"
+  local manifest_file="${9}"
   local firejailed_pids=()
   local firejailed_home_dirs=()
   local plugin_stdout_files=()
@@ -159,6 +160,7 @@ shared.firejail() {
       shared.log_error "Unexpected error - ${plugin_path}/plugin is not an executable file."
       return 1
     fi
+    local plugins_dir="$(dirname "${plugin_path}")"
     local plugin_name="$(shared.plugin_paths_to_names "${plugins[${plugin_index}]}")"
     local plugin_phase_cache="${phase_cache}/${plugin_name}"
     mkdir -p "${plugin_phase_cache}"
@@ -194,6 +196,11 @@ shared.firejail() {
         cp "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
       else
         echo "{}" >"${firejailed_home_dir}/solos.config.json"
+      fi
+      if [[ -f ${manifest_file} ]]; then
+        cp "${manifest_file}" "${firejailed_home_dir}/solos.manifest.json"
+      else
+        return 1
       fi
       if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
         chmod 555 "${firejailed_home_dir}/solos.config.json"

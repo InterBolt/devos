@@ -34,6 +34,7 @@ plugin_phases.subphase_firejail() {
   local executable_args=($(echo "${5}" | xargs))
   local merge_path="${6}"
   local firejail_options=($(echo "${7}" | xargs))
+  local manifest_file="${8}"
   local aggregated_stdout_file="$(mktemp)"
   local aggregated_stderr_file="$(mktemp)"
   local stashed_firejailed_home_dirs="$(mktemp)"
@@ -45,9 +46,16 @@ plugin_phases.subphase_firejail() {
     "${firejail_options[*]}" \
     "${executable_args[*]}" \
     "${aggregated_stdout_file}" \
-    "${aggregated_stderr_file}" >>"${stashed_firejailed_home_dirs}"
+    "${aggregated_stderr_file}" \
+    "${manifest_file}" \
+    >>"${stashed_firejailed_home_dirs}"
   local return_code="$?"
   if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  elif [[ ${return_code} -ne 0 ]]; then
+    echo "${aggregated_stdout_file}"
+    echo "${aggregated_stderr_file}"
+    echo "${assets_created_by_plugins[*]}"
     return "${return_code}"
   fi
   local firejailed_home_dirs=()
@@ -87,6 +95,7 @@ plugin_phases.configure() {
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
   fi
+  local manifest_file="${3}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
   local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
@@ -101,7 +110,8 @@ plugin_phases.configure() {
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
       "/solos.config.json" \
-      "${firejail_args[*]}" || echo "$?"
+      "${firejail_args[*]}" \
+      "${manifest_file}" || echo "$?"
   )"
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
@@ -135,6 +145,7 @@ plugin_phases.download() {
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
   fi
+  local manifest_file="${3}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
   local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
@@ -151,7 +162,8 @@ plugin_phases.download() {
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
       "/download" \
-      "${firejail_args[*]}" || echo "$?"
+      "${firejail_args[*]}" \
+      "${manifest_file}" || echo "$?"
   )"
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
@@ -192,6 +204,7 @@ plugin_phases.process() {
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
   fi
+  local manifest_file="${6}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
   local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
@@ -210,7 +223,8 @@ plugin_phases.process() {
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
       "/processed.json" \
-      "${firejail_args[*]}" || echo "$?"
+      "${firejail_args[*]}" \
+      "${manifest_file}" || echo "$?"
   )"
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
@@ -246,6 +260,7 @@ plugin_phases.chunk() {
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
   fi
+  local manifest_file="${5}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
   local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
@@ -263,7 +278,8 @@ plugin_phases.chunk() {
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
       "/chunks.log" \
-      "${firejail_args[*]}" || echo "$?"
+      "${firejail_args[*]}" \
+      "${manifest_file}" || echo "$?"
   )"
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
@@ -303,6 +319,7 @@ plugin_phases.publish() {
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
   fi
+  local manifest_file="${5}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
   local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
@@ -319,7 +336,8 @@ plugin_phases.publish() {
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
       "" \
-      "${firejail_args[*]}" || echo "$?"
+      "${firejail_args[*]}" \
+      "${manifest_file}" || echo "$?"
   )"
   if [[ ${returned} -eq 151 ]]; then
     return "${returned}"
