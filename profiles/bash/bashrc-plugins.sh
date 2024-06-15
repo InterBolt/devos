@@ -104,11 +104,15 @@ bashrc_plugins.main() {
     done
     if [[ ${plugin_is_local} = false ]]; then
       log.warn "Plugin: ${2} is not a remote plugin. Manual action required:"
+      local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
       cat <<EOF
+INSTRUCTIONS:
+${full_line}
 1. Kill the daemon: \`daemon kill\`
 2. Remove the plugin from the manifest file: ${bashrc_plugins__manifest_file}
 3. Remove the plugin directory: ${bashrc_plugins__dir}/${2}
 4. Reload the daemon: \`daemon reload\`
+${full_line}
 EOF
       return 0
     fi
