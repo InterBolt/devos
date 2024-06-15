@@ -486,17 +486,18 @@ bin.main_setup() {
     touch "${bin__log_file}"
   fi
   log.use_custom_logfile "${bin__log_file}"
-  # The --dev flag is something we need to test the daemon in the foreground for better debugging.
-  # Ensure that when supplied, our logs will be written to the console as well as the file.
-  if [[ ${1} != "--dev" ]]; then
-    log.use_file_only
-  fi
   # Clean any old files that will interfere with the daemon's state assumptions.
   if rm -f "${bin__pid_file}"; then
     shared.log_info "Setup - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
+  else
+    shared.log_error "Unexpected error - failed to clear the previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
+    exit 1
   fi
   if rm -f "${bin__request_file}"; then
     shared.log_info "Setup - cleared previous request file: \"$(shared.host_path "${bin__request_file}")\""
+  else
+    shared.log_error "Unexpected error - failed to clear the previous request file: \"$(shared.host_path "${bin__request_file}")\""
+    exit 1
   fi
   # If the daemon is already running, we should abort the launch.
   # Important: abort but do not update the status. The status file should pertain
@@ -528,6 +529,8 @@ EOF
   fi
   echo "${bin__pid}" >"${bin__pid_file}"
   bin.update_status "UP"
+  lib.panics_remove "daemon_pid_file_already_exists"
+  lib.panics_remove "daemon_empty_pid"
   bin.run
   local return_code=$?
   if [[ ${return_code} -eq 151 ]]; then
@@ -539,6 +542,7 @@ Time of failure: $(date).
 EOF
     exit 151
   else
+    lib.panics_remove "daemon_plugins_failed"
     bin__remaining_retries=$((bin__remaining_retries - 1))
     if [[ ${bin__remaining_retries} -eq 0 ]]; then
       shared.log_error "Fatal - killing the daemon due to too many failures."
