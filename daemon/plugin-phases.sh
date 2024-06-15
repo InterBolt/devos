@@ -77,38 +77,38 @@ plugin_phases.subphase_firejail() {
 # to the way they configs are structured but don't want to depend on users to manually update them.
 plugin_phases.configure() {
   local phase_cache="${1}"
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_expanded_assets \
       "" \
       "" \
       "" \
       "${2}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local plugins=($(lib.line_to_args "${subphase_result}" "0"))
-  local plugin_names=($(lib.line_to_args "${subphase_result}" "1"))
-  local expanded_asset_args=($(lib.line_to_args "${subphase_result}" "2"))
+  local plugins=($(lib.line_to_args "${returned}" "0"))
+  local plugin_names=($(lib.line_to_args "${returned}" "1"))
+  local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
   local executable_args=("--phase-configure")
   local firejail_args=()
   local asset_args=()
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_firejail \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
       "${expanded_asset_args[*]}" \
       "${executable_args[*]}" \
-      "/config.json" \
+      "/solos.config.json" \
       "${firejail_args[*]}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local aggregated_stdout_file="$(lib.line_to_args "${subphase_result}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${subphase_result}" "1")"
-  local potentially_updated_configs=($(lib.line_to_args "${subphase_result}" "2"))
+  local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
+  local potentially_updated_configs=($(lib.line_to_args "${returned}" "2"))
   local merge_dir="$(mktemp -d)"
   local i=0
   for potentially_updated_config_file in "${potentially_updated_configs[@]}"; do
@@ -125,25 +125,25 @@ plugin_phases.configure() {
 # need to process the user's data. This could be anything from downloading a file to making an API request.
 plugin_phases.download() {
   local phase_cache="${1}"
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_expanded_assets \
       "" \
       "" \
       "" \
       "${2}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local plugins=($(lib.line_to_args "${subphase_result}" "0"))
-  local plugin_names=($(lib.line_to_args "${subphase_result}" "1"))
-  local expanded_asset_args=($(lib.line_to_args "${subphase_result}" "2"))
+  local plugins=($(lib.line_to_args "${returned}" "0"))
+  local plugin_names=($(lib.line_to_args "${returned}" "1"))
+  local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
   local executable_args=("--phase-download")
   local firejail_args=()
   local asset_args=(
     "$(mktemp -d)" "/download" "777"
   )
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_firejail \
       "${phase_cache}" \
       "${plugins[*]}" \
@@ -153,12 +153,12 @@ plugin_phases.download() {
       "/download" \
       "${firejail_args[*]}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local aggregated_stdout_file="$(lib.line_to_args "${subphase_result}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${subphase_result}" "1")"
-  local download_dirs_created_by_plugins=($(lib.line_to_args "${subphase_result}" "2"))
+  local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
+  local download_dirs_created_by_plugins=($(lib.line_to_args "${returned}" "2"))
   local merge_dir="$(mktemp -d)"
   local i=0
   for created_download_dir in "${download_dirs_created_by_plugins[@]}"; do
@@ -182,19 +182,19 @@ plugin_phases.process() {
   local scrubbed_dir="${2}"
   local merged_download_dir="${3}"
   local plugin_download_dirs=($(echo "${4}" | xargs))
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_expanded_assets \
       "${plugin_download_dirs[*]}" \
       "/download" \
       "555" \
       "${5}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local plugins=($(lib.line_to_args "${subphase_result}" "0"))
-  local plugin_names=($(lib.line_to_args "${subphase_result}" "1"))
-  local expanded_asset_args=($(lib.line_to_args "${subphase_result}" "2"))
+  local plugins=($(lib.line_to_args "${returned}" "0"))
+  local plugin_names=($(lib.line_to_args "${returned}" "1"))
+  local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
   local executable_args=("--phase-process")
   local firejail_args=("--net=none")
   local asset_args=(
@@ -202,7 +202,7 @@ plugin_phases.process() {
     "${scrubbed_dir}" "/.solos" "555"
     "${merged_download_dir}" "/plugins/download" "555"
   )
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_firejail \
       "${phase_cache}" \
       "${plugins[*]}" \
@@ -212,12 +212,12 @@ plugin_phases.process() {
       "/processed.json" \
       "${firejail_args[*]}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local aggregated_stdout_file="$(lib.line_to_args "${subphase_result}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${subphase_result}" "1")"
-  local processed_files_created_by_plugins=($(lib.line_to_args "${subphase_result}" "2"))
+  local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
+  local processed_files_created_by_plugins=($(lib.line_to_args "${returned}" "2"))
   local merge_dir="$(mktemp -d)"
   local i=0
   for processed_file in "${processed_files_created_by_plugins[@]}"; do
@@ -236,26 +236,26 @@ plugin_phases.chunk() {
   local phase_cache="${1}"
   local merged_processed_dir="${2}"
   local processed_files=("$(echo "${3}" | xargs)")
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_expanded_assets \
       "${processed_files[*]}" \
       "/processed.json" \
       "555" \
       "${4}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local plugins=($(lib.line_to_args "${subphase_result}" "0"))
-  local plugin_names=($(lib.line_to_args "${subphase_result}" "1"))
-  local expanded_asset_args=($(lib.line_to_args "${subphase_result}" "2"))
+  local plugins=($(lib.line_to_args "${returned}" "0"))
+  local plugin_names=($(lib.line_to_args "${returned}" "1"))
+  local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
   local executable_args=("--phase-chunk")
   local firejail_args=()
   local asset_args=(
     "$(mktemp)" "/chunks.log" "777"
     "${merged_processed_dir}" "/plugins/processed" "555"
   )
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_firejail \
       "${phase_cache}" \
       "${plugins[*]}" \
@@ -265,12 +265,12 @@ plugin_phases.chunk() {
       "/chunks.log" \
       "${firejail_args[*]}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local aggregated_stdout_file="$(lib.line_to_args "${subphase_result}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${subphase_result}" "1")"
-  local chunk_log_files_created_by_plugins=($(lib.line_to_args "${subphase_result}" "2"))
+  local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
+  local chunk_log_files_created_by_plugins=($(lib.line_to_args "${returned}" "2"))
   local merge_dir="$(mktemp -d)"
   local i=0
   for chunk_log_file in "${chunk_log_files_created_by_plugins[@]}"; do
@@ -293,25 +293,25 @@ plugin_phases.publish() {
   local phase_cache="${1}"
   local merged_chunks="${2}"
   local chunk_log_files=("$(echo "${3}" | xargs)")
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_expanded_assets \
       "${chunk_log_files[*]}" \
       "/chunks.log" \
       "555" \
       "${4}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local plugins=($(lib.line_to_args "${subphase_result}" "0"))
-  local plugin_names=($(lib.line_to_args "${subphase_result}" "1"))
-  local expanded_asset_args=($(lib.line_to_args "${subphase_result}" "2"))
+  local plugins=($(lib.line_to_args "${returned}" "0"))
+  local plugin_names=($(lib.line_to_args "${returned}" "1"))
+  local expanded_asset_args=($(lib.line_to_args "${returned}" "2"))
   local executable_args=("--phase-publish")
   local firejail_args=()
   local asset_args=(
     "${merged_chunks}" "/plugins/chunks" "555"
   )
-  local subphase_result="$(
+  local returned="$(
     plugin_phases.subphase_firejail \
       "${phase_cache}" \
       "${plugins[*]}" \
@@ -321,11 +321,11 @@ plugin_phases.publish() {
       "" \
       "${firejail_args[*]}" || echo "$?"
   )"
-  if [[ ${subphase_result} -eq 151 ]]; then
-    return "${subphase_result}"
+  if [[ ${returned} -eq 151 ]]; then
+    return "${returned}"
   fi
-  local aggregated_stdout_file="$(lib.line_to_args "${subphase_result}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${subphase_result}" "1")"
+  local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
   echo "${aggregated_stdout_file}"
   echo "${aggregated_stderr_file}"
 }

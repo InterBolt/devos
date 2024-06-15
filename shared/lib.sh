@@ -65,7 +65,16 @@ ${msg}
 TIME: ${timestamp}
 EOF
 }
-export -f lib.panics_add
+lib.panics_remove() {
+  local key="${1}"
+  if [[ -z ${key} ]]; then
+    echo "Failed to panic: no key supplied" >&2
+    return 1
+  fi
+  local panicfile="${lib__panics_dir}/${key}"
+  rm -f "${panicfile}"
+}
+export -f lib.panics_remove
 
 lib.panics_clear() {
   if [[ ! -d "${lib__panics_dir}" ]]; then

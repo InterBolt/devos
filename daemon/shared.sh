@@ -53,7 +53,7 @@ shared.plugin_paths_to_names() {
     elif [[ ${plugin} =~ ^"${shared__user_plugins_dir}" ]]; then
       plugin_names+=("solos-$(basename "${plugin}")")
     else
-      plugin_names+=("user-$(basename "$(dirname "${plugin}")")")
+      plugin_names+=("user-$(basename "${plugin}")")
     fi
   done
   echo "${plugin_names[*]}" | xargs
@@ -66,10 +66,10 @@ shared.plugin_names_to_paths() {
       plugins+=("${shared__precheck_plugin_path}")
     elif [[ ${plugin_name} =~ ^solos- ]]; then
       plugin_name="${plugin_name#solos-}"
-      plugins+=("${shared__solos_plugins_dir}/${plugin_name}/plugin")
+      plugins+=("${shared__solos_plugins_dir}/${plugin_name}")
     elif [[ ${plugin_name} =~ ^user- ]]; then
       plugin_name="${plugin_name#user-}"
-      plugins+=("${shared__user_plugins_dir}/${plugin_name}/plugin")
+      plugins+=("${shared__user_plugins_dir}/${plugin_name}")
     fi
   done
   echo "${plugins[@]}"
@@ -154,9 +154,9 @@ shared.firejail() {
   local plugin_stderr_files=()
   local plugin_index=0
   local plugin_count="${#plugins[@]}"
-  for plugin in "${plugins[@]}"; do
-    if [[ ! -x ${plugin} ]]; then
-      shared.log_error "Unexpected error - ${plugin} is not an executable file."
+  for plugin_path in "${plugins[@]}"; do
+    if [[ ! -x ${plugin_path}/plugin ]]; then
+      shared.log_error "Unexpected error - ${plugin_path}/plugin is not an executable file."
       return 1
     fi
     local plugin_name="$(shared.plugin_paths_to_names "${plugins[${plugin_index}]}")"
@@ -188,17 +188,17 @@ shared.firejail() {
         mkdir -p "${asset_firejailed_path}"
         cp -r "${asset_host_path}" "${asset_firejailed_path}/"
       fi
-      cp -a "${plugin}" "${firejailed_home_dir}/plugin"
-      local plugin_config_file="${plugin}/config.json"
+      cp -a "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
+      local plugin_config_file="${plugin_path}/solos.config.json"
       if [[ -f ${plugin_config_file} ]]; then
-        cp "${plugin_config_file}" "${firejailed_home_dir}/config.json"
+        cp "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
       else
-        echo "{}" >"${firejailed_home_dir}/config.json"
+        echo "{}" >"${firejailed_home_dir}/solos.config.json"
       fi
       if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
-        chmod 555 "${firejailed_home_dir}/config.json"
+        chmod 555 "${firejailed_home_dir}/solos.config.json"
       else
-        chmod 777 "${firejailed_home_dir}/config.json"
+        chmod 777 "${firejailed_home_dir}/solos.config.json"
       fi
       chmod -R "${chmod_permission}" "${asset_firejailed_path}"
       firejail \
@@ -217,13 +217,13 @@ shared.firejail() {
     plugin_index=$((plugin_index + 1))
   done
 
-  local firejailed_requesting_kill=false
+  local firejailed_kills=""
   local firejailed_failures=0
   local i=0
   for firejailed_pid in "${firejailed_pids[@]}"; do
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
-    local executable_path="${plugins[${i}]}"
+    local executable_path="${plugins[${i}]}/plugin"
     local plugin_name="$(shared.plugin_paths_to_names "${plugins[${i}]}")"
     local firejailed_home_dir="${firejailed_home_dirs[${i}]}"
     # Blanket remove the restrictions placed on the firejailed files so that
@@ -247,19 +247,27 @@ shared.firejail() {
     fi
     i=$((i + 1))
   done
-  if grep -q "^SOLOS_PANIC" "${plugin_stderr_file}" >/dev/null 2>/dev/null; then
-    firejailed_requesting_kill=true
-  fi
-  if grep -q "^SOLOS_PANIC" "${plugin_stdout_file}" >/dev/null 2>/dev/null; then
-    shared.log_warn "Invalid usage - the plugin sent a panic message to stdout." >&2
-  fi
+  i=0
+  for plugin_stdout_file in "${plugin_stdout_files[@]}"; do
+    local plugin_name="$(shared.plugin_paths_to_names "${plugins[${i}]}")"
+    if grep -q "^SOLOS_PANIC" "${plugin_stderr_file}" >/dev/null 2>/dev/null; then
+      firejailed_kills="${firejailed_kills} ${plugin_name}"
+    fi
+    i=$((i + 1))
+  done
+  firejailed_kills=($(echo "${firejailed_kills}" | xargs))
+  for plugin_stderr_file in "${plugin_stderr_files[@]}"; do
+    if grep -q "^SOLOS_PANIC" "${plugin_stderr_file}" >/dev/null 2>/dev/null; then
+      shared.log_warn "Invalid usage - the plugin sent a panic message to stdout." >&2
+    fi
+  done
   local return_code=0
   if [[ ${firejailed_failures} -gt 0 ]]; then
-    shared.log_error "Unexpected plugin error - there were ${firejailed_failures} malfunctions across all plugins."
+    shared.log_error "Unexpected plugin error - there were ${firejailed_failures} total failures across ${plugin_count} plugins."
     return_code=1
   fi
-  if [[ ${firejailed_requesting_kill} = true ]]; then
-    shared.log_error "Unexpected plugin error - a collection made a kill request in it's output."
+  if [[ ${#firejailed_kills[@]} -gt 0 ]]; then
+    shared.log_warn "Unexpected plugin error - ${#firejailed_kills[@]} firejailed panic requests. Sources: ${firejailed_kills[*]}."
     return_code=151
   fi
   for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do

@@ -109,7 +109,7 @@ bashrc.print_info() {
       local home_dir_path="$(bashrc.users_home_dir)"
       for user_plugin_path in "${user_plugin_paths[@]}"; do
         user_plugin_path="${user_plugin_path/\/root\//${home_dir_path}/}"
-        user_plugins+=("$(basename "${user_plugin_path}")" "${user_plugin_path}/config.json")
+        user_plugins+=("$(basename "${user_plugin_path}")" "${user_plugin_path}/solos.config.json")
       done
     fi
   fi

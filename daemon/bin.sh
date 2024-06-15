@@ -2,7 +2,7 @@
 
 bin__pid=$$
 bin__remaining_retries=5
-bin__manifest_file="${HOME}/.solos/plugins/manifest.json"
+bin__manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
 bin__daemon_data_dir="${HOME}/.solos/data/daemon"
 bin__pid_file="${bin__daemon_data_dir}/pid"
 bin__status_file="${bin__daemon_data_dir}/status"
@@ -77,8 +77,7 @@ bin.update_configs() {
   local plugin_paths=($(shared.plugin_names_to_paths "${plugin_names[@]}"))
   for plugin_path in "${plugin_paths[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
-    local plugin_dir="$(dirname "${plugin_path}")"
-    local config_path="${plugin_dir}/config.json"
+    local config_path="${plugin_path}/solos.config.json"
     local updated_config_path="${merged_configure_dir}/${plugin_name}.json"
     if [[ -f ${updated_config_path} ]]; then
       rm -f "${config_path}"
@@ -107,12 +106,12 @@ bin.manifest_validate_user_fs() {
 }
 bin.manifest_validate_file() {
   if [[ ! -f ${bin__manifest_file} ]]; then
-    shared.log_error "Managing plugins - does not exist at ${bin__manifest_file}"
+    shared.log_error "Applying manifest - does not exist at ${bin__manifest_file}"
     return 1
   fi
   local manifest="$(cat ${bin__manifest_file})"
   if [[ ! $(jq '.' <<<"${manifest}") ]]; then
-    shared.log_error "Managing plugins - not valid json at ${bin__manifest_file}"
+    shared.log_error "Applying manifest - not valid json at ${bin__manifest_file}"
     return 1
   fi
   local missing_plugins=()
@@ -123,7 +122,7 @@ bin.manifest_validate_file() {
   for plugin_name in ${plugin_names[@]}; do
     local plugin_path="${HOME}/.solos/plugins/${plugin_name}"
     local plugin_executable_path="${plugin_path}/plugin"
-    local plugin_config_path="${plugin_path}/config.json"
+    local plugin_config_path="${plugin_path}/solos.config.json"
     local plugin_source="${plugin_sources[${i}]}"
     if [[ ! -d ${plugin_path} ]]; then
       missing_plugins+=("${plugin_name}" "${plugin_source}")
@@ -131,11 +130,11 @@ bin.manifest_validate_file() {
       continue
     fi
     if [[ ! -f ${plugin_executable_path} ]]; then
-      shared.log_error "Managing plugins - plugin ${plugin_name} does not exist at: ${plugin_path}"
+      shared.log_error "Applying manifest - plugin ${plugin_name} does not exist at: ${plugin_path}"
       return 1
     fi
     if [[ ! -f ${plugin_config_path} ]]; then
-      shared.log_error "Managing plugins - plugin ${plugin_name} does not have a config file at: ${plugin_config_path}"
+      shared.log_error "Applying manifest - plugin ${plugin_name} does not have a config file at: ${plugin_config_path}"
       return 1
     fi
     local plugin_config_source="$(jq -r '.source' ${plugin_config_path})"
@@ -161,11 +160,11 @@ bin.manifest_download_sources() {
   local plugin_source="${1}"
   local output_path="${2}"
   if ! curl -o "${output_path}" "${plugin_source}"; then
-    shared.log_error "Managing plugins - curl unable to download ${plugin_source}"
+    shared.log_error "Applying manifest - curl unable to download ${plugin_source}"
     return 1
   fi
   if ! chmod +x "${output_path}"; then
-    shared.log_error "Managing plugins - unable to make ${output_path} executable"
+    shared.log_error "Applying manifest - unable to make ${output_path} executable"
     return 1
   fi
 }
@@ -176,7 +175,7 @@ bin.manifest_mv_dirs() {
     local plugin_name="$(basename ${dir})"
     local plugin_path="${plugins_dir}/${plugin_name}"
     if [[ -d ${plugin_path} ]]; then
-      shared.log_error "Managing plugins - plugin ${plugin_name} already exists at ${plugin_path}"
+      shared.log_error "Applying manifest - plugin ${plugin_name} already exists at ${plugin_path}"
       return 1
     fi
     mv "${dir}" "${plugin_path}"
@@ -191,7 +190,7 @@ bin.manifest_create_plugins() {
     if [[ $((i % 2)) -eq 0 ]]; then
       local tmp_dir="$(mktemp -d)"
       local missing_plugin_source="${plugins_and_sources[$((i + 1))]}"
-      local tmp_config_path="${tmp_dir}/config.json"
+      local tmp_config_path="${tmp_dir}/solos.config.json"
       local tmp_executable_path="${tmp_dir}/plugin"
       bin.manifest_init_config "${missing_plugin_source}" "${tmp_config_path}" || return 1
       bin.manifest_download_sources "${missing_plugin_source}" "${tmp_executable_path}" || return 1
@@ -210,14 +209,17 @@ bin.manifest_update_sources() {
     if [[ $((i % 2)) -eq 0 ]]; then
       local tmp_dir="$(mktemp -d)"
       local changed_plugin_source="${plugins_and_sources[$((i + 1))]}"
-      local tmp_config_path="${tmp_dir}/config.json"
-      local current_config_path="${plugins_dir}/${changed_plugin_name}/config.json"
+      local tmp_config_path="${tmp_dir}/solos.config.json"
+      local current_config_path="${plugins_dir}/${changed_plugin_name}/solos.config.json"
       if [[ ! -d ${current_config_path} ]]; then
         bin.manifest_init_config "${changed_plugin_source}" "${tmp_config_path}"
       fi
       cp -f "${current_config_path}" "${tmp_config_path}"
+      jq ".source = \"${changed_plugin_source}\"" "${tmp_config_path}" >"${tmp_config_path}.tmp"
+      mv "${tmp_config_path}.tmp" "${tmp_config_path}"
       rm -f "${tmp_dir}/plugin"
       bin.manifest_download_sources "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
+      plugin_tmp_dirs+=("${tmp_dir}")
     fi
   done
   bin.manifest_mv_dirs "${plugins_dir}" "${plugin_tmp_dirs[*]}" || return 1
@@ -225,8 +227,14 @@ bin.manifest_update_sources() {
 bin.prerun() {
   local plugins_dir="${HOME}/.solos/plugins"
   if ! bin.manifest_validate_user_fs "${plugins_dir}"; then
-    shared.log_error "Managing plugins - invalid plugin directory at ${plugins_dir}"
+    shared.log_error "Applying manifest - invalid plugin directory at ${plugins_dir}"
+    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
+The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
+EOF
     return 1
+  else
+    shared.log_info "Applying manifest - detected valid plugins directory."
+    lib.panics_remove "daemon_invalid_plugin_dir"
   fi
   local tmp_backup="$(mktemp -d)"
   local return_file="$(mktemp)"
@@ -236,22 +244,24 @@ bin.prerun() {
   local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
   local tmp_plugins_dir="$(mktemp -d)/plugins"
   if ! cp -rfa "${plugins_dir}/" "${tmp_plugins_dir}/"; then
-    shared.log_error "Managing plugins - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
+    shared.log_error "Applying manifest - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
     return 1
   fi
   bin.manifest_create_plugins "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
   bin.manifest_update_sources "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
-  cp -rfa "${plugins_dir}/" "${tmp_backup}/"
+  if ! bin.manifest_validate_user_fs "${tmp_plugins_dir}"; then
+    shared.log_error "Applying manifest - invalid plugin directory at ${tmp_plugins_dir}"
+    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
+The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
+EOF
+    return 1
+  else
+    lib.panics_remove "daemon_invalid_plugin_dir"
+    shared.log_info "Applying manifest - committing changes to the plugins directory."
+  fi
   rm -rf "${plugins_dir}"
   mkdir -p "${plugins_dir}"
   cp -rfa "${tmp_plugins_dir}/" "${plugins_dir}/"
-  if ! bin.manifest_validate_user_fs "${plugins_dir}"; then
-    rm -rf "${plugins_dir}"
-    mkdir -p "${plugins_dir}"
-    cp -rfa "${tmp_backup}/" "${plugins_dir}/"
-  else
-    shared.log_info "Managing plugins - successfully applied the manifest."
-  fi
 }
 bin.run() {
   local plugins=("${@}")
@@ -425,12 +435,7 @@ bin.run() {
   local is_precheck=true
   while true; do
     if ! bin.prerun; then
-      shared.log_error "Fatal - failed to manifest the plugins. Waiting 20 seconds before the next run."
-      lib.panics_add "daemon_manifest_failed" <<EOF
-The daemon failed to prepare the plugins using the manifest.json file. \
-Please fix to enable the daemon. \
-Time of failure: $(date).
-EOF
+      shared.log_error "Fatal - failed to run the prerun phase. Waiting 20 seconds before the next run."
       sleep 20
       return 1
     fi
@@ -447,8 +452,8 @@ EOF
     fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then
-      shared.log_warn "Halting - no plugins were found. Waiting 10 seconds before the next run."
-      sleep 10
+      shared.log_warn "Halting - no plugins were found. Waiting 20 seconds before the next run."
+      sleep 20
       continue
     fi
     shared.log_info "Progress - starting a new cycle."

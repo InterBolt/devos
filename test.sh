@@ -148,3 +148,8 @@
 #   rm -rf "${HOME}/.solos/plugins"
 #   cp -arf "${tmp_plugins_dir}" "${HOME}/.solos/plugins"
 # }
+
+tmp_config_path="${HOME}/.solos/src/test.json"
+changed_plugin_source="http://example.com/plugin"
+jq ".source = \"${changed_plugin_source}\"" "${tmp_config_path}" >"${tmp_config_path}.tmp"
+mv "${tmp_config_path}.tmp" "${tmp_config_path}"
