@@ -289,7 +289,7 @@ bin.run() {
   cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
   shared.log_info "Progress - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
-bin.run() {
+bin.loop() {
   local is_precheck=true
   while true; do
     if ! apply_manifest.main; then
@@ -314,16 +314,23 @@ bin.run() {
       sleep 20
       continue
     fi
-    shared.log_info "Progress - starting a new cycle."
-    bin.run "${plugins[@]}"
-    shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
-    shared.log_warn "Done - waiting for the next cycle."
-    bin__remaining_retries=5
-    sleep 2
-    local request="$(bin.request_extract "${bin__request_file}")"
-    if [[ -n ${request} ]]; then
-      shared.log_info "Request - ${request} was dispatched to the bin."
-      bin.request_handler "${request}"
+    if [[ ${is_precheck} = true ]]; then
+      shared.log_info "Progress - running precheck plugins."
+      bin.run "${plugins[@]}"
+      shared.log_info "Progress - archived phase results for precheck plugins at \"$(shared.host_path "${archive_dir}")\""
+      shared.log_warn "Precheck lifecycle passed - about to run the main lifecycle."
+    else
+      shared.log_info "Progress - starting a new cycle."
+      bin.run "${plugins[@]}"
+      shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
+      shared.log_warn "Done - waiting for the next cycle."
+      bin__remaining_retries=5
+      sleep 2
+      local request="$(bin.request_extract "${bin__request_file}")"
+      if [[ -n ${request} ]]; then
+        shared.log_info "Request - ${request} was dispatched to the bin."
+        bin.request_handler "${request}"
+      fi
     fi
   done
   return 0
@@ -378,7 +385,7 @@ EOF
   echo "${bin__pid}" >"${bin__pid_file}"
   bin.update_status "UP"
   lib.panics_remove "daemon_startup_failure"
-  bin.run
+  bin.loop
   # When the daemon exits with a 151 that means we need to exit the process without
   # attempting a recovery. All other exit codes indicate an error but we can attempt
   # to recover from them at least.
@@ -410,5 +417,5 @@ EOF
   fi
 }
 
-# bin.main_setup "$@"
-# bin.main
+bin.main_setup "$@"
+bin.main

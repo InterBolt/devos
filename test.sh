@@ -152,6 +152,16 @@
 plugin_name="farts"
 plugin_url="https://farts.com/farts"
 bashrc_plugins__manifest_file="${HOME}/.solos/plugins/manifest.json"
+code_workspace_file="${HOME}/.solos/projects/saas/.vscode/saas.code-workspace"
 
-jq ". += [{\"name\": \"${plugin_name}\", \"source\": \"${plugin_url}\"}]" "${bashrc_plugins__manifest_file}" >"${bashrc_plugins__manifest_file}.tmp"
-mv "${bashrc_plugins__manifest_file}.tmp" "${bashrc_plugins__manifest_file}"
+arg_plugin_name="testing"
+plugin_path="${HOME}/.solos/plugins/${arg_plugin_name}"
+
+jq \
+  --arg app_name "${arg_plugin_name}" \
+  '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${plugin_path}"'", "profile": "shell" }] + .' \
+  "${code_workspace_file}" \
+  >"${code_workspace_file}.tmp"
+
+# jq ".folders += [{\"name\": \"plugin.${arg_plugin_name}\", \"uri\": \"${plugin_path}\", \"profile\": \"shell\"}]" "${code_workspace_file}" >"${code_workspace_file}.tmp"
+mv "${code_workspace_file}.tmp" "${code_workspace_file}"

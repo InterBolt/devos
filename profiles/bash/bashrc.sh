@@ -130,7 +130,6 @@ $(
       "SHELL_COMMAND,DESCRIPTION" \
       '-' "Runs its arguments as a command. Avoids pre/post exec functions and output tracking." \
       info "Print info about this shell." \
-      ask_docs "$(ask_docs --help | bashrc.extract_help_description)" \
       track "$(track --help | bashrc.extract_help_description)" \
       solos "$(solos --help | bashrc.extract_help_description)" \
       preexec "$(preexec --help | bashrc.extract_help_description)" \
@@ -294,25 +293,6 @@ EOF
     trap 'trap "bashrc_track.trap" DEBUG; exit 1;' SIGINT
     trap 'bashrc_track.trap' DEBUG
   fi
-}
-bashrc.public_ask_docs() {
-  if bashrc.is_help_cmd "${1}"; then
-    cat <<EOF
-USAGE: ask_docs <question>
-
-DESCRIPTION:
-
-Ask a question about the SolOS documentation.
-
-EOF
-    return 0
-  fi
-  local query=''"${*}"''
-  if [[ -z ${query} ]]; then
-    log.error "No question provided."
-    return 1
-  fi
-  log.warn "TODO: No implementation exists yet. Stay tuned."
 }
 bashrc.public_track() {
   bashrc_track.main "$@"
