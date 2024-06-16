@@ -33,11 +33,12 @@ request_handler.execute() {
     ;;
   esac
 }
-
 request_handlers.main() {
-  local request="$(bin.extract_request "${bin__request_file}")"
+  local request="$(request_handler.extract "${bin__request_file}")"
   if [[ -n ${request} ]]; then
-    shared.log_info "Request - ${request} was dispatched to the bin."
-    bin.handle_request "${request}"
+    shared.log_info "Request - ${request} was dispatched to the daemon."
+    request_handler.execute "${request}"
+  else
+    shared.log_info "Request - none. Will continue to run the daemon."
   fi
 }

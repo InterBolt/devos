@@ -7,7 +7,7 @@
 # HELPER FUNCTIONS:
 #
 #-------------------------------------------------------------------------
-plugin_phases._merge_assets_args() {
+plugin_phases.merge_assets_args() {
   local plugin_count="${1}"
   local plugin_index="${2}"
   local plugin_expanded_asset_args=($(echo "${3}" | xargs))
@@ -119,7 +119,7 @@ plugin_phases._firejail() {
     local plugin_phase_cache="${phase_cache}/${plugin_name}"
     mkdir -p "${plugin_phase_cache}"
     local merged_asset_args=($(
-      plugin_phases._merge_assets_args \
+      plugin_phases.merge_assets_args \
         "${plugin_count}" \
         "${plugin_index}" \
         "${plugin_expanded_asset_args[*]}" \

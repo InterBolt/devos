@@ -326,11 +326,7 @@ bin.loop() {
       shared.log_warn "Done - waiting for the next cycle."
       bin__remaining_retries=5
       sleep 2
-      local request="$(bin.request_extract "${bin__request_file}")"
-      if [[ -n ${request} ]]; then
-        shared.log_info "Request - ${request} was dispatched to the bin."
-        bin.request_handler "${request}"
-      fi
+      request_handlers.main
     fi
   done
   return 0
