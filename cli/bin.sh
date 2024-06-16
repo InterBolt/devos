@@ -860,7 +860,7 @@ bin.project.prune() {
 #--------------------------------------------------------------------
 #                            RUN IT
 #--------------------------------------------------------------------
-__MAIN__() {
+bin.main() {
   bin.argparse.requirements
   bin.argparse.cmd "$@"
   bin.argparse.validate_opts
@@ -882,4 +882,4 @@ __MAIN__() {
   fi
 }
 
-__MAIN__ "$@"
+bin.main "$@"
