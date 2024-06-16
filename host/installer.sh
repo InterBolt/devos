@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 
 installer.setup() {
+
+  local installer__flag_is_dev=false
+  if [[ "${1}" = "--dev" ]]; then
+    installer__flag_is_dev=true
+  fi
   installer__entry_dir="${PWD}"
   trap 'cd '"${installer__entry_dir}"'' EXIT
 
@@ -9,6 +14,7 @@ installer.setup() {
   installer__github_repo="https://github.com/InterBolt/solos.git"
   installer__tmp_dir="$(mktemp -d 2>/dev/null)"
   installer__solos_home_dir="${HOME}/.solos"
+  installer__setup_demo_script="${installer__solos_home_dir}/src/scripts/setup-demo.sh"
 
   if [[ -z ${installer__tmp_dir} ]]; then
     echo "Failed to create temporary directory." >&2
@@ -24,10 +30,11 @@ installer.clone() {
 }
 installer.init_fs() {
   local solos_bashrc="${installer__solos_home_dir}/rcfiles/.bashrc"
+  local solos_rcfiles_dir="$(dirname "${solos_bashrc}")"
   local src_dir="${installer__solos_home_dir}/src"
 
   mkdir -p "${installer__solos_home_dir}" || exit 1
-  mkdir -p "${installer__solos_home_dir}/rcfiles" || exit 1
+  mkdir -p "${solos_rcfiles_dir}" || exit 1
 
   if [[ ! -f "${solos_bashrc}" ]]; then
     cat <<EOF >"${solos_bashrc}"
@@ -76,6 +83,14 @@ installer.install() {
     echo "Failed to link SolOS executable to /usr/local/bin/solos." >&2
     return 1
   fi
+  if [[ ${installer__flag_is_dev} = true ]]; then
+    echo "DEV MODE ENABLED" >&2
+    if ! bash -ic "${installer__setup_demo_script}"; then
+      echo "SolOS installation failed." >&2
+      echo "Failed to run SolOS setup-demo script." >&2
+      return 1
+    fi
+  fi
   if ! "${installer__usr_bin_path}" --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
@@ -85,12 +100,13 @@ installer.install() {
 }
 
 installer.main() {
-  if ! installer.setup; then
+  if ! installer.setup "$@"; then
     exit 1
   fi
-  if ! installer.install; then
+  if ! installer.install "$@"; then
     exit 1
   fi
+  echo "${installer__solos_home_dir}"
 }
 
-installer.main
+installer.main "$@"

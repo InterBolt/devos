@@ -17,13 +17,11 @@ main() {
       -mindepth 1 -maxdepth 1 -type d -exec basename {} \;)
   )
   echo "[]" >"${manifest_file}"
-  for plugin in "${local_plugins[@]}"; do
-    jq ". += [{\"name\":\"${plugin}\", \"source\":\"local\"}]" \
-      "${manifest_file}" >"${manifest_file}.tmp"
-    mv "${manifest_file}.tmp" "${manifest_file}"
+  for local_plugin in "${local_plugins[@]}"; do
+    mkdir -p "${plugins_dir}/${local_plugin}"
   done
   for plugin in "${remote_plugins[@]}"; do
-    local remote_url="https://raw.githubusercontent.com/InterBolt/solos/main/${mock_plugin_downloads_path}/${plugin}"
+    local remote_url="https://raw.githubusercontent.com/InterBolt/solos/main/${mock_plugin_downloads_path}/${plugin}.sh"
     jq ". += [{\"name\":\"${plugin}\", \"source\":\"${remote_url}\"}]" \
       "${manifest_file}" >"${manifest_file}.tmp"
     mv "${manifest_file}.tmp" "${manifest_file}"
