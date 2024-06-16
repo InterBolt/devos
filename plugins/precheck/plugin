@@ -7,8 +7,8 @@ SUPPORTED_FS_PATHS=(
   # shared between plugins. This is a good place to store large files that
   # are expensive to download or generate.
   "/root/cache"
-  # The entire mounted .solos directory scrubbed of sensitive data.
-  "/root/.solos"
+  # Everything in the solos workspace folder, but minus secrets and sensitive stuff.
+  "/root/solos"
   # The solos.config.json file containing the plugin's configuration.
   "/root/solos.config.json"
   # The downloaded data from the plugin's download phase.
