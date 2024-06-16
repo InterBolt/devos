@@ -125,7 +125,7 @@ checkout                 - Switch to a pre-existing project or initialize a new 
 app                      - Initializes or checks out a project app.
 shell                    - Start a SolOS shell session with ~/.solos/rcfiles/.bashrc sourced.
 shell-minimal            - Start a SolOS shell session without sourcing ~/.solos/rcfiles/.bashrc.
-setup                    - Configure SolOS for things like Git credentials, API keys, etc.
+init                     - Configure SolOS for things like Git credentials, API keys, etc.
 
 Source: https://github.com/InterBolt/solos
 EOF
@@ -172,9 +172,9 @@ Loads a interactive bash shell without a RC file.
 
 EOF
 }
-bin.usage.setup.help() {
+bin.usage.init.help() {
   cat <<EOF
-USAGE: solos setup
+USAGE: solos init
 
 DESCRIPTION:
 
@@ -748,7 +748,7 @@ EOF
   fi
   bin.global_store.set "checked_out_project" "${bin__project_name}"
 }
-bin.cmd.setup._print_curr_setup() {
+bin.cmd.init._print_curr_setup() {
   local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
   echo ""
   echo "${full_line}"
@@ -760,103 +760,7 @@ bin.cmd.setup._print_curr_setup() {
   echo ""
   echo "${full_line}"
 }
-bin.cmd.setup._gh_token() {
-  local tmp_file="$1"
-  local gh_token="$(gum.github_token)"
-  if [[ -z ${gh_token} ]]; then
-    exit 1
-  fi
-  echo "${gh_token}" >"${tmp_file}"
-  if gh auth login --with-token <"${tmp_file}" >/dev/null; then
-    log.info "Updated Github token."
-  else
-    log.error "Failed to authenticate with: ${gh_token}"
-    local should_retry="$(gum.confirm_retry)"
-    if [[ ${should_retry} = true ]]; then
-      echo "" >"${tmp_file}"
-      bin.cmd.setup._gh_token "${tmp_file}"
-    else
-      log.error "Exiting the setup process."
-      exit 1
-    fi
-  fi
-}
-bin.cmd.setup._gh_email() {
-  local tmp_file="$1"
-  local github_email="$(gum.github_email)"
-  if [[ -z ${github_email} ]]; then
-    exit 1
-  fi
-  echo "${github_email}" >"${tmp_file}"
-  if git config --global user.email "${github_email}"; then
-    log.info "Updated git email."
-  else
-    log.error "Failed to update git user.email to: ${github_email}"
-    local should_retry="$(gum.confirm_retry)"
-    if [[ ${should_retry} = true ]]; then
-      echo "" >"${tmp_file}"
-      bin.cmd.setup._gh_token "${tmp_file}"
-    else
-      log.error "Exiting the setup process."
-      exit 1
-    fi
-  fi
-}
-bin.cmd.setup._gh_name() {
-  local tmp_file="$1"
-  local github_name="$(gum.github_name)"
-  if [[ -z ${github_name} ]]; then
-    exit 1
-  fi
-  echo "${github_name}" >"${tmp_file}"
-  if git config --global user.name "${github_name}"; then
-    log.info "Updated git name."
-  else
-    log.error "Failed to update git user.name to: ${github_name}"
-    local should_retry="$(gum.confirm_retry)"
-    if [[ ${should_retry} = true ]]; then
-      echo "" >"${tmp_file}"
-      bin.cmd.setup._gh_token "${tmp_file}"
-    else
-      log.error "Exiting the setup process."
-      exit 1
-    fi
-  fi
-}
-bin.cmd.setup._checkout_project() {
-  local checked_out=""
-  local should_checkout_project="$(gum.confirm_checkout_project)"
-  if [[ ${should_checkout_project} = true ]]; then
-    local projects=()
-    for project in "${HOME}"/.solos/projects/*; do
-      if [[ -d ${project} ]]; then
-        projects+=("$(basename ${project})")
-      fi
-    done
-    local chosen_project="$(gum.project_choices "<create>" "${projects[@]}")"
-    if [[ ${chosen_project} = "<create>" ]]; then
-      local new_project_name="$(gum.new_project_name_input)"
-      if [[ -n ${new_project_name} ]]; then
-        while [[ -d "${HOME}/.solos/projects/${new_project_name}" ]]; do
-          log.error "Project already exists: ${new_project_name}. Try something different."
-          new_project_name="$(gum.new_project_name_input)"
-          if [[ -z ${new_project_name} ]]; then
-            break
-          fi
-        done
-      fi
-      if [[ -n ${new_project_name} ]]; then
-        checked_out="${new_project_name}"
-      fi
-    elif [[ -n ${chosen_project} ]]; then
-      checked_out="${chosen_project}"
-    fi
-  fi
-  if [[ -n ${checked_out} ]]; then
-    bin.global_store.set "checked_out_project" "${checked_out}"
-  fi
-}
-bin.cmd.setup() {
+bin.cmd.init() {
   local curr_git_hash="$(bin.utils.git_hash)"
   if [[ -z ${curr_git_hash} ]]; then
     exit 1
@@ -865,10 +769,10 @@ bin.cmd.setup() {
   local should_proceed=false
   if [[ -n ${setup_at_git_hash} ]]; then
     if [[ ${setup_at_git_hash} != ${curr_git_hash} ]]; then
-      bin.cmd.setup._print_curr_setup
+      bin.cmd.init._print_curr_setup
       should_proceed=true
     else
-      bin.cmd.setup._print_curr_setup
+      bin.cmd.init._print_curr_setup
       should_proceed="$(gum.confirm_overwriting_setup)"
     fi
   else
@@ -878,21 +782,40 @@ bin.cmd.setup() {
     log.info "Exiting the setup process. Nothing was changed."
     exit 0
   fi
-
-  local gh_token_tmp_file="$(mktemp -q)"
-  local gh_email_tmp_file="$(mktemp -q)"
-  local gh_name_tmp_file="$(mktemp -q)"
-  bin.cmd.setup._gh_token "${gh_token_tmp_file}"
-  bin.cmd.setup._gh_email "${gh_email_tmp_file}"
-  bin.cmd.setup._gh_name "${gh_name_tmp_file}"
-  rm -rf "${HOME}/.solos/config"
-  rm -rf "${HOME}/.solos/secrets"
-  bin.config_store.set "gh_email" "$(cat "${gh_email_tmp_file}")"
-  bin.config_store.set "gh_name" "$(cat "${gh_name_tmp_file}")"
-  bin.secrets_store.set "gh_token" "$(cat "${gh_token_tmp_file}")"
+  local checked_out_project=""
+  local should_checkout_project="$(gum.confirm_checkout_project)"
+  if [[ ${should_checkout_project} = true ]]; then
+    local available_projects=()
+    for project in "${HOME}"/.solos/projects/*; do
+      if [[ -d ${project} ]]; then
+        available_projects+=("$(basename ${project})")
+      fi
+    done
+    local selected_project="$(gum.project_choices "<create>" "${available_projects[@]}")"
+    if [[ ${selected_project} = "<create>" ]]; then
+      local supplied_project_name="$(gum.new_project_name_input)"
+      if [[ -n ${supplied_project_name} ]]; then
+        while [[ -d "${HOME}/.solos/projects/${supplied_project_name}" ]]; do
+          log.error "Project already exists: ${supplied_project_name}. Try something different."
+          supplied_project_name="$(gum.new_project_name_input)"
+          if [[ -z ${supplied_project_name} ]]; then
+            break
+          fi
+        done
+      fi
+      if [[ -n ${supplied_project_name} ]]; then
+        checked_out_project="${supplied_project_name}"
+      fi
+    elif [[ -n ${selected_project} ]]; then
+      checked_out_project="${selected_project}"
+    fi
+  fi
+  if [[ -n ${checked_out_project} ]]; then
+    bin.global_store.set "checked_out_project" "${checked_out_project}"
+  fi
   bin.global_store.set "setup_at_git_hash" "${curr_git_hash}"
   if [[ ${bin__is_running_in_shell} = false ]]; then
-    bin.cmd.setup._checkout_project
+    bin.cmd.init._checkout_project
   fi
 }
 #---------------------------------------------

@@ -12,6 +12,7 @@ history -r
 . "${HOME}/.solos/src/shared/gum.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-panics.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-plugins.sh" || exit 1
+. "${HOME}/.solos/src/profiles/bash/bashrc-github.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-daemon.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-user-execs.sh" || exit 1
@@ -199,44 +200,6 @@ EOF
   echo -e "\033[0;32mLogged in to Github ${gh_status_line} \033[0m"
   echo ""
 }
-bashrc.install_gh() {
-  local secrets_path="${HOME}/.solos/secrets"
-  local config_path="${HOME}/.solos/config"
-  if [[ ! -d ${secrets_path} ]]; then
-    log.error "No secrets directory found at ${secrets_path}. You probably need to run \`solos setup\`."
-    bashrc.error_press_enter
-  fi
-  if [[ ! -d ${config_path} ]]; then
-    log.error "No config directory found at ${config_path}. You probably need to run \`solos setup\`."
-    bashrc.error_press_enter
-  fi
-
-  local gh_token_path="${secrets_path}/gh_token"
-  local gh_name_path="${config_path}/gh_name"
-  local gh_email_path="${config_path}/gh_email"
-  if [[ ! -f ${gh_token_path} ]]; then
-    log.error "No Github token found at ${gh_token_path}. You probably need to run \`solos setup\`."
-    bashrc.error_press_enter
-  fi
-  if [[ ! -f ${gh_name_path} ]]; then
-    log.error "No Github name found at ${gh_name_path}. You probably need to run \`solos setup\`."
-    bashrc.error_press_enter
-  fi
-  if [[ ! -f ${gh_email_path} ]]; then
-    log.error "No Github email found at ${gh_email_path}. You probably need to run \`solos setup\`."
-    bashrc.error_press_enter
-  fi
-  git config --global user.name "$(cat "${gh_name_path}")" || bashrc.error_press_enter
-  git config --global user.email "$(cat "${gh_email_path}")" || bashrc.error_press_enter
-  if ! gh auth login --with-token <"${gh_token_path}"; then
-    log.error "Github CLI failed to authenticate."
-    bashrc.error_press_enter
-  fi
-  if ! gh auth setup-git; then
-    log.error "Github CLI failed to setup."
-    bashrc.error_press_enter
-  fi
-}
 bashrc.install() {
   PS1='\[\033[0;32m\]SolOS\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then
@@ -244,7 +207,6 @@ bashrc.install() {
   else
     echo -e "\033[0;31mWARNING:\033[0m /etc/bash_completion not found. Bash completions will not be available."
   fi
-  bashrc.install_gh
   bashrc.print_welcome_manual
   bashrc.bash_completions
   bashrc.run_checked_out_project_script
@@ -333,6 +295,9 @@ bashrc.public_daemon() {
 }
 bashrc.public_panics() {
   bashrc_panics.main "$@"
+}
+bashrc.public_github() {
+  bashrc_github.main "$@"
 }
 bashrc.public_install_solos() {
   bashrc_panics.install

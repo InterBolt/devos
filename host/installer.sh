@@ -84,7 +84,7 @@ installer.install() {
     return 1
   fi
   if [[ ${installer__flag_is_dev} = true ]]; then
-    echo "DEV MODE ENABLED" >&2
+    echo "DEV MODE ENABLED - setting up a dev-friendly \$HOME/.solos directory." >&2
     if ! bash -ic "${installer__setup_demo_script}"; then
       echo "SolOS installation failed." >&2
       echo "Failed to run SolOS setup-demo script." >&2
@@ -96,7 +96,7 @@ installer.install() {
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  bash -ic "solos setup"
+  bash -ic "solos init"
 }
 
 installer.main() {
