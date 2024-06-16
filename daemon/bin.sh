@@ -100,7 +100,7 @@ bin.stash_plugin_logs() {
     echo "${line}" >>"${log_file}"
   done <"${aggregated_stderr_file}"
 }
-bin.run() {
+bin.execute_plugins() {
   local plugins=("${@}")
 
   # Prep the archive directory.
@@ -115,8 +115,9 @@ bin.run() {
 
   # Define cache directories.
   # Each plugin will get it's own cache dir, which will be a subdirectory of the
-  # of the phase's cache directory. If the plugin name changes, the cache will be
-  # broken.
+  # of the phase's cache directory. If the plugin name changes, its cache is broken.
+  # Plugin authors have no control over the name of the plugins in the user's manifest
+  # or filesystem.
   local configure_cache="${HOME}/.solos/data/daemon/cache/configure"
   local download_cache="${HOME}/.solos/data/daemon/cache/download"
   local process_cache="${HOME}/.solos/data/daemon/cache/process"
@@ -127,6 +128,9 @@ bin.run() {
   # We'll pass this to each phase as an argument so that they can access the manifest
   # in their firejailed sandbox environment.
   local manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
+  if [[ ! -f ${manifest_file} ]]; then
+    echo "[]" >"${manifest_file}"
+  fi
 
   # Remove secrets from all files/dirs in the user's workspace.
   local scrubbed_dir="$(daemon_task_scrub.main)"
@@ -316,12 +320,12 @@ bin.loop() {
     fi
     if [[ ${is_precheck} = true ]]; then
       shared.log_info "Progress - running precheck plugins."
-      bin.run "${plugins[@]}"
+      bin.execute_plugins "${plugins[@]}"
       shared.log_info "Progress - archived phase results for precheck plugins at \"$(shared.host_path "${archive_dir}")\""
       shared.log_warn "Precheck lifecycle passed - about to run the main lifecycle."
     else
       shared.log_info "Progress - starting a new cycle."
-      bin.run "${plugins[@]}"
+      bin.execute_plugins "${plugins[@]}"
       shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
       shared.log_warn "Done - waiting for the next cycle."
       bin__remaining_retries=5
@@ -413,5 +417,5 @@ EOF
   fi
 }
 
-bin.main_setup "$@"
-bin.main
+# bin.main_setup "$@"
+# bin.main

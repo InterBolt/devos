@@ -3,19 +3,16 @@
 . "${HOME}/.solos/src/shared/lib.sh" || exit 1
 . "${HOME}/.solos/src/daemon/shared.sh" || exit 1
 
-apply_manifest.validate_user_fs() {
-  # TODO: Implement this function.
-  return 0
-}
-apply_manifest.validate_config_file() {
-  local manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
-  if [[ ! -f ${manifest_file} ]]; then
-    shared.log_error "Applying manifest - does not exist at ${manifest_file}"
+apply_manifest__manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
+
+apply_manifest.validate() {
+  if [[ ! -f ${apply_manifest__manifest_file} ]]; then
+    shared.log_error "Applying manifest - does not exist at ${apply_manifest__manifest_file}"
     return 1
   fi
-  local manifest="$(cat ${manifest_file})"
+  local manifest="$(cat ${apply_manifest__manifest_file})"
   if [[ ! $(jq '.' <<<"${manifest}") ]]; then
-    shared.log_error "Applying manifest - not valid json at ${manifest_file}"
+    shared.log_error "Applying manifest - not valid json at ${apply_manifest__manifest_file}"
     return 1
   fi
   local missing_plugins=()
@@ -130,18 +127,10 @@ apply_manifest.update_sources() {
 }
 apply_manifest.main() {
   local plugins_dir="${HOME}/.solos/plugins"
-  if ! apply_manifest.validate_user_fs "${plugins_dir}"; then
-    shared.log_error "Applying manifest - invalid plugin directory at ${plugins_dir}"
-    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
-The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
-EOF
-    return 1
-  else
-    shared.log_info "Applying manifest - detected valid plugins directory."
-    lib.panics_remove "daemon_invalid_plugin_dir"
-  fi
+
+  # Validate to see if we need to fix.
   local return_file="$(mktemp)"
-  apply_manifest.validate_config_file >"${return_file}" || return 1
+  apply_manifest.validate >"${return_file}" || return 1
   local returned="$(cat ${return_file})"
   local missing_plugins_and_sources=($(lib.line_to_args "${returned}" 0))
   local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
@@ -150,18 +139,27 @@ EOF
     shared.log_error "Applying manifest - unable to copy ${plugins_dir} to ${tmp_plugins_dir}"
     return 1
   fi
+
+  # Do the fixing.
   apply_manifest.create_plugins "${tmp_plugins_dir}" "${missing_plugins_and_sources[*]}" || return 1
   apply_manifest.update_sources "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
-  if ! apply_manifest.validate_user_fs "${tmp_plugins_dir}"; then
-    shared.log_error "Applying manifest - invalid plugin directory at ${tmp_plugins_dir}"
-    lib.panics_add "daemon_invalid_plugin_dir" <<EOF
-The daemon failed to start up because the plugin directory is invalid. Time of failure: $(date).
-EOF
+
+  # Validate again to see if we fixed it.
+  local return_file="$(mktemp)"
+  apply_manifest.validate >"${return_file}" || return 1
+  local returned="$(cat ${return_file})"
+  local missing_plugins_and_sources=($(lib.line_to_args "${returned}" 0))
+  local changed_plugins_and_sources=($(lib.line_to_args "${returned}" 1))
+  if [[ ${#missing_plugins_and_sources[@]} -gt 0 ]]; then
+    shared.log_error "Applying manifest - missing plugins: ${missing_plugins_and_sources[*]}"
     return 1
-  else
-    lib.panics_remove "daemon_invalid_plugin_dir"
-    shared.log_info "Applying manifest - committing changes to the plugins directory."
   fi
+  if [[ ${#changed_plugins_and_sources[@]} -gt 0 ]]; then
+    shared.log_error "Applying manifest - changed plugins: ${changed_plugins_and_sources[*]}"
+    return 1
+  fi
+
+  # Move the new plugins into place.
   rm -rf "${plugins_dir}"
   mkdir -p "${plugins_dir}"
   cp -rfa "${tmp_plugins_dir}/" "${plugins_dir}/"
