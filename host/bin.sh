@@ -152,6 +152,7 @@ bin.build_and_run() {
   bin.launch_daemon
 }
 bin.rebuild() {
+  set -x
   echo -e "\033[0;34mRebuilding the container...\033[0m"
   if ! bin.destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
@@ -175,9 +176,7 @@ bin.cmd() {
     bin.exec_command "$@"
     return 0
   fi
-  echo "ABOUT TO REBUILD"
   bin.rebuild
-  echo "ABOUT TO EXEC"
   bin.exec_command "$@"
 }
 bin.cli() {
