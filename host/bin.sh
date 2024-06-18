@@ -179,6 +179,7 @@ bin.cmd() {
   bin.exec_command "$@"
 }
 bin.exec_cli() {
+  echo "args - ${*}"
   local post_behavior="$(cli_posthooks.determine_command "$@")"
   if bin.cmd "${bin__mounted_cli_path}" "$@"; then
     if [[ -n ${post_behavior} ]]; then
@@ -206,7 +207,6 @@ bin.cli() {
   bin.exec_cli "${args[@]}"
 }
 bin.main() {
-  echo "args - ${*}"
   mkdir -p "${bin__data_dir}"
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
