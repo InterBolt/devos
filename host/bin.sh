@@ -189,8 +189,8 @@ bin.cli() {
       solos_cmd="${arg}"
     fi
   done
+  echo "HY MAN"
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
-  trap 'sleep 3' DEBUG
     bin.destroy
   fi
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
