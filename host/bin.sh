@@ -205,7 +205,6 @@ bin.cli() {
   fi
 }
 bin.main() {
-  set -x
   mkdir -p "${bin__data_dir}"
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
@@ -215,13 +214,13 @@ bin.main() {
       fi
     done
     bin.cli "${cli_args[@]}"
-    exit $?
+    return $?
   elif [[ ${bin__shell_minimal_flag} = true ]]; then
     bin.shell
-    exit $?
+    return $?
   elif [[ ${bin__shell_full_flag} = true ]]; then
     bin.shell "${bin__users_bashrc_path}"
-    exit $?
+    return $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2
     bin.error_press_enter
