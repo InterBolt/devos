@@ -59,9 +59,9 @@ bin.test() {
   local hash="${1}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "solos:${hash}" echo "CONTAINER READY")
+    args=(-i -w "/root/.solos/src" "${hash}" echo "CONTAINER READY")
   else
-    args=(-it -w "/root/.solos/src" "solos:${hash}" echo "CONTAINER READY")
+    args=(-it -w "/root/.solos/src" "${hash}" echo "CONTAINER READY")
   fi
   if ! docker exec "${args[@]}"; then
     return 1
@@ -127,6 +127,8 @@ bin.build_and_run() {
   fi
   echo "${hash}" >"${bin__last_docker_build_hash}"
   local shared_docker_run_args=(
+    --name 
+    "${hash}"
     --network
     host
     --pid
