@@ -125,7 +125,6 @@ bin.build_and_run() {
     echo "Unexpected error: failed to build the docker image." >&2
     bin.error_press_enter
   fi
-  echo "hash - ${hash}"
   echo "${hash}" >"${bin__last_docker_build_hash}"
   local shared_docker_run_args=(
     --network
@@ -133,6 +132,7 @@ bin.build_and_run() {
     --pid
     host
     --privileged
+    -d
     -v
     /var/run/docker.sock:/var/run/docker.sock
     -v
