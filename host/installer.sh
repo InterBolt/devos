@@ -93,7 +93,7 @@ installer.install() {
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  echo "WE HERE WHY WE ENDING"
+  echo "WE HERE WHY WE ENDING" >&2
   # bash -ic "solos init" >/dev/null
   # bash -ic "solos checkout"
 }
