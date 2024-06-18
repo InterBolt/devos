@@ -141,8 +141,6 @@ bin.build_and_run() {
     "${HOME}/.solos:${bin__mount_dir}"
     "solos:${hash}"
   )
-
-  
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}"
   else
