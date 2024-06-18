@@ -63,7 +63,6 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" echo "")
   fi
-  set -x
   if ! docker exec "${args[@]}" >/dev/null 2>&1; then
     return 1
   fi
