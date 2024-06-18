@@ -142,9 +142,9 @@ bin.build_and_run() {
     "solos:${hash}"
   )
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    docker run -i "${shared_docker_run_args[@]}" >/dev/null &
+    docker run -i "${shared_docker_run_args[@]}" >/dev/null
   else
-    docker run -it "${shared_docker_run_args[@]}" >/dev/null &
+    docker run -it "${shared_docker_run_args[@]}" >/dev/null
   fi
   while ! bin.test "${hash}"; do
     sleep .2
