@@ -175,21 +175,9 @@ bin.cmd() {
     bin.exec_command "$@"
     return 0
   fi
+  echo "ABOUT TO REBUILD"
   bin.rebuild
   bin.exec_command "$@"
-}
-bin.exec_cli() {
-  local post_behavior="$(cli_posthooks.determine_command "$@")"
-  if bin.cmd "${bin__mounted_cli_path}" "$@"; then
-    if [[ -n ${post_behavior} ]]; then
-      if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
-        return 0
-      fi
-      # The first arg is the command.
-      shift
-      "cli_posthooks.${post_behavior}" "$@"
-    fi
-  fi
 }
 bin.cli() {
   local curr_project="$(lib.checked_out_project)"
@@ -203,7 +191,17 @@ bin.cli() {
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
     bin.destroy
   fi
-  bin.exec_cli "${args[@]}"
+  local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
+  if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
+    if [[ -n ${post_behavior} ]]; then
+      if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
+        return 0
+      fi
+      # The first arg is the command.
+      shift
+      "cli_posthooks.${post_behavior}" "$@"
+    fi
+  fi
 }
 bin.main() {
   mkdir -p "${bin__data_dir}"
@@ -228,4 +226,4 @@ bin.main() {
   fi
 }
 
-# bin.main "$@"
+bin.main "$@"
