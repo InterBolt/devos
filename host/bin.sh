@@ -182,7 +182,6 @@ bin.cmd() {
 }
 bin.cli() {
   local curr_project="$(lib.checked_out_project)"
-  echo "Current project: ${curr_project}"
   local solos_cmd=""
   local args=("$@")
   for arg in "${args[@]}"; do
@@ -193,6 +192,7 @@ bin.cli() {
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
     bin.destroy
   fi
+  trap 'sleep .3' DEBUG
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
   if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
     if [[ -n ${post_behavior} ]]; then
