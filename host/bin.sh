@@ -86,7 +86,7 @@ bin.exec_shell() {
 bin.exec_command() {
   local hash="${1}"
   shift
-  local args=(-it -w "/root/.solos" "${hash}")
+  local args=(-w "/root/.solos" "${hash}")
   local bash_args=(-c ''"${*}"'')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
