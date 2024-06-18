@@ -22,7 +22,7 @@ main() {
   git clone "https://github.com/InterBolt/solos.git" "${tmp_dir}" >/dev/null
   find "${tmp_dir}" -type f -exec chmod +x {} \;
   local tty_descriptor="$(tty)"
-  "${tmp_dir}/host/installer.sh" --dev <>${tty_descriptor} 2>&1
+  "${tmp_dir}/host/installer.sh" --dev <>"${tty_descriptor}" 2<>"${tty_descriptor}"
 }
 
 main
