@@ -109,7 +109,6 @@ bin.exec_command() {
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.build_and_run() {
-  set -x
   if [[ -f ${HOME}/.solos ]]; then
     echo "A file called .solos was detected in your home directory." >&2
     bin.error_press_enter
@@ -142,6 +141,7 @@ bin.build_and_run() {
     "${HOME}/.solos:${bin__mount_dir}"
     "solos:${hash}"
   )
+  set -x
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}"
   else
