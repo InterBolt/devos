@@ -97,6 +97,7 @@ bin.exec_shell() {
 }
 bin.exec_command() {
   local hash="${1}"
+  shift
   local args=()
   local bash_args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
