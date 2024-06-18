@@ -146,10 +146,9 @@ bin.build_and_run() {
   else
     docker run -it "${shared_docker_run_args[@]}"
   fi
-  sleep 2
-  # while ! bin.test "${hash}"; do
-  #   sleep .2
-  # done
+  while ! bin.test "${hash}"; do
+    sleep .2
+  done
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
@@ -223,13 +222,13 @@ bin.main() {
       fi
     done
     bin.cli "${cli_args[@]}"
-    # exit $?
+    exit $?
   elif [[ ${bin__shell_minimal_flag} = true ]]; then
     bin.shell
-    # exit $?
+    exit $?
   elif [[ ${bin__shell_full_flag} = true ]]; then
     bin.shell "${bin__users_bashrc_path}"
-    # exit $?
+    exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2
     bin.error_press_enter
