@@ -810,10 +810,11 @@ bin.cmd.init() {
       checked_out_project="${selected_project}"
     fi
   fi
+  bin.global_store.set "setup_at_git_hash" "${curr_git_hash}"
   if [[ -n ${checked_out_project} ]]; then
     bin.global_store.set "checked_out_project" "${checked_out_project}"
+    /bin/bash -c "${HOME}/.solos/src/cli/bin.sh checkout ${checked_out_project}"
   fi
-  bin.global_store.set "setup_at_git_hash" "${curr_git_hash}"
 }
 #---------------------------------------------
 # LIB:PROJECT: Project related helper methods
