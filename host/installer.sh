@@ -88,14 +88,14 @@ installer.install() {
       return 1
     fi
   fi
-  echo "WE HERE WHY WE ENDING" >&2
+  echo "WE HERE WHY WE ENDING-1" >&2
   if ! solos --installer-no-tty --restricted-noop; then
-    echo "WE HERE WHY WE ENDING-inner" >&2
+    echo "WE HERE WHY WE ENDING-2" >&2
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  echo "WE HERE WHY WE ENDING" >&2
+  echo "WE HERE WHY WE ENDING-3" >&2
   # bash -ic "solos init" >/dev/null
   # bash -ic "solos checkout"
 }
