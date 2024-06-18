@@ -206,6 +206,7 @@ bin.cli() {
   bin.exec_cli "${args[@]}"
 }
 bin.main() {
+  echo "args - ${*}"
   mkdir -p "${bin__data_dir}"
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
@@ -214,7 +215,6 @@ bin.main() {
         cli_args+=("${entry_arg}")
       fi
     done
-    echo "cli_args - ${cli_args[*]}"
     bin.cli "${cli_args[@]}"
     exit $?
   elif [[ ${bin__shell_minimal_flag} = true ]]; then
