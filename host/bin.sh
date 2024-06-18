@@ -20,9 +20,7 @@ bin__next_args=()
 
 # Map the flags to the relevant values and remove them from the args.
 for entry_arg in "$@"; do
-  if [[ ${entry_arg} = "--installer-no-tty" ]]; then
-    bin__installer_no_tty_flag=true
-  elif [[ ${entry_arg} = "shell-minimal" ]]; then
+  if [[ ${entry_arg} = "shell-minimal" ]]; then
     bin__shell_minimal_flag=true
     bin__shell_full_flag=false
     bin__cli_flag=false
@@ -57,12 +55,7 @@ bin.destroy() {
 }
 bin.test() {
   local hash="${1}"
-  local args=()
-  if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-w "/root/.solos/src" "${hash}" echo "")
-  else
-    args=(-it -w "/root/.solos/src" "${hash}" echo "")
-  fi
+  local args=(-w "/root/.solos" "${hash}" echo "")
   if ! docker exec "${args[@]}"; then
     return 1
   fi
@@ -70,19 +63,14 @@ bin.test() {
 }
 bin.launch_daemon() {
   local hash="${1}"
-  local args=(-w "/root/.solos/src" "${hash}")
-  local bash_args=(-c 'nohup '"${bin__mounted_daemon_path}"' >/dev/null 2>&1 &')
+  local args=(-w "/root/.solos" "${hash}")
+  local bash_args=(-c 'nohup "'"${bin__mounted_daemon_path}"'" >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.exec_shell() {
   local hash="${1}"
   local bashrc_file="${2:-""}"
-  local args=()
-  if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-w "/root/.solos/src" "${hash}")
-  else
-    args=(-it -w "/root/.solos/src" "${hash}")
-  fi
+  local args=(-w "/root/.solos" "${hash}")
   local bash_args=()
   if [[ -n ${bashrc_file} ]]; then
     if [[ ! -f ${bashrc_file} ]]; then
@@ -98,15 +86,8 @@ bin.exec_shell() {
 bin.exec_command() {
   local hash="${1}"
   shift
-  local args=()
-  local bash_args=()
-  if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-w "/root/.solos/src" "${hash}")
-    bash_args=(-c ''"${*}"'')
-  else
-    args=(-it -w "/root/.solos/src" "${hash}")
-    bash_args=(-i -c ''"${*}"'')
-  fi
+  local args=(-w "/root/.solos" "${hash}")
+  local bash_args=(-c ''"${*}"'')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.build_and_run() {
