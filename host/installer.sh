@@ -1,27 +1,23 @@
 #!/usr/bin/env bash
 
 installer.setup() {
-
-  local installer__flag_is_dev=false
+  installer__flag_is_dev=false
   if [[ "${1}" = "--dev" ]]; then
     installer__flag_is_dev=true
   fi
   installer__entry_dir="${PWD}"
   trap 'cd '"${installer__entry_dir}"'' EXIT
-
   installer__bin_path="${HOME}/.solos/src/host/bin.sh"
   installer__usr_bin_path="/usr/local/bin/solos"
   installer__github_repo="https://github.com/InterBolt/solos.git"
   installer__tmp_dir="$(mktemp -d 2>/dev/null)"
   installer__solos_home_dir="${HOME}/.solos"
   installer__setup_demo_script="${installer__solos_home_dir}/src/scripts/setup-demo.sh"
-
   if [[ -z ${installer__tmp_dir} ]]; then
     echo "Failed to create temporary directory." >&2
     return 1
   fi
 }
-
 installer.clone() {
   if ! git clone "${installer__github_repo}" "${installer__tmp_dir}/src" >/dev/null 2>&1; then
     echo "Failed to clone ${installer__github_repo} to ${installer__tmp_dir}/src" >&2
