@@ -88,7 +88,7 @@ installer.install() {
       return 1
     fi
   fi
-  if ! "${installer__usr_bin_path}" --installer-no-tty --restricted-noop; then
+  if ! solos --cli --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1

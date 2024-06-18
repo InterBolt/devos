@@ -30,8 +30,6 @@ for entry_arg in "$@"; do
     bin__shell_full_flag=true
     bin__shell_minimal_flag=false
     bin__cli_flag=false
-  elif [[ ${entry_arg} = "--cli" ]]; then
-    bin__cli_flag=true
   else
     bin__next_args+=("${entry_arg}")
   fi
@@ -182,6 +180,7 @@ bin.cmd() {
 }
 bin.exec_cli() {
   local post_behavior="$(cli_posthooks.determine_command "$@")"
+  echo "args - ${*}"
   if bin.cmd "${bin__mounted_cli_path}" "$@"; then
     if [[ -n ${post_behavior} ]]; then
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
