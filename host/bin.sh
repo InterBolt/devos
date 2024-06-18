@@ -189,22 +189,29 @@ bin.cli() {
       solos_cmd="${arg}"
     fi
   done
-  echo "HY MAN"
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
     bin.destroy
   fi
-  echo "HY MAN 2"
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
+  echo "hey 1"
   if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
+    echo "hey 2"
     if [[ -n ${post_behavior} ]]; then
+      echo "hey 3"
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
+        echo "hey 4"
         return 0
       fi
+      echo "hey 5"
       # The first arg is the command.
       shift
+      echo "hey 6"
       "cli_posthooks.${post_behavior}" "$@"
+      echo "hey 7"
     fi
+    echo "hey 8"
   fi
+  echo "hey 9"
 }
 bin.main() {
   mkdir -p "${bin__data_dir}"
