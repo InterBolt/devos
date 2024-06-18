@@ -18,6 +18,8 @@ bin__shell_full_flag=false
 bin__cli_flag=true
 bin__next_args=()
 
+trap 'echo "bigfuckingcat"' EXIT
+
 # Map the flags to the relevant values and remove them from the args.
 for entry_arg in "$@"; do
   if [[ ${entry_arg} = "--installer-no-tty" ]]; then
@@ -214,13 +216,13 @@ bin.main() {
       fi
     done
     bin.cli "${cli_args[@]}"
-    return $?
+    exit $?
   elif [[ ${bin__shell_minimal_flag} = true ]]; then
     bin.shell
-    return $?
+    exit $?
   elif [[ ${bin__shell_full_flag} = true ]]; then
     bin.shell "${bin__users_bashrc_path}"
-    return $?
+    exit $?
   else
     echo "Unexpected error: invalid, incorrect, or missing flags." >&2
     bin.error_press_enter
