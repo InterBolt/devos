@@ -193,6 +193,7 @@ bin.cli() {
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
     bin.destroy
   fi
+  echo "HY MAN 2"
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
   if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
     if [[ -n ${post_behavior} ]]; then
