@@ -190,9 +190,9 @@ bin.cli() {
     fi
   done
   if [[ -z ${solos_cmd} ]] || [[ ${solos_cmd} = "checkout" ]]; then
+  trap 'sleep .3' DEBUG
     bin.destroy
   fi
-  trap 'sleep .3' DEBUG
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
   if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
     if [[ -n ${post_behavior} ]]; then
