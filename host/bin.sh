@@ -58,7 +58,6 @@ bin.destroy() {
 bin.test() {
   local hash="${1}"
   local args=()
-  
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
     args=(-i -w "/root/.solos/src" "${hash}" echo "")
   else
