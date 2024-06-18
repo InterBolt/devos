@@ -205,6 +205,7 @@ bin.cli() {
   fi
 }
 bin.main() {
+  set -x
   mkdir -p "${bin__data_dir}"
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
