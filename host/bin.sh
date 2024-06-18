@@ -127,6 +127,8 @@ bin.build_and_run() {
   fi
   echo "${hash}" >"${bin__last_docker_build_hash}"
   local shared_docker_run_args=(
+    --name
+    "${hash}"
     --network
     host
     --pid
@@ -155,6 +157,7 @@ bin.rebuild() {
     echo "Unexpected error: failed to cleanup old containers." >&2
     bin.error_press_enter
   fi
+  exit 0
   if ! bin.build_and_run; then
     echo "Unexpected error: failed to build and run the container." >&2
     bin.error_press_enter
