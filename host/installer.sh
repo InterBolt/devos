@@ -44,14 +44,9 @@ installer.init_fs() {
 install_solos
 EOF
   fi
-  if [[ "${src_dir}" != "${HOME}/"*"/"* ]]; then
-    echo "The source directory must be a subchild of your \$HOME directory." >&2
-    exit 1
-  else
-    rm -rf "${src_dir}" || exit 1
-    mkdir -p "${src_dir}" || exit 1
-    cp -r "${installer__tmp_dir}/src/." "${src_dir}" || exit 1
-  fi
+  rm -rf "${src_dir}" || exit 1
+  mkdir -p "${src_dir}" || exit 1
+  cp -r "${installer__tmp_dir}/src/." "${src_dir}" || exit 1
 }
 installer.symlink() {
   if ! ln -sfv "${installer__bin_path}" "${installer__usr_bin_path}" >/dev/null; then
@@ -86,7 +81,7 @@ installer.install() {
       echo "Failed to run SolOS setup-demo script." >&2
       return 1
     fi
-  else 
+  else
     echo "(DEV_MODE=OFF) - setting up a non-dev installation." >&2
   fi
   if ! solos --restricted-noop; then

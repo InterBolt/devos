@@ -34,7 +34,7 @@ for entry_arg in "$@"; do
 done
 set -- "${bin__next_args[@]}" || exit 1
 
-# export DOCKER_CLI_HINTS=false
+export DOCKER_CLI_HINTS=false
 
 bin.error_press_enter() {
   echo "Press enter to exit..."
@@ -70,7 +70,7 @@ bin.launch_daemon() {
 bin.exec_shell() {
   local hash="${1}"
   local bashrc_file="${2:-""}"
-  local args=(-it -w "/root/.solos" "${hash}")
+  local args=(-w "/root/.solos" "${hash}")
   local bash_args=()
   if [[ -n ${bashrc_file} ]]; then
     if [[ ! -f ${bashrc_file} ]]; then
@@ -109,7 +109,7 @@ bin.build_and_run() {
   fi
   echo "${hash}" >"${bin__last_docker_build_hash}"
   local shared_docker_run_args=(
-    --name 
+    --name
     "${hash}"
     --network
     host
@@ -148,7 +148,7 @@ bin.shell() {
   fi
   if bin.rebuild; then
     bin.exec_shell "${hash}" "$@"
-  else 
+  else
     echo "Unexpected error: failed to launch shell from container." >&2
     bin.error_press_enter
   fi
@@ -161,7 +161,7 @@ bin.cmd() {
   fi
   if bin.rebuild; then
     bin.exec_command "${hash}" "$@"
-  else 
+  else
     echo "Unexpected error: failed to execute command in container." >&2
     bin.error_press_enter
   fi
