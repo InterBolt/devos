@@ -146,9 +146,10 @@ bin.build_and_run() {
   else
     docker run -it "${shared_docker_run_args[@]}"
   fi
-  while ! bin.test "${hash}"; do
-    sleep .2
-  done
+  sleep 2
+  # while ! bin.test "${hash}"; do
+  #   sleep .2
+  # done
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
@@ -168,8 +169,12 @@ bin.shell() {
     bin.exec_shell "${hash}" "$@"
     return 0
   fi
-  bin.rebuild
-  bin.exec_shell "${hash}" "$@"
+  if bin.rebuild; then
+    bin.exec_shell "${hash}" "$@"
+  else 
+    echo "Unexpected error: failed to launch shell from container." >&2
+    bin.error_press_enter
+  fi
 }
 bin.cmd() {
   local hash="$(bin.hash)"
@@ -178,8 +183,7 @@ bin.cmd() {
     return 0
   fi
   if bin.rebuild; then
-    # bin.exec_command "${hash}" "$@"
-    echo "Nice"
+    bin.exec_command "${hash}" "$@"
   else 
     echo "Unexpected error: failed to execute command in container." >&2
     bin.error_press_enter
