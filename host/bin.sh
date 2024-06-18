@@ -63,7 +63,8 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" echo 'CONTAINER READY')
   fi
-  if ! docker exec "${args[@]}" 2>/dev/null; then
+  docker exec "${args[@]}"
+  if ! docker exec "${args[@]}"; then
     return 1
   fi
   return 0
@@ -150,7 +151,6 @@ bin.build_and_run() {
   while ! bin.test "${hash}"; do
     sleep .2
   done
-  echo "YOOYOO"
   bin.launch_daemon "${hash}"
   set +x
 }
