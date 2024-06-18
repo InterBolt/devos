@@ -59,7 +59,7 @@ bin.test() {
   local hash="${1}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-w "/root/.solos/src" "${hash}" echo "CONTAINER lkjlkjl;kk")
+    args=(-w "/root/.solos/src" "${hash}" echo "CONTAINER READY")
   else
     args=(-it -w "/root/.solos/src" "${hash}" echo "CONTAINER READY")
   fi
@@ -149,6 +149,7 @@ bin.build_and_run() {
   while ! bin.test "${hash}"; do
     sleep .2
   done
+  echo "HIHIFHSDF"
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
