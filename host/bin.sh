@@ -63,6 +63,7 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" echo "")
   fi
+  set -x
   if ! docker exec "${args[@]}" >/dev/null 2>&1; then
     return 1
   fi
@@ -147,10 +148,8 @@ bin.build_and_run() {
     docker run -it "${shared_docker_run_args[@]}" >/dev/null &
   fi
   while ! bin.test "${hash}"; do
-    echo "TRYINIG TEST NOW"
     sleep .2
   done
-  echo "SHOULD LAUNCH DAEMON"
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
