@@ -79,7 +79,6 @@ installer.install() {
     echo "Failed to link SolOS executable to /usr/local/bin/solos." >&2
     return 1
   fi
-  set -x
   if [[ ${installer__flag_is_dev} = true ]]; then
     echo "DEV MODE ENABLED - setting up a dev-friendly \$HOME/.solos directory." >&2
     if ! bash -ic "${installer__setup_demo_script}" >/dev/null; then

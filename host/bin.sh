@@ -56,12 +56,11 @@ bin.destroy() {
   done
 }
 bin.test() {
-  local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "${container_ctx}" "$(bin.hash)" echo "")
+    args=(-i -w "/root/.solos/src" "$(bin.hash)" echo "")
   else
-    args=(-it -w "${container_ctx}" "$(bin.hash)" echo "")
+    args=(-it -w "/root/.solos/src" "$(bin.hash)" echo "")
   fi
   if ! docker exec "${args[@]}" >/dev/null 2>&1; then
     return 1
@@ -69,19 +68,17 @@ bin.test() {
   return 0
 }
 bin.launch_daemon() {
-  local container_ctx="${PWD/#$HOME//root}"
-  local args=(-i -w "${container_ctx}" "$(bin.hash)")
+  local args=(-i -w "/root/.solos/src" "$(bin.hash)")
   local bash_args=(-c 'nohup '"${bin__mounted_daemon_path}"' >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.exec_shell() {
   local bashrc_file="${1:-""}"
-  local container_ctx="${PWD/#$HOME//root}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "${container_ctx}" "$(bin.hash)")
+    args=(-i -w "/root/.solos/src" "$(bin.hash)")
   else
-    args=(-it -w "${container_ctx}" "$(bin.hash)")
+    args=(-it -w "/root/.solos/src" "$(bin.hash)")
   fi
   local bash_args=()
   if [[ -n ${bashrc_file} ]]; then
@@ -96,14 +93,13 @@ bin.exec_shell() {
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
 bin.exec_command() {
-  local container_ctx="${PWD/#$HOME//root}"
   local args=()
   local bash_args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "${container_ctx}" "$(bin.hash)")
+    args=(-i -w "/root/.solos/src" "$(bin.hash)")
     bash_args=(-c ''"${*}"'')
   else
-    args=(-it -w "${container_ctx}" "$(bin.hash)")
+    args=(-it -w "/root/.solos/src" "$(bin.hash)")
     bash_args=(-i -c ''"${*}"'')
   fi
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
