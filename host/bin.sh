@@ -67,6 +67,7 @@ bin.launch_daemon() {
   local bash_args=(-c 'nohup "'"${bin__mounted_daemon_path}"'" >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
+
 bin.exec_shell() {
   local hash="${1}"
   local bashrc_file="${2:-""}"
