@@ -55,7 +55,7 @@ bin.destroy() {
 }
 bin.test() {
   local hash="${1}"
-  local args=(-it -w "/root/.solos" "${hash}" echo "")
+  local args=(-w "/root/.solos" "${hash}" echo "")
   if ! docker exec "${args[@]}"; then
     return 1
   fi
@@ -63,7 +63,7 @@ bin.test() {
 }
 bin.launch_daemon() {
   local hash="${1}"
-  local args=(-it -w "/root/.solos" "${hash}")
+  local args=(-w "/root/.solos" "${hash}")
   local bash_args=(-c 'nohup "'"${bin__mounted_daemon_path}"'" >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
