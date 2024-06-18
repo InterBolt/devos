@@ -89,7 +89,7 @@ installer.install() {
   else 
     echo "(DEV_MODE=OFF) - setting up a non-dev installation." >&2
   fi
-  if ! solos --installer-no-tty --restricted-noop; then
+  if ! solos --restricted-noop; then
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
