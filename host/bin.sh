@@ -173,11 +173,16 @@ bin.shell() {
 }
 bin.cmd() {
   local hash="$(bin.hash)"
+  echo "hey 1"
   if bin.test "${hash}"; then
+    echo "hey 2"
     bin.exec_command "${hash}" "$@"
+    echo "hey 3"
     return 0
   fi
+  echo "hey 4"
   bin.rebuild
+  echo "hey 5"
   bin.exec_command "${hash}" "$@"
 }
 bin.cli() {
@@ -193,25 +198,16 @@ bin.cli() {
     bin.destroy
   fi
   local post_behavior="$(cli_posthooks.determine_command "${args[@]}")"
-  echo "hey 1"
   if bin.cmd "${bin__mounted_cli_path}" "${args[@]}"; then
-    echo "hey 2"
     if [[ -n ${post_behavior} ]]; then
-      echo "hey 3"
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
-        echo "hey 4"
         return 0
       fi
-      echo "hey 5"
       # The first arg is the command.
       shift
-      echo "hey 6"
       "cli_posthooks.${post_behavior}" "$@"
-      echo "hey 7"
     fi
-    echo "hey 8"
   fi
-  echo "hey 9"
 }
 bin.main() {
   mkdir -p "${bin__data_dir}"
