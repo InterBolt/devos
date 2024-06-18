@@ -106,6 +106,7 @@ bin.exec_command() {
     args=(-it -w "${container_ctx}" "$(bin.hash)")
     bash_args=(-i -c ''"${*}"'')
   fi
+  echo "args - ${args[*]}, bash_args - ${bash_args[*]}"
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.build_and_run() {
@@ -181,6 +182,7 @@ bin.cmd() {
 bin.exec_cli() {
   local post_behavior="$(cli_posthooks.determine_command "$@")"
   echo "args - ${*}"
+  echo "post_behavior - ${post_behavior}"
   if bin.cmd "${bin__mounted_cli_path}" "$@"; then
     if [[ -n ${post_behavior} ]]; then
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
@@ -211,7 +213,7 @@ bin.main() {
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
     for entry_arg in "$@"; do
-      if [[ ${entry_arg} != shell ]] && [[ ${entry_arg} != shell-* ]]; then
+      if [[ ${entry_arg} != "shell" ]] && [[ ${entry_arg} != "shell-"* ]]; then
         cli_args+=("${entry_arg}")
       fi
     done
