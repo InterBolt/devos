@@ -89,13 +89,13 @@ installer.install() {
   else 
     echo "(DEV_MODE=OFF) - setting up a non-dev installation." >&2
   fi
-  if ! "${HOME}/.solos/src/host/bin.sh" --installer-no-tty --restricted-noop; then
+  if ! solos --installer-no-tty --restricted-noop; then
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  solos --installer-no-tty init
-  solos --installer-no-tty checkout
+  solos init
+  solos checkout
 }
 
 installer.main() {

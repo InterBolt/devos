@@ -21,7 +21,7 @@ main() {
   tmp_dir="$(mktemp -d 2>/dev/null)"
   git clone "https://github.com/InterBolt/solos.git" "${tmp_dir}" >/dev/null
   find "${tmp_dir}" -type f -exec chmod +x {} \;
-  bash "${tmp_dir}/host/installer.sh" --dev <>/dev/tty 2<>/dev/tty
+  bash "${tmp_dir}/host/installer.sh" --dev
 }
 
 main
