@@ -129,6 +129,7 @@ bin.build_and_run() {
   local shared_docker_run_args=(
     --name
     "${hash}"
+    -d
     --network
     host
     --pid
@@ -140,17 +141,15 @@ bin.build_and_run() {
     "${HOME}/.solos:${bin__mount_dir}"
     "solos:${hash}"
   )
-  set -x
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    docker run -i "${shared_docker_run_args[@]}" &
+    docker run -i "${shared_docker_run_args[@]}"
   else
-    docker run -it "${shared_docker_run_args[@]}" &
+    docker run -it "${shared_docker_run_args[@]}"
   fi
   while ! bin.test "${hash}"; do
     sleep .2
   done
   bin.launch_daemon "${hash}"
-  set +x
 }
 bin.rebuild() {
   echo -e "\033[0;34mRebuilding the container...\033[0m"
@@ -173,6 +172,7 @@ bin.shell() {
   bin.exec_shell "${hash}" "$@"
 }
 bin.cmd() {
+  trap 'sleep 3; echo "debuggggg";' DEBUG
   local hash="$(bin.hash)"
   if bin.test "${hash}"; then
     bin.exec_command "${hash}" "$@"
