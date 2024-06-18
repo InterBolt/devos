@@ -147,6 +147,7 @@ bin.build_and_run() {
     docker run -it "${shared_docker_run_args[@]}" >/dev/null &
   fi
   while ! bin.test "${hash}"; do
+    echo "TRYINIG TEST NOW"
     sleep .2
   done
   echo "SHOULD LAUNCH DAEMON"
