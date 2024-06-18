@@ -179,6 +179,7 @@ bin.cmd() {
   fi
   if bin.rebuild; then
     # bin.exec_command "${hash}" "$@"
+    echo "Nice"
   else 
     echo "Unexpected error: failed to execute command in container." >&2
     bin.error_press_enter
