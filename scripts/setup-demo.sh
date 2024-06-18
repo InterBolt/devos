@@ -5,8 +5,8 @@ main() {
   local plugins_dir="${solos_dir}/plugins"
   if [[ -d "${plugins_dir}" ]]; then
     rm -rf "${plugins_dir}"
-    mkdir -p "${plugins_dir}"
   fi
+  mkdir -p "${plugins_dir}"
   local manifest_file="${plugins_dir}/solos.manifest.json"
   local mock_plugin_downloads_path="mock/remote-plugin-downloads"
   local mock_remote_plugin_downloads_dir="${solos_dir}/src/${mock_plugin_downloads_path}"
