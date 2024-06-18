@@ -172,14 +172,17 @@ bin.shell() {
   bin.exec_shell "${hash}" "$@"
 }
 bin.cmd() {
-  trap 'sleep 1; echo "${BASH_COMMAND}";' DEBUG
   local hash="$(bin.hash)"
   if bin.test "${hash}"; then
     bin.exec_command "${hash}" "$@"
     return 0
   fi
-  bin.rebuild
-  bin.exec_command "${hash}" "$@"
+  if bin.rebuild; then
+    bin.exec_command "${hash}" "$@"
+  else 
+    echo "Unexpected error: failed to execute command in container." >&2
+    bin.error_press_enter
+  fi
 }
 bin.cli() {
   local curr_project="$(lib.checked_out_project)"
