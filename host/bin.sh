@@ -149,6 +149,7 @@ bin.build_and_run() {
   while ! bin.test "${hash}"; do
     sleep .2
   done
+  echo "SHOULD LAUNCH DAEMON"
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
