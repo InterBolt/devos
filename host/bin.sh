@@ -56,11 +56,12 @@ bin.destroy() {
   done
 }
 bin.test() {
+  local hash="${1}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "$(bin.hash)" echo "")
+    args=(-i -w "/root/.solos/src" "${hash}" echo "")
   else
-    args=(-it -w "/root/.solos/src" "$(bin.hash)" echo "")
+    args=(-it -w "/root/.solos/src" "${hash}" echo "")
   fi
   if ! docker exec "${args[@]}" >/dev/null 2>&1; then
     return 1
@@ -68,17 +69,19 @@ bin.test() {
   return 0
 }
 bin.launch_daemon() {
-  local args=(-i -w "/root/.solos/src" "$(bin.hash)")
+  local hash="${1}"
+  local args=(-i -w "/root/.solos/src" "${hash}")
   local bash_args=(-c 'nohup '"${bin__mounted_daemon_path}"' >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.exec_shell() {
-  local bashrc_file="${1:-""}"
+  local hash="${1}"
+  local bashrc_file="${2:-""}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "$(bin.hash)")
+    args=(-i -w "/root/.solos/src" "${hash}")
   else
-    args=(-it -w "/root/.solos/src" "$(bin.hash)")
+    args=(-it -w "/root/.solos/src" "${hash}")
   fi
   local bash_args=()
   if [[ -n ${bashrc_file} ]]; then
@@ -93,13 +96,14 @@ bin.exec_shell() {
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}" -i
 }
 bin.exec_command() {
+  local hash="${1}"
   local args=()
   local bash_args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "$(bin.hash)")
+    args=(-i -w "/root/.solos/src" "${hash}")
     bash_args=(-c ''"${*}"'')
   else
-    args=(-it -w "/root/.solos/src" "$(bin.hash)")
+    args=(-it -w "/root/.solos/src" "${hash}")
     bash_args=(-i -c ''"${*}"'')
   fi
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
@@ -124,7 +128,7 @@ bin.build_and_run() {
   echo "${hash}" >"${bin__last_docker_build_hash}"
   local shared_docker_run_args=(
     --name
-    "$(bin.hash)"
+    "${hash}"
     -d
     --network
     host
@@ -135,20 +139,19 @@ bin.build_and_run() {
     /var/run/docker.sock:/var/run/docker.sock
     -v
     "${HOME}/.solos:${bin__mount_dir}"
-    "solos:$(bin.hash)"
+    "solos:${hash}"
   )
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
     docker run -i "${shared_docker_run_args[@]}" >/dev/null &
   else
     docker run -it "${shared_docker_run_args[@]}" >/dev/null &
   fi
-  while ! bin.test; do
+  while ! bin.test "${hash}"; do
     sleep .2
   done
-  bin.launch_daemon
+  bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
-  set -x
   echo -e "\033[0;34mRebuilding the container...\033[0m"
   if ! bin.destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
@@ -160,20 +163,22 @@ bin.rebuild() {
   fi
 }
 bin.shell() {
-  if bin.test; then
-    bin.exec_shell "$@"
+  local hash="$(bin.hash)"
+  if bin.test "${hash}"; then
+    bin.exec_shell "${hash}" "$@"
     return 0
   fi
   bin.rebuild
-  bin.exec_shell "$@"
+  bin.exec_shell "${hash}" "$@"
 }
 bin.cmd() {
-  if bin.test; then
-    bin.exec_command "$@"
+  local hash="$(bin.hash)"
+  if bin.test "${hash}"; then
+    bin.exec_command "${hash}" "$@"
     return 0
   fi
   bin.rebuild
-  bin.exec_command "$@"
+  bin.exec_command "${hash}" "$@"
 }
 bin.cli() {
   local curr_project="$(lib.checked_out_project)"
