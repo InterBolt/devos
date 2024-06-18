@@ -97,6 +97,7 @@ installer.install() {
     return 1
   fi
   bash -ic "solos init"
+  bash -ic "solos checkout"
 }
 
 installer.main() {
