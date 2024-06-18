@@ -79,17 +79,17 @@ installer.install() {
     echo "Failed to link SolOS executable to /usr/local/bin/solos." >&2
     return 1
   fi
-  echo "WE HERE WHY WE ENDING" >&2
   if [[ ${installer__flag_is_dev} = true ]]; then
-    echo "DEV MODE ENABLED - setting up a dev-friendly \$HOME/.solos directory." >&2
+    echo "(DEV_MODE=ON) - setting up a dev-friendly \$HOME/.solos directory." >&2
     if ! bash -ic "${installer__setup_demo_script}" >/dev/null; then
       echo "SolOS installation failed." >&2
       echo "Failed to run SolOS setup-demo script." >&2
       return 1
     fi
+  else 
+    echo "(DEV_MODE=OFF) - setting up a non-dev installation." >&2
   fi
-  echo "WE HERE WHY WE ENDING-1" >&2
-  if ! solos --installer-no-tty --restricted-noop; then
+  if ! "${HOME}/.solos/src/host/bin.sh" --installer-no-tty --restricted-noop; then
     echo "WE HERE WHY WE ENDING-2" >&2
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
