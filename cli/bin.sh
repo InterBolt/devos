@@ -814,9 +814,6 @@ bin.cmd.init() {
     bin.global_store.set "checked_out_project" "${checked_out_project}"
   fi
   bin.global_store.set "setup_at_git_hash" "${curr_git_hash}"
-  if [[ ${bin__is_running_in_shell} = false ]]; then
-    bin.cmd.init._checkout_project
-  fi
 }
 #---------------------------------------------
 # LIB:PROJECT: Project related helper methods
