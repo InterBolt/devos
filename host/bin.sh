@@ -179,9 +179,9 @@ bin.cmd() {
   bin.exec_command "$@"
 }
 bin.exec_cli() {
-  echo "args - ${*}"
   local post_behavior="$(cli_posthooks.determine_command "$@")"
   if bin.cmd "${bin__mounted_cli_path}" "$@"; then
+    echo "Command completed successfully."
     if [[ -n ${post_behavior} ]]; then
       if [[ "$*" = *" --help"* ]] || [[ "$*" = *" help"* ]]; then
         return 0
