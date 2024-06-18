@@ -79,6 +79,7 @@ installer.install() {
     echo "Failed to link SolOS executable to /usr/local/bin/solos." >&2
     return 1
   fi
+  echo "WE HERE WHY WE ENDING" >&2
   if [[ ${installer__flag_is_dev} = true ]]; then
     echo "DEV MODE ENABLED - setting up a dev-friendly \$HOME/.solos directory." >&2
     if ! bash -ic "${installer__setup_demo_script}" >/dev/null; then
@@ -87,7 +88,9 @@ installer.install() {
       return 1
     fi
   fi
+  echo "WE HERE WHY WE ENDING" >&2
   if ! solos --installer-no-tty --restricted-noop; then
+    echo "WE HERE WHY WE ENDING" >&2
     echo "SolOS installation failed." >&2
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
