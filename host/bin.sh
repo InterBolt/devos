@@ -36,7 +36,7 @@ for entry_arg in "$@"; do
 done
 set -- "${bin__next_args[@]}" || exit 1
 
-export DOCKER_CLI_HINTS=false
+# export DOCKER_CLI_HINTS=false
 
 bin.error_press_enter() {
   echo "Press enter to exit..."
@@ -63,10 +63,10 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" 'echo "CONTAINER READY"')
   fi
-  docker exec "${args[@]}"
-  local return_code=$?
-  echo "return code is ${return_code}"
-  return "${return_code}"
+  if ! docker exec "${args[@]}"; then
+    return 1
+  fi
+  return 0
 }
 bin.launch_daemon() {
   local hash="${1}"
