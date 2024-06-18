@@ -70,7 +70,7 @@ bin.test() {
 }
 bin.launch_daemon() {
   local hash="${1}"
-  local args=(-i -w "/root/.solos/src" "${hash}")
+  local args=(-w "/root/.solos/src" "${hash}")
   local bash_args=(-c 'nohup '"${bin__mounted_daemon_path}"' >/dev/null 2>&1 &')
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
@@ -149,7 +149,6 @@ bin.build_and_run() {
   while ! bin.test "${hash}"; do
     sleep .2
   done
-  echo "HIHIFHSDF"
   bin.launch_daemon "${hash}"
 }
 bin.rebuild() {
