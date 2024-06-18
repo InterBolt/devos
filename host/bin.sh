@@ -59,9 +59,9 @@ bin.test() {
   local hash="${1}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "${hash}" echo "")
+    args=(-i -w "/root/.solos/src" "${hash}" echo "PASSED")
   else
-    args=(-it -w "/root/.solos/src" "${hash}" echo "")
+    args=(-it -w "/root/.solos/src" "${hash}" echo "PASSED")
   fi
   if ! docker exec "${args[@]}" >/dev/null 2>&1; then
     return 1
