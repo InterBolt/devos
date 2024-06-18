@@ -544,7 +544,7 @@ bin.utils.pretty_print_dir_files() {
   local tilde_dir="${dir/#\/root/\~}"
   for store_dir_file in "${dir}"/*; do
     local filename="$(basename ${store_dir_file})"
-    printf "\033[0;32m%s\033[0m\n" "${tilde_dir}/${filename}: $(cat ${store_dir_file})"
+    printf "\033[0;32m%s\033[0m\n" "${tilde_dir}/${filename}: $(cat "${store_dir_file}" 2>/dev/null || echo "")"
   done
 }
 #----------------------------------------------------------------------------
