@@ -210,10 +210,11 @@ bin.main() {
   if [[ ${bin__cli_flag} = true ]]; then
     local cli_args=()
     for entry_arg in "$@"; do
-      if [[ ${entry_arg} != shell ]] && [[ ${entry_arg} != shell-* ]]; then
+      if [[ ${entry_arg} != "shell" ]] && [[ ${entry_arg} != "shell-"* ]]; then
         cli_args+=("${entry_arg}")
       fi
     done
+    echo "cli_args - ${cli_args[*]}"
     bin.cli "${cli_args[@]}"
     exit $?
   elif [[ ${bin__shell_minimal_flag} = true ]]; then
