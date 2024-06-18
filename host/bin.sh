@@ -177,6 +177,7 @@ bin.cmd() {
   fi
   echo "ABOUT TO REBUILD"
   bin.rebuild
+  echo "ABOUT TO EXEC"
   bin.exec_command "$@"
 }
 bin.cli() {
