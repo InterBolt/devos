@@ -182,10 +182,11 @@ bin.cmd() {
 }
 bin.cli() {
   local curr_project="$(lib.checked_out_project)"
+  echo "Current project: ${curr_project}"
   local solos_cmd=""
   local args=("$@")
   for arg in "${args[@]}"; do
-    if [[ ${arg} != --* ]]; then
+    if [[ ${arg} != "--"* ]]; then
       solos_cmd="${arg}"
     fi
   done
