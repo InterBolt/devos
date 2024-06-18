@@ -109,6 +109,7 @@ bin.exec_command() {
   docker exec "${args[@]}" /bin/bash "${bash_args[@]}"
 }
 bin.build_and_run() {
+  set -x
   if [[ -f ${HOME}/.solos ]]; then
     echo "A file called .solos was detected in your home directory." >&2
     bin.error_press_enter
@@ -150,20 +151,18 @@ bin.build_and_run() {
     sleep .2
   done
   bin.launch_daemon "${hash}"
+  set +x
 }
 bin.rebuild() {
   echo -e "\033[0;34mRebuilding the container...\033[0m"
-  echo "hey 1"
   if ! bin.destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     bin.error_press_enter
   fi
-  echo "hey 3"
   if ! bin.build_and_run; then
     echo "Unexpected error: failed to build and run the container." >&2
     bin.error_press_enter
   fi
-  echo "hey 4"
 }
 bin.shell() {
   local hash="$(bin.hash)"
