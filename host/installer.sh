@@ -94,8 +94,8 @@ installer.install() {
     echo "Failed to run SolOS cli after installing it." >&2
     return 1
   fi
-  # solos init
-  # solos checkout
+  solos --installer-no-tty init
+  solos --installer-no-tty checkout
 }
 
 installer.main() {
