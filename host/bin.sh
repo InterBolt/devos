@@ -56,7 +56,6 @@ bin.destroy() {
   done
 }
 bin.test() {
-  set -x
   local hash="${1}"
   local args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
@@ -64,10 +63,10 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" 'echo "CONTAINER READY"')
   fi
-  if ! docker exec "${args[@]}"; then
-    return 1
-  fi
-  return 0
+  docker exec "${args[@]}"
+  local return_code=$?
+  echo "return code is ${return_code}"
+  return "${return_code}"
 }
 bin.launch_daemon() {
   local hash="${1}"
