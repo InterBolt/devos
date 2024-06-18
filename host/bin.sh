@@ -100,7 +100,7 @@ bin.exec_command() {
   local args=()
   local bash_args=()
   if [[ ${bin__installer_no_tty_flag} = true ]]; then
-    args=(-i -w "/root/.solos/src" "${hash}")
+    args=(-w "/root/.solos/src" "${hash}")
     bash_args=(-c ''"${*}"'')
   else
     args=(-it -w "/root/.solos/src" "${hash}")
@@ -182,7 +182,6 @@ bin.cmd() {
     return 0
   fi
   if bin.rebuild; then
-    echo "hash - ${hash}"
     bin.exec_command "${hash}" "$@"
   else 
     echo "Unexpected error: failed to execute command in container." >&2
