@@ -172,7 +172,7 @@ bin.shell() {
   bin.exec_shell "${hash}" "$@"
 }
 bin.cmd() {
-  trap 'sleep 3; echo "debuggggg";' DEBUG
+  trap 'sleep 1; echo "${BASH_COMMAND}";' DEBUG
   local hash="$(bin.hash)"
   if bin.test "${hash}"; then
     bin.exec_command "${hash}" "$@"
