@@ -153,14 +153,17 @@ bin.build_and_run() {
 }
 bin.rebuild() {
   echo -e "\033[0;34mRebuilding the container...\033[0m"
+  echo "hey 1"
   if ! bin.destroy; then
     echo "Unexpected error: failed to cleanup old containers." >&2
     bin.error_press_enter
   fi
+  echo "hey 3"
   if ! bin.build_and_run; then
     echo "Unexpected error: failed to build and run the container." >&2
     bin.error_press_enter
   fi
+  echo "hey 4"
 }
 bin.shell() {
   local hash="$(bin.hash)"
@@ -173,16 +176,11 @@ bin.shell() {
 }
 bin.cmd() {
   local hash="$(bin.hash)"
-  echo "hey 1"
   if bin.test "${hash}"; then
-    echo "hey 2"
     bin.exec_command "${hash}" "$@"
-    echo "hey 3"
     return 0
   fi
-  echo "hey 4"
   bin.rebuild
-  echo "hey 5"
   bin.exec_command "${hash}" "$@"
 }
 bin.cli() {
