@@ -63,7 +63,6 @@ bin.test() {
   else
     args=(-it -w "/root/.solos/src" "${hash}" echo "CONTAINER READY")
   fi
-  echo docker exec "${args[@]}"
   if ! docker exec "${args[@]}"; then
     return 1
   fi
