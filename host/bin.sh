@@ -18,8 +18,6 @@ bin__shell_full_flag=false
 bin__cli_flag=true
 bin__next_args=()
 
-trap 'echo "bigfuckingcat"' EXIT
-
 # Map the flags to the relevant values and remove them from the args.
 for entry_arg in "$@"; do
   if [[ ${entry_arg} = "--installer-no-tty" ]]; then
