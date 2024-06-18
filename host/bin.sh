@@ -129,7 +129,6 @@ bin.build_and_run() {
   local shared_docker_run_args=(
     --name
     "${hash}"
-    -d
     --network
     host
     --pid
