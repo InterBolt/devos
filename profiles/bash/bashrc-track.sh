@@ -18,36 +18,15 @@ mkdir -p "${bashrc_track__base_dir}"
 # Make sure that control-c will cancel the running command while also reseting the trap.
 trap 'trap "bashrc_track.trap" DEBUG; exit 1;' SIGINT
 
-bashrc_track.get_blacklist() {
-  local blacklist=(
-    "source"
-    "."
-    "exit"
-    "logout"
-    "cd"
-    "clear"
-    "ls"
-    "pwd"
-    "cat"
-    "man"
-    "help"
-  )
-  for cmd in ${rc__pub_fns}; do
-    blacklist+=("${cmd}")
-  done
-  echo "${blacklist[*]}"
-}
-
 bashrc_track.print_help() {
   cat <<EOF
 
-USAGE: track [options] <...args_to_eval>
+USAGE: track [options] <...cmds>
 
 DESCRIPTION:
 
 Prompts the user to write a note. Any positional arguments supplied that are not \
-valid options will be eval'd. The output of the eval'd arguments and any \
-notes or tag selections will be saved in ${bashrc_track__base_dir/\/root\//~\/}.
+valid options will be eval'd.
 
 OPTIONS:
 
@@ -55,7 +34,11 @@ OPTIONS:
 -t               Tag only. Will not prompt for a note.
 -c               Command only. Will not prompt for a tag or note.
 
---help           Print this help message.
+NOTES:
+
+(1) All tracked outputs, notes, and other metadatas are saved within ${bashrc_track__base_dir/\/root\//~\/}.
+(2) SolOS uses the \`track\` command internally to track all entered prompts and their outputs. To turn this off, prefix your prompt with a hyphen likeso: "- <prompt>". Ex: "- ls | grep foo | less".
+(3) The \`track\` command should not be used within scripts.
 
 EOF
 }
@@ -258,7 +241,7 @@ bashrc_track.trap() {
     fi
 
     # Avoid tag/tracking stuff for blacklisted commands.
-    local blacklist="$(bashrc_track.get_blacklist | xargs)"
+    local blacklist="$(bashrc.opted_out_shell_prompts | xargs)"
     for opt_out in ${blacklist}; do
       if [[ ${submitted_prompt} = "${opt_out} "* ]] || [[ ${submitted_prompt} = "${opt_out}" ]]; then
         if [[ ${submitted_prompt} = *"|"* ]]; then

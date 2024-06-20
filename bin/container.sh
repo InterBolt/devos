@@ -30,14 +30,40 @@ USAGE: solos <project_name>
 
 DESCRIPTION:
 
-Launches a SolOS project in VSCode. A project name is required as the first argument unless you have a project checked out. \
-If you have a project checked out, you can simply type "solos" to launch it in VSCode.
+A host-only command to create/checkout a SolOS project via VSCode. \
+On the first use, a project name is required.
+
+NOTES:
+
+(1) Cannot be used inside a SolOS shell, because the shell does not run on the host.
+(2) Running \`solos ...\` on the host while  SolOS shell is currently open will result in an error.
+
 EOF
 }
 if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
   container.help
   exit 0
 fi
+
+# If we detect that there was a shell at least 2 minutes ago, wait an extra few seconds and check again to be quite sure a shell is not active.
+container.disable_when_active_shell_exists() {
+  local active_shell_file="${HOME}/.solos/data/store/active_shell"
+  local curr_seconds="$(date +%s)"
+  local active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
+  # In case something out of our control causes a delay in the shell's reporting of it's current time in seconds,
+  # wait N extra seconds if the shell was active within the last M seconds. The sleep count (N) is equal to our "tolerance"
+  # of the shell's reporting delay.
+  if [[ ${active_shell_seconds} -gt $((curr_seconds - 15)) ]]; then
+    log.info "A SolOS shell was active within the last 10 seconds. Waiting 5 seconds to check again."
+    sleep 5
+    curr_seconds="$(date +%s)"
+    active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
+  fi
+  if [[ ${active_shell_seconds} -gt $((curr_seconds - 3)) ]]; then
+    log.error "Cannot run \`solos\` while a SolOS shell is active."
+    exit 1
+  fi
+}
 
 # Support a flag to exit early. Useful for confirming that our dockerized CLI is
 # working as expected post-installation.
@@ -46,6 +72,8 @@ for arg in "$@"; do
     exit 0
   fi
 done
+
+container.disable_when_active_shell_exists
 
 # Grab the project name from either the first argument, or the checked out project store file.
 # This allows users to simply type: "solos" without having to remember the project name.
@@ -172,7 +200,7 @@ container.main() {
 
 ######################################################################################################################
 ##
-## Checkout script docs at: https://[TODO]
+## Read the SolOS docs to learn about this script: https://[TODO]
 ##
 ######################################################################################################################
 

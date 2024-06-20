@@ -14,15 +14,21 @@ USAGE: plugins <add|remove>
 
 DESCRIPTION:
 
-Some utility commands to add or remove plugins from the SolOS. \
-Waits for the current set of plugins to finish running before adding or removing a plugin.
+Manage plugins for the current SolOS project. Plugins provide secure data collections for third party systems (ie. LLM RAG dbs, UI dashboards, analytics tools, etc).
 
-When adding plugins, a <name> and optional <url> are expected. If a <url> is not provided, \
-we'll assume you're creating a local plugin. Local plugins are initialized with a directory and \
-a modification to the project's code-workspace file.
+COMMANDS:
 
-Only plugins with an associated remote url can be removed. Attempting to remove a local plugin will result in \
-a print out of manual instructions.
+add <name> [url] - Add a plugin to the SolOS. If no url is provided, a local plugin is created and initialized with some boilerplate.
+remove <name>    - Remove a plugin from the SolOS. To prevent accidental code loss, only non-local plugins can be removed via this command.
+                   Manual instructions will be printed for removing local plugins.
+
+NOTES:
+
+(1) Plugins are controlled by a manifest file at: ${bashrc_plugins__manifest_file}.
+(2) An added plugin will not start running until the current set of plugins have completed all their phases. And a removed plugin will complete any remaining phases before being removed.
+(3) Plugins are run in the order they are added to the manifest file.
+(4) Local plugins are stored at: ${bashrc_plugins__dir}.
+
 EOF
 }
 bashrc_plugins.get_dirnames() {

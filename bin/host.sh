@@ -15,7 +15,7 @@ if [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "
 fi
 
 host.error_press_enter() {
-  echo "Something went wrong. Press enter to exit..."
+  echo "Press enter to exit..."
   read -r || exit 1
   exit 1
 }
@@ -30,12 +30,12 @@ host.build() {
     fi
   done
   if [[ -f ${HOME}/.solos ]]; then
-    echo "A file called .solos was detected in your home directory." >&2
+    echo "Internal host error: a file called .solos was detected in your home directory." >&2
     host.error_press_enter
   fi
   if [[ ! -d ${host__store_dir} ]]; then
     mkdir -p "${host__store_dir}"
-    echo "Created the store directory at ${host__store_dir}"
+    echo "Created the store directory at ${host__store_dir}" >&2
   fi
   echo "${HOME}" >"${host__store_dir}/users_home_dir"
   local extra_flags=""
@@ -43,7 +43,7 @@ host.build() {
     extra_flags="-q"
   fi
   if ! docker build "${extra_flags}" -t "solos:${hash}" -f "${host__repo_dir}/Dockerfile" .; then
-    echo "Unexpected error: failed to build the docker image." >&2
+    echo "Internal host error: failed to build the docker image." >&2
     host.error_press_enter
   fi
   echo "${host__curr_container_hash}" >"${host__last_container_hash}"
@@ -66,14 +66,14 @@ host.build() {
 host.shell() {
   if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
     if ! host.build; then
-      echo "Unexpected error: failed to rebuild the SolOS container." >&2
+      echo "Internal host error: failed to rebuild the SolOS container." >&2
       host.error_press_enter
     fi
   fi
   local bashrc_file="${1:-""}"
   if [[ -n ${bashrc_file} ]]; then
     if [[ ! -f ${bashrc_file} ]]; then
-      echo "The supplied bashrc file at ${bashrc_file} does not exist." >&2
+      echo "Internal host error: the supplied bashrc file at ${bashrc_file} does not exist." >&2
       host.error_press_enter
     fi
     local relative_bashrc_file="${bashrc_file/#$HOME/~}"
@@ -85,7 +85,7 @@ host.shell() {
 host.cmd() {
   if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
     if ! host.build; then
-      echo "Unexpected error: failed to rebuild the SolOS container." >&2
+      echo "Internal host error: failed to rebuild the SolOS container." >&2
       exit 1
     fi
   fi
@@ -94,11 +94,11 @@ host.cmd() {
     >"${tmp_stdout_file}"; then
     local code_workspace_file="$(tail -n 1 "${tmp_stdout_file}" | xargs)"
     if [[ -z ${code_workspace_file} ]]; then
-      echo "Unexpected error: failed to determine the code workspace file." >&2
+      echo "Internal host error: failed to determine the code workspace file." >&2
       exit 1
     fi
     if [[ ! -f ${HOME}/${code_workspace_file} ]]; then
-      echo "Unexpected error: the code workspace file does not exist." >&2
+      echo "Internal host error: the code workspace file does not exist." >&2
       exit 1
     fi
     code "${HOME}/${code_workspace_file}"

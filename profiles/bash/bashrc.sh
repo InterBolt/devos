@@ -15,7 +15,7 @@ history -r
 . "${HOME}/.solos/src/profiles/bash/bashrc-github.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-table-outputs.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-daemon.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-user-execs.sh" || exit 1
+. "${HOME}/.solos/src/profiles/bash/bashrc-execs.sh" || exit 1
 . "${HOME}/.solos/src/profiles/bash/bashrc-track.sh" || exit 1
 
 bashrc__pub_fns=""
@@ -29,6 +29,25 @@ bashrc.error_press_enter() {
   echo "Press enter to exit..."
   read -r || exit 1
   exit 1
+}
+bashrc.opted_out_shell_prompts() {
+  local blacklist=(
+    "source"
+    "."
+    "exit"
+    "logout"
+    "cd"
+    "clear"
+    "ls"
+    "pwd"
+    "cat"
+    "man"
+    "help"
+  )
+  for cmd in ${rc__pub_fns}; do
+    blacklist+=("${cmd}")
+  done
+  echo "${blacklist[*]}"
 }
 bashrc.is_help_cmd() {
   if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
@@ -199,6 +218,14 @@ EOF
   echo -e "\033[0;32mLogged in to Github ${gh_status_line} \033[0m"
   echo ""
 }
+bashrc.maintain_active_shell_status() {
+  while true; do
+    mkdir -p "${HOME}/.solos/data/store"
+    rm -f "${HOME}/.solos/data/store/active_shell"
+    echo "$(date +%s)" >"${HOME}/.solos/data/store/active_shell"
+    sleep 3
+  done
+}
 bashrc.install() {
   PS1='\[\033[0;32m\]SolOS\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then
@@ -209,6 +236,7 @@ bashrc.install() {
   bashrc.print_welcome_manual
   bashrc.bash_completions
   bashrc.run_checked_out_project_script
+  bashrc.maintain_active_shell_status >/dev/null 2>&1 &
 }
 # Rename, export, and make readonly for all user-accessible pub functions.
 # Ex: user should use `tag` rather than `bashrc.public_track`.
@@ -277,10 +305,10 @@ EOF
   echo ""
 }
 bashrc.public_preexec() {
-  bashrc_user_execs.main "pre" "$@"
+  bashrc_execs.main "preexec" "$@"
 }
 bashrc.public_postexec() {
-  bashrc_user_execs.main "post" "$@"
+  bashrc_execs.main "postexec" "$@"
 }
 bashrc.public_plugins() {
   bashrc_plugins.main "$@"
@@ -300,6 +328,6 @@ bashrc.public_install_solos() {
   bashrc_daemon.install
   bashrc.install
   bashrc_track.install
-  bashrc_user_execs.install
+  bashrc_execs.install
 }
 bashrc.export_and_readonly

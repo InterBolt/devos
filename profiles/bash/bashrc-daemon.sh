@@ -39,11 +39,26 @@ bashrc_daemon.install() {
 bashrc_daemon.print_help() {
   cat <<EOF
 
-USAGE: daemon <status|pid|logs|tail|flush|reload|kill>
+USAGE: daemon <status|pid|tail|flush|reload|kill>
 
 DESCRIPTION:
 
-Some utility commands to see what's going on with the daemon process.
+Some utility commands to manage the daemon process.
+
+COMMANDS:
+
+status  - Show the status of the daemon process.
+pid     - Show the PID of the daemon process.
+tail    - A wrapper around the tail command to view the daemon's logs.
+flush   - Prints the logs to stdout before wiping the file.
+reload  - Restart the daemon process.
+kill    - Kill the daemon process.
+
+NOTES:
+
+(1) The \`kill\` and  and \`reload\` will always wait for the daemon to finish running all of the remaining plugin phases. \
+If you really need to stop the daemon immediately, you can do something like kill -9 "\$(daemon pid)". Not recommended unless it's an absolute emergency.
+(2) Take care when using the \`flush\` command. Permanently losing logs can be a pain when debugging.
 
 EOF
 }
@@ -88,15 +103,6 @@ EOF
       return 1
     fi
     echo "${pid}"
-    return 0
-  fi
-  if [[ ${1} = "logs" ]]; then
-    if [[ ! -f ${bashrc_daemon__log_file} ]]; then
-      log.error "Unexpected error: the daemon logfile does not exist."
-      bashrc_daemon.suggested_action_on_error
-      return 1
-    fi
-    cat "${bashrc_daemon__log_file}"
     return 0
   fi
   if [[ ${1} = "flush" ]]; then

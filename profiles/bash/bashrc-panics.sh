@@ -38,8 +38,7 @@ USAGE: panic <review|clear|mute>
 
 DESCRIPTION:
 
-A command to review "panic" files. \
-A panic file contains a message, a severity level, and a timestamp.
+A command to review "panic" files. These files only exist when the SolOS system is in a "panicked" state.
 
 Panic files at: ${bashrc_panic__dir}
 
@@ -48,6 +47,12 @@ COMMANDS:
 review       - Review the panic messages.
 clear        - Clear all panic messages.
 mute         - Mute the panic messages.
+
+NOTES:
+
+(1) Not all panic files will clear on their own, which is why the \`clear\` command exists. \
+This is by design to force the user/dev to review and (hopefully) fix the issue that caused the panic.
+(2) Panics are NEVER intended to occur and should be reported here: https://github.com/interbolt/solos/issues.
 
 EOF
 }

@@ -15,6 +15,11 @@ USAGE: github
 DESCRIPTION:
 
 Setup git using the Github CLI.
+
+NOTES:
+
+(1) You only need to run this once. Subsequent sessions will use the stored Github token, email, and name.
+(2) Re-running it allows you to update the stored values.
 EOF
 }
 
