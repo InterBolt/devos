@@ -1,10 +1,27 @@
 #!/usr/bin/env bash
 
-SOURCE_BIN_FILE="${HOME}/.solos/src/host/bin.sh"
+# Make sure the user has what they need on their host system before installing SolOS.
+if ! command -v git >/dev/null; then
+  echo "Git is required to install SolOS. Please install it and try again." >&2
+  exit 1
+fi
+if ! command -v bash >/dev/null; then
+  echo "Bash is required to install SolOS. Please install it and try again." >&2
+  exit 1
+fi
+if ! command -v docker >/dev/null; then
+  echo "Docker is required to install SolOS. Please install it and try again." >&2
+  exit 1
+fi
+if ! command -v code >/dev/null; then
+  echo "VS Code is required to install SolOS. Please install it and try again." >&2
+  exit 1
+fi
+
 SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/migrations"
 USR_BIN_FILE="/usr/local/bin/solos"
 ORIGIN_REPO="https://github.com/InterBolt/solos.git"
-REPO="${ORIGIN_REPO}"
+SOURCE_REPO="${ORIGIN_REPO}"
 TMP_DIR="$(mktemp -d 2>/dev/null)"
 SOLOS_DIR="${HOME}/.solos"
 DEV_MODE=false
@@ -20,10 +37,10 @@ while [[ $# -gt 0 ]]; do
     shift
     ;;
   --repo=*)
-    REPO="${1#*=}"
-    if [[ ! ${REPO} =~ ^http ]]; then
-      if [[ ! -d ${REPO} ]]; then
-        echo "The specified repository does not exist: ${REPO}" >&2
+    SOURCE_REPO="${1#*=}"
+    if [[ ! ${SOURCE_REPO} =~ ^http ]]; then
+      if [[ ! -d ${SOURCE_REPO} ]]; then
+        echo "The specified repository does not exist: ${SOURCE_REPO}" >&2
         exit 1
       fi
     fi
@@ -58,8 +75,8 @@ fi
 # If the repo wasn't found in ~/.solos/src, clone it from the specified remote.
 if [[ ${REPO_EXISTS_LOCALLY} = false ]]; then
   echo "Cloning the SolOS repository to ${SOLOS_SOURCE_DIR}" >&2
-  if ! git clone "${REPO}" "${TMP_DIR}/src" >/dev/null; then
-    echo "Failed to clone ${REPO} to ${TMP_DIR}/src" >&2
+  if ! git clone "${SOURCE_REPO}" "${TMP_DIR}/src" >/dev/null; then
+    echo "Failed to clone ${SOURCE_REPO} to ${TMP_DIR}/src" >&2
     exit 1
   fi
   echo "Cloned the SolOS repository to ${TMP_DIR}/src" >&2
@@ -94,8 +111,8 @@ for migration_file in "${SOURCE_MIGRATIONS_DIR}"/*; do
 done
 
 # Symlink the bin script in the host directory to /usr/local/bin/solos.
-if ! ln -sfv "${SOURCE_BIN_FILE}" "${USR_BIN_FILE}" >/dev/null; then
-  echo "Failed to link ${SOURCE_BIN_FILE} to ${USR_BIN_FILE}" >&2
+if ! ln -sfv "${HOME}/.solos/src/host/bin.sh" "${USR_BIN_FILE}" >/dev/null; then
+  echo "Failed to symlink the host bin script." >&2
   exit 1
 fi
 
@@ -123,3 +140,11 @@ if ! solos --noop; then
   echo "Failed to run SolOS cli after installing it." >&2
   return 1
 fi
+cat <<EOF
+SolOS has been successfully installed! Type \`solos --help\` to get started.
+
+Source code: ${ORIGIN_REPO}
+Documentation: https://[TODO]
+Contact email: cc13.engineering@gmail.com
+Twitter: https://twitter.com/interbolt_colin
+EOF

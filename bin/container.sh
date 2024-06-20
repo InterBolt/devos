@@ -35,11 +35,7 @@ Launch a SolOS project, either by creating a new one or switching to an existing
 Source: https://github.com/InterBolt/solos
 EOF
 }
-if [[ $# -eq 0 ]]; then
-  container.help
-  exit 1
-fi
-if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]]; then
+if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
   container.help
   exit 0
 fi
@@ -63,6 +59,10 @@ elif [[ -f ${container__checked_out_project_store_file} ]]; then
     log.error "No project checked out. Please specify a project name as the first argument to \`solos\`"
     exit 1
   fi
+else
+  log.warn "No project checked out. Please specify a project name as the first argument to \`solos\`"
+  container.help
+  exit 1
 fi
 
 # Allows us to replace template string variables in files where the
