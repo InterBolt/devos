@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+export DOCKER_CLI_HINTS=false
+
 . "${HOME}/.solos/src/shared/lib.sh" || exit 1
 
 host__repo_dir="${HOME}/.solos/src"
@@ -12,12 +14,8 @@ if [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "
   host__suppress_output=false
 fi
 
-# TODO[-]: I didn't like the look of the hints, but maybe we can add this back
-# TODO[c]: under certain conditions.
-export DOCKER_CLI_HINTS=false
-
 host.error_press_enter() {
-  echo "Press enter to exit..."
+  echo "Something went wrong. Press enter to exit..."
   read -r || exit 1
   exit 1
 }
@@ -49,11 +47,12 @@ host.build() {
     host.error_press_enter
   fi
   echo "${host__curr_container_hash}" >"${host__last_container_hash}"
-  docker run --name "${host__curr_container_hash}" \
+  docker run \
+    -d \
+    --name "${host__curr_container_hash}" \
     --network host \
     --pid host \
     --privileged \
-    -d \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v "${HOME}/.solos:/root/.solos" \
     "solos:${host__curr_container_hash}"

@@ -64,7 +64,7 @@ log._base() {
     echo "[TAG] date=$(date +"%Y-%m-%dT%H:%M:%S") ${msg}"
     return 0
   fi
-  gum.shell_log "${log__will_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
+  gum.log "${log__will_print}" "${log__logfile}" "${level}" "${msg}" "${source}"
 }
 
 # PUBLIC FUNCTIONS:

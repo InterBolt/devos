@@ -26,13 +26,12 @@ cd "${container__solos_dir}"
 # Help/usage stuff.
 container.help() {
   cat <<EOF
-USAGE: solos <project>
+USAGE: solos <project_name>
 
 DESCRIPTION:
 
-Launch a SolOS project, either by creating a new one or switching to an existing one.
-
-Source: https://github.com/InterBolt/solos
+Launches a SolOS project in VSCode. A project name is required as the first argument unless you have a project checked out. \
+If you have a project checked out, you can simply type "solos" to launch it in VSCode.
 EOF
 }
 if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then

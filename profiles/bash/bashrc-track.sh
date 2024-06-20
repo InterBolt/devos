@@ -140,7 +140,7 @@ bashrc_track.digest() {
     mv "${stdout_file}" "${bashrc_track__std_dir}/${track_id}.out"
     mv "${stderr_file}" "${bashrc_track__std_dir}/${track_id}.err"
     if [[ ${should_collect_post_note} = true ]]; then
-      local user_post_note="$(gum.post_cmd_note || echo "SOLOS:EXIT:1")"
+      local user_post_note="$(gum.track_post_note || echo "SOLOS:EXIT:1")"
       if [[ ${user_post_note} != "SOLOS:EXIT:1" ]]; then
         jq '.user_post_note = '"$(echo "${user_post_note}" | jq -R -s '.')"'' "${tmp_jq_output_file}" >"${tmp_jq_output_file}.tmp"
         mv "${tmp_jq_output_file}.tmp" "${tmp_jq_output_file}"
@@ -360,7 +360,7 @@ bashrc_track.apply_tag() {
   if [[ ${tag_choice} = "<none>" ]] || [[ -z ${tag_choice} ]]; then
     echo ""
   elif [[ ${tag_choice} = "<create>" ]]; then
-    local new_tag="$(gum.track_tag_input || echo "")"
+    local new_tag="$(gum.track_create_tag || echo "")"
     if [[ -n "${new_tag}" ]]; then
       sed -i '1s/^/'"${new_tag}"'\n/' "${bashrc_track__config_dir}/tags"
       echo "${new_tag}"
@@ -418,7 +418,7 @@ bashrc_track.main() {
   fi
   local user_pre_note=""
   if [[ ${opt_tag_only} = false ]] && [[ ${opt_command_only} = false ]]; then
-    user_pre_note="$(gum.pre_cmd_note_input || echo "SOLOS:EXIT:1")"
+    user_pre_note="$(gum.track_pre_note || echo "SOLOS:EXIT:1")"
     if [[ ${user_pre_note} = "SOLOS:EXIT:1" ]]; then
       return 1
     fi

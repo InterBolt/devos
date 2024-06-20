@@ -295,6 +295,7 @@ bashrc.public_github() {
   bashrc_github.main "$@"
 }
 bashrc.public_install_solos() {
+  bashrc_github.install
   bashrc_panics.install
   bashrc_daemon.install
   bashrc.install

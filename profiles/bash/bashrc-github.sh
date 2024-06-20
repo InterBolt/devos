@@ -4,6 +4,9 @@
 . "${HOME}/.solos/src/shared/log.sh" || exit 1
 . "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
+bashrc_github__config_path="${HOME}/.solos/config"
+bashrc_github__secrets_path="${HOME}/.solos/secrets"
+
 bashrc_github.print_help() {
   cat <<EOF
 
@@ -82,20 +85,68 @@ bashrc_github.prompts() {
   local tmp_gh_email_file="$(mktemp)"
   local tmp_gh_name_file="$(mktemp)"
   if ! bashrc_github._gh_token "${tmp_gh_token_file}"; then
+    log.error "Failed to get Github token."
     return 1
   fi
   if ! bashrc_github._gh_email "${tmp_gh_email_file}"; then
+    log.error "Failed to get Github email."
     return 1
   fi
   if ! bashrc_github._gh_name "${tmp_gh_name_file}"; then
+    log.error "Failed to get Github name."
     return 1
   fi
-  echo "${tmp_gh_token_file}" "${tmp_gh_email_file}" "${tmp_gh_name_file}"
+  echo "${tmp_gh_token_file}"
+  echo "${tmp_gh_email_file}"
+  echo "${tmp_gh_name_file}"
+}
+bashrc_github.install() {
+  mkdir -p "${bashrc_github__secrets_path}" "${bashrc_github__config_path}"
+  local gh_token_path="${bashrc_github__secrets_path}/gh_token"
+  local gh_email_path="${bashrc_github__config_path}/gh_email"
+  local gh_name_path="${bashrc_github__config_path}/gh_name"
+  local gh_token="$(cat "${gh_token_path}" 2>/dev/null || echo "")"
+  local gh_email="$(cat "${gh_email_path}" 2>/dev/null || echo "")"
+  local gh_name="$(cat "${gh_name_path}" 2>/dev/null || echo "")"
+  if [[ -z "${gh_token}" ]]; then
+    log.error "No Github token found at ${gh_token_path}."
+    return 1
+  fi
+  if [[ -z "${gh_email}" ]]; then
+    log.error "No Github email found at ${gh_email_path}."
+    return 1
+  fi
+  if [[ -z "${gh_name}" ]]; then
+    log.error "No Github name found at ${gh_name_path}."
+    return 1
+  fi
+  if ! git config --global user.name "${gh_name}"; then
+    log.error "Failed to set git user.name."
+    return 1
+  else
+    log.info "Set git user.name to: ${gh_name}"
+  fi
+  if ! git config --global user.email "${gh_email}"; then
+    log.error "Failed to set git user.email."
+    return 1
+  else
+    log.info "Set git user.email to: ${gh_email}"
+  fi
+  if ! gh auth login --with-token <"${gh_token_path}"; then
+    log.error "Github CLI failed to authenticate."
+    return 1
+  else
+    log.info "Github CLI authenticated."
+  fi
+  if ! gh auth setup-git; then
+    log.error "Github CLI failed to setup."
+    return 1
+  else
+    log.info "Github CLI setup complete."
+  fi
 }
 bashrc_github.main() {
-  local config_path="${HOME}/.solos/config"
-  local secrets_path="${HOME}/.solos/secrets"
-  mkdir -p "${secrets_path}" "${config_path}"
+  mkdir -p "${bashrc_github__secrets_path}" "${bashrc_github__config_path}"
   if [[ $# -eq 0 ]]; then
     bashrc_github.print_help
     return 0
@@ -111,28 +162,18 @@ bashrc_github.main() {
   local tmp_gh_token_path="$(lib.line_to_args "${return_file}" "0")"
   local tmp_gh_email_path="$(lib.line_to_args "${return_file}" "1")"
   local tmp_gh_name_path="$(lib.line_to_args "${return_file}" "2")"
-  local gh_token_path="${secrets_path}/gh_token"
-  local gh_name_path="${config_path}/gh_name"
-  local gh_email_path="${config_path}/gh_email"
-  rm -f "${secrets_path}/gh_token"
-  mv "${tmp_gh_token_path}" "${secrets_path}/gh_token"
-  rm -f "${config_path}/gh_email" "${config_path}/gh_name"
-  mv "${tmp_gh_email_path}" "${config_path}/gh_email"
-  mv "${tmp_gh_name_path}" "${config_path}/gh_name"
-  if ! git config --global user.name "$(cat "${gh_name_path}")"; then
-    log.error "Failed to set git user.name."
-    return 1
-  fi
-  if ! git config --global user.email "$(cat "${gh_email_path}")"; then
-    log.error "Failed to set git user.email."
-    return 1
-  fi
-  if ! gh auth login --with-token <"${gh_token_path}"; then
-    log.error "Github CLI failed to authenticate."
-    return 1
-  fi
-  if ! gh auth setup-git; then
-    log.error "Github CLI failed to setup."
+  local gh_token_path="${bashrc_github__secrets_path}/gh_token"
+  local gh_name_path="${bashrc_github__config_path}/gh_name"
+  local gh_email_path="${bashrc_github__config_path}/gh_email"
+  rm -f "${bashrc_github__secrets_path}/gh_token"
+  mv "${tmp_gh_token_path}" "${bashrc_github__secrets_path}/gh_token"
+  rm -f "${bashrc_github__config_path}/gh_email" "${bashrc_github__config_path}/gh_name"
+  mv "${tmp_gh_email_path}" "${bashrc_github__config_path}/gh_email"
+  mv "${tmp_gh_name_path}" "${bashrc_github__config_path}/gh_name"
+  if bashrc_github.install "${gh_token_path}" "${gh_email_path}" "${gh_name_path}"; then
+    log.info "Github CLI setup complete."
+    return 0
+  else
     return 1
   fi
 }
