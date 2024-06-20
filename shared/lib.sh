@@ -24,10 +24,10 @@ lib.panic_dir_path() {
 }
 export -f lib.panic_dir_path
 
-lib.last_container_hash() {
+lib.last_container_hash_path() {
   echo "${lib__store_dir}/last_docker_build_hash" | xargs
 }
-export -f lib.last_container_hash
+export -f lib.last_container_hash_path
 
 lib.checked_out_project() {
   local checked_out_project="$(cat "${lib__store_dir}/checked_out_project" 2>/dev/null || echo "" | xargs)"

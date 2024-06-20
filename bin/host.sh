@@ -5,12 +5,15 @@
 host__repo_dir="${HOME}/.solos/src"
 host__data_dir="$(lib.data_dir_path)"
 host__store_dir="${host__data_dir}/store"
-host__last_container_hash="$(lib.last_container_hash)"
-host__user_bashrc_path="${HOME}/.solos/rcfiles/.bashrc"
-host__use_minimal_shell=false
-host__use_full_shell=false
-host__is_cmd=true
+host__suppress_output=true
+host__last_container_hash="$(cat "$(lib.last_container_hash_path)" 2>/dev/null || echo "")"
+host__curr_container_hash="$(git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
+if [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "${host__last_container_hash}" ]]; then
+  host__suppress_output=false
+fi
 
+# TODO[-]: I didn't like the look of the hints, but maybe we can add this back
+# TODO[c]: under certain conditions.
 export DOCKER_CLI_HINTS=false
 
 host.error_press_enter() {
@@ -18,10 +21,8 @@ host.error_press_enter() {
   read -r || exit 1
   exit 1
 }
-host.container_hash() {
-  git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo ""
-}
-host.destroy() {
+host.build() {
+  echo -e "\033[0;34mRebuilding the container...\033[0m"
   local image_names="$(docker ps -a --format '{{.Image}}' | xargs)"
   for image_name in ${image_names}; do
     if [[ ${image_name} = "solos:"* ]]; then
@@ -30,43 +31,6 @@ host.destroy() {
       docker rmi "${image_name}" >/dev/null 2>&1
     fi
   done
-}
-host.test() {
-  local container_hash="${1}"
-  shift
-  if ! docker exec -w "/root/.solos" "${container_hash}" echo ""; then
-    return 1
-  fi
-  return 0
-}
-host.launch_daemon() {
-  local container_hash="${1}"
-  shift
-  docker exec \
-    -w "/root/.solos" "${container_hash}" \
-    /bin/bash -c 'nohup "/root/.solos/src/daemon/bin.sh" >/dev/null 2>&1 &'
-}
-host.exec_shell() {
-  local container_hash="${1}"
-  shift
-  local bashrc_file="${1:-""}"
-  if [[ -n ${bashrc_file} ]]; then
-    if [[ ! -f ${bashrc_file} ]]; then
-      echo "The supplied bashrc file at ${bashrc_file} does not exist." >&2
-      host.error_press_enter
-    fi
-    local relative_bashrc_file="${bashrc_file/#$HOME/~}"
-    docker exec -w "/root/.solos" "${container_hash}" /bin/bash --rcfile "${relative_bashrc_file}" -i
-  else
-    docker exec -w "/root/.solos" "${container_hash}" /bin/bash -i
-  fi
-}
-host.exec_command() {
-  local container_hash="${1}"
-  shift
-  docker exec -w "/root/.solos" "${container_hash}" /bin/bash -c ''"${*}"''
-}
-host.build_and_run() {
   if [[ -f ${HOME}/.solos ]]; then
     echo "A file called .solos was detected in your home directory." >&2
     host.error_press_enter
@@ -76,85 +40,77 @@ host.build_and_run() {
     echo "Created the store directory at ${host__store_dir}"
   fi
   echo "${HOME}" >"${host__store_dir}/users_home_dir"
-  local prev_container_hash="$(cat "${host__last_container_hash}" 2>/dev/null || echo "")"
-  local container_hash="$(host.container_hash)"
   local extra_flags=""
-  if [[ ${prev_container_hash} != "${container_hash}" ]]; then
+  if [[ ${host__suppress_output} = true ]]; then
     extra_flags="-q"
   fi
   if ! docker build "${extra_flags}" -t "solos:${hash}" -f "${host__repo_dir}/Dockerfile" .; then
     echo "Unexpected error: failed to build the docker image." >&2
     host.error_press_enter
   fi
-  echo "${container_hash}" >"${host__last_container_hash}"
-  docker run --name "${container_hash}" \
+  echo "${host__curr_container_hash}" >"${host__last_container_hash}"
+  docker run --name "${host__curr_container_hash}" \
     --network host \
     --pid host \
     --privileged \
     -d \
     -v /var/run/docker.sock:/var/run/docker.sock \
     -v "${HOME}/.solos:/root/.solos" \
-    "solos:${container_hash}"
-  while ! host.test "${container_hash}"; do
+    "solos:${host__curr_container_hash}"
+  while ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; do
     sleep .2
   done
-  host.launch_daemon "${container_hash}"
-}
-host.rebuild() {
-  echo -e "\033[0;34mRebuilding the container...\033[0m"
-  if ! host.destroy; then
-    echo "Unexpected error: failed to cleanup old containers." >&2
-    host.error_press_enter
-  fi
-  if ! host.build_and_run; then
-    echo "Unexpected error: failed to build and run the container." >&2
-    host.error_press_enter
-  fi
+  docker exec \
+    -w "/root/.solos" "${host__curr_container_hash}" \
+    /bin/bash -c 'nohup "/root/.solos/src/daemon/bin.sh" >/dev/null 2>&1 &'
 }
 host.shell() {
-  local container_hash="$(host.container_hash)"
-  if host.test "${container_hash}"; then
-    host.exec_shell "${container_hash}" "$@"
-    return 0
+  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
+    if ! host.build; then
+      echo "Unexpected error: failed to rebuild the SolOS container." >&2
+      host.error_press_enter
+    fi
   fi
-  if host.rebuild; then
-    host.exec_shell "${container_hash}" "$@"
+  local bashrc_file="${1:-""}"
+  if [[ -n ${bashrc_file} ]]; then
+    if [[ ! -f ${bashrc_file} ]]; then
+      echo "The supplied bashrc file at ${bashrc_file} does not exist." >&2
+      host.error_press_enter
+    fi
+    local relative_bashrc_file="${bashrc_file/#$HOME/~}"
+    docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash --rcfile "${relative_bashrc_file}" -i
   else
-    echo "Unexpected error: failed to launch shell from container." >&2
-    host.error_press_enter
+    docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -i
   fi
 }
 host.cmd() {
-  local container_hash="$(host.container_hash)"
-  if host.test "${container_hash}"; then
-    host.exec_command "${container_hash}" "$@"
-    return 0
-  fi
-  if host.rebuild; then
-    local tmp_stdout_file="$(mktemp)"
-    if host.exec_command "${container_hash}" "$@" >"${tmp_stdout_file}"; then
-      local code_workspace_file="$(tail -n 1 "${tmp_stdout_file}" | xargs)"
-      if [[ -z ${code_workspace_file} ]]; then
-        echo "Unexpected error: failed to determine the code workspace file." >&2
-        exit 1
-      fi
-      if [[ ! -f ${HOME}/${code_workspace_file} ]]; then
-        echo "Unexpected error: the code workspace file does not exist." >&2
-        exit 1
-      fi
-      code "${HOME}/${code_workspace_file}"
+  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
+    if ! host.build; then
+      echo "Unexpected error: failed to rebuild the SolOS container." >&2
+      exit 1
     fi
-  else
-    echo "Unexpected error: failed to rebuild the SolOS container." >&2
-    exit 1
+  fi
+  local tmp_stdout_file="$(mktemp)"
+  if docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"'' \
+    >"${tmp_stdout_file}"; then
+    local code_workspace_file="$(tail -n 1 "${tmp_stdout_file}" | xargs)"
+    if [[ -z ${code_workspace_file} ]]; then
+      echo "Unexpected error: failed to determine the code workspace file." >&2
+      exit 1
+    fi
+    if [[ ! -f ${HOME}/${code_workspace_file} ]]; then
+      echo "Unexpected error: the code workspace file does not exist." >&2
+      exit 1
+    fi
+    code "${HOME}/${code_workspace_file}"
   fi
 }
 host.main() {
   if [[ ${1} = "shell" ]]; then
-    host.shell
+    host.shell "${HOME}/.solos/rcfiles/.bashrc"
     exit $?
   elif [[ ${1} = "shell-minimal" ]]; then
-    host.shell "${host__user_bashrc_path}"
+    host.shell
     exit $?
   else
     host.cmd "/root/.solos/src/bin/container.sh" "$@"

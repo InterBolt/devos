@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
 SOURCE_BIN_FILE="${HOME}/.solos/src/host/bin.sh"
-SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/dev/migrations"
+SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/migrations"
 USR_BIN_FILE="/usr/local/bin/solos"
-REPO="https://github.com/InterBolt/solos.git"
+ORIGIN_REPO="https://github.com/InterBolt/solos.git"
+REPO="${ORIGIN_REPO}"
 TMP_DIR="$(mktemp -d 2>/dev/null)"
 SOLOS_DIR="${HOME}/.solos"
 DEV_MODE=false
@@ -62,6 +63,11 @@ if [[ ${REPO_EXISTS_LOCALLY} = false ]]; then
     exit 1
   fi
   echo "Cloned the SolOS repository to ${TMP_DIR}/src" >&2
+  if ! git -C "${TMP_DIR}/src" remote set-url origin "${ORIGIN_REPO}"; then
+    echo "Failed to set the origin to ${ORIGIN_REPO}" >&2
+    exit 1
+  fi
+  echo "Ensured the correct origin repo: ${ORIGIN_REPO}." >&2
   if ! mkdir -p "${SOLOS_SOURCE_DIR}"; then
     echo "Failed to create ${SOLOS_SOURCE_DIR}" >&2
     exit 1
