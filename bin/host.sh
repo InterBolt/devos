@@ -7,15 +7,15 @@ export DOCKER_CLI_HINTS=false
 host__repo_dir="${HOME}/.solos/src"
 host__data_dir="$(lib.data_dir_path)"
 host__store_dir="${host__data_dir}/store"
-host__suppress_output=true
+host__suppress_docker_output="${SUPPRESS_DOCKER_OUTPUT:-true}"
 host__last_container_hash="$(cat "$(lib.last_container_hash_path)" 2>/dev/null || echo "")"
 host__curr_container_hash="$(git -C "${HOME}/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
-if [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "${host__last_container_hash}" ]]; then
-  host__suppress_output=false
+if [[ ${host__suppress_docker_output} = true ]] && [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "${host__last_container_hash}" ]]; then
+  host__suppress_docker_output=false
 fi
 
 host.error_press_enter() {
-  echo "Press enter to exit..."
+  echo "Host: press enter to exit..."
   read -r || exit 1
   exit 1
 }
@@ -35,36 +35,35 @@ host.build() {
   fi
   if [[ ! -d ${host__store_dir} ]]; then
     mkdir -p "${host__store_dir}"
-    echo "Created the store directory at ${host__store_dir}" >&2
+    echo "Host: created the store directory at ${host__store_dir}" >&2
   fi
   echo "${HOME}" >"${host__store_dir}/users_home_dir"
   local extra_flags=""
-  if [[ ${host__suppress_output} = true ]]; then
-    extra_flags="-q"
+  if [[ ${host__suppress_docker_output} = true ]]; then
+    extra_flags="-q "
   fi
-  if ! docker build "${extra_flags}" -t "solos:${hash}" -f "${host__repo_dir}/Dockerfile" .; then
+  if ! docker build "${extra_flags}"-t "solos:${host__curr_container_hash}" "-f" "${host__repo_dir}/Dockerfile" .; then
     echo "Internal host error: failed to build the docker image." >&2
     host.error_press_enter
   fi
   echo "${host__curr_container_hash}" >"${host__last_container_hash}"
-  docker run \
-    -d \
-    --name "${host__curr_container_hash}" \
-    --network host \
-    --pid host \
-    --privileged \
-    -v /var/run/docker.sock:/var/run/docker.sock \
-    -v "${HOME}/.solos:/root/.solos" \
-    "solos:${host__curr_container_hash}"
-  while ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; do
+  echo "Host: built the container with hash ${host__curr_container_hash}" >&2
+  if ! docker run -d --name "${host__curr_container_hash}" --network host --pid host --privileged -v "/var/run/docker.sock:/var/run/docker.sock" -v "${HOME}/.solos:/root/.solos" "solos:${host__curr_container_hash}" >/dev/null; then
+    echo "Internal host error: failed to run the docker container." >&2
+    host.error_press_enter
+  fi
+  echo "Host: container is running with hash ${host__curr_container_hash}" >&2
+  while ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo "" >/dev/null 2>&1; do
     sleep .2
   done
+  echo "Host: container is ready." >&2
   docker exec \
     -w "/root/.solos" "${host__curr_container_hash}" \
-    /bin/bash -c 'nohup "/root/.solos/src/daemon/bin.sh" >/dev/null 2>&1 &'
+    /bin/bash -c 'nohup "/root/.solos/src/daemon/bin.sh" >/dev/null 2>&1 &' >/dev/null
+  echo "Host: started the daemon." >&2
 }
 host.shell() {
-  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
+  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo "" >/dev/null 2>&1; then
     if ! host.build; then
       echo "Internal host error: failed to rebuild the SolOS container." >&2
       host.error_press_enter
@@ -83,25 +82,18 @@ host.shell() {
   fi
 }
 host.cmd() {
-  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo ""; then
+  if ! docker exec -w "/root/.solos" "${host__curr_container_hash}" echo "" >/dev/null 2>&1; then
     if ! host.build; then
       echo "Internal host error: failed to rebuild the SolOS container." >&2
       exit 1
     fi
   fi
-  local tmp_stdout_file="$(mktemp)"
-  if docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"'' \
-    >"${tmp_stdout_file}"; then
-    local code_workspace_file="$(tail -n 1 "${tmp_stdout_file}" | xargs)"
-    if [[ -z ${code_workspace_file} ]]; then
-      echo "Internal host error: failed to determine the code workspace file." >&2
-      exit 1
+  if docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"''; then
+    local checked_out_project="$(lib.checked_out_project)"
+    local code_workspace_file="${HOME}/.solos/projects/${checked_out_project}/${checked_out_project}.code-workspace"
+    if [[ -f ${code_workspace_file} ]]; then
+      code "${code_workspace_file}"
     fi
-    if [[ ! -f ${HOME}/${code_workspace_file} ]]; then
-      echo "Internal host error: the code workspace file does not exist." >&2
-      exit 1
-    fi
-    code "${HOME}/${code_workspace_file}"
   fi
 }
 host.main() {
