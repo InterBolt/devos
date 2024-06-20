@@ -5,7 +5,7 @@
 shared__pid=$$
 shared__user_plugins_dir="/root/.solos/plugins"
 shared__solos_plugins_dir="/root/.solos/src/plugins"
-shared__precheck_plugin_path="${shared__user_plugins_dir}/precheck/plugin"
+shared__precheck_plugin_path="${shared__solos_plugins_dir}/precheck/plugin"
 shared__users_home_dir="$(lib.home_dir_path)"
 
 shared.host_path() {

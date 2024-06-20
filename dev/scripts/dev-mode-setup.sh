@@ -8,7 +8,7 @@ main() {
   fi
   mkdir -p "${plugins_dir}"
   local manifest_file="${plugins_dir}/solos.manifest.json"
-  local mock_plugin_downloads_path="mock/remote-plugin-downloads"
+  local mock_plugin_downloads_path="dev/mock/remote-plugin-downloads"
   local mock_remote_plugin_downloads_dir="${solos_dir}/src/${mock_plugin_downloads_path}"
   local precheck_script="${solos_dir}/src/plugins/precheck/plugin"
   local local_plugins=(

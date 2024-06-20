@@ -138,8 +138,7 @@ $(
       preexec "$(preexec --help | bashrc.extract_help_description)" \
       postexec "$(postexec --help | bashrc.extract_help_description)" \
       reload "$(reload --help | bashrc.extract_help_description)" \
-      panics "$(panics --help | bashrc.extract_help_description)" \
-      solos "$(solos --help | bashrc.extract_help_description)"
+      panics "$(panics --help | bashrc.extract_help_description)"
   )
 
 $(
@@ -260,10 +259,6 @@ EOF
 }
 bashrc.public_track() {
   bashrc_track.main "$@"
-}
-bashrc.public_solos() {
-  local executable_path="${HOME}/.solos/src/cli/bin.sh"
-  "${executable_path}" --restricted-shell "$@"
 }
 bashrc.public_info() {
   if bashrc.is_help_cmd "${1}"; then

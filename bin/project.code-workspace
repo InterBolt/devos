@@ -1,18 +1,18 @@
 {
   "folders": [
     {
-      "name": "project.___bin__project_name___",
-      "uri": "___bin__users_home_dir___/.solos/projects/___bin__project_name___",
+      "name": "project.___container__project___",
+      "uri": "___container__users_home_dir___/.solos/projects/___container__project___",
       "profile": "shell"
     },
     {
       "name": "vscode",
-      "uri": "___bin__users_home_dir___/.solos/projects/___bin__project_name___/.vscode",
+      "uri": "___container__users_home_dir___/.solos/projects/___container__project___/.vscode",
       "profile": "shell"
     },
     {
       "name": "solos",
-      "uri": "___bin__users_home_dir___/.solos",
+      "uri": "___container__users_home_dir___/.solos",
       "profile": "shell"
     }
   ],
@@ -23,11 +23,11 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "___bin__users_home_dir___/.solos/src/host/bin.sh",
+        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___bin__users_home_dir___/.solos/src/host/bin.sh",
+        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,
@@ -37,11 +37,11 @@
     },
     "terminal.integrated.profiles.linux": {
       "shell": {
-        "path": "___bin__users_home_dir___/.solos/src/host/bin.sh",
+        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___bin__users_home_dir___/.solos/src/host/bin.sh",
+        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,
