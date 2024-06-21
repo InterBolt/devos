@@ -10,8 +10,7 @@ bin__log_file="${bin__daemon_data_dir}/master.log"
 bin__prev_pid="$(cat "${bin__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 
 mkdir -p "${bin__daemon_data_dir}"
-
-# trap 'rm -f "'"${bin__pid_file}"'"' EXIT
+echo "${bin__pid}" >"${bin__pid_file}"
 
 . "${HOME}/.solos/repo/shared/lib.sh" || exit 1
 . "${HOME}/.solos/repo/daemon/shared.sh" || exit 1
@@ -326,13 +325,6 @@ bin.loop() {
   return 0
 }
 bin.main_setup() {
-  # Clean any old files that will interfere with the daemon's state assumptions.
-  if rm -f "${bin__pid_file}"; then
-    shared.log_info "Bin - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
-  else
-    shared.log_error "Bin [error] - failed to clear the previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
-    exit 1
-  fi
   if rm -f "${bin__request_file}"; then
     shared.log_info "Bin - cleared previous request file: \"$(shared.host_path "${bin__request_file}")\""
   else
@@ -350,47 +342,22 @@ bin.main_setup() {
   fi
 }
 bin.main() {
-  bin.update_status "LAUNCHING"
-  lib.panics_remove "daemon_unrecoverable_error"
-  if [[ -f ${bin__pid_file} ]]; then
-    shared.log_error "Bin [error] - \"$(shared.host_path "${bin__pid_file}")\" already exists. This should never happen."
-    bin.update_status "START_FAILED"
-    lib.panics_add "daemon_startup_failure" <<EOF
-The daemon failed to start up because the pid file already exists. Time of failure: $(date).
-EOF
-    return 1
-  fi
   bin.update_status "UP"
-  lib.panics_remove "daemon_startup_failure"
+  lib.panics_remove "daemon_unrecoverable_error"
   bin.loop
-  # When the daemon exits with a 151 that means we need to exit the process without
-  # attempting a recovery. All other exit codes indicate an error but we can attempt
-  # to recover from them at least.
-  local return_code=$?
-  # Unrecoverable error (151):
-  if [[ ${return_code} -eq 151 ]]; then
-    shared.log_error "Fatal - killing the daemon due to a custom error code: 151."
+  bin__remaining_retries=$((bin__remaining_retries - 1))
+  if [[ ${bin__remaining_retries} -eq 0 ]]; then
+    shared.log_error "Fatal - killing the daemon due to too many failures."
     bin.update_status "RUN_FAILED"
     lib.panics_add "daemon_unrecoverable_error" <<EOF
-The daemon encountered an error that it cannot or will not recover from.
-EOF
-    exit 151
-  # Recoverable error (0-255):
-  else
-    bin__remaining_retries=$((bin__remaining_retries - 1))
-    if [[ ${bin__remaining_retries} -eq 0 ]]; then
-      shared.log_error "Fatal - killing the daemon due to too many failures."
-      bin.update_status "RUN_FAILED"
-      lib.panics_add "daemon_unrecoverable_error" <<EOF
 The daemon failed and exited after too many retries. Time of failure: $(date).
 EOF
-      exit 1
-    fi
-    shared.log_info "Recover - restarting the lifecycle in 5 seconds."
-    bin.update_status "RECOVERING"
-    sleep 5
-    bin.main
+    exit 1
   fi
+  shared.log_info "Recover - restarting the lifecycle in 5 seconds."
+  bin.update_status "RECOVERING"
+  sleep 5
+  bin.main
 }
 
 bin.main_setup "$@"

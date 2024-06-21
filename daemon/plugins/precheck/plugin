@@ -32,9 +32,6 @@ SUPPORTED_FS_PATHS=(
 ######################################################################
 plugin.main() {
   if [[ ${1} = "--phase-configure" ]]; then
-    echo "Somerandom shit here" >&2
-    echo "More rando shit here"
-    echo "SOLOS_PANIC: testing the panic functionality" >&2
     plugin.verify_fs \
       "configure" \
       "file:/root/solos.config.json:777" \
