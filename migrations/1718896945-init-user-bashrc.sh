@@ -24,4 +24,4 @@ install_solos
 EOF
 fi
 
-echo "Completed migration - ${0}" >&2
+echo "Host [migration]: completed migration - ${0}" >&2

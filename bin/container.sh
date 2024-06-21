@@ -45,6 +45,14 @@ if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
   exit 0
 fi
 
+# Support a flag to exit early. Useful for confirming that our dockerized CLI is
+# working as expected post-installation.
+for arg in "$@"; do
+  if [[ ${arg} = "--noop" ]]; then
+    exit 0
+  fi
+done
+
 # If we detect that there was a shell at least 2 minutes ago, wait an extra few seconds and check again to be quite sure a shell is not active.
 container.disable_when_active_shell_exists() {
   local active_shell_file="${HOME}/.solos/data/store/active_shell"
@@ -64,15 +72,6 @@ container.disable_when_active_shell_exists() {
     exit 1
   fi
 }
-
-# Support a flag to exit early. Useful for confirming that our dockerized CLI is
-# working as expected post-installation.
-for arg in "$@"; do
-  if [[ ${arg} = "--noop" ]]; then
-    exit 0
-  fi
-done
-
 container.disable_when_active_shell_exists
 
 # Grab the project name from either the first argument, or the checked out project store file.
