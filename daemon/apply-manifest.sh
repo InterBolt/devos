@@ -63,10 +63,12 @@ apply_manifest.download_sources() {
     shared.log_error "Manifest - curl unable to download ${plugin_source}"
     return 1
   fi
+  shared.log_info "Manifest - downloaded ${plugin_source} to ${output_path}"
   if ! chmod +x "${output_path}"; then
     shared.log_error "Manifest - unable to make ${output_path} executable"
     return 1
   fi
+  shared.log_info "Manifest - made ${output_path} executable"
 }
 apply_manifest.commit_dirs() {
   local plugins_dir="${1}"
@@ -86,7 +88,6 @@ apply_manifest.commit_dirs() {
       shared.log_error "Manifest - unable to move ${dir} to ${plugin_path}"
       return 1
     fi
-    shared.log_info "Manifest - moved downloaded plugin ${plugin_name} to ${plugin_path}"
     i=$((i + 1))
   done
 }

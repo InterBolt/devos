@@ -32,6 +32,9 @@ SUPPORTED_FS_PATHS=(
 ######################################################################
 plugin.main() {
   if [[ ${1} = "--phase-configure" ]]; then
+    echo "Somerandom shit here" >&2
+    echo "More rando shit here"
+    echo "SOLOS_PANIC: testing the panic functionality" >&2
     plugin.verify_fs \
       "configure" \
       "file:/root/solos.config.json:777" \
@@ -49,11 +52,11 @@ plugin.main() {
       "process" \
       "dir:/root/download:555" \
       "dir:/root/plugins/download:555" \
-      "dir:/root/.solos:555" \
+      "dir:/root/solos:555" \
       "file:/root/processed.json:777" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "process" "true"
+    plugin.verify_network_acccess "process" "false"
   elif [[ ${1} = "--phase-chunk" ]]; then
     plugin.verify_fs \
       "chunk" \
@@ -67,7 +70,7 @@ plugin.main() {
     plugin.verify_fs \
       "publish" \
       "file:/root/chunks.log:555" \
-      "file:/root/plugins/chunks.log:555" \
+      "dir:/root/plugins/chunks:555" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
     plugin.verify_network_acccess "publish" "true"
@@ -98,16 +101,16 @@ plugin.verify_fs() {
     elif [[ ${type} = "file" ]]; then
       files+=("${path}")
     else
-      echo "SOLOS_PANIC: ${type} is not a valid type. Use 'dir' for directories and 'file' for files." >&2
+      echo "SOLOS_PANIC: ${type} is not a valid type. Use 'dir' for directories and 'file' for files in phase: ${phase}." >&2
       exit 1
     fi
     if [[ ! "${SUPPORTED_FS_PATHS[@]}" =~ "${path}" ]]; then
-      echo "SOLOS_PANIC: ${path} is not an allowed path." >&2
+      echo "SOLOS_PANIC: ${path} is not an allowed path in phase: ${phase}." >&2
       exit 1
     fi
     local actual_chmod_permission="$(stat -c "%a" "${path}")"
     if [[ ${permission} != "${actual_chmod_permission}" ]]; then
-      echo "SOLOS_PANIC: ${path} should have permission ${permission}." >&2
+      echo "SOLOS_PANIC: ${path} should have permission ${permission} in phase: ${phase}." >&2
       exit 1
     fi
     expect_absence=("${expect_absence[@]/$path/}")
@@ -133,7 +136,8 @@ plugin.verify_fs() {
 }
 plugin.verify_network_acccess() {
   local phase="${1}"
-  local enabled="${2:-"true"}"
+  local expects_access="${2}"
+  local detected_access=false
   local urls=(
     "https://www.google.com"
     "https://www.github.com"
@@ -149,13 +153,10 @@ plugin.verify_network_acccess() {
   )
   for url in "${urls[@]}"; do
     if curl -s -I "${url}" >/dev/null; then
-      if [[ ${enabled} = false ]]; then
-        echo "SOLOS_PANIC: Network access should be disabled in phase: ${phase}." >&2
-        exit 1
-      fi
+      detected_access=true
     fi
   done
-  if [[ ${enabled} = true ]]; then
+  if [[ ${expects_access} != "${detected_access}" ]]; then
     echo "SOLOS_PANIC: Network access should be enabled in phase: ${phase}." >&2
     exit 1
   fi

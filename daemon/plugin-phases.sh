@@ -13,14 +13,7 @@ plugin_phases.merge_assets_args() {
   local plugin_expanded_asset_args=($(echo "${3}" | xargs))
   local asset_args=($(echo "${4}" | xargs))
   local plugin_expanded_asset_arg_count="${#plugin_expanded_asset_args[@]}"
-  shared.log_warn "DEBUG: plugin_expanded_asset_args - ${plugin_expanded_asset_args[*]}"
-  shared.log_warn "DEBUG: asset_args - ${asset_args[*]}"
-  shared.log_warn "DEBUG: plugin_count - ${plugin_count}"
-  shared.log_warn "DEBUG: plugin_index - ${plugin_index}"
-  shared.log_warn "DEBUG: plugin_expanded_asset_arg_count BEFORE - ${plugin_expanded_asset_arg_count}"
   plugin_expanded_asset_arg_count=$((plugin_expanded_asset_arg_count / 3))
-  shared.log_warn "DEBUG: plugin_expanded_asset_arg_count DIVIDED BY 3 - ${plugin_expanded_asset_arg_count}"
-
   local grouped_plugin_expanded_asset_args=()
   local i=0
   for plugin_expanded_asset_arg in "${plugin_expanded_asset_args[@]}"; do
@@ -43,15 +36,15 @@ plugin_phases.merge_assets_args() {
   echo "${asset_args[*]}" "${grouped_plugin_expanded_asset_args[${plugin_index}]}" | xargs
 }
 plugin_phases._validate_firejailed_assets() {
-  local asset_firejailed_rel_path="${1}"
+  local asset_firejailed_path="${1}"
   local asset_host_path="${2}"
   local chmod_permission="${3}"
-  if [[ -z "${asset_firejailed_rel_path}" ]]; then
-    shared.log_error "Unexpected error - empty asset firejailed path."
+  if [[ -z "${asset_firejailed_path}" ]]; then
+    shared.log_error "Unexpected error - empty firejailed path."
     return 1
   fi
-  if [[ "${asset_firejailed_rel_path}" =~ ^/ ]]; then
-    shared.log_error "Unexpected error - asset firejailed path must not start with a \"/\""
+  if [[ ! "${asset_firejailed_path}" =~ ^/ ]]; then
+    shared.log_error "Unexpected error - firejailed path must start with a \"/\""
     return 1
   fi
   if [[ ! "${chmod_permission}" =~ ^[0-7]{3}$ ]]; then
@@ -83,7 +76,7 @@ plugin_phases._expand_assets() {
   local expanded_asset_path="${2}"
   local expanded_asset_permission="${3}"
   local plugins=($(echo "${4}" | xargs))
-  local plugin_names=($(shared.plugin_paths_to_names "${plugins[@]}"))
+  local plugin_names=($(shared.plugin_paths_to_names "${plugins[*]}"))
   local expanded_asset_args=()
   local i=0
   for plugin in "${plugins[@]}"; do
@@ -105,22 +98,15 @@ plugin_phases._expand_assets() {
   echo "${expanded_asset_args[*]}" | xargs
 }
 plugin_phases._firejail() {
-  local phase_cache="${1}"
-  local plugins=($(echo "${2}" | xargs))
-  local asset_args=($(echo "${3}" | xargs))
-  local plugin_expanded_asset_args=($(echo "${4}" | xargs))
-  local executable_options=($(echo "${5}" | xargs))
-  local merge_path="${6}"
-  local firejail_options=($(echo "${7}" | xargs))
-  local manifest_file="${8}"
-  shared.log_warn "DEBUG: phase_cache - ${phase_cache}"
-  shared.log_warn "DEBUG: plugins - ${plugins[*]}"
-  shared.log_warn "DEBUG: asset_args - ${asset_args[*]}"
-  shared.log_warn "DEBUG: plugin_expanded_asset_args - ${plugin_expanded_asset_args[*]}"
-  shared.log_warn "DEBUG: executable_options - ${executable_options[*]}"
-  shared.log_warn "DEBUG: merge_path - ${merge_path}"
-  shared.log_warn "DEBUG: firejail_options - ${firejail_options[*]}"
-  shared.log_warn "DEBUG: manifest_file - ${manifest_file}"
+  local phase="${1}"
+  local phase_cache="${2}"
+  local plugins=($(echo "${3}" | xargs))
+  local asset_args=($(echo "${4}" | xargs))
+  local plugin_expanded_asset_args=($(echo "${5}" | xargs))
+  local executable_options=($(echo "${6}" | xargs))
+  local merge_path="${7}"
+  local firejail_options=($(echo "${8}" | xargs))
+  local manifest_file="${9}"
   local aggregated_stdout_file="$(mktemp)"
   local aggregated_stderr_file="$(mktemp)"
   local firejailed_pids=()
@@ -146,79 +132,79 @@ plugin_phases._firejail() {
         "${asset_args[*]}"
     ))
     local merged_asset_arg_count="${#merged_asset_args[@]}"
-    shared.log_warn "DEBUG: merged_asset_args - ${merged_asset_args[*]}"
-    shared.log_warn "DEBUG: merged_asset_arg_count - ${merged_asset_arg_count}"
     local firejailed_home_dir="$(mktemp -d)"
     local plugin_stdout_file="$(mktemp)"
     local plugin_stderr_file="$(mktemp)"
+
+    # Setup the cache
+    local plugin_phase_cache="${phase_cache}/${plugin_name}"
+    local firejailed_cache="${firejailed_home_dir}/cache"
+    mkdir -p "${plugin_phase_cache}" "${firejailed_cache}"
+    cp -rfa "${plugin_phase_cache}"/. "${firejailed_cache}/"
+    chmod 777 "${firejailed_cache}"
+
+    # Prepare the assets in the firejailed home directory.
     for ((i = 0; i < ${merged_asset_arg_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
         continue
       fi
-      # Setup the plugin specific cache:
-      local plugin_phase_cache="${phase_cache}/${plugin_name}"
-      local firejailed_cache="${firejailed_home_dir}/cache"
-      mkdir -p "${plugin_phase_cache}" "${firejailed_cache}"
-      cp -rfa "${plugin_phase_cache}"/. "${firejailed_cache}/"
-      chmod 777 "${firejailed_cache}"
-
-      # Setup the firejailed assets:
-      local asset_firejailed_rel_path="${merged_asset_args[${i}]}"
-      local asset_host_path="${merged_asset_args[$((i + 1))]}"
+      local asset_host_path="${merged_asset_args[${i}]}"
+      local asset_firejailed_path="${merged_asset_args[$((i + 1))]}"
       local chmod_permission="${merged_asset_args[$((i + 2))]}"
-      shared.log_warn "DEBUG: asset_firejailed_rel_path - ${asset_firejailed_rel_path}"
-      if [[ ${asset_firejailed_rel_path} != "-" ]]; then
-        shared.log_warn "DEBUG: asset_firejailed_rel_path - ${asset_firejailed_rel_path}"
+      if [[ ${asset_firejailed_path} != "-" ]]; then
         if ! plugin_phases._validate_firejailed_assets \
-          "${asset_firejailed_rel_path}" \
+          "${asset_firejailed_path}" \
           "${asset_host_path}" \
           "${chmod_permission}"; then
           return 1
         fi
-        local asset_firejailed_path="${firejailed_home_dir}/${asset_firejailed_rel_path}"
+        local asset_firejailed_path="${firejailed_home_dir}${asset_firejailed_path}"
         if [[ -f ${asset_host_path} ]]; then
           cp "${asset_host_path}" "${asset_firejailed_path}"
         elif [[ -d ${asset_host_path} ]]; then
           mkdir -p "${asset_firejailed_path}"
           if ! cp -rfa "${asset_host_path}"/. "${asset_firejailed_path}/"; then
-            shared.log_error "Phase [error] - failed to copy ${asset_host_path} to ${asset_firejailed_path}."
+            shared.log_error "Phase:${phase} [error] - failed to copy ${asset_host_path} to ${asset_firejailed_path}."
             return 1
           fi
         fi
         chmod -R "${chmod_permission}" "${asset_firejailed_path}"
       fi
-      cp -a "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
-      local plugin_config_file="${plugin_path}/solos.config.json"
-      if [[ -f ${plugin_config_file} ]]; then
-        cp "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
-      else
-        echo "{}" >"${firejailed_home_dir}/solos.config.json"
-      fi
-      if [[ -f ${manifest_file} ]]; then
-        # TODO: make sure local plugins are included.
-        cp "${manifest_file}" "${firejailed_home_dir}/solos.manifest.json"
-      else
-        return 1
-      fi
-      if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
-        chmod 555 "${firejailed_home_dir}/solos.config.json"
-      else
-        chmod 777 "${firejailed_home_dir}/solos.config.json"
-      fi
-      shared.log_warn "DEBUG: firejail_options - ${firejail_options[*]}"
-      firejail \
-        --quiet \
-        --noprofile \
-        --private="${firejailed_home_dir}" \
-        "${firejail_options[@]}" \
-        /root/plugin "${executable_options[@]}" \
-        >"${plugin_stdout_file}" 2>"${plugin_stderr_file}" &
-      local firejailed_pid=$!
-      firejailed_pids+=("${firejailed_pid}")
-      firejailed_home_dirs+=("${firejailed_home_dir}")
-      plugin_stdout_files+=("${plugin_stdout_file}")
-      plugin_stderr_files+=("${plugin_stderr_file}")
     done
+
+    # Setup the executable and config files.
+    cp -a "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
+    local plugin_config_file="${plugin_path}/solos.config.json"
+    if [[ -f ${plugin_config_file} ]]; then
+      cp "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
+    else
+      echo "{}" >"${firejailed_home_dir}/solos.config.json"
+    fi
+    if [[ -f ${manifest_file} ]]; then
+      # TODO: make sure local plugins are included.
+      cp "${manifest_file}" "${firejailed_home_dir}/solos.manifest.json"
+    else
+      return 1
+    fi
+    if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
+      chmod 555 "${firejailed_home_dir}/solos.config.json"
+    else
+      chmod 777 "${firejailed_home_dir}/solos.config.json"
+    fi
+
+    # Run the plugin in a firejail sandbox.
+    firejail \
+      --quiet \
+      --noprofile \
+      --private="${firejailed_home_dir}" \
+      "${firejail_options[@]}" \
+      /root/plugin "${executable_options[@]}" \
+      >"${plugin_stdout_file}" 2>"${plugin_stderr_file}" &
+    local firejailed_pid=$!
+    firejailed_pids+=("${firejailed_pid}")
+    firejailed_home_dirs+=("${firejailed_home_dir}")
+    plugin_stdout_files+=("${plugin_stdout_file}")
+    plugin_stderr_files+=("${plugin_stderr_file}")
     plugin_index=$((plugin_index + 1))
   done
   local firejailed_kills=""
@@ -246,7 +232,7 @@ plugin_phases._firejail() {
       done <"${plugin_stderr_file}"
     fi
     if [[ ${firejailed_exit_code} -ne 0 ]]; then
-      shared.log_warn "Phase [error] - ${executable_path} exited with status ${firejailed_exit_code}"
+      shared.log_warn "Phase:${phase} [error] - ${executable_path} exited with status ${firejailed_exit_code}"
       firejailed_failures=$((firejailed_failures + 1))
     fi
     i=$((i + 1))
@@ -262,22 +248,29 @@ plugin_phases._firejail() {
   firejailed_kills=($(echo "${firejailed_kills}" | xargs))
   for plugin_stdout_file in "${plugin_stdout_files[@]}"; do
     if grep -q "^SOLOS_PANIC" "${plugin_stdout_file}" >/dev/null 2>/dev/null; then
-      shared.log_warn "Phase - the plugin sent a panic message to stderr."
+      shared.log_warn "Phase:${phase} - the plugin sent a panic message to stderr."
     fi
   done
   if [[ ${firejailed_failures} -gt 0 ]]; then
-    shared.log_error "Phase [error] - there were ${firejailed_failures} total failures across ${plugin_count} plugins."
-    echo "${aggregated_stdout_file}" | xargs
-    echo "${aggregated_stderr_file}" | xargs
-    echo ""
-    return 1
+    shared.log_error "Phase:${phase} [error] - there were ${firejailed_failures} total failures across ${plugin_count} plugins."
   fi
   if [[ ${#firejailed_kills[@]} -gt 0 ]]; then
-    shared.log_error "Phase [error] - ${#firejailed_kills[@]} firejailed panic requests. Sources: ${firejailed_kills[*]}."
-    echo "${aggregated_stdout_file}" | xargs
-    echo "${aggregated_stderr_file}" | xargs
-    echo ""
-    return "${return_code}"
+    lib.panics_add "plugin_panics_detected" <<EOF
+The following plugins panicked: [${firejailed_kills[*]}] in phase: ${phase}
+
+Once all panic files in ${shared__panics_dir} are removed (and hopefully resolved!), the daemon will restart all plugins from the beginning.
+
+STDERR:
+$(cat "${aggregated_stderr_file}")
+
+STDOUT:
+$(cat "${aggregated_stdout_file}")
+EOF
+    shared.log_error "Phase:${phase} [error] - panics detected from: ${firejailed_kills[*]}"
+    echo "151"
+    return 1
+  else
+    lib.panics_remove "plugin_panics_detected"
   fi
   local assets_created_by_plugins=()
   local i=0
@@ -286,10 +279,10 @@ plugin_phases._firejail() {
       local plugin_name="${plugin_names[${i}]}"
       local created_asset="${firejailed_home_dir}${merge_path}"
       assets_created_by_plugins+=("${created_asset}")
-      shared.log_info "Phase - an asset was created: ${created_asset}"
+      shared.log_info "Phase:${phase} - an asset was created: ${created_asset}"
       rm -rf "${phase_cache}/${plugin_name}"
       mv "${firejailed_home_dir}/cache" "${phase_cache}/${plugin_name}"
-      shared.log_info "Phase - saved cache to ${phase_cache}/${plugin_name}"
+      shared.log_info "Phase:${phase} - saved cache to ${phase_cache}/${plugin_name}"
       i=$((i + 1))
     done
   fi
@@ -313,11 +306,8 @@ plugin_phases.configure() {
       "" \
       "" \
       "" \
-      "${2}" || echo "$?"
+      "${2}"
   )"
-  if [[ ${returned} =~ ^[0-9]+$ ]]; then
-    return "${returned}"
-  fi
   local manifest_file="${3}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
@@ -327,6 +317,7 @@ plugin_phases.configure() {
   local asset_args=()
   returned="$(
     plugin_phases._firejail \
+      "configure" \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
@@ -334,14 +325,13 @@ plugin_phases.configure() {
       "${executable_options[*]}" \
       "/solos.config.json" \
       "${firejail_args[*]}" \
-      "${manifest_file}" || echo "$?"
+      "${manifest_file}"
   )"
   if [[ ${returned} =~ ^[0-9]+$ ]]; then
     return "${returned}"
   fi
-  echo "${returned}" >&2
   local aggregated_stdout_file="$(lib.line_to_args "${returned}" "0")"
-  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")"
+  local aggregated_stderr_file="$(lib.line_to_args "${returned}" "1")" \
   local potentially_updated_configs=($(lib.line_to_args "${returned}" "2"))
   local merge_dir="$(mktemp -d)"
   local i=0
@@ -350,14 +340,9 @@ plugin_phases.configure() {
     cp "${potentially_updated_config_file}" "${merge_dir}/${plugin_name}.json"
     i=$((i + 1))
   done
-  shared.log_warn "DEBUG: aggregated_stdout_file - ${aggregated_stdout_file}"
-  shared.log_warn "DEBUG: aggregated_stderr_file - ${aggregated_stderr_file}"
-  shared.log_warn "DEBUG: merge_dir - ${merge_dir}"
-  shared.log_warn "DEBUG: potentially_updated_configs - ${potentially_updated_configs[*]}"
-  echo "${aggregated_stdout_file}"
-  echo "${aggregated_stderr_file}"
-  echo "${merge_dir}"
-  echo "${potentially_updated_configs[*]}"
+  echo "${aggregated_stdout_file}" | xargs
+  echo "${aggregated_stderr_file}" | xargs
+  echo "${merge_dir}" | xargs
 }
 # The download phase is where plugin authors can pull information from remote resources that they might
 # need to process the user's data. This could be anything from downloading a file to making an API request.
@@ -368,11 +353,8 @@ plugin_phases.download() {
       "" \
       "" \
       "" \
-      "${2}" || echo "$?"
+      "${2}"
   )"
-  if [[ ${returned} =~ ^[0-9]+$ ]]; then
-    return "${returned}"
-  fi
   local manifest_file="${3}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
@@ -384,6 +366,7 @@ plugin_phases.download() {
   )
   returned="$(
     plugin_phases._firejail \
+      "download" \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
@@ -391,7 +374,7 @@ plugin_phases.download() {
       "${executable_options[*]}" \
       "/download" \
       "${firejail_args[*]}" \
-      "${manifest_file}" || echo "$?"
+      "${manifest_file}"
   )"
   if [[ ${returned} =~ ^[0-9]+$ ]]; then
     return "${returned}"
@@ -427,11 +410,8 @@ plugin_phases.process() {
       "${plugin_download_dirs[*]}" \
       "/download" \
       "555" \
-      "${5}" || echo "$?"
+      "${5}"
   )"
-  if [[ ${returned} =~ ^[0-9]+$ ]]; then
-    return "${returned}"
-  fi
   local manifest_file="${6}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
@@ -445,6 +425,7 @@ plugin_phases.process() {
   )
   returned="$(
     plugin_phases._firejail \
+      "process" \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
@@ -452,7 +433,7 @@ plugin_phases.process() {
       "${executable_options[*]}" \
       "/processed.json" \
       "${firejail_args[*]}" \
-      "${manifest_file}" || echo "$?"
+      "${manifest_file}"
   )"
   if [[ ${returned} =~ ^[0-9]+$ ]]; then
     return "${returned}"
@@ -483,11 +464,8 @@ plugin_phases.chunk() {
       "${processed_files[*]}" \
       "/processed.json" \
       "555" \
-      "${4}" || echo "$?"
+      "${4}"
   )"
-  if [[ ${returned} =~ ^[0-9]+$ ]]; then
-    return "${returned}"
-  fi
   local manifest_file="${5}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
@@ -500,6 +478,7 @@ plugin_phases.chunk() {
   )
   returned="$(
     plugin_phases._firejail \
+      "chunk" \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
@@ -507,7 +486,7 @@ plugin_phases.chunk() {
       "${executable_options[*]}" \
       "/chunks.log" \
       "${firejail_args[*]}" \
-      "${manifest_file}" || echo "$?"
+      "${manifest_file}"
   )"
   if [[ ${returned} =~ ^[0-9]+$ ]]; then
     return "${returned}"
@@ -542,11 +521,8 @@ plugin_phases.publish() {
       "${chunk_log_files[*]}" \
       "/chunks.log" \
       "555" \
-      "${4}" || echo "$?"
+      "${4}"
   )"
-  if [[ ${returned} =~ ^[0-9]+$ ]]; then
-    return "${returned}"
-  fi
   local manifest_file="${5}"
   local plugins=($(lib.line_to_args "${returned}" "0"))
   local plugin_names=($(lib.line_to_args "${returned}" "1"))
@@ -558,6 +534,7 @@ plugin_phases.publish() {
   )
   returned="$(
     plugin_phases._firejail \
+      "publish" \
       "${phase_cache}" \
       "${plugins[*]}" \
       "${asset_args[*]}" \
@@ -565,7 +542,7 @@ plugin_phases.publish() {
       "${executable_options[*]}" \
       "" \
       "${firejail_args[*]}" \
-      "${manifest_file}" || echo "$?"
+      "${manifest_file}"
   )"
   if [[ ${returned} =~ ^[0-9]+$ ]]; then
     return "${returned}"

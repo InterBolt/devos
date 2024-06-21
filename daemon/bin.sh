@@ -44,6 +44,7 @@ bin.post_configure_phase() {
   local precheck_plugin_names=($(shared.get_precheck_plugin_names))
   local plugin_names=($(echo "${precheck_plugin_names[*]} ${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
   local plugin_paths=($(shared.plugin_names_to_paths "${plugin_names[*]}" | xargs))
+  local i=0
   for plugin_path in "${plugin_paths[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     local config_path="${plugin_path}/solos.config.json"
@@ -51,8 +52,9 @@ bin.post_configure_phase() {
     if [[ -f ${updated_config_path} ]]; then
       rm -f "${config_path}"
       cp "${updated_config_path}" "${config_path}"
-      shared.log_info "Config - updated the config at ${config_path}."
+      shared.log_info "Bin - updated the config at ${config_path}."
     fi
+    i=$((i + 1))
   done
 }
 bin.stash_plugin_logs() {
@@ -63,10 +65,12 @@ bin.stash_plugin_logs() {
   echo "[${phase}:stdout]" >>"${log_file}"
   while IFS= read -r line; do
     echo "${line}" >>"${log_file}"
+    shared.log_info "${line}"
   done <"${aggregated_stdout_file}"
   echo "[${phase}:stderr]" >>"${log_file}"
   while IFS= read -r line; do
     echo "${line}" >>"${log_file}"
+    shared.log_error "${line}"
   done <"${aggregated_stderr_file}"
 }
 bin.execute_plugins() {
@@ -117,16 +121,17 @@ bin.execute_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.configure \
+  plugin_phases.configure \
     "${configure_cache}" \
     "${plugins[*]}" \
     "${manifest_file}" \
-    >"${tmp_stdout}"; then
-    local return_code="$?"
-    if [[ ${return_code} -eq 151 ]]; then
-      return "${return_code}"
-    fi
-    shared.log_error "Nonfatal - the configure phase failed with return code ${return_code}."
+    >"${tmp_stdout}"
+  local return_code="$?"
+  if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  fi
+  if [[ ${return_code} -ne 0 ]]; then
+    shared.log_error "Bin - the configure phase encoutered one or more non-fatal errors ${return_code}."
   else
     shared.log_info "Bin - the configure phase ran successfully."
   fi
@@ -137,8 +142,9 @@ bin.execute_plugins() {
   bin.stash_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   bin.post_configure_phase "${merged_configure_dir}"
   shared.log_info "Bin - updated configs based on the configure phase."
-  cp -r "${merged_configure_dir}" "${next_archive_dir}/configure"
-  cp -r "${configure_cache}" "${next_archive_dir}/caches/configure"
+  mkdir -p "${next_archive_dir}/configure" "${next_archive_dir}/caches/configure"
+  cp -rfa "${merged_configure_dir}"/. "${next_archive_dir}/configure"/
+  cp -rfa "${configure_cache}"/. "${next_archive_dir}/caches/configure"/
   shared.log_info "Bin - archived the configure data at \"$(shared.host_path "${next_archive_dir}/configure")\""
   # ------------------------------------------------------------------------------------
   #
@@ -147,16 +153,17 @@ bin.execute_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.download \
+  plugin_phases.download \
     "${download_cache}" \
     "${plugins[*]}" \
     "${manifest_file}" \
-    >"${tmp_stdout}"; then
-    local return_code="$?"
-    if [[ ${return_code} -eq 151 ]]; then
-      return "${return_code}"
-    fi
-    shared.log_error "Nonfatal - the download phase failed with return code ${return_code}."
+    >"${tmp_stdout}"
+  local return_code="$?"
+  if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  fi
+  if [[ ${return_code} -ne 0 ]]; then
+    shared.log_error "Bin - the download phase encoutered one or more non-fatal errors ${return_code}."
   else
     shared.log_info "Bin - the download phase ran successfully."
   fi
@@ -166,8 +173,9 @@ bin.execute_plugins() {
   local merged_download_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_download_dirs=($(lib.line_to_args "${result}" "3"))
   bin.stash_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
-  cp -r "${merged_download_dir}" "${next_archive_dir}/download"
-  cp -r "${download_cache}" "${next_archive_dir}/caches/download"
+  mkdir -p "${next_archive_dir}/download" "${next_archive_dir}/caches/download"
+  cp -rfa "${merged_download_dir}"/. "${next_archive_dir}/download"/
+  cp -rfa "${download_cache}"/. "${next_archive_dir}/caches/download"/
   shared.log_info "Bin - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
   # ------------------------------------------------------------------------------------
   #
@@ -177,19 +185,20 @@ bin.execute_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.process \
+  plugin_phases.process \
     "${process_cache}" \
     "${scrubbed_dir}" \
     "${merged_download_dir}" \
     "${plugin_download_dirs[*]}" \
     "${plugins[*]}" \
     "${manifest_file}" \
-    >"${tmp_stdout}"; then
-    local return_code="$?"
-    if [[ ${return_code} -eq 151 ]]; then
-      return "${return_code}"
-    fi
-    shared.log_error "Nonfatal - the process phase failed with return code ${return_code}."
+    >"${tmp_stdout}"
+  local return_code="$?"
+  if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  fi
+  if [[ ${return_code} -ne 0 ]]; then
+    shared.log_error "Bin - the process phase encoutered one or more non-fatal errors ${return_code}."
   else
     shared.log_info "Bin - the process phase ran successfully."
   fi
@@ -199,8 +208,9 @@ bin.execute_plugins() {
   local merged_processed_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_processed_files=($(lib.line_to_args "${result}" "3"))
   bin.stash_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
-  cp -r "${merged_processed_dir}" "${next_archive_dir}/processed"
-  cp -r "${process_cache}" "${next_archive_dir}/caches/process"
+  mkdir -p "${next_archive_dir}/processed" "${next_archive_dir}/caches/process"
+  cp -rfa "${merged_processed_dir}"/. "${next_archive_dir}/processed"/
+  cp -rfa "${process_cache}"/. "${next_archive_dir}/caches/process"/
   shared.log_info "Bin - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
   # ------------------------------------------------------------------------------------
   #
@@ -209,17 +219,19 @@ bin.execute_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.chunk \
+  plugin_phases.chunk \
     "${chunk_cache}" \
-    "${merged_processed_dir}" "${plugin_processed_files[*]}" \
+    "${merged_processed_dir}" \
+    "${plugin_processed_files[*]}" \
     "${plugins[*]}" \
     "${manifest_file}" \
-    >"${tmp_stdout}"; then
-    local return_code="$?"
-    if [[ ${return_code} -eq 151 ]]; then
-      return "${return_code}"
-    fi
-    shared.log_error "Nonfatal - the chunk phase failed with return code ${return_code}."
+    >"${tmp_stdout}"
+  local return_code="$?"
+  if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  fi
+  if [[ ${return_code} -ne 0 ]]; then
+    shared.log_error "Bin - the chunk phase encoutered one or more non-fatal errors ${return_code}."
   else
     shared.log_info "Bin - the chunk phase ran successfully."
   fi
@@ -229,8 +241,9 @@ bin.execute_plugins() {
   local merged_chunks_dir="$(lib.line_to_args "${result}" "2")"
   local plugin_chunk_files=($(lib.line_to_args "${result}" "3"))
   bin.stash_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
-  cp -r "${merged_chunks_dir}" "${next_archive_dir}/chunks"
-  cp -r "${chunk_cache}" "${next_archive_dir}/caches/chunk"
+  mkdir -p "${next_archive_dir}/chunks" "${next_archive_dir}/caches/chunk"
+  cp -rfa "${merged_chunks_dir}"/. "${next_archive_dir}/chunks"/
+  cp -rfa "${chunk_cache}"/. "${next_archive_dir}/caches/chunk"/
   shared.log_info "Bin - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
   # ------------------------------------------------------------------------------------
   #
@@ -241,17 +254,18 @@ bin.execute_plugins() {
   #
   # ------------------------------------------------------------------------------------
   local tmp_stdout="$(mktemp)"
-  if ! plugin_phases.publish \
+  plugin_phases.publish \
     "${publish_cache}" \
     "${merged_chunks_dir}" "${plugin_chunk_files[*]}" \
     "${plugins[*]}" \
     "${manifest_file}" \
-    >"${tmp_stdout}"; then
-    local return_code="$?"
-    if [[ ${return_code} -eq 151 ]]; then
-      return "${return_code}"
-    fi
-    shared.log_error "Nonfatal - the publish phase failed with return code ${return_code}."
+    >"${tmp_stdout}"
+  local return_code="$?"
+  if [[ ${return_code} -eq 151 ]]; then
+    return "${return_code}"
+  fi
+  if [[ ${return_code} -ne 0 ]]; then
+    shared.log_error "Bin - the publish phase encoutered one or more non-fatal errors ${return_code}."
   else
     shared.log_info "Bin - the publish phase ran successfully."
   fi
@@ -259,12 +273,21 @@ bin.execute_plugins() {
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   bin.stash_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
-  cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
+  mkdir -p "${next_archive_dir}/caches/publish"
+  cp -r "${publish_cache}"/. "${next_archive_dir}/caches/publish"/
   shared.log_info "Bin - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
 bin.loop() {
   local is_precheck=true
   while true; do
+    while true; do
+      if [[ -z $(ls -A "${shared__panics_dir}") ]]; then
+        break
+      else
+        shared.log_error "Bin - panics detected. Waiting 5 seconds before checking again."
+        sleep 5
+      fi
+    done
     if ! apply_manifest.main; then
       shared.log_error "Fatal - failed to apply the manifest. Waiting 20 seconds before the next run."
       sleep 20
@@ -281,20 +304,20 @@ bin.loop() {
     fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then
-      shared.log_warn "Halting - no plugins were found. Waiting 20 seconds before the next run."
+      shared.log_warn "Bin - no plugins were found. Waiting 20 seconds before the next run."
       sleep 20
       continue
     fi
-    if [[ ${is_precheck} = true ]]; then
+    if [[ ${is_precheck} = false ]]; then
       shared.log_info "Bin - running precheck plugins."
       bin.execute_plugins "${plugins[*]}"
       shared.log_info "Bin - archived phase results for precheck plugins at \"$(shared.host_path "${archive_dir}")\""
-      shared.log_warn "Precheck lifecycle passed - about to run the main lifecycle."
+      shared.log_warn "Bin - prechecks passed."
     else
       shared.log_info "Bin - starting a new cycle."
       bin.execute_plugins "${plugins[*]}"
       shared.log_info "Bin - archived phase results at \"$(shared.host_path "${archive_dir}")\""
-      shared.log_warn "Done - waiting for the next cycle."
+      shared.log_warn "Bin - waiting for the next cycle."
       bin__remaining_retries=5
       sleep 2
       request_handlers.main
@@ -305,13 +328,13 @@ bin.loop() {
 bin.main_setup() {
   # Clean any old files that will interfere with the daemon's state assumptions.
   if rm -f "${bin__pid_file}"; then
-    shared.log_info "Setup - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
+    shared.log_info "Bin - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
   else
     shared.log_error "Bin [error] - failed to clear the previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
     exit 1
   fi
   if rm -f "${bin__request_file}"; then
-    shared.log_info "Setup - cleared previous request file: \"$(shared.host_path "${bin__request_file}")\""
+    shared.log_info "Bin - cleared previous request file: \"$(shared.host_path "${bin__request_file}")\""
   else
     shared.log_error "Bin [error] - failed to clear the previous request file: \"$(shared.host_path "${bin__request_file}")\""
     exit 1
@@ -349,8 +372,7 @@ EOF
     shared.log_error "Fatal - killing the daemon due to a custom error code: 151."
     bin.update_status "RUN_FAILED"
     lib.panics_add "daemon_unrecoverable_error" <<EOF
-The daemon encountered an error that it cannot or will not recover from. \
-Time of failure: $(date).
+The daemon encountered an error that it cannot or will not recover from.
 EOF
     exit 151
   # Recoverable error (0-255):

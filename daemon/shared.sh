@@ -8,6 +8,7 @@ log.use "${bin__log_file}"
 shared__pid=$$
 shared__user_plugins_dir="/root/.solos/plugins"
 shared__solos_plugins_dir="/root/.solos/repo/daemon/plugins"
+shared__panics_dir="${HOME}/.solos/data/panics"
 shared__precheck_plugin_path="${shared__solos_plugins_dir}/precheck"
 shared__users_home_dir="$(lib.home_dir_path)"
 
@@ -60,15 +61,15 @@ shared.get_precheck_plugin_names() {
   echo "precheck"
 }
 shared.plugin_paths_to_names() {
-  local plugins=("${@}")
+  local plugins=($(echo "${1}" | xargs))
   local plugin_names=()
   for plugin in "${plugins[@]}"; do
     if [[ ${plugin} = "${shared__precheck_plugin_path}" ]]; then
       plugin_names+=("precheck")
     elif [[ ${plugin} =~ ^"${shared__user_plugins_dir}" ]]; then
-      plugin_names+=("solos-$(basename "${plugin}")")
-    else
       plugin_names+=("user-$(basename "${plugin}")")
+    else
+      plugin_names+=("solos-$(basename "${plugin}")")
     fi
   done
   echo "${plugin_names[*]}" | xargs
