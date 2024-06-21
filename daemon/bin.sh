@@ -13,12 +13,12 @@ mkdir -p "${bin__daemon_data_dir}"
 
 trap 'rm -f "'"${bin__pid_file}"'"' EXIT
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/src/daemon/shared.sh" || exit 1
-. "${HOME}/.solos/src/daemon/task-scrub.sh" || exit 1
-. "${HOME}/.solos/src/daemon/apply-manifest.sh" || exit 1
-. "${HOME}/.solos/src/daemon/plugin-phases.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/shared.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/task-scrub.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/apply-manifest.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/plugin-phases.sh" || exit 1
 
 declare -A statuses=(
   ["UP"]="The daemon is running."

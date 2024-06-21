@@ -12,7 +12,7 @@
     },
     {
       "name": "source",
-      "uri": "___container__users_home_dir___/.solos/src",
+      "uri": "___container__users_home_dir___/.solos/repo",
       "profile": "shell"
     },
     {
@@ -33,12 +33,12 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
-        "args": ["shell"]
+        "path": "___container__users_home_dir___/.solos/repo/bin/host.sh",
+        "args": ["shell", "${workspaceFolder}"]
       },
       "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
-        "args": ["shell-minimal"]
+        "path": "___container__users_home_dir___/.solos/repo/bin/host.sh",
+        "args": ["shell-minimal", "${workspaceFolder}"]
       },
       "zsh": null,
       "fish": null,
@@ -47,11 +47,11 @@
     },
     "terminal.integrated.profiles.linux": {
       "shell": {
-        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
+        "path": "___container__users_home_dir___/.solos/repo/bin/host.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/src/bin/host.sh",
+        "path": "___container__users_home_dir___/.solos/repo/bin/host.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,

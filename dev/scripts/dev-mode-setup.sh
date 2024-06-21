@@ -9,8 +9,8 @@ main() {
   mkdir -p "${plugins_dir}"
   local manifest_file="${plugins_dir}/solos.manifest.json"
   local mock_plugin_downloads_path="dev/mocks/remote-plugin-downloads"
-  local mock_remote_plugin_downloads_dir="${solos_dir}/src/${mock_plugin_downloads_path}"
-  local precheck_script="${solos_dir}/src/daemon/plugins/precheck/plugin"
+  local mock_remote_plugin_downloads_dir="${solos_dir}/repo/${mock_plugin_downloads_path}"
+  local precheck_script="${solos_dir}/repo/daemon/plugins/precheck/plugin"
   local local_plugins=(
     "alpha"
     "bravo"

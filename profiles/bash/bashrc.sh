@@ -7,22 +7,24 @@ shopt -s histappend
 # Load this history file.
 history -r
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/src/shared/gum.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-panics.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-plugins.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-github.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-table-outputs.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-daemon.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-execs.sh" || exit 1
-. "${HOME}/.solos/src/profiles/bash/bashrc-track.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-panics.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-plugins.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-github.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-table-outputs.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-daemon.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-execs.sh" || exit 1
+. "${HOME}/.solos/repo/profiles/bash/bashrc-track.sh" || exit 1
 
 bashrc__pub_fns=""
 bashrc__checked_out_project=""
 
-if [[ ! ${PWD} =~ ^${HOME}/\.solos ]]; then
+if [[ ${PWD} != "${HOME}/.solos/"* ]]; then
   cd "${HOME}/.solos" || exit 1
+else
+  cd "${PWD}" || exit 1
 fi
 
 bashrc.error_press_enter() {
@@ -111,7 +113,7 @@ bashrc.run_checked_out_project_script() {
     if [[ -f ${project_script} ]]; then
       . "${project_script}"
       bashrc__checked_out_project="${checked_out_project}"
-      echo -e "\033[0;32mChecked out project: ${bashrc__checked_out_project} \033[0m"
+      log.info "Sourced ${project_script}"
     fi
   fi
 }
@@ -146,6 +148,8 @@ bashrc.print_info() {
   fi
   cat <<EOF
 
+CHECKED OUT PROJECT: ${checked_out_project}
+
 $(
     bashrc_table_outputs.format \
       "SHELL_COMMAND,DESCRIPTION" \
@@ -165,7 +169,7 @@ $(
       "RESOURCE,PATH" \
       'Checked out project' "$(bashrc.users_home_dir)/.solos/projects/${checked_out_project}" \
       'User managed rcfile' "$(bashrc.users_home_dir)/.solos/rcfiles/.bashrc" \
-      'Internal rcfile' "$(bashrc.users_home_dir)/.solos/src/profile/bashrc.sh" \
+      'Internal rcfile' "$(bashrc.users_home_dir)/.solos/repo/profile/bashrc.sh" \
       'Config' "$(bashrc.users_home_dir)/.solos/config" \
       'Secrets' "$(bashrc.users_home_dir)/.solos/secrets" \
       'Data' "$(bashrc.users_home_dir)/.solos/data" \
@@ -214,14 +218,6 @@ $(bashrc.print_info)
 EOF
   echo "Github status - $(gh auth status >/dev/null 2>&1 && echo "Logged in" || echo "Logged out")"
 }
-# bashrc.maintain_active_shell_status() {
-#   while true; do
-#     mkdir -p "${HOME}/.solos/data/store"
-#     rm -f "${HOME}/.solos/data/store/active_shell"
-#     echo "$(date +%s)" >"${HOME}/.solos/data/store/active_shell"
-#     sleep 3
-#   done
-# }
 bashrc.install() {
   PS1='\[\033[0;32m\]SolOS\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then

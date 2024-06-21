@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/src/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
 
 bashrc_plugins__dir="${HOME}/.solos/plugins"
 bashrc_plugins__manifest_file="${bashrc_plugins__dir}/solos.manifest.json"
@@ -88,7 +88,7 @@ bashrc_plugins.main() {
         '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${plugin_path}"'", "profile": "shell" }] + .' \
         "${code_workspace_file}" \
         >"${tmp_code_workspace_file}"
-      local precheck_plugin_path="${HOME}/.solos/src/daemon/plugins/precheck/plugin"
+      local precheck_plugin_path="${HOME}/.solos/repo/daemon/plugins/precheck/plugin"
       if ! cp "${precheck_plugin_path}" "${tmp_plugin_dir}/plugin"; then
         log.error "Failed to copy the precheck plugin to the plugin directory."
         rm -rf "${plugin_path}"

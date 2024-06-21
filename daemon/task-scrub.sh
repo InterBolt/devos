@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/daemon/shared.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/shared.sh" || exit 1
 
 task_scrub__users_home_dir="$(lib.home_dir_path)"
 task_scrub__checked_out_project="$(lib.checked_out_project)"

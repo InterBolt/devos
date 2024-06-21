@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
 
 # Fixes aligment and word wrapping issues with the built-in table command.
 bashrc_table_outputs.format() {

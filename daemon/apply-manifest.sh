@@ -1,7 +1,7 @@
 #!/usr/bin/env bin__manifest_file
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/daemon/shared.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/shared.sh" || exit 1
 
 apply_manifest__manifest_file="${HOME}/.solos/plugins/solos.manifest.json"
 

@@ -21,7 +21,7 @@ container__users_home_dir=$(cat "${container__users_home_dir_store_file}" || ech
 cd "${container__solos_dir}"
 
 # Make sure we can access the logger functions.
-. "${container__solos_dir}/src/shared/log.sh" || exit 1
+. "${container__solos_dir}/repo/shared/log.sh" || exit 1
 
 # Help/usage stuff.
 container.help() {
@@ -57,22 +57,22 @@ done
 container.disable_when_active_shell_exists() {
   local active_shell_file="${HOME}/.solos/data/store/active_shell"
   local curr_seconds="$(date +%s)"
+  local is_retry="${1:-""}"
   local active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
-  # In case something out of our control causes a delay in the shell's reporting of it's current time in seconds,
-  # wait N extra seconds if the shell was active within the last M seconds. The sleep count (N) is equal to our "tolerance"
-  # of the shell's reporting delay.
-  if [[ ${active_shell_seconds} -gt $((curr_seconds - 15)) ]]; then
-    log.info "A SolOS shell was active within the last 10 seconds. Waiting 5 seconds to check again."
-    sleep 5
-    curr_seconds="$(date +%s)"
-    active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
-  fi
-  if [[ ${active_shell_seconds} -gt $((curr_seconds - 3)) ]]; then
-    log.error "Cannot run \`solos\` while a SolOS shell is active."
-    exit 1
+  if [[ ${active_shell_seconds} -gt $((curr_seconds - 8)) ]]; then
+    if [[ ${is_retry} = "is_retry" ]]; then
+      log.error "You must exit any open SolOS shells before running this command."
+      exit 1
+    else
+      log.warn "A SolOS shell is active. Waiting a few seconds before checking again."
+      sleep 6
+      return 1
+    fi
   fi
 }
-container.disable_when_active_shell_exists
+if ! container.disable_when_active_shell_exists; then
+  container.disable_when_active_shell_exists "is_retry"
+fi
 
 # Grab the project name from either the first argument, or the checked out project store file.
 # This allows users to simply type: "solos" without having to remember the project name.
@@ -172,7 +172,7 @@ container.main() {
   # Create the code-workspace file if it doesn't exist.
   container__code_workspace_file="${vscode_dir}/${container__project}.code-workspace"
   if [[ ! -f ${container__code_workspace_file} ]]; then
-    local template_code_workspace_file="${container__solos_dir}/src/bin/project.code-workspace"
+    local template_code_workspace_file="${container__solos_dir}/repo/bin/project.code-workspace"
     local tmp_dir="$(mktemp -d -q)"
     local tmp_code_workspace_file="${tmp_dir}/${container__project}.code-workspace"
     if ! cp "${template_code_workspace_file}" "${tmp_code_workspace_file}"; then

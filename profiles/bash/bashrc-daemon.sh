@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/src/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
 
 bashrc_daemon__data_dir="${HOME}/.solos/data/daemon"
 bashrc_daemon__users_home_dir="$(lib.home_dir_path)"
@@ -10,7 +10,7 @@ bashrc_daemon__status_file="${bashrc_daemon__data_dir}/status"
 bashrc_daemon__pid_file="${bashrc_daemon__data_dir}/pid"
 bashrc_daemon__request_file="${bashrc_daemon__data_dir}/request"
 bashrc_daemon__log_file="${bashrc_daemon__data_dir}/master.log"
-bashrc_daemon__mounted_script="/root/.solos/src/daemon/bin.sh"
+bashrc_daemon__mounted_script="/root/.solos/repo/daemon/bin.sh"
 
 bashrc_daemon.suggested_action_on_error() {
   log.error "Try stopping and deleting the docker container and its associated images before reloading the shell."
@@ -174,7 +174,7 @@ EOF
       done
       log.info "Killed the daemon process with PID - ${pid}"
     fi
-    local solos_version_hash="$(git -C "/root/.solos/src" rev-parse --short HEAD | cut -c1-7 || echo "")"
+    local solos_version_hash="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
     local args=(-i -w "${container_ctx}" "${solos_version_hash}")
     local bash_args=(-c 'nohup '"${bashrc_daemon__mounted_script}"' >/dev/null 2>&1 &')

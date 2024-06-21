@@ -18,16 +18,16 @@ if ! command -v code >/dev/null; then
   exit 1
 fi
 
-SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/dev/migrations"
+SOURCE_MIGRATIONS_DIR="${HOME}/.solos/repo/dev/migrations"
 USR_BIN_FILE="/usr/local/bin/solos"
-SOURCE_BIN_FILE="${HOME}/.solos/src/bin/host.sh"
+SOURCE_BIN_FILE="${HOME}/.solos/repo/bin/host.sh"
 ORIGIN_REPO="https://github.com/InterBolt/solos.git"
 SOURCE_REPO="${ORIGIN_REPO}"
 TMP_DIR="$(mktemp -d 2>/dev/null)"
 SOLOS_DIR="${HOME}/.solos"
 DEV_MODE=false
-DEV_MODE_SETUP_SCRIPT="${SOLOS_DIR}/src/dev/scripts/dev-mode-setup.sh"
-SOLOS_SOURCE_DIR="${SOLOS_DIR}/src"
+DEV_MODE_SETUP_SCRIPT="${SOLOS_DIR}/repo/dev/scripts/dev-mode-setup.sh"
+SOLOS_SOURCE_DIR="${SOLOS_DIR}/repo"
 
 # Allow some of the variables to be overridden based on the command line arguments.
 while [[ $# -gt 0 ]]; do
@@ -61,7 +61,7 @@ if [[ ! -d ${SOLOS_DIR} ]]; then
   fi
 fi
 
-# Attempt a git pull if .solos/src already exists and then exit if it fails.
+# Attempt a git pull if .solos/repo already exists and then exit if it fails.
 # This seems like a reasonable default behavior that will prevent important unstaged
 # changes from being overwritten.
 if [[ -d ${SOLOS_SOURCE_DIR} ]]; then
@@ -78,14 +78,14 @@ if ! mkdir -p "${SOLOS_SOURCE_DIR}"; then
   exit 1
 elif [[ -d ${SOURCE_REPO} ]]; then
   cp -r "${SOURCE_REPO}/." "${SOLOS_SOURCE_DIR}/"
-elif ! git clone "${SOURCE_REPO}" "${TMP_DIR}/src" >/dev/null; then
-  echo "Host error [installer]: failed to clone ${SOURCE_REPO} to ${TMP_DIR}/src" >&2
+elif ! git clone "${SOURCE_REPO}" "${TMP_DIR}/repo" >/dev/null; then
+  echo "Host error [installer]: failed to clone ${SOURCE_REPO} to ${TMP_DIR}/repo" >&2
   exit 1
-elif ! git -C "${TMP_DIR}/src" remote set-url origin "${ORIGIN_REPO}"; then
+elif ! git -C "${TMP_DIR}/repo" remote set-url origin "${ORIGIN_REPO}"; then
   echo "Host error [installer]: failed to set the origin to ${ORIGIN_REPO}" >&2
   exit 1
-elif ! cp -r "${TMP_DIR}/src/." "${SOLOS_SOURCE_DIR}/" >/dev/null 2>&1; then
-  echo "Host error [installer]: failed to copy ${TMP_DIR}/src to ${SOLOS_SOURCE_DIR}" >&2
+elif ! cp -r "${TMP_DIR}/repo/." "${SOLOS_SOURCE_DIR}/" >/dev/null 2>&1; then
+  echo "Host error [installer]: failed to copy ${TMP_DIR}/repo to ${SOLOS_SOURCE_DIR}" >&2
   exit 1
 fi
 echo "Host [installer]: prepared the SolOS source code at ${SOLOS_SOURCE_DIR}" >&2
