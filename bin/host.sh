@@ -107,7 +107,7 @@ host.cmd() {
       exit 1
     fi
   fi
-  if docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"''; then
+  if docker exec -it -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"''; then
     local checked_out_project="$(lib.checked_out_project)"
     local code_workspace_file="${HOME}/.solos/projects/${checked_out_project}/.vscode/${checked_out_project}.code-workspace"
     if [[ -f ${code_workspace_file} ]]; then
