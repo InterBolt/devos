@@ -63,7 +63,8 @@ bashrc.opted_out_shell_prompts() {
     "man"
     "help"
   )
-  for cmd in ${rc__pub_fns}; do
+  local cmds=($(echo "${rc__pub_fns}" | xargs))
+  for cmd in "${cmds[@]}"; do
     blacklist+=("${cmd}")
   done
   echo "${blacklist[*]}"
@@ -250,10 +251,8 @@ bashrc.install() {
 # Ex: user should use `tag` rather than `bashrc.public_track`.
 bashrc.export_and_readonly() {
   bashrc__pub_fns=""
-  local pub_fns="$(declare -F | grep -o "bashrc.public_[a-z_]*" | xargs)"
-  local internal_fns="$(compgen -A function | grep -o "bashrc.[a-z_]*" | xargs)"
-  local internal_vars="$(compgen -v | grep -o "bashrc__[a-z_]*" | xargs)"
-  for pub_func in ${pub_fns}; do
+  local pub_fns=($(declare -F | grep -o "bashrc.public_[a-z_]*" | xargs))
+  for pub_func in "${pub_fns[@]}"; do
     pub_func_renamed="${pub_func#"bashrc.public_"}"
     eval "${pub_func_renamed}() { ${pub_func} \"\$@\"; }"
     eval "declare -g -r -f ${pub_func_renamed}"

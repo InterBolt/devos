@@ -36,14 +36,14 @@ plugin.main() {
       "configure" \
       "file:/root/solos.config.json:777" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "false"
+    plugin.verify_network_acccess "configure" "false"
   elif [[ ${1} = "--phase-download" ]]; then
     plugin.verify_fs \
       "download" \
       "dir:/root/download:777" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "true"
+    plugin.verify_network_acccess "download" "true"
   elif [[ ${1} = "--phase-process" ]]; then
     plugin.verify_fs \
       "process" \
@@ -53,7 +53,7 @@ plugin.main() {
       "file:/root/processed.json:777" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "false"
+    plugin.verify_network_acccess "process" "true"
   elif [[ ${1} = "--phase-chunk" ]]; then
     plugin.verify_fs \
       "chunk" \
@@ -62,7 +62,7 @@ plugin.main() {
       "file:/root/chunks.log:777" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "true"
+    plugin.verify_network_acccess "chunk" "true"
   elif [[ ${1} = "--phase-publish" ]]; then
     plugin.verify_fs \
       "publish" \
@@ -70,7 +70,7 @@ plugin.main() {
       "file:/root/plugins/chunks.log:555" \
       "file:/root/solos.config.json:555" \
       "dir:/root/cache:777"
-    plugin.verify_network_acccess "true"
+    plugin.verify_network_acccess "publish" "true"
   else
     echo "SOLOS_PANIC: ${1} does not equal one of --phase-configure, --phase-download, --phase-process, --phase-chunk, or --phase-publish." >&2
     exit 1
@@ -119,8 +119,8 @@ plugin.verify_fs() {
     fi
   done
   for file in "${files[@]}"; do
-    if [[ ! -d ${file} ]]; then
-      echo "SOLOS_PANIC: ${file} file should phase: ${phase}." >&2
+    if [[ ! -f ${file} ]]; then
+      echo "SOLOS_PANIC: ${file} file should exist in phase: ${phase}." >&2
       exit 1
     fi
   done
@@ -132,7 +132,8 @@ plugin.verify_fs() {
   done
 }
 plugin.verify_network_acccess() {
-  local enabled="${1:-"true"}"
+  local phase="${1}"
+  local enabled="${2:-"true"}"
   local urls=(
     "https://www.google.com"
     "https://www.github.com"
@@ -149,13 +150,13 @@ plugin.verify_network_acccess() {
   for url in "${urls[@]}"; do
     if curl -s -I "${url}" >/dev/null; then
       if [[ ${enabled} = false ]]; then
-        echo "SOLOS_PANIC: Network access should be disabled." >&2
+        echo "SOLOS_PANIC: Network access should be disabled in phase: ${phase}." >&2
         exit 1
       fi
     fi
   done
   if [[ ${enabled} = true ]]; then
-    echo "SOLOS_PANIC: Network access should be enabled." >&2
+    echo "SOLOS_PANIC: Network access should be enabled in phase: ${phase}." >&2
     exit 1
   fi
 }

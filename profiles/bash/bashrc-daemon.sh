@@ -215,8 +215,8 @@ EOF
     fi
     local repo_commit="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
-    local docker_exec_args=(-i -w "${container_ctx}" "${repo_commit}")
-    local bash_args=(-c "${bashrc_daemon__mounted_script}")
+    local docker_exec_args=(-it -w "${container_ctx}" "${repo_commit}")
+    local bash_args=(-i -c "${bashrc_daemon__mounted_script}")
     bashrc.log_info "Launching the daemon process in the foreground."
     if ! docker exec "${docker_exec_args[@]}" /bin/bash "${bash_args[@]}"; then
       bashrc.log_error "Failed to reload the daemon process."

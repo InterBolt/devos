@@ -126,8 +126,8 @@ container.do_template_variable_replacements() {
   fi
   local errored=false
   for file in "${eligible_files[@]}"; do
-    bin_vars=$(grep -o "___container__[a-z0-9_]*___" "${file}" | sed 's/___//g')
-    for bin_var in ${bin_vars}; do
+    local bin_vars=($(grep -o "___container__[a-z0-9_]*___" "${file}" | sed 's/___//g' | xargs))
+    for bin_var in "${bin_vars[@]}"; do
       if [[ -z ${!bin_var+x} ]]; then
         container.log_error "Template variables error: ${file} is using an unset variable: ${bin_var}"
         errored=true

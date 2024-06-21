@@ -5,13 +5,18 @@ lib__panics_dir="${lib__data_dir}/panics"
 lib__store_dir="${lib__data_dir}/store"
 
 lib.line_to_args() {
-  local lines="${1}"
-  local index="${2}"
-  if [[ ${index} -eq 0 ]]; then
-    echo "${lines}" | head -n 1 | xargs
-  else
-    echo "${lines}" | head -n "$((index + 1))" | tail -n 1 | xargs
+  local input_text="${1:-""}"
+  local index="${2:-"0"}"
+  if [[ -z "${input_text}" ]]; then
+    echo ""
+    return 0
   fi
+  local lines=()
+  while IFS= read -r line; do
+    lines+=("${line}")
+  done <<<"${input_text}"
+  local print_line="${lines[${index}]}"
+  echo "${print_line}" | xargs
 }
 export -f lib.line_to_args
 lib.data_dir_path() {
@@ -58,7 +63,7 @@ lib.panics_add() {
   local panicfile="${lib__panics_dir}/${key}"
   mkdir -p "${lib__panics_dir}"
   cat <<EOF >"${panicfile}"
-PANIC REASON: ${msg}
+PANIC: ${msg}
 
 TIME: ${timestamp}
 EOF

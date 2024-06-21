@@ -241,8 +241,8 @@ bashrc_track.trap() {
     fi
 
     # Avoid tag/tracking stuff for blacklisted commands.
-    local blacklist="$(bashrc.opted_out_shell_prompts | xargs)"
-    for opt_out in ${blacklist}; do
+    local blacklist=($(bashrc.opted_out_shell_prompts | xargs))
+    for opt_out in "${blacklist[@]}"; do
       if [[ ${submitted_prompt} = "${opt_out} "* ]] || [[ ${submitted_prompt} = "${opt_out}" ]]; then
         if [[ ${submitted_prompt} = *"|"* ]]; then
           break

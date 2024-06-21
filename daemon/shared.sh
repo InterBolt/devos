@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
 
 . "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+
+log.use "${bin__log_file}"
 
 shared__pid=$$
 shared__user_plugins_dir="/root/.solos/plugins"
-shared__solos_plugins_dir="/root/.solos/repo/plugins"
-shared__precheck_plugin_path="${shared__solos_plugins_dir}/precheck/plugin"
+shared__solos_plugins_dir="/root/.solos/repo/daemon/plugins"
+shared__precheck_plugin_path="${shared__solos_plugins_dir}/precheck"
 shared__users_home_dir="$(lib.home_dir_path)"
 
 shared.host_path() {
@@ -28,17 +31,29 @@ shared.log_warn() {
   log.warn "${message}" "$@"
 }
 shared.get_solos_plugin_names() {
-  local solos_plugin_names=($(ls -A1 "${shared__solos_plugins_dir}" | sed 's/^/solos-/g' | xargs))
-  local plugins=()
-  for solos_plugin_name in "${solos_plugin_names[@]}"; do
-    if [[ ${solos_plugin_name} != "solos-precheck" ]]; then
-      plugins+=("${solos_plugin_name}")
+  local solos_plugin_names=()
+  local plugins_dirbasename="$(basename "${shared__solos_plugins_dir}")"
+  for solos_plugin_path in "${shared__solos_plugins_dir}"/*; do
+    if [[ ${solos_plugin_path} = "${plugins_dirbasename}" ]]; then
+      continue
+    fi
+    if [[ -d ${solos_plugin_path} ]]; then
+      solos_plugin_names+=("solos-$(basename "${solos_plugin_path}")")
     fi
   done
-  echo "${plugins[@]}" | xargs
+  echo "${solos_plugin_names[@]}" | xargs
 }
 shared.get_user_plugin_names() {
-  local user_plugin_names=($(ls -A1 "${shared__user_plugins_dir}" | sed 's/^/user-/g' | xargs))
+  local user_plugin_names=()
+  local plugins_dirbasename="$(basename "${shared__user_plugins_dir}")"
+  for user_plugin_path in "${shared__user_plugins_dir}"/*; do
+    if [[ ${user_plugin_path} = "${plugins_dirbasename}" ]]; then
+      continue
+    fi
+    if [[ -d ${user_plugin_path} ]]; then
+      user_plugin_names+=("user-$(basename "${user_plugin_path}")")
+    fi
+  done
   echo "${user_plugin_names[@]}" | xargs
 }
 shared.get_precheck_plugin_names() {
@@ -59,7 +74,7 @@ shared.plugin_paths_to_names() {
   echo "${plugin_names[*]}" | xargs
 }
 shared.plugin_names_to_paths() {
-  local plugin_names=("${@}")
+  local plugin_names=($(echo "${1}" | xargs))
   local plugins=()
   for plugin_name in "${plugin_names[@]}"; do
     if [[ ${plugin_name} = "precheck" ]]; then
@@ -72,5 +87,5 @@ shared.plugin_names_to_paths() {
       plugins+=("${shared__user_plugins_dir}/${plugin_name}")
     fi
   done
-  echo "${plugins[@]}"
+  echo "${plugins[*]}" | xargs
 }

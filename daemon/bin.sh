@@ -11,13 +11,13 @@ bin__prev_pid="$(cat "${bin__pid_file}" 2>/dev/null || echo "" | head -n 1 | xar
 
 mkdir -p "${bin__daemon_data_dir}"
 
-trap 'rm -f "'"${bin__pid_file}"'"' EXIT
+# trap 'rm -f "'"${bin__pid_file}"'"' EXIT
 
 . "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
 . "${HOME}/.solos/repo/daemon/shared.sh" || exit 1
 . "${HOME}/.solos/repo/daemon/task-scrub.sh" || exit 1
 . "${HOME}/.solos/repo/daemon/apply-manifest.sh" || exit 1
+. "${HOME}/.solos/repo/daemon/request-handlers.sh" || exit 1
 . "${HOME}/.solos/repo/daemon/plugin-phases.sh" || exit 1
 
 declare -A statuses=(
@@ -31,52 +31,19 @@ declare -A statuses=(
 bin.update_status() {
   local status="$1"
   if [[ -z ${statuses[${status}]} ]]; then
-    shared.log_error "Unexpected error - tried to update to an invalid status: \"${status}\""
+    shared.log_error "Bin [error] - tried to update to an invalid status: \"${status}\""
     exit 1
   fi
   echo "${status}" >"${bin__status_file}"
   shared.log_info "Status - updated to: \"${status}\" - \"${statuses[${status}]}\""
-}
-bin.request_extract() {
-  local request_file="${1}"
-  if [[ -f ${request_file} ]]; then
-    local contents="$(cat "${request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    rm -f "${request_file}"
-    local requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
-    local requested_action="$(echo "${contents}" | cut -d' ' -f2)"
-    if [[ ${requested_pid} -eq ${bin__pid} ]]; then
-      echo "${requested_action}"
-      return 0
-    fi
-    if [[ -n ${requested_pid} ]]; then
-      shared.log_error "Unexpected error - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${bin__pid}."
-      exit 1
-    fi
-  else
-    return 1
-  fi
-}
-bin.request_handler() {
-  local request="${1}"
-  case "${request}" in
-  "KILL")
-    shared.log_info "Request - KILL signal received. Killing the daemon process."
-    bin.update_status "KILLED"
-    exit 0
-    ;;
-  *)
-    shared.log_error "Unexpected error - unknown user request ${request}"
-    exit 1
-    ;;
-  esac
 }
 bin.post_configure_phase() {
   local merged_configure_dir="${1}"
   local solos_plugin_names=($(shared.get_solos_plugin_names))
   local user_plugin_names=($(shared.get_user_plugin_names))
   local precheck_plugin_names=($(shared.get_precheck_plugin_names))
-  local plugin_names=("${precheck_plugin_names[@]}" "${solos_plugin_names[@]}" "${user_plugin_names[@]}")
-  local plugin_paths=($(shared.plugin_names_to_paths "${plugin_names[@]}"))
+  local plugin_names=($(echo "${precheck_plugin_names[*]} ${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
+  local plugin_paths=($(shared.plugin_names_to_paths "${plugin_names[*]}" | xargs))
   for plugin_path in "${plugin_paths[@]}"; do
     local plugin_name="${plugin_names[${i}]}"
     local config_path="${plugin_path}/solos.config.json"
@@ -103,7 +70,7 @@ bin.stash_plugin_logs() {
   done <"${aggregated_stderr_file}"
 }
 bin.execute_plugins() {
-  local plugins=("${@}")
+  local plugins=($(echo "${1}" | xargs))
 
   # Prep the archive directory.
   # We'll build the archive directory continuously as we progress through the phases.
@@ -135,13 +102,13 @@ bin.execute_plugins() {
   fi
 
   # Remove secrets from all files/dirs in the user's workspace.
-  local scrubbed_dir="$(daemon_task_scrub.main)"
+  local scrubbed_dir="$(task_scrub.main)"
   if [[ -z ${scrubbed_dir} ]]; then
-    shared.log_error "Unexpected error - failed to scrub the mounted volume."
+    shared.log_error "Bin [error] - failed to scrub the mounted volume."
     return 1
   fi
   cp -r "${scrubbed_dir}" "${next_archive_dir}/scrubbed"
-  shared.log_info "Progress - archived the scrubbed data at \"$(shared.host_path "${next_archive_dir}/scrubbed")\""
+  shared.log_info "Bin - archived the scrubbed data at \"$(shared.host_path "${next_archive_dir}/scrubbed")\""
   # ------------------------------------------------------------------------------------
   #
   # CONFIGURE PHASE:
@@ -161,7 +128,7 @@ bin.execute_plugins() {
     fi
     shared.log_error "Nonfatal - the configure phase failed with return code ${return_code}."
   else
-    shared.log_info "Progress - the configure phase ran successfully."
+    shared.log_info "Bin - the configure phase ran successfully."
   fi
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
@@ -169,10 +136,10 @@ bin.execute_plugins() {
   local merged_configure_dir="$(lib.line_to_args "${result}" "2")"
   bin.stash_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   bin.post_configure_phase "${merged_configure_dir}"
-  shared.log_info "Progress - updated configs based on the configure phase."
+  shared.log_info "Bin - updated configs based on the configure phase."
   cp -r "${merged_configure_dir}" "${next_archive_dir}/configure"
   cp -r "${configure_cache}" "${next_archive_dir}/caches/configure"
-  shared.log_info "Progress - archived the configure data at \"$(shared.host_path "${next_archive_dir}/configure")\""
+  shared.log_info "Bin - archived the configure data at \"$(shared.host_path "${next_archive_dir}/configure")\""
   # ------------------------------------------------------------------------------------
   #
   # DOWNLOAD PHASE:
@@ -191,7 +158,7 @@ bin.execute_plugins() {
     fi
     shared.log_error "Nonfatal - the download phase failed with return code ${return_code}."
   else
-    shared.log_info "Progress - the download phase ran successfully."
+    shared.log_info "Bin - the download phase ran successfully."
   fi
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
@@ -201,7 +168,7 @@ bin.execute_plugins() {
   bin.stash_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_download_dir}" "${next_archive_dir}/download"
   cp -r "${download_cache}" "${next_archive_dir}/caches/download"
-  shared.log_info "Progress - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
+  shared.log_info "Bin - archived the download data at \"$(shared.host_path "${next_archive_dir}/download")\""
   # ------------------------------------------------------------------------------------
   #
   # PROCESSOR PHASE:
@@ -224,7 +191,7 @@ bin.execute_plugins() {
     fi
     shared.log_error "Nonfatal - the process phase failed with return code ${return_code}."
   else
-    shared.log_info "Progress - the process phase ran successfully."
+    shared.log_info "Bin - the process phase ran successfully."
   fi
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
@@ -234,7 +201,7 @@ bin.execute_plugins() {
   bin.stash_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_processed_dir}" "${next_archive_dir}/processed"
   cp -r "${process_cache}" "${next_archive_dir}/caches/process"
-  shared.log_info "Progress - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
+  shared.log_info "Bin - archived the processed data at \"$(shared.host_path "${next_archive_dir}/processed")\""
   # ------------------------------------------------------------------------------------
   #
   # CHUNK PHASE:
@@ -254,7 +221,7 @@ bin.execute_plugins() {
     fi
     shared.log_error "Nonfatal - the chunk phase failed with return code ${return_code}."
   else
-    shared.log_info "Progress - the chunk phase ran successfully."
+    shared.log_info "Bin - the chunk phase ran successfully."
   fi
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
@@ -264,7 +231,7 @@ bin.execute_plugins() {
   bin.stash_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${merged_chunks_dir}" "${next_archive_dir}/chunks"
   cp -r "${chunk_cache}" "${next_archive_dir}/caches/chunk"
-  shared.log_info "Progress - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
+  shared.log_info "Bin - archived the chunk data at \"$(shared.host_path "${next_archive_dir}/chunks")\""
   # ------------------------------------------------------------------------------------
   #
   # PUBLISH PHASE:
@@ -286,14 +253,14 @@ bin.execute_plugins() {
     fi
     shared.log_error "Nonfatal - the publish phase failed with return code ${return_code}."
   else
-    shared.log_info "Progress - the publish phase ran successfully."
+    shared.log_info "Bin - the publish phase ran successfully."
   fi
   local result="$(cat "${tmp_stdout}" 2>/dev/null || echo "")"
   local aggregated_stdout_file="$(lib.line_to_args "${result}" "0")"
   local aggregated_stderr_file="$(lib.line_to_args "${result}" "1")"
   bin.stash_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   cp -r "${publish_cache}" "${next_archive_dir}/caches/publish"
-  shared.log_info "Progress - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
+  shared.log_info "Bin - archival complete at \"$(shared.host_path "${next_archive_dir}")\""
 }
 bin.loop() {
   local is_precheck=true
@@ -306,13 +273,11 @@ bin.loop() {
     plugins=()
     if [[ ${is_precheck} = true ]]; then
       local precheck_plugin_names="$(shared.get_precheck_plugin_names)"
-      plugins=($(shared.plugin_names_to_paths "${precheck_plugin_names[@]}"))
+      plugins=($(shared.plugin_names_to_paths "${precheck_plugin_names[*]}"))
     else
       local solos_plugin_names="$(shared.get_solos_plugin_names)"
       local user_plugin_names="$(shared.get_user_plugin_names)"
-      local solos_plugins=($(shared.plugin_names_to_paths "${solos_plugin_names[@]}"))
-      local user_plugins=($(shared.plugin_names_to_paths "${user_plugin_names[@]}"))
-      plugins=("${solos_plugins[@]}" "${user_plugins[@]}")
+      local plugins=($(shared.plugin_names_to_paths "${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
     fi
     [[ ${is_precheck} = true ]] && is_precheck=false || is_precheck=true
     if [[ ${#plugins[@]} -eq 0 ]]; then
@@ -321,14 +286,14 @@ bin.loop() {
       continue
     fi
     if [[ ${is_precheck} = true ]]; then
-      shared.log_info "Progress - running precheck plugins."
-      bin.execute_plugins "${plugins[@]}"
-      shared.log_info "Progress - archived phase results for precheck plugins at \"$(shared.host_path "${archive_dir}")\""
+      shared.log_info "Bin - running precheck plugins."
+      bin.execute_plugins "${plugins[*]}"
+      shared.log_info "Bin - archived phase results for precheck plugins at \"$(shared.host_path "${archive_dir}")\""
       shared.log_warn "Precheck lifecycle passed - about to run the main lifecycle."
     else
-      shared.log_info "Progress - starting a new cycle."
-      bin.execute_plugins "${plugins[@]}"
-      shared.log_info "Progress - archived phase results at \"$(shared.host_path "${archive_dir}")\""
+      shared.log_info "Bin - starting a new cycle."
+      bin.execute_plugins "${plugins[*]}"
+      shared.log_info "Bin - archived phase results at \"$(shared.host_path "${archive_dir}")\""
       shared.log_warn "Done - waiting for the next cycle."
       bin__remaining_retries=5
       sleep 2
@@ -338,18 +303,17 @@ bin.loop() {
   return 0
 }
 bin.main_setup() {
-  log.use "${bin__log_file}"
   # Clean any old files that will interfere with the daemon's state assumptions.
   if rm -f "${bin__pid_file}"; then
     shared.log_info "Setup - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
   else
-    shared.log_error "Unexpected error - failed to clear the previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
+    shared.log_error "Bin [error] - failed to clear the previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
     exit 1
   fi
   if rm -f "${bin__request_file}"; then
     shared.log_info "Setup - cleared previous request file: \"$(shared.host_path "${bin__request_file}")\""
   else
-    shared.log_error "Unexpected error - failed to clear the previous request file: \"$(shared.host_path "${bin__request_file}")\""
+    shared.log_error "Bin [error] - failed to clear the previous request file: \"$(shared.host_path "${bin__request_file}")\""
     exit 1
   fi
   # If the daemon is already running, we should abort the launch.
@@ -357,7 +321,7 @@ bin.main_setup() {
   # to the actually running daemon process, not this one.
   if [[ -n ${bin__prev_pid} ]] && [[ ${bin__prev_pid} -ne ${bin__pid} ]]; then
     if ps -p "${bin__prev_pid}" >/dev/null; then
-      shared.log_error "Unexpected error - aborting launch due to existing daemon process with pid: ${bin__prev_pid}"
+      shared.log_error "Bin [error] - aborting launch due to existing daemon process with pid: ${bin__prev_pid}"
       exit 1
     fi
   fi
@@ -366,22 +330,13 @@ bin.main() {
   bin.update_status "LAUNCHING"
   lib.panics_remove "daemon_unrecoverable_error"
   if [[ -f ${bin__pid_file} ]]; then
-    shared.log_error "Unexpected error - \"$(shared.host_path "${bin__pid_file}")\" already exists. This should never happen."
+    shared.log_error "Bin [error] - \"$(shared.host_path "${bin__pid_file}")\" already exists. This should never happen."
     bin.update_status "START_FAILED"
     lib.panics_add "daemon_startup_failure" <<EOF
 The daemon failed to start up because the pid file already exists. Time of failure: $(date).
 EOF
     return 1
   fi
-  if [[ -z ${bin__pid} ]]; then
-    shared.log_error "Unexpected error - can't save an empty pid to the pid file: \"$(shared.host_path "${bin__pid_file}")\""
-    bin.update_status "START_FAILED"
-    lib.panics_add "daemon_startup_failure" <<EOF
-The daemon failed to start up because it could not determine it's PID. Time of failure: $(date).
-EOF 
-    return 1
-  fi
-  echo "${bin__pid}" >"${bin__pid_file}"
   bin.update_status "UP"
   lib.panics_remove "daemon_startup_failure"
   bin.loop

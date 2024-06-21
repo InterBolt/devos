@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-request_handler.extract() {
+request_handlers.extract() {
   local request_file="${1}"
   if [[ -f ${request_file} ]]; then
     local contents="$(cat "${request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -19,7 +19,7 @@ request_handler.extract() {
     return 1
   fi
 }
-request_handler.execute() {
+request_handlers.execute() {
   local request="${1}"
   case "${request}" in
   "KILL")
@@ -34,10 +34,10 @@ request_handler.execute() {
   esac
 }
 request_handlers.main() {
-  local request="$(request_handler.extract "${bin__request_file}")"
+  local request="$(request_handlers.extract "${bin__request_file}")"
   if [[ -n ${request} ]]; then
     shared.log_info "Request - ${request} was dispatched to the daemon."
-    request_handler.execute "${request}"
+    request_handlers.execute "${request}"
   else
     shared.log_info "Request - none. Will continue to run the daemon."
   fi

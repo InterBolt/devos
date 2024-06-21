@@ -23,8 +23,8 @@ host.build() {
   if [[ ${host__suppress_output} = false ]]; then
     echo "Host [bin]: rebuilding the docker container." >&2
   fi
-  local image_names="$(docker ps -a --format '{{.Image}}' | xargs)"
-  for image_name in ${image_names}; do
+  local image_names=($(docker ps -a --format '{{.Image}}' | xargs))
+  for image_name in "${image_names[@]}"; do
     if [[ ${image_name} = "solos:"* ]]; then
       if ! docker stop "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null; then
         echo "Host error [bin]: failed to stop the container with image name ${image_name}." >&2

@@ -1,3 +1,7 @@
+# DAEMON DEBUGGING NOTES:
+
+- [ ] the configure phase is wiping clean the pre-existing solos.config.json files
+
 # TODOS
 
 - [ ] add the "app" command to the shell and use the dev/artifact code as reference.
