@@ -2,6 +2,7 @@
 
 # Any variables that might get used in template replacements should be defined here.
 container__project=""
+container__log_file="/root/.solos/data/cli/master.log"
 container__code_workspace_file=""
 container__solos_dir="/root/.solos"
 container__store_dir="${container__solos_dir}/data/store"
@@ -22,15 +23,16 @@ cd "${container__solos_dir}"
 
 # Make sure we can access the logger functions.
 . "${container__solos_dir}/repo/shared/log.sh" || exit 1
+log.use "${container__log_file}"
 
 container.log_info() {
-  log.info "(CLI) $1"
+  log.info "(CLI) ${1}"
 }
 container.log_warn() {
-  log.warn "(CLI) $1"
+  log.warn "(CLI) ${1}"
 }
 container.log_error() {
-  log.error "(CLI) $1"
+  log.error "(CLI) ${1}"
 }
 
 # Help/usage stuff.

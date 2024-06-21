@@ -27,6 +27,8 @@ else
   cd "${PWD}" || exit 1
 fi
 
+log.use "${HOME}/.solos/data/shell/master.log"
+
 bashrc.log_info() {
   local message="(SHELL) ${1}"
   shift

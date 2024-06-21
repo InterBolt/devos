@@ -7,11 +7,11 @@ export DOCKER_CLI_HINTS=false
 host__repo_dir="${HOME}/.solos/repo"
 host__data_dir="$(lib.data_dir_path)"
 host__store_dir="${host__data_dir}/store"
-host__suppress_docker_output="${SUPPRESS_DOCKER_OUTPUT:-true}"
+host__suppress_output="${SUPPRESS_DOCKER_OUTPUT:-true}"
 host__last_container_hash="$(cat "$(lib.last_container_hash_path)" 2>/dev/null || echo "")"
 host__curr_container_hash="$(git -C "${HOME}/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
-if [[ ${host__suppress_docker_output} = true ]] && [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "${host__last_container_hash}" ]]; then
-  host__suppress_docker_output=false
+if [[ ${host__suppress_output} = true ]] && [[ -z ${host__curr_container_hash} ]] && [[ ${host__curr_container_hash} != "${host__last_container_hash}" ]]; then
+  host__suppress_output=false
 fi
 
 host.error_press_enter() {
@@ -20,7 +20,9 @@ host.error_press_enter() {
   exit 1
 }
 host.build() {
-  echo "Host [bin]: rebuilding the docker container." >&2
+  if [[ ${host__suppress_output} = false ]]; then
+    echo "Host [bin]: rebuilding the docker container." >&2
+  fi
   local image_names="$(docker ps -a --format '{{.Image}}' | xargs)"
   for image_name in ${image_names}; do
     if [[ ${image_name} = "solos:"* ]]; then
@@ -45,17 +47,21 @@ host.build() {
   local shared_args="-t solos:${host__curr_container_hash} -f ${host__repo_dir}/Dockerfile ."
   local suppressed_args="-q"
   local args=""
-  if [[ ${host__suppress_docker_output} = true ]]; then
+  if [[ ${host__suppress_output} = true ]]; then
     args="${suppressed_args} ${shared_args}"
   else
     args="${shared_args}"
   fi
-  printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  if [[ ${host__suppress_output} = false ]]; then
+    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  fi
   if ! echo "${args}" | xargs docker build >/dev/null; then
     echo "Host error [bin]: failed to build the docker image." >&2
     host.error_press_enter
   fi
-  printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  if [[ ${host__suppress_output} = false ]]; then
+    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  fi
   if [[ ! -d ${host__store_dir} ]]; then
     mkdir -p "${host__store_dir}"
     echo "Host [bin]: created the store directory at ${host__store_dir}" >&2

@@ -338,10 +338,7 @@ bin.loop() {
   return 0
 }
 bin.main_setup() {
-  if [[ ! -f ${bin__log_file} ]]; then
-    touch "${bin__log_file}"
-  fi
-  log.use_custom_logfile "${bin__log_file}"
+  log.use "${bin__log_file}"
   # Clean any old files that will interfere with the daemon's state assumptions.
   if rm -f "${bin__pid_file}"; then
     shared.log_info "Setup - cleared previous pid file: \"$(shared.host_path "${bin__pid_file}")\""
