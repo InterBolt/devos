@@ -88,7 +88,7 @@ bashrc_plugins.main() {
         '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${plugin_path}"'", "profile": "shell" }] + .' \
         "${code_workspace_file}" \
         >"${tmp_code_workspace_file}"
-      local precheck_plugin_path="${HOME}/.solos/src/plugins/precheck.sh"
+      local precheck_plugin_path="${HOME}/.solos/src/daemon/plugins/precheck/plugin"
       if ! cp "${precheck_plugin_path}" "${tmp_plugin_dir}/plugin"; then
         log.error "Failed to copy the precheck plugin to the plugin directory."
         rm -rf "${plugin_path}"

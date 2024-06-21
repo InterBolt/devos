@@ -18,7 +18,7 @@ if ! command -v code >/dev/null; then
   exit 1
 fi
 
-SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/migrations"
+SOURCE_MIGRATIONS_DIR="${HOME}/.solos/src/dev/migrations"
 USR_BIN_FILE="/usr/local/bin/solos"
 SOURCE_BIN_FILE="${HOME}/.solos/src/bin/host.sh"
 ORIGIN_REPO="https://github.com/InterBolt/solos.git"
@@ -76,7 +76,7 @@ fi
 if ! mkdir -p "${SOLOS_SOURCE_DIR}"; then
   echo "Host error [installer]: failed to create ${SOLOS_SOURCE_DIR}" >&2
   exit 1
-elif [[ -d ${SOURCE_REPO} ]]; then 
+elif [[ -d ${SOURCE_REPO} ]]; then
   cp -r "${SOURCE_REPO}/." "${SOLOS_SOURCE_DIR}/"
 elif ! git clone "${SOURCE_REPO}" "${TMP_DIR}/src" >/dev/null; then
   echo "Host error [installer]: failed to clone ${SOURCE_REPO} to ${TMP_DIR}/src" >&2
@@ -125,7 +125,7 @@ if [[ ${DEV_MODE} = true ]]; then
   if ! "${DEV_MODE_SETUP_SCRIPT}" >/dev/null; then
     echo "Host error [installer]: failed to run SolOS dev-mode setup script." >&2
     exit 1
-  else 
+  else
     echo "Host [installer]: ran the SolOS dev-mode setup script." >&2
   fi
 else

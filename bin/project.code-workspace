@@ -11,6 +11,16 @@
       "profile": "shell"
     },
     {
+      "name": "source",
+      "uri": "___container__users_home_dir___/.solos/src",
+      "profile": "shell"
+    },
+    {
+      "name": "rcfiles",
+      "uri": "___container__users_home_dir___/.solos/rcfiles",
+      "profile": "shell"
+    },
+    {
       "name": "solos",
       "uri": "___container__users_home_dir___/.solos",
       "profile": "shell"
