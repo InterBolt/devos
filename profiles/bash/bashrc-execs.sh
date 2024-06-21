@@ -5,21 +5,21 @@
 . "${HOME}/.solos/src/shared/gum.sh" || exit 1
 
 bashrc_execs.get_help() {
-  local cmd=""
+  local lifecycle="${1}"
   local when=""
-  if [[ ${cmd} = "preexec" ]]; then
+  if [[ ${lifecycle} = "preexec" ]]; then
     when="before"
   fi
-  if [[ ${cmd} = "postexec" ]]; then
+  if [[ ${lifecycle} = "postexec" ]]; then
     when="after"
   fi
   if [[ -z ${when} ]]; then
-    log.error "Unexpected error: Unknown user_exec cmd. Cannot generate the help documentation."
+    log.error "Unexpected error: lifecycle ${lifecycle}. Cannot generate the help documentation."
     return 1
   fi
   cat <<EOF
 
-USAGE: ${cmd} <add|remove|list|clear>
+USAGE: ${lifecycle} <add|remove|list|clear>
 
 DESCRIPTION:
 
@@ -28,15 +28,15 @@ ${when} any entered entered shell prompt (can contain multiple BASH_COMMAND(s) i
 
 COMMANDS:
 
-add <function_name> - Add a function to the ${cmd} list.
-remove <function_name> - Remove a function from the ${cmd} list.
-list - List all functions in the ${cmd} list.
+add <function_name> - Add a function to the ${lifecycle} list.
+remove <function_name> - Remove a function from the ${lifecycle} list.
+list - List all functions in the ${lifecycle} list.
 
 NOTES:
 
 (1) When an entered shell prompt matches one of [$(bashrc.opted_out_shell_prompts | xargs)], \
-the ${cmd} functions will not run.
-(2) The ${cmd} functions will run in the order they are added.
+the ${lifecycle} functions will not run.
+(2) The ${lifecycle} functions will run in the order they are added.
 
 EOF
 }

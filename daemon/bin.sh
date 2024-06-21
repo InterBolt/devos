@@ -9,6 +9,8 @@ bin__request_file="${bin__daemon_data_dir}/request"
 bin__log_file="${bin__daemon_data_dir}/master.log"
 bin__prev_pid="$(cat "${bin__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 
+mkdir -p "${bin__daemon_data_dir}"
+
 trap 'rm -f "'"${bin__pid_file}"'"' EXIT
 
 . "${HOME}/.solos/src/shared/lib.sh" || exit 1
@@ -419,3 +421,4 @@ EOF
 
 # bin.main_setup "$@"
 # bin.main
+bin.update_status "UP"

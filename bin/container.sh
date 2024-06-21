@@ -172,11 +172,15 @@ container.main() {
   # Create the code-workspace file if it doesn't exist.
   container__code_workspace_file="${vscode_dir}/${container__project}.code-workspace"
   if [[ ! -f ${container__code_workspace_file} ]]; then
-    local template_code_workspace_file="${container__solos_dir}/src/cli/project.code-workspace"
+    local template_code_workspace_file="${container__solos_dir}/src/bin/project.code-workspace"
     local tmp_dir="$(mktemp -d -q)"
-    cp "${template_code_workspace_file}" "${tmp_dir}/${container__project}.code-workspace"
-    if container.do_template_variable_replacements "${tmp_dir}/${container__project}.code-workspace"; then
-      cp -f "${tmp_dir}/${container__project}.code-workspace" "${container__code_workspace_file}"
+    local tmp_code_workspace_file="${tmp_dir}/${container__project}.code-workspace"
+    if ! cp "${template_code_workspace_file}" "${tmp_code_workspace_file}"; then
+      log.error "${container__project} - Failed to copy the template code workspace file."
+      exit 1
+    fi
+    if container.do_template_variable_replacements "${tmp_code_workspace_file}"; then
+      cp -f "${tmp_code_workspace_file}" "${container__code_workspace_file}"
       log.info "${container__project} - Created ${container__code_workspace_file} based on template at ${template_code_workspace_file}."
     else
       log.error "${container__project} - Failed to build the code workspace file."
@@ -228,10 +232,4 @@ if [[ $# -ne 0 ]]; then
   exit 1
 fi
 
-# The last line of the stdout must be the code-workspace file so that the user's host can open it.
-if container.main; then
-  # remove the "/root/" prefix from the code workspace file path.
-  echo "${container__code_workspace_file/#\/root\//}"
-else
-  echo ""
-fi
+container.main

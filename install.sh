@@ -138,16 +138,12 @@ if ! solos --noop; then
   exit 1
 fi
 cat <<EOF
-
 $(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-
 SolOS has been successfully installed! Type \`solos --help\` to get started.
 
 Source code: ${ORIGIN_REPO}
 Documentation: https://[TODO]
 Contact email: cc13.engineering@gmail.com
 Twitter: https://twitter.com/interbolt_colin
-
 $(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)
-
 EOF

@@ -212,20 +212,16 @@ ${asci_welcome_to_solos_art}
 $(bashrc.print_info)
 
 EOF
-  local gh_status_line="$(gh auth status | grep "Logged in")"
-  gh_status_line="${gh_status_line##*" "}"
-  echo ""
-  echo -e "\033[0;32mLogged in to Github ${gh_status_line} \033[0m"
-  echo ""
+  echo "Github status - $(gh auth status >/dev/null 2>&1 && echo "Logged in" || echo "Logged out")"
 }
-bashrc.maintain_active_shell_status() {
-  while true; do
-    mkdir -p "${HOME}/.solos/data/store"
-    rm -f "${HOME}/.solos/data/store/active_shell"
-    echo "$(date +%s)" >"${HOME}/.solos/data/store/active_shell"
-    sleep 3
-  done
-}
+# bashrc.maintain_active_shell_status() {
+#   while true; do
+#     mkdir -p "${HOME}/.solos/data/store"
+#     rm -f "${HOME}/.solos/data/store/active_shell"
+#     echo "$(date +%s)" >"${HOME}/.solos/data/store/active_shell"
+#     sleep 3
+#   done
+# }
 bashrc.install() {
   PS1='\[\033[0;32m\]SolOS\[\033[00m\]:\[\033[01;34m\]'"\${PWD/\$HOME/\~}"'\[\033[00m\]$ '
   if [[ -f "/etc/bash_completion" ]]; then
@@ -236,7 +232,6 @@ bashrc.install() {
   bashrc.print_welcome_manual
   bashrc.bash_completions
   bashrc.run_checked_out_project_script
-  bashrc.maintain_active_shell_status >/dev/null 2>&1 &
 }
 # Rename, export, and make readonly for all user-accessible pub functions.
 # Ex: user should use `tag` rather than `bashrc.public_track`.
@@ -326,8 +321,8 @@ bashrc.public_install_solos() {
   bashrc_github.install
   bashrc_panics.install
   bashrc_daemon.install
+  bashrc_execs.install
   bashrc.install
   bashrc_track.install
-  bashrc_execs.install
 }
 bashrc.export_and_readonly

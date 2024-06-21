@@ -91,9 +91,13 @@ host.shell() {
       host.error_press_enter
     fi
     local relative_bashrc_file="${bashrc_file/#$HOME/~}"
-    docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash --rcfile "${relative_bashrc_file}" -i
-  else
-    docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -i
+    if ! docker exec -it -w "/root/.solos" "${host__curr_container_hash}" /bin/bash --rcfile "${relative_bashrc_file}" -i; then
+      echo "Host error [bin]: failed to start the shell with the supplied bashrc file." >&2
+      host.error_press_enter
+    fi
+  elif ! docker exec -it -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -i; then
+    echo "Host error [bin]: failed to start the shell." >&2
+    host.error_press_enter
   fi
 }
 host.cmd() {
@@ -105,7 +109,7 @@ host.cmd() {
   fi
   if docker exec -w "/root/.solos" "${host__curr_container_hash}" /bin/bash -c ''"${*}"''; then
     local checked_out_project="$(lib.checked_out_project)"
-    local code_workspace_file="${HOME}/.solos/projects/${checked_out_project}/${checked_out_project}.code-workspace"
+    local code_workspace_file="${HOME}/.solos/projects/${checked_out_project}/.vscode/${checked_out_project}.code-workspace"
     if [[ -f ${code_workspace_file} ]]; then
       code "${code_workspace_file}"
     fi
