@@ -13,8 +13,8 @@ bashrc_daemon__log_file="${bashrc_daemon__data_dir}/master.log"
 bashrc_daemon__mounted_script="/root/.solos/repo/daemon/bin.sh"
 
 bashrc_daemon.suggested_action_on_error() {
-  log.error "Try stopping and deleting the docker container and its associated images before reloading the shell."
-  log.error "If the issue persists, please report it here: https://github.com/InterBolt/solos/issues"
+  bashrc.log_error "Try stopping and deleting the docker container and its associated images before reloading the shell."
+  bashrc.log_error "If the issue persists, please report it here: https://github.com/InterBolt/solos/issues"
 }
 bashrc_daemon.install() {
   # We only do this once so do it fast and allow lots of retries.
@@ -24,11 +24,11 @@ bashrc_daemon.install() {
 
   while true; do
     local status="$(cat "${bashrc_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    if [[ ${status} = "UP" ]] || [[ ${status} = "KILLED" ]]; then
+    if [[ ${status} = "UP" ]] || [[ ${status} = "KILLED" ]] || [[ ${status} = "RUN_FAILED" ]] || [[ ${status} = "START_FAILED" ]]; then
       break
     fi
     if [[ ${attempts} -ge ${max_attempts} ]]; then
-      log.error "Unexpected error: the daemon process failed to start. It's status is: ${status}"
+      bashrc.log_error "Unexpected error: the daemon process failed to start. It's status is: ${status}"
       bashrc_daemon.suggested_action_on_error
       bashrc.error_press_enter
     fi
@@ -47,12 +47,13 @@ Some utility commands to manage the daemon process.
 
 COMMANDS:
 
-status  - Show the status of the daemon process.
-pid     - Show the PID of the daemon process.
-tail    - A wrapper around the tail command to view the daemon's logs.
-flush   - Prints the logs to stdout before wiping the file.
-reload  - Restart the daemon process.
-kill    - Kill the daemon process.
+status      - Show the status of the daemon process.
+pid         - Show the PID of the daemon process.
+tail        - A wrapper around the tail command to view the daemon's logs.
+flush       - Prints the logs to stdout before wiping the file.
+reload      - Restart the daemon process.
+kill        - Kill the daemon process.
+foreground  - Run the daemon in the foreground.
 
 NOTES:
 
@@ -75,7 +76,7 @@ bashrc_daemon.main() {
     local status="$(cat "${bashrc_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     local pid="$(cat "${bashrc_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${status} ]]; then
-      log.error "Unexpected error: the daemon status does not exist."
+      bashrc.log_error "Unexpected error: the daemon status does not exist."
       bashrc_daemon.suggested_action_on_error
       return 1
     fi
@@ -84,7 +85,7 @@ bashrc_daemon.main() {
       expect_pid="true"
     fi
     if [[ -z ${pid} ]] && [[ ${expect_pid} = true ]]; then
-      log.error "Unexpected error: the daemon pid does not exist."
+      bashrc.log_error "Unexpected error: the daemon pid does not exist."
       bashrc_daemon.suggested_action_on_error
       return 1
     fi
@@ -98,7 +99,7 @@ EOF
   if [[ ${1} = "pid" ]]; then
     local pid="$(cat "${bashrc_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
-      log.error "Unexpected error: the daemon pid does not exist."
+      bashrc.log_error "Unexpected error: the daemon pid does not exist."
       bashrc_daemon.suggested_action_on_error
       return 1
     fi
@@ -107,7 +108,7 @@ EOF
   fi
   if [[ ${1} = "flush" ]]; then
     if [[ ! -f ${bashrc_daemon__log_file} ]]; then
-      log.error "Unexpected error: the daemon logfile does not exist."
+      bashrc.log_error "Unexpected error: the daemon logfile does not exist."
       bashrc_daemon.suggested_action_on_error
       return 1
     fi
@@ -116,7 +117,7 @@ EOF
       touch "${bashrc_daemon__log_file}"
       return 0
     else
-      log.error "Failed to flush the daemon logfile."
+      bashrc.log_error "Failed to flush the daemon logfile."
       return 1
     fi
   fi
@@ -124,7 +125,7 @@ EOF
     shift
     local tail_args=("$@")
     if [[ ! -f ${bashrc_daemon__log_file} ]]; then
-      log.error "Unexpected error: the daemon logfile does not exist."
+      bashrc.log_error "Unexpected error: the daemon logfile does not exist."
       bashrc_daemon.suggested_action_on_error
       return 1
     fi
@@ -134,13 +135,13 @@ EOF
   if [[ ${1} = "kill" ]]; then
     shift
     if [[ $# -ne 0 ]]; then
-      log.error "Unknown kill options: ${*}"
+      bashrc.log_error "Unknown kill options: ${*}"
       return 1
     fi
-    log.info "Killing. Waiting for the daemon to finish its current task."
+    bashrc.log_info "Killing. Waiting for the daemon to finish its current task."
     local pid="$(cat "${bashrc_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     if [[ -z ${pid} ]]; then
-      log.warn "No pid was found. Nothing to kill"
+      bashrc.log_warn "No pid was found. Nothing to kill"
       return 0
     fi
     echo "${pid} KILL" >"${bashrc_daemon__request_file}"
@@ -151,19 +152,19 @@ EOF
       fi
       sleep 0.5
     done
-    log.info "Killed the daemon process with PID - ${pid}"
+    bashrc.log_info "Killed the daemon process with PID - ${pid}"
     return 0
   fi
   if [[ ${1} = "reload" ]]; then
-    log.info "Reloading. Waiting for the daemon to finish its current task."
+    bashrc.log_info "Reloading. Waiting for the daemon to finish its cycle."
     local pid="$(cat "${bashrc_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    local running="false"
+    local pid_exists="false"
     if [[ -z ${pid} ]]; then
-      log.warn "No pid was found. Will start the daemon process."
+      bashrc.log_warn "No pid was found. Will start the daemon process."
     elif ps -p "${pid}" >/dev/null; then
-      running="true"
+      pid_exists="true"
     fi
-    if [[ ${running} = "true" ]]; then
+    if [[ ${pid_exists} = "true" ]]; then
       echo "${pid}" >"${bashrc_daemon__kill_file}"
       while true; do
         local status="$(cat "${bashrc_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -172,14 +173,14 @@ EOF
         fi
         sleep 0.5
       done
-      log.info "Killed the daemon process with PID - ${pid}"
+      bashrc.log_info "Killed the daemon process with PID - ${pid}"
     fi
-    local solos_version_hash="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
+    local repo_commit="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
-    local args=(-i -w "${container_ctx}" "${solos_version_hash}")
+    local args=(-i -w "${container_ctx}" "${repo_commit}")
     local bash_args=(-c 'nohup '"${bashrc_daemon__mounted_script}"' >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
-      log.error "Failed to reload the daemon process."
+      bashrc.log_error "Failed to reload the daemon process."
       return 1
     fi
     while true; do
@@ -189,9 +190,39 @@ EOF
       fi
       sleep 0.5
     done
-    log.info "Restarted the daemon process."
+    bashrc.log_info "Restarted the daemon process."
     return 0
   fi
-  log.error "Unknown command: ${1}"
+  if [[ ${1} = "foreground" ]]; then
+    bashrc.log_info "Will run in foreground after the daemon completes its current cycle."
+    local pid="$(cat "${bashrc_daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    local pid_exists="false"
+    if [[ -z ${pid} ]]; then
+      bashrc.log_warn "No pid was found. Will start the daemon process."
+    elif ps -p "${pid}" >/dev/null; then
+      pid_exists="true"
+    fi
+    if [[ ${pid_exists} = "true" ]]; then
+      echo "${pid}" >"${bashrc_daemon__kill_file}"
+      while true; do
+        local status="$(cat "${bashrc_daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+        if [[ ${status} = "KILLED" ]] || [[ ${status} = "RUN_FAILED" ]] || [[ ${status} = "START_FAILED" ]]; then
+          bashrc.log_info "The the daemon process with PID - ${pid} is no longer running."
+          break
+        fi
+        sleep 0.5
+      done
+    fi
+    local repo_commit="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
+    local container_ctx="/root/.solos"
+    local docker_exec_args=(-i -w "${container_ctx}" "${repo_commit}")
+    local bash_args=(-c "${bashrc_daemon__mounted_script}")
+    bashrc.log_info "Launching the daemon process in the foreground."
+    if ! docker exec "${docker_exec_args[@]}" /bin/bash "${bash_args[@]}"; then
+      bashrc.log_error "Failed to reload the daemon process."
+      return 1
+    fi
+  fi
+  bashrc.log_error "Unknown command: ${1}"
   return 1
 }

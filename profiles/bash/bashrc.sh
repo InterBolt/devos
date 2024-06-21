@@ -27,6 +27,21 @@ else
   cd "${PWD}" || exit 1
 fi
 
+bashrc.log_info() {
+  local message="(SHELL) ${1}"
+  shift
+  log.info "${message}" "$@"
+}
+bashrc.log_error() {
+  local message="(SHELL) ${1}"
+  shift
+  log.error "${message}" "$@"
+}
+bashrc.log_warn() {
+  local message="(SHELL) ${1}"
+  shift
+  log.warn "${message}" "$@"
+}
 bashrc.error_press_enter() {
   echo "Press enter to exit..."
   read -r || exit 1
@@ -71,17 +86,17 @@ EOF
 bashrc.extract_help_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
-    log.error "Unexpected error: empty help output."
+    bashrc.log_error "Unexpected error: empty help output."
     return 1
   fi
   local description_line_number=$(echo "${help_output}" | grep -n "^DESCRIPTION:" | cut -d: -f1)
   if [[ -z ${description_line_number} ]]; then
-    log.error "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`"
+    bashrc.log_error "Unexpected error: invalid help output format. Could not find a line starting with \`DESCRIPTION:\`"
     return 1
   fi
   local first_description_line=$((description_line_number + 2))
   if [[ -z $(echo "${help_output}" | sed -n "${first_description_line}p") ]]; then
-    log.error "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:"
+    bashrc.log_error "Unexpected error: invalid help output format. No text was found on the second line after DESCRIPTION:"
     return 1
   fi
   echo "${help_output}" | cut -d$'\n' -f"${first_description_line}"
@@ -113,7 +128,7 @@ bashrc.run_checked_out_project_script() {
     if [[ -f ${project_script} ]]; then
       . "${project_script}"
       bashrc__checked_out_project="${checked_out_project}"
-      log.info "Sourced ${project_script}"
+      bashrc.log_info "Sourced ${project_script}"
     fi
   fi
 }
@@ -271,7 +286,7 @@ EOF
     history -a
     bash --rcfile "${HOME}/.solos/rcfiles/.bashrc" -i
   else
-    log.info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
+    bashrc.log_info "No rcfile found at ${HOME}/.solos/rcfiles/.bashrc. Skipping reload."
     trap 'trap "bashrc_track.trap" DEBUG; exit 1;' SIGINT
     trap 'bashrc_track.trap' DEBUG
   fi

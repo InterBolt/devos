@@ -14,7 +14,7 @@ bashrc_execs.get_help() {
     when="after"
   fi
   if [[ -z ${when} ]]; then
-    log.error "Unexpected error: lifecycle ${lifecycle}. Cannot generate the help documentation."
+    bashrc.log_error "Unexpected error: lifecycle ${lifecycle}. Cannot generate the help documentation."
     return 1
   fi
   cat <<EOF
@@ -44,11 +44,11 @@ bashrc_execs.already_exists() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    log.warn "The preexec fn: '${fn}' already exists in user_preexecs. Nothing to add."
+    bashrc.log_warn "The preexec fn: '${fn}' already exists in user_preexecs. Nothing to add."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    log.warn "The postexec fn: '${fn}' already exists in user_postexecs. Nothing to add."
+    bashrc.log_warn "The postexec fn: '${fn}' already exists in user_postexecs. Nothing to add."
     return 0
   fi
   return 1
@@ -57,11 +57,11 @@ bashrc_execs.doesnt_exist() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    log.warn "The preexec fn: '${fn}' not found in user_preexecs. Nothing to remove."
+    bashrc.log_warn "The preexec fn: '${fn}' not found in user_preexecs. Nothing to remove."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    log.warn "The postexec fn: '${fn}' not found in user_postexecs. Nothing to remove."
+    bashrc.log_warn "The postexec fn: '${fn}' not found in user_postexecs. Nothing to remove."
     return 0
   fi
   return 1
@@ -69,11 +69,11 @@ bashrc_execs.doesnt_exist() {
 bashrc_execs.install() {
   local failed=false
   if ! declare -p user_preexecs >/dev/null 2>&1; then
-    log.error "Unexpected error: \`user_preexecs\` is not defined"
+    bashrc.log_error "Unexpected error: \`user_preexecs\` is not defined"
     failed=true
   fi
   if ! declare -p user_postexecs >/dev/null 2>&1; then
-    log.error "Unexpected error: \`user_postexecs\` is not defined"
+    bashrc.log_error "Unexpected error: \`user_postexecs\` is not defined"
     failed=true
   fi
   if [[ ${failed} = true ]]; then
@@ -90,7 +90,7 @@ bashrc_execs.main() {
     return 0
   fi
   if [[ -z ${cmd} ]]; then
-    log.error "Invalid usage: no command supplied to \`${lifecycle}\`."
+    bashrc.log_error "Invalid usage: no command supplied to \`${lifecycle}\`."
     bashrc_execs.get_help "${lifecycle}"
     return 1
   fi
@@ -104,11 +104,11 @@ bashrc_execs.main() {
   fi
   if [[ ${cmd} = "remove" ]]; then
     if [[ -z ${fn} ]]; then
-      log.error "Invalid usage: missing function name"
+      bashrc.log_error "Invalid usage: missing function name"
       return 1
     fi
     if bashrc_execs.doesnt_exist "${fn}"; then
-      log.error "Nothing to remove - '${fn}' does not exist in user_${lifecycle}s."
+      bashrc.log_error "Nothing to remove - '${fn}' does not exist in user_${lifecycle}s."
       return 1
     fi
     eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
@@ -116,15 +116,15 @@ bashrc_execs.main() {
   fi
   if [[ ${cmd} = "add" ]]; then
     if [[ -z ${fn} ]]; then
-      log.error "Invalid usage: missing function name"
+      bashrc.log_error "Invalid usage: missing function name"
       return 1
     fi
     if bashrc_execs.already_exists "${fn}"; then
-      log.error "Nothing to add - '${fn}' already exists in user_${lifecycle}s."
+      bashrc.log_error "Nothing to add - '${fn}' already exists in user_${lifecycle}s."
       return 1
     fi
     eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
     return 0
   fi
-  log.error "Invalid usage: unknown command: ${cmd} supplied to \`${lifecycle}\`."
+  bashrc.log_error "Invalid usage: unknown command: ${cmd} supplied to \`${lifecycle}\`."
 }

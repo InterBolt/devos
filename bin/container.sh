@@ -23,6 +23,16 @@ cd "${container__solos_dir}"
 # Make sure we can access the logger functions.
 . "${container__solos_dir}/repo/shared/log.sh" || exit 1
 
+container.log_info() {
+  log.info "(CLI) $1"
+}
+container.log_warn() {
+  log.warn "(CLI) $1"
+}
+container.log_error() {
+  log.error "(CLI) $1"
+}
+
 # Help/usage stuff.
 container.help() {
   cat <<EOF
@@ -61,10 +71,10 @@ container.disable_when_active_shell_exists() {
   local active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
   if [[ ${active_shell_seconds} -gt $((curr_seconds - 8)) ]]; then
     if [[ ${is_retry} = "is_retry" ]]; then
-      log.error "You must exit any open SolOS shells before running this command."
+      container.log_error "You must exit any open SolOS shells before running this command."
       exit 1
     else
-      log.warn "A SolOS shell is active. Waiting a few seconds before checking again."
+      container.log_warn "A SolOS shell is active. Waiting a few seconds before checking again."
       sleep 6
       return 1
     fi
@@ -82,11 +92,11 @@ if [[ -n ${1} ]]; then
 elif [[ -f ${container__checked_out_project_store_file} ]]; then
   container__project=$(cat "${container__checked_out_project_store_file}" || echo "")
   if [[ -z ${container__project} ]]; then
-    log.error "No project checked out. Please specify a project name as the first argument to \`solos\`"
+    container.log_error "No project checked out. Please specify a project name as the first argument to \`solos\`"
     exit 1
   fi
 else
-  log.warn "No project checked out. Please specify a project name as the first argument to \`solos\`"
+  container.log_warn "No project checked out. Please specify a project name as the first argument to \`solos\`"
   container.help
   exit 1
 fi
@@ -117,12 +127,12 @@ container.do_template_variable_replacements() {
     bin_vars=$(grep -o "___container__[a-z0-9_]*___" "${file}" | sed 's/___//g')
     for bin_var in ${bin_vars}; do
       if [[ -z ${!bin_var+x} ]]; then
-        log.error "Template variables error: ${file} is using an unset variable: ${bin_var}"
+        container.log_error "Template variables error: ${file} is using an unset variable: ${bin_var}"
         errored=true
         continue
       fi
       if [[ -z ${!bin_var} ]]; then
-        log.error "Template variables error: ${file} is using an empty variable: ${bin_var}"
+        container.log_error "Template variables error: ${file} is using an empty variable: ${bin_var}"
         errored=true
         continue
       fi
@@ -137,21 +147,21 @@ container.do_template_variable_replacements() {
 }
 container.main() {
   if [[ -z ${container__project} ]]; then
-    log.error "No project name was supplied."
+    container.log_error "No project name was supplied."
     exit 1
   fi
 
   # Create the projects directory if it doesn't exist.
   if [[ ! -d ${container__solos_dir}/projects ]]; then
     mkdir -p "${container__solos_dir}/projects"
-    log.info "No projects found. Creating ~/.solos/projects directory."
+    container.log_info "No projects found. Creating ~/.solos/projects directory."
   fi
 
   # Create the project directory if it doesn't exist.
   local project_dir="${container__solos_dir}/projects/${container__project}"
   if [[ ! -d ${project_dir} ]]; then
     mkdir -p "${project_dir}"
-    log.info "${container__project} - Created ${project_dir}"
+    container.log_info "${container__project} - Created ${project_dir}"
   fi
 
   # Initialize the ignore file for plugins if it doesn't exist.
@@ -159,14 +169,14 @@ container.main() {
   if [[ ! -f ${ignore_file} ]]; then
     echo "# Any plugin names listed below this line will be turned off when working in this project." \
       >"${ignore_file}"
-    log.info "${container__project} - Created ${ignore_file}."
+    container.log_info "${container__project} - Created ${ignore_file}."
   fi
 
   # Create the vscode directory if it doesn't exist.
   local vscode_dir="${project_dir}/.vscode"
   if [[ ! -d ${vscode_dir} ]]; then
     mkdir -p "${vscode_dir}"
-    log.info "${container__project} - Created ${vscode_dir}"
+    container.log_info "${container__project} - Created ${vscode_dir}"
   fi
 
   # Create the code-workspace file if it doesn't exist.
@@ -176,14 +186,14 @@ container.main() {
     local tmp_dir="$(mktemp -d -q)"
     local tmp_code_workspace_file="${tmp_dir}/${container__project}.code-workspace"
     if ! cp "${template_code_workspace_file}" "${tmp_code_workspace_file}"; then
-      log.error "${container__project} - Failed to copy the template code workspace file."
+      container.log_error "${container__project} - Failed to copy the template code workspace file."
       exit 1
     fi
     if container.do_template_variable_replacements "${tmp_code_workspace_file}"; then
       cp -f "${tmp_code_workspace_file}" "${container__code_workspace_file}"
-      log.info "${container__project} - Created ${container__code_workspace_file} based on template at ${template_code_workspace_file}."
+      container.log_info "${container__project} - Created ${container__code_workspace_file} based on template at ${template_code_workspace_file}."
     else
-      log.error "${container__project} - Failed to build the code workspace file."
+      container.log_error "${container__project} - Failed to build the code workspace file."
       exit 1
     fi
   fi
@@ -193,9 +203,9 @@ container.main() {
   if [[ -f ${checkout_script} ]]; then
     chmod +x "${checkout_script}"
     if ! "${checkout_script}"; then
-      log.warn "${container__project} - Failed to run the checkout script."
+      container.log_warn "${container__project} - Failed to run the checkout script."
     else
-      log.info "${container__project} - Checkout out."
+      container.log_info "${container__project} - Checkout out."
     fi
   else
     cat <<EOF >"${checkout_script}"
@@ -212,23 +222,23 @@ echo "Hello from the checkout script for project: ${container__project}"
 
 EOF
     chmod +x "${checkout_script}"
-    log.info "${container__project} - initialized the checkout script."
+    container.log_info "${container__project} - initialized the checkout script."
   fi
   if [[ ! -d ${container__store_dir} ]]; then
     mkdir -p "${container__store_dir}"
-    log.info "${container__project} - created ${container__store_dir}"
+    container.log_info "${container__project} - created ${container__store_dir}"
   fi
   if [[ ! -f ${container__checked_out_project_store_file} ]]; then
     touch "${container__checked_out_project_store_file}"
-    log.info "${container__project} - touched ${container__checked_out_project_store_file}"
+    container.log_info "${container__project} - touched ${container__checked_out_project_store_file}"
   fi
   echo "${container__project}" >"${container__checked_out_project_store_file}"
-  log.info "${container__project} - ready."
+  container.log_info "${container__project} - ready."
 }
 
 # Run the script, but error if any arguments are supplied that shouldn't be there.
 if [[ $# -ne 0 ]]; then
-  log.error "Unexpected error: arguments not supported: [${*}]"
+  container.log_error "Unexpected error: arguments not supported: [${*}]"
   exit 1
 fi
 

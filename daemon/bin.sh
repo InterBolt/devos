@@ -419,6 +419,5 @@ EOF
   fi
 }
 
-# bin.main_setup "$@"
-# bin.main
-bin.update_status "UP"
+bin.main_setup "$@"
+bin.main

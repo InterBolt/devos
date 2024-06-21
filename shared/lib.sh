@@ -58,9 +58,7 @@ lib.panics_add() {
   local panicfile="${lib__panics_dir}/${key}"
   mkdir -p "${lib__panics_dir}"
   cat <<EOF >"${panicfile}"
-MESSAGE:
-
-${msg}
+PANIC REASON: ${msg}
 
 TIME: ${timestamp}
 EOF

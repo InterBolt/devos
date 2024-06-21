@@ -24,19 +24,19 @@
 # bashrc_app.add() {
 #   local app_name="${1}"
 #   if [[ -z ${app_name} ]]; then
-#     log.error "Invalid usage: an app name is required."
+#     bashrc.log_error "Invalid usage: an app name is required."
 #     return 1
 #   fi
 # }
 # bashrc_app.remove() {
 #   local app_name="${1}"
 #   if [[ -z ${app_name} ]]; then
-#     log.error "Invalid usage: an app name is required."
+#     bashrc.log_error "Invalid usage: an app name is required."
 #     return 1
 #   fi
 # }
 # bashrc_app.list() {
-#   log.info "Apps associated with the project: $(lib.checked_out_project)"
+#   bashrc.log_info "Apps associated with the project: $(lib.checked_out_project)"
 # }
 # bashrc_app.main() {
 #   if [[ $# -eq 0 ]]; then
@@ -54,7 +54,7 @@
 #   elif [[ ${1} = "list" ]]; then
 #     bashrc_app.list
 #   else
-#     log.error "Unexpected command: $1"
+#     bashrc.log_error "Unexpected command: $1"
 #     return 1
 #   fi
 # }

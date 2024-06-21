@@ -31,15 +31,15 @@ bashrc_github._gh_token() {
   fi
   echo "${gh_token}" >"${tmp_file}"
   if gh auth login --with-token <"${tmp_file}" >/dev/null; then
-    log.info "Updated Github token."
+    bashrc.log_info "Updated Github token."
   else
-    log.error "Failed to authenticate with: ${gh_token}"
+    bashrc.log_error "Failed to authenticate with: ${gh_token}"
     local should_retry="$(gum.confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
       bashrc_github._gh_token "${tmp_file}"
     else
-      log.error "Exiting the setup process."
+      bashrc.log_error "Exiting the setup process."
       return 1
     fi
   fi
@@ -52,15 +52,15 @@ bashrc_github._gh_email() {
   fi
   echo "${github_email}" >"${tmp_file}"
   if git config --global user.email "${github_email}"; then
-    log.info "Updated git email."
+    bashrc.log_info "Updated git email."
   else
-    log.error "Failed to update git user.email to: ${github_email}"
+    bashrc.log_error "Failed to update git user.email to: ${github_email}"
     local should_retry="$(gum.confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
       bashrc_github._gh_email "${tmp_file}"
     else
-      log.error "Exiting the setup process."
+      bashrc.log_error "Exiting the setup process."
       return 1
     fi
   fi
@@ -73,9 +73,9 @@ bashrc_github._gh_name() {
   fi
   echo "${github_name}" >"${tmp_file}"
   if git config --global user.name "${github_name}"; then
-    log.info "Updated git name."
+    bashrc.log_info "Updated git name."
   else
-    log.error "Failed to update git user.name to: ${github_name}"
+    bashrc.log_error "Failed to update git user.name to: ${github_name}"
     local should_retry="$(gum.confirm_retry)"
     if [[ ${should_retry} = true ]]; then
       echo "" >"${tmp_file}"
@@ -91,15 +91,15 @@ bashrc_github.prompts() {
   local gh_name_path="${bashrc_github__config_path}/gh_name"
   local gh_email_path="${bashrc_github__config_path}/gh_email"
   if ! bashrc_github._gh_token "${gh_token_path}"; then
-    log.error "Failed to get Github token."
+    bashrc.log_error "Failed to get Github token."
     return 1
   fi
   if ! bashrc_github._gh_email "${gh_email_path}"; then
-    log.error "Failed to get Github email."
+    bashrc.log_error "Failed to get Github email."
     return 1
   fi
   if ! bashrc_github._gh_name "${gh_name_path}"; then
-    log.error "Failed to get Github name."
+    bashrc.log_error "Failed to get Github name."
     return 1
   fi
 }
@@ -121,28 +121,28 @@ bashrc_github.install() {
     return 1
   fi
   if ! git config --global user.name "${gh_name}"; then
-    log.error "Failed to set git user.name."
+    bashrc.log_error "Failed to set git user.name."
     return 1
   else
-    log.info "Set git user.name to: ${gh_name}"
+    bashrc.log_info "Set git user.name to: ${gh_name}"
   fi
   if ! git config --global user.email "${gh_email}"; then
-    log.error "Failed to set git user.email."
+    bashrc.log_error "Failed to set git user.email."
     return 1
   else
-    log.info "Set git user.email to: ${gh_email}"
+    bashrc.log_info "Set git user.email to: ${gh_email}"
   fi
   if ! gh auth login --with-token <"${gh_token_path}"; then
-    log.error "Github CLI failed to authenticate."
+    bashrc.log_error "Github CLI failed to authenticate."
     return 1
   else
-    log.info "Github CLI authenticated."
+    bashrc.log_info "Github CLI authenticated."
   fi
   if ! gh auth setup-git; then
-    log.error "Github CLI failed to setup."
+    bashrc.log_error "Github CLI failed to setup."
     return 1
   else
-    log.info "Github CLI setup complete."
+    bashrc.log_info "Github CLI setup complete."
   fi
 }
 bashrc_github.main() {
@@ -156,7 +156,7 @@ bashrc_github.main() {
     return 1
   fi
   if bashrc_github.install; then
-    log.info "Github CLI setup complete."
+    bashrc.log_info "Github CLI setup complete."
     return 0
   else
     return 1

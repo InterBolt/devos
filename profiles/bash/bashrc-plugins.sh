@@ -50,36 +50,36 @@ bashrc_plugins.main() {
   fi
   local curr_plugin_dirnames="$(bashrc_plugins.get_dirnames)"
   if [[ ${curr_plugin_dirnames} = "SOLOS:EXIT:1" ]]; then
-    log.error "Failed to get the current plugin directories."
+    bashrc.log_error "Failed to get the current plugin directories."
     return 1
   fi
   curr_plugin_dirnames=($(curr_plugin_dirnames))
   local arg_cmd="${1}"
   local arg_plugin_name="${2}"
   if [[ -z ${arg_plugin_name} ]]; then
-    log.error "Command is required."
+    bashrc.log_error "Command is required."
     return 1
   fi
   if [[ ${arg_cmd} = "add" ]]; then
     local plugin_url="${3:-""}"
     for plugin_dirname in "${curr_plugin_dirnames[@]}"; do
       if [[ ${plugin_dirname} = ${arg_plugin_name} ]]; then
-        log.error "Plugin with the name: ${arg_plugin_name} already exists."
+        bashrc.log_error "Plugin with the name: ${arg_plugin_name} already exists."
         return 1
       fi
     done
     if [[ -z ${plugin_url} ]]; then
-      log.info "Creating a local plugin."
+      bashrc.log_info "Creating a local plugin."
       local checked_out_project="$(lib.checked_out_project)"
       local code_workspace_file="${HOME}/.solos/projects/${checked_out_project}/.vscode/${checked_out_project}.code-workspace"
       if [[ ! -f ${code_workspace_file} ]]; then
-        log.error "Code workspace file not found at: ${code_workspace_file}"
+        bashrc.log_error "Code workspace file not found at: ${code_workspace_file}"
         return 1
       fi
       local plugin_path="${bashrc_plugins__dir}/${arg_plugin_name}"
       local tmp_plugin_dir="$(mktemp -d)"
       if ! mkdir "${plugin_path}"; then
-        log.error "Failed to create plugin directory at: ${plugin_path}"
+        bashrc.log_error "Failed to create plugin directory at: ${plugin_path}"
         return 1
       fi
       local tmp_code_workspace_file="$(mktemp)"
@@ -90,26 +90,26 @@ bashrc_plugins.main() {
         >"${tmp_code_workspace_file}"
       local precheck_plugin_path="${HOME}/.solos/repo/daemon/plugins/precheck/plugin"
       if ! cp "${precheck_plugin_path}" "${tmp_plugin_dir}/plugin"; then
-        log.error "Failed to copy the precheck plugin to the plugin directory."
+        bashrc.log_error "Failed to copy the precheck plugin to the plugin directory."
         rm -rf "${plugin_path}"
         return 1
       fi
       if ! chmod +x "${tmp_plugin_dir}/plugin"; then
-        log.error "Failed to make the plugin executable."
+        bashrc.log_error "Failed to make the plugin executable."
         rm -rf "${plugin_path}"
         return 1
       fi
       # Do the operations.
       cp "${tmp_plugin_dir}/" "${plugin_path}/"
       mv "${tmp_code_workspace_file}" "${code_workspace_file}"
-      log.info "Reloading the daemon with the new the ${arg_plugin_name} plugin (with default precheck template)."
+      bashrc.log_info "Reloading the daemon with the new the ${arg_plugin_name} plugin (with default precheck template)."
       local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
       tmp_stderr="$(mktemp)"
       if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
         cat "${tmp_stderr}"
         return 1
       fi
-      log.info "Successfully added the plugin: ${arg_plugin_name}"
+      bashrc.log_info "Successfully added the plugin: ${arg_plugin_name}"
       cat <<EOF
 INSTRUCTIONS:
 ${full_line}
@@ -120,11 +120,11 @@ This script is a copy of the default precheck plugin, which runs in between any 
 ${full_line}
 EOF
     elif [[ ! ${plugin_url} =~ ^http ]]; then
-      log.error "Must be a valid http url: ${plugin_url}"
+      bashrc.log_error "Must be a valid http url: ${plugin_url}"
       return 1
     else
       local tmp_stderr="$(mktemp)"
-      log.info "Waiting for the daemon to complete its current set of plugins."
+      bashrc.log_info "Waiting for the daemon to complete its current set of plugins."
       if ! daemon "kill" >/dev/null 2>"${tmp_stderr}"; then
         cat "${tmp_stderr}"
         return 1
@@ -132,24 +132,24 @@ EOF
       local tmp_manifest_file="$(mktemp)"
       jq ". += [{\"name\": \"${arg_plugin_name}\", \"source\": \"${plugin_url}\"}]" "${bashrc_plugins__manifest_file}" >"${tmp_manifest_file}"
       mv "${tmp_manifest_file}" "${bashrc_plugins__manifest_file}"
-      log.info "Added source url to manifest at: ${bashrc_plugins__manifest_file}"
-      log.info "Reloading the daemon. Will download the plugin on its next run."
+      bashrc.log_info "Added source url to manifest at: ${bashrc_plugins__manifest_file}"
+      bashrc.log_info "Reloading the daemon. Will download the plugin on its next run."
       tmp_stderr="$(mktemp)"
       if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
         cat "${tmp_stderr}"
         return 1
       fi
-      log.info "Successfully added the plugin: ${arg_plugin_name}"
-      log.info "TIP: Verify everything is working with: \`daemon tail -f\`"
+      bashrc.log_info "Successfully added the plugin: ${arg_plugin_name}"
+      bashrc.log_info "TIP: Verify everything is working with: \`daemon tail -f\`"
     fi
   fi
   if [[ ${arg_cmd} = "remove" ]]; then
     if [[ -z ${arg_plugin_name} ]]; then
-      log.error "Plugin name is required."
+      bashrc.log_error "Plugin name is required."
       return 1
     fi
     if [[ ! -d "${bashrc_plugins__dir}/${arg_plugin_name}" ]]; then
-      log.error "Plugin: ${arg_plugin_name} not found in the plugin directory: ${bashrc_plugins__dir}"
+      bashrc.log_error "Plugin: ${arg_plugin_name} not found in the plugin directory: ${bashrc_plugins__dir}"
       return 1
     fi
     local plugin_names=($(jq -r '.[].name' <<<"${bashrc_plugins__manifest_file}"))
@@ -166,7 +166,7 @@ EOF
       fi
     done
     if [[ ${plugin_is_local} = false ]]; then
-      log.warn "Plugin: ${arg_plugin_name} is not a remote plugin. Manual action required:"
+      bashrc.log_warn "Plugin: ${arg_plugin_name} is not a remote plugin. Manual action required:"
       local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
       cat <<EOF
 INSTRUCTIONS:
@@ -180,10 +180,10 @@ EOF
       return 0
     fi
     if [[ ${plugin_found_in_manifest} = false ]]; then
-      log.error "Plugin: ${arg_plugin_name} not found in the manifest file: ${bashrc_plugins__manifest_file} or at ${bashrc_plugins__dir}."
+      bashrc.log_error "Plugin: ${arg_plugin_name} not found in the manifest file: ${bashrc_plugins__manifest_file} or at ${bashrc_plugins__dir}."
       return 1
     fi
-    log.info "Waiting for the daemon to complete its current set of plugins."
+    bashrc.log_info "Waiting for the daemon to complete its current set of plugins."
     local tmp_stderr="$(mktemp)"
     if ! daemon "kill" >/dev/null 2>"${tmp_stderr}"; then
       cat "${tmp_stderr}"
@@ -192,9 +192,9 @@ EOF
     local tmp_manifest_file="$(mktemp)"
     jq "map(select(.name != \"${arg_plugin_name}\"))" "${bashrc_plugins__manifest_file}" >"${tmp_manifest_file}"
     mv "${tmp_manifest_file}" "${bashrc_plugins__manifest_file}"
-    log.info "Removed source reference from manifest at: ${bashrc_plugins__manifest_file}"
+    bashrc.log_info "Removed source reference from manifest at: ${bashrc_plugins__manifest_file}"
     rm -rf "${bashrc_plugins__dir}/${arg_plugin_name}"
-    log.warn "Deleted plugin directory: ${bashrc_plugins__dir}/${arg_plugin_name} and reloading the daemon."
+    bashrc.log_warn "Deleted plugin directory: ${bashrc_plugins__dir}/${arg_plugin_name} and reloading the daemon."
     tmp_stderr="$(mktemp)"
     if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
       cat "${tmp_stderr}"
@@ -202,6 +202,6 @@ EOF
     fi
     return 0
   fi
-  log.error "Unknown command: ${arg_cmd}"
+  bashrc.log_error "Unknown command: ${arg_cmd}"
   return 1
 }

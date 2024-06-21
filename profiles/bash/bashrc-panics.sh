@@ -69,7 +69,7 @@ bashrc_panics.main() {
     if bashrc_panics.print; then
       return 0
     else
-      log.info "No panic message was found."
+      bashrc.log_info "No panic message was found."
       return 0
     fi
   elif [[ $1 = "clear" ]]; then
@@ -79,7 +79,7 @@ bashrc_panics.main() {
     bashrc_panic__muted=true
     return 0
   else
-    log.error "Invalid command: $1"
+    bashrc.log_error "Invalid command: $1"
     bashrc_panics.print_help
     return 1
   fi
