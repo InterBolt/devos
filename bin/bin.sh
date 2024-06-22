@@ -80,7 +80,7 @@ host.build() {
   echo "Host [bin]: container is ready." >&2
   docker exec \
     "${host__curr_container_hash}" \
-    /bin/bash -c 'nohup "/root/.solos/repo/daemon/bin.sh" >/dev/null 2>&1 &' >/dev/null
+    /bin/bash -c 'nohup "/root/.solos/repo/daemon/daemon.sh" >/dev/null 2>&1 &' >/dev/null
   echo "Host [bin]: started the daemon." >&2
 }
 host.shell() {
