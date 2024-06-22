@@ -22,7 +22,7 @@ container__users_home_dir=$(cat "${container__users_home_dir_store_file}" || ech
 cd "${container__solos_dir}"
 
 # Make sure we can access the logger functions.
-. "${container__solos_dir}/repo/shared/log.sh" || exit 1
+. "${container__solos_dir}/repo/src/shared/log.sh" || exit 1
 log.use "${container__log_file}"
 
 container.log_info() {
@@ -147,7 +147,7 @@ container.do_template_variable_replacements() {
     exit 1
   fi
 }
-container.main() {
+container() {
   if [[ -z ${container__project} ]]; then
     container.log_error "No project name was supplied."
     exit 1
@@ -184,7 +184,7 @@ container.main() {
   # Create the code-workspace file if it doesn't exist.
   container__code_workspace_file="${vscode_dir}/${container__project}.code-workspace"
   if [[ ! -f ${container__code_workspace_file} ]]; then
-    local template_code_workspace_file="${container__solos_dir}/repo/bin/project.code-workspace"
+    local template_code_workspace_file="${container__solos_dir}/repo/src/bin/project.code-workspace"
     local tmp_dir="$(mktemp -d -q)"
     local tmp_code_workspace_file="${tmp_dir}/${container__project}.code-workspace"
     if ! cp "${template_code_workspace_file}" "${tmp_code_workspace_file}"; then
@@ -244,4 +244,4 @@ if [[ $# -ne 0 ]]; then
   exit 1
 fi
 
-container.main
+container

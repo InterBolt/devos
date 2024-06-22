@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
 
 bashrc_panic__dir="$(lib.panic_dir_path)"
 bashrc_panic__muted=false
@@ -56,7 +56,7 @@ This is by design to force the user/dev to review and (hopefully) fix the issue 
 
 EOF
 }
-bashrc_panics.main() {
+bashrc_panics() {
   if [[ $# -eq 0 ]]; then
     bashrc_panics.print_help
     return 0

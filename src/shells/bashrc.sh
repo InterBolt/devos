@@ -7,16 +7,16 @@ shopt -s histappend
 # Load this history file.
 history -r
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-panics.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-plugins.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-github.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-table-outputs.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-daemon.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-execs.sh" || exit 1
-. "${HOME}/.solos/repo/profiles/bash/bashrc-track.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-panics.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-plugins.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-github.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-table-outputs.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-daemon.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-execs.sh" || exit 1
+. "${HOME}/.solos/repo/shells/bashrc-track.sh" || exit 1
 
 bashrc__pub_fns=""
 bashrc__checked_out_project=""
@@ -293,7 +293,7 @@ EOF
   fi
 }
 bashrc.public_track() {
-  bashrc_track.main "$@"
+  bashrc_track "$@"
 }
 bashrc.public_info() {
   if bashrc.is_help_cmd "${1}"; then
@@ -312,22 +312,22 @@ EOF
   echo ""
 }
 bashrc.public_preexec() {
-  bashrc_execs.main "preexec" "$@"
+  bashrc_execs "preexec" "$@"
 }
 bashrc.public_postexec() {
-  bashrc_execs.main "postexec" "$@"
+  bashrc_execs "postexec" "$@"
 }
 bashrc.public_plugins() {
-  bashrc_plugins.main "$@"
+  bashrc_plugins "$@"
 }
 bashrc.public_daemon() {
-  bashrc_daemon.main "$@"
+  bashrc_daemon "$@"
 }
 bashrc.public_panics() {
-  bashrc_panics.main "$@"
+  bashrc_panics "$@"
 }
 bashrc.public_github() {
-  bashrc_github.main "$@"
+  bashrc_github "$@"
 }
 bashrc.public_install_solos() {
   bashrc_github.install

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
 
 bashrc_github__config_path="${HOME}/.solos/config"
 bashrc_github__secrets_path="${HOME}/.solos/secrets"
@@ -145,7 +145,7 @@ bashrc_github.install() {
     bashrc.log_info "Github CLI setup complete."
   fi
 }
-bashrc_github.main() {
+bashrc_github() {
   mkdir -p "${bashrc_github__secrets_path}" "${bashrc_github__config_path}"
   if bashrc.is_help_cmd "$1"; then
     bashrc_github.print_help

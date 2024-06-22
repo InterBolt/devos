@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
 
 shopt -s extdebug
 
@@ -354,7 +354,7 @@ bashrc_track.apply_tag() {
     echo "${tag_choice}"
   fi
 }
-bashrc_track.main() {
+bashrc_track() {
   local no_more_opts=false
   local opt_command_only=false
   local opt_tag_only=false

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
 
 bashrc_execs.get_help() {
   local lifecycle="${1}"
@@ -81,7 +81,7 @@ bashrc_execs.install() {
   fi
 }
 # Uses lots of eval to allow dynamic manipulations of the user_preexecs and user_postexecs arrays.
-bashrc_execs.main() {
+bashrc_execs() {
   local lifecycle="${1}"
   local cmd="${2}"
   local fn="${3}"

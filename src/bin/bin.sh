@@ -2,7 +2,7 @@
 
 export DOCKER_CLI_HINTS=false
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
 
 host__repo_dir="${HOME}/.solos/repo"
 host__data_dir="$(lib.data_dir_path)"
@@ -44,7 +44,7 @@ host.build() {
     echo "Host error [bin]: a file called .solos was detected in your home directory." >&2
     host.error_press_enter
   fi
-  local shared_args="-t solos:${host__curr_container_hash} -f ${host__repo_dir}/Dockerfile ."
+  local shared_args="-t solos:${host__curr_container_hash} -f ${host__repo_dir}/src/Dockerfile ."
   local suppressed_args="-q"
   local args=""
   if [[ ${host__suppress_output} = true ]]; then
@@ -80,7 +80,7 @@ host.build() {
   echo "Host [bin]: container is ready." >&2
   docker exec \
     "${host__curr_container_hash}" \
-    /bin/bash -c 'nohup "/root/.solos/repo/daemon/daemon.sh" >/dev/null 2>&1 &' >/dev/null
+    /bin/bash -c 'nohup "/root/.solos/repo/src/daemon/daemon.sh" >/dev/null 2>&1 &' >/dev/null
   echo "Host [bin]: started the daemon." >&2
 }
 host.shell() {
@@ -135,7 +135,7 @@ host.cmd() {
     fi
   fi
 }
-host.main() {
+host() {
   if [[ ${1} = "shell" ]]; then
     host.shell "${HOME}/.solos/rcfiles/.bashrc" "${PWD}"
     exit $?
@@ -143,9 +143,9 @@ host.main() {
     host.shell
     exit $?
   else
-    host.cmd "/root/.solos/repo/bin/container.sh" "${PWD}" "$@"
+    host.cmd "/root/.solos/repo/src/bin/container.sh" "${PWD}" "$@"
     exit $?
   fi
 }
 
-host.main "$@"
+host "$@"

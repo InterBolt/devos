@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
 
 bashrc_daemon__data_dir="${HOME}/.solos/data/daemon"
 bashrc_daemon__users_home_dir="$(lib.home_dir_path)"
@@ -10,7 +10,7 @@ bashrc_daemon__status_file="${bashrc_daemon__data_dir}/status"
 bashrc_daemon__pid_file="${bashrc_daemon__data_dir}/pid"
 bashrc_daemon__request_file="${bashrc_daemon__data_dir}/request"
 bashrc_daemon__log_file="${bashrc_daemon__data_dir}/master.log"
-bashrc_daemon__mounted_script="/root/.solos/repo/daemon/daemon.sh"
+bashrc_daemon__mounted_script="/root/.solos/repo/src/daemon/daemon.sh"
 
 bashrc_daemon.suggested_action_on_error() {
   bashrc.log_error "Try stopping and deleting the docker container and its associated images before reloading the shell."
@@ -63,7 +63,7 @@ If you really need to stop the daemon immediately, you can do something like kil
 
 EOF
 }
-bashrc_daemon.main() {
+bashrc_daemon() {
   if [[ $# -eq 0 ]]; then
     bashrc_daemon.print_help
     return 0

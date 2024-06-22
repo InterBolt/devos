@@ -33,11 +33,11 @@
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "___container__users_home_dir___/.solos/repo/bin/bin.sh",
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
         "args": ["shell", "${workspaceFolder}"]
       },
       "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/repo/bin/bin.sh",
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
         "args": ["shell-minimal", "${workspaceFolder}"]
       },
       "zsh": null,
@@ -47,11 +47,11 @@
     },
     "terminal.integrated.profiles.linux": {
       "shell": {
-        "path": "___container__users_home_dir___/.solos/repo/bin/bin.sh",
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
         "args": ["shell"]
       },
       "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/repo/bin/bin.sh",
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
         "args": ["shell-minimal"]
       },
       "zsh": null,

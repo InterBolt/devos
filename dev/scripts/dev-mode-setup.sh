@@ -1,6 +1,6 @@
 #!/bin/bash
 
-main() {
+dev_mode_setup() {
   local solos_dir="${HOME}/.solos"
   local plugins_dir="${solos_dir}/plugins"
   if [[ -d "${plugins_dir}" ]]; then
@@ -10,7 +10,7 @@ main() {
   local manifest_file="${plugins_dir}/solos.manifest.json"
   local mock_plugin_downloads_path="dev/mocks/remote-plugin-downloads"
   local mock_remote_plugin_downloads_dir="${solos_dir}/repo/${mock_plugin_downloads_path}"
-  local precheck_script="${solos_dir}/repo/daemon/plugins/precheck/plugin"
+  local precheck_script="${solos_dir}/repo/src/daemon/plugins/precheck/plugin"
   local local_plugins=(
     "alpha"
     "bravo"
@@ -36,4 +36,4 @@ main() {
   echo "${manifest_file}"
 }
 
-main
+dev_mode_setup

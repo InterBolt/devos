@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
 
 daemon__pid=$$
 daemon__remaining_retries=5
@@ -9,7 +9,7 @@ daemon__solos_dir="${HOME}/.solos"
 daemon__daemon_data_dir="${daemon__solos_dir}/data/daemon"
 daemon__user_plugins_dir="${daemon__solos_dir}/plugins"
 daemon__manifest_file="${daemon__user_plugins_dir}/solos.manifest.json"
-daemon__solos_plugins_dir="${daemon__solos_dir}/repo/daemon/plugins"
+daemon__solos_plugins_dir="${daemon__solos_dir}/repo/src/daemon/plugins"
 daemon__panics_dir="${daemon__solos_dir}/data/panics"
 daemon__precheck_plugin_path="${daemon__solos_plugins_dir}/precheck"
 daemon__users_home_dir="$(lib.home_dir_path)"
@@ -1391,7 +1391,7 @@ EOF
   daemon.loop
   daemon.retry
 }
-daemon.main() {
+daemon() {
   # Requests are meant to fulfill at the top of the daemon loop only.
   # Ensure a previously fulfilled request is cleared.
   if rm -f "${daemon__request_file}"; then
@@ -1421,4 +1421,4 @@ daemon.main() {
   daemon.retry
 }
 
-daemon.main
+daemon

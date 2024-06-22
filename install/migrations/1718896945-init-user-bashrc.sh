@@ -15,7 +15,7 @@ if [[ ! -f "${USER_MANAGED_BASHRC_FILE}" ]]; then
   cat <<EOF >"${USER_MANAGED_BASHRC_FILE}"
 #!/usr/bin/env bash
 
-. "\${HOME}/.solos/repo/profiles/bash/bashrc.sh" "\$@"
+. "\${HOME}/.solos/repo/shells/bashrc.sh" "\$@"
 
 # Add your customizations to the SolOS shell.
 # Tip: type \`info\` in the shell to see what functions and aliases are available.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
 
 # PUBLIC FUNCTIONS:
 

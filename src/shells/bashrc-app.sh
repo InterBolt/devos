@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
 
 # bashrc_app.print_help() {
 #   cat <<EOF
@@ -38,7 +38,7 @@
 # bashrc_app.list() {
 #   bashrc.log_info "Apps associated with the project: $(lib.checked_out_project)"
 # }
-# bashrc_app.main() {
+# bashrc_app() {
 #   if [[ $# -eq 0 ]]; then
 #     bashrc_app.print_help
 #     return 0
