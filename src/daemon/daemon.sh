@@ -21,7 +21,7 @@ daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1
 daemon__precheck_plugin_names=("precheck")
 daemon__checked_out_project="$(lib.checked_out_project)"
 daemon__checked_project_path="/root/.solos/projects/${daemon__checked_out_project}"
-daemon__tmp_data_dir="${daemon__tmp_data_dir}"
+daemon__tmp_data_dir="${daemon__daemon_data_dir}/tmp"
 daemon__blacklisted_exts=(
   "pem"
   "key"
@@ -63,7 +63,8 @@ daemon__blacklisted_exts=(
   "pptx"
 )
 
-log.use "${bin__log_file}"
+mkdir -p "${daemon__daemon_data_dir}"
+log.use "${daemon__log_file}"
 
 declare -A statuses=(
   ["UP"]="The daemon is running."
@@ -365,12 +366,12 @@ daemon.extract_request() {
     rm -f "${request_file}"
     local requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
     local requested_action="$(echo "${contents}" | cut -d' ' -f2)"
-    if [[ ${requested_pid} -eq ${bin__pid} ]]; then
+    if [[ ${requested_pid} -eq ${daemon__pid} ]]; then
       echo "${requested_action}"
       return 0
     fi
     if [[ -n ${requested_pid} ]]; then
-      daemon.log_error "Unexpected - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${bin__pid}."
+      daemon.log_error "Unexpected - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${daemon__pid}."
       exit 1
     fi
   else
@@ -382,7 +383,7 @@ daemon.execute_request() {
   case "${request}" in
   "KILL")
     daemon.log_info "Requested KILL was detected. Killing the daemon process."
-    bin.update_status "KILLED"
+    daemon.status "KILLED"
     exit 0
     ;;
   *)
@@ -392,7 +393,7 @@ daemon.execute_request() {
   esac
 }
 daemon.handle_requests() {
-  local request="$(daemon.extract_request "${bin__request_file}")"
+  local request="$(daemon.extract_request "${daemon__request_file}")"
   if [[ -n ${request} ]]; then
     daemon.log_info "Request  ${request} was dispatched to the daemon."
     daemon.execute_request "${request}"
@@ -483,7 +484,7 @@ daemon.create_empty_plugin_config() {
   local path="${2}"
   cat <<EOF >"${path}"
 {
-  "source": "${missing_plugin_source}",
+  "source": "${source}",
   "config": {}
 }
 EOF
@@ -1099,7 +1100,7 @@ daemon.chunk_phase() {
 # phase have network access, so any kind of publishing that is specific to the processed data
 # can be done in the chunk phase. I'm not merging the phases because I want the publish phase to allow
 # plugin authors to use all chunks, regardless of which plugin created them.
-plugin_phases.publish() {
+daemon.publish_phase() {
   local phase_cache="${1}"
   local merged_chunks="${2}"
   local chunk_log_files=("$(echo "${3}" | xargs)")
@@ -1361,12 +1362,12 @@ daemon.loop() {
       daemon.log_info "Running precheck plugins."
       daemon.plugin_runner "${plugins[*]}"
       daemon.log_info "Archived phase results for precheck plugins at \"$(daemon.get_host_path "${archive_dir}")\""
-      daemon.log_warn "Prechecks passed."
+      daemon.log_info "Prechecks passed."
     else
       daemon.log_info "Starting a new cycle."
       daemon.plugin_runner "${plugins[*]}"
       daemon.log_info "Archived phase results at \"$(daemon.get_host_path "${archive_dir}")\""
-      daemon.log_warn "Waiting for the next cycle."
+      daemon.log_info "Waiting for the next cycle."
       daemon__remaining_retries=5
       sleep 2
       daemon.handle_requests

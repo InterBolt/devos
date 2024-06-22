@@ -14,11 +14,6 @@ if [[ ${host__suppress_output} = true ]] && [[ -z ${host__curr_container_hash} ]
   host__suppress_output=false
 fi
 
-host.error_press_enter() {
-  echo "Host [bin]: press enter to exit..."
-  read -r || exit 1
-  exit 1
-}
 host.build() {
   if [[ ${host__suppress_output} = false ]]; then
     echo "Host [bin]: rebuilding the docker container." >&2
@@ -28,21 +23,21 @@ host.build() {
     if [[ ${image_name} = "solos:"* ]]; then
       if ! docker stop "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null; then
         echo "Host error [bin]: failed to stop the container with image name ${image_name}." >&2
-        host.error_press_enter
+        lib.enter_to_exit
       fi
       if ! docker rm "$(docker ps -a --format '{{.ID}}' --filter ancestor="${image_name}")" >/dev/null; then
         echo "Host error [bin]: failed to remove the container with image name ${image_name}." >&2
-        host.error_press_enter
+        lib.enter_to_exit
       fi
       if ! docker rmi "${image_name}" >/dev/null; then
         echo "Host error [bin]: failed to remove the image with image name ${image_name}." >&2
-        host.error_press_enter
+        lib.enter_to_exit
       fi
     fi
   done
   if [[ -f ${HOME}/.solos ]]; then
     echo "Host error [bin]: a file called .solos was detected in your home directory." >&2
-    host.error_press_enter
+    lib.enter_to_exit
   fi
   local shared_args="-t solos:${host__curr_container_hash} -f ${host__repo_dir}/src/Dockerfile ."
   local suppressed_args="-q"
@@ -57,7 +52,7 @@ host.build() {
   fi
   if ! echo "${args}" | xargs docker build >/dev/null; then
     echo "Host error [bin]: failed to build the docker image." >&2
-    host.error_press_enter
+    lib.enter_to_exit
   fi
   if [[ ${host__suppress_output} = false ]]; then
     printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
@@ -71,7 +66,7 @@ host.build() {
   echo "Host [bin]: built docker image - solos:${host__curr_container_hash}" >&2
   if ! docker run -d --name "${host__curr_container_hash}" --network host --pid host --privileged -v "/var/run/docker.sock:/var/run/docker.sock" -v "${HOME}/.solos:/root/.solos" "solos:${host__curr_container_hash}" >/dev/null; then
     echo "Host error [bin]: failed to run the docker container." >&2
-    host.error_press_enter
+    lib.enter_to_exit
   fi
   echo "Host [bin]: container is running - solos" >&2
   while ! docker exec "${host__curr_container_hash}" echo "" >/dev/null 2>&1; do
@@ -87,7 +82,7 @@ host.shell() {
   if ! docker exec "${host__curr_container_hash}" echo "" >/dev/null 2>&1; then
     if ! host.build; then
       echo "Host error [bin]: failed to rebuild the SolOS container." >&2
-      host.error_press_enter
+      lib.enter_to_exit
     fi
   fi
   local bashrc_file="${1:-""}"
@@ -108,16 +103,16 @@ host.shell() {
   if [[ -n ${bashrc_file} ]]; then
     if [[ ! -f ${bashrc_file} ]]; then
       echo "Host error [bin]: the supplied bashrc file at ${bashrc_file} does not exist." >&2
-      host.error_press_enter
+      lib.enter_to_exit
     fi
     local relative_bashrc_file="${bashrc_file/#$HOME/~}"
     if ! docker exec -it -w "${container_working_directory}" "${host__curr_container_hash}" /bin/bash --rcfile "${relative_bashrc_file}" -i; then
       echo "Host error [bin]: failed to start the shell with the supplied bashrc file." >&2
-      host.error_press_enter
+      lib.enter_to_exit
     fi
   elif ! docker exec -it -w "${container_working_directory}" "${host__curr_container_hash}" /bin/bash -i; then
     echo "Host error [bin]: failed to start the shell." >&2
-    host.error_press_enter
+    lib.enter_to_exit
   fi
 }
 host.cmd() {

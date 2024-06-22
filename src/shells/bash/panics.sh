@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
+panics__dir="$(lib.panic_dir_path)"
+panics__muted=false
 
-bashrc_panic__dir="$(lib.panic_dir_path)"
-bashrc_panic__muted=false
-
-bashrc_panics.print() {
-  if [[ ${bashrc_panic__muted} = true ]]; then
+panics.print() {
+  if [[ ${panics__muted} = true ]]; then
     echo ""
     return 0
   fi
@@ -20,8 +16,8 @@ bashrc_panics.print() {
   gum.danger_box "${panic_messages}${newline}${newline}Please report the issue at https://github.com/interbolt/solos/issues."
   return 0
 }
-bashrc_panics.install() {
-  if bashrc_panics.print; then
+panics.install() {
+  if panics.print; then
     local should_proceed="$(gum.confirm_ignore_panic)"
     if [[ ${should_proceed} = true ]]; then
       return 1
@@ -31,7 +27,7 @@ bashrc_panics.install() {
   fi
   return 0
 }
-bashrc_panics.print_help() {
+panics.print_help() {
   cat <<EOF
 
 USAGE: panic <review|clear|mute>
@@ -40,7 +36,7 @@ DESCRIPTION:
 
 A command to review "panic" files. These files only exist when the SolOS system is in a "panicked" state.
 
-Panic files at: ${bashrc_panic__dir}
+Panic files at: ${panics__dir}
 
 COMMANDS:
 
@@ -56,31 +52,31 @@ This is by design to force the user/dev to review and (hopefully) fix the issue 
 
 EOF
 }
-bashrc_panics() {
+panics.cmd() {
   if [[ $# -eq 0 ]]; then
-    bashrc_panics.print_help
+    panics.print_help
     return 0
   fi
-  if bashrc.is_help_cmd "$1"; then
-    bashrc_panics.print_help
+  if lib.is_help_cmd "$1"; then
+    panics.print_help
     return 0
   fi
   if [[ $1 = "review" ]]; then
-    if bashrc_panics.print; then
+    if panics.print; then
       return 0
     else
-      bashrc.log_info "No panic message was found."
+      shell.log_info "No panic message was found."
       return 0
     fi
   elif [[ $1 = "clear" ]]; then
     lib.panics_clear
     return 0
   elif [[ $1 = "mute" ]]; then
-    bashrc_panic__muted=true
+    panics__muted=true
     return 0
   else
-    bashrc.log_error "Invalid command: $1"
-    bashrc_panics.print_help
+    shell.log_error "Invalid command: $1"
+    panics.print_help
     return 1
   fi
 }

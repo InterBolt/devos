@@ -110,3 +110,28 @@ lib.use_host() {
   echo "${filename/\/root/${host}}"
 }
 export -f lib.use_host
+
+lib.users_home_dir() {
+  local home_dir_path="$(lib.home_dir_path)"
+  if [[ -z ${home_dir_path} ]]; then
+    return 1
+  fi
+  echo "${home_dir_path}"
+}
+export -f lib.users_home_dir
+
+lib.enter_to_exit() {
+  echo "Press enter to exit..."
+  read -r || exit 1
+  exit 1
+}
+export -f lib.enter_to_exit
+
+lib.is_help_cmd() {
+  if [[ $1 = "--help" ]] || [[ $1 = "-h" ]] || [[ $1 = "help" ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
+export -f lib.is_help_cmd

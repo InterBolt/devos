@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
+# Important: these two variables do not follow typical naming conventions
+# because it's user-facing.
+user_preexecs=()
+user_postexecs=()
 
-bashrc_execs.get_help() {
+execs.print_help() {
   local lifecycle="${1}"
   local when=""
   if [[ ${lifecycle} = "preexec" ]]; then
@@ -14,7 +15,7 @@ bashrc_execs.get_help() {
     when="after"
   fi
   if [[ -z ${when} ]]; then
-    bashrc.log_error "Unexpected error: lifecycle ${lifecycle}. Cannot generate the help documentation."
+    shell.log_error "Unexpected error: lifecycle ${lifecycle}. Cannot generate the help documentation."
     return 1
   fi
   cat <<EOF
@@ -34,64 +35,64 @@ list - List all functions in the ${lifecycle} list.
 
 NOTES:
 
-(1) When an entered shell prompt matches one of [$(bashrc.opted_out_shell_prompts | xargs)], \
+(1) When an entered shell prompt matches one of [$(shell.blacklist_cmds)], \
 the ${lifecycle} functions will not run.
 (2) The ${lifecycle} functions will run in the order they are added.
 
 EOF
 }
-bashrc_execs.already_exists() {
+execs.already_exists() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    bashrc.log_warn "The preexec fn: '${fn}' already exists in user_preexecs. Nothing to add."
+    shell.log_warn "The preexec fn: '${fn}' already exists in user_preexecs. Nothing to add."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    bashrc.log_warn "The postexec fn: '${fn}' already exists in user_postexecs. Nothing to add."
+    shell.log_warn "The postexec fn: '${fn}' already exists in user_postexecs. Nothing to add."
     return 0
   fi
   return 1
 }
-bashrc_execs.doesnt_exist() {
+execs.doesnt_exist() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    bashrc.log_warn "The preexec fn: '${fn}' not found in user_preexecs. Nothing to remove."
+    shell.log_warn "The preexec fn: '${fn}' not found in user_preexecs. Nothing to remove."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    bashrc.log_warn "The postexec fn: '${fn}' not found in user_postexecs. Nothing to remove."
+    shell.log_warn "The postexec fn: '${fn}' not found in user_postexecs. Nothing to remove."
     return 0
   fi
   return 1
 }
-bashrc_execs.install() {
+execs.install() {
   local failed=false
   if ! declare -p user_preexecs >/dev/null 2>&1; then
-    bashrc.log_error "Unexpected error: \`user_preexecs\` is not defined"
+    shell.log_error "Unexpected error: \`user_preexecs\` is not defined"
     failed=true
   fi
   if ! declare -p user_postexecs >/dev/null 2>&1; then
-    bashrc.log_error "Unexpected error: \`user_postexecs\` is not defined"
+    shell.log_error "Unexpected error: \`user_postexecs\` is not defined"
     failed=true
   fi
   if [[ ${failed} = true ]]; then
-    bashrc.error_press_enter
+    lib.enter_to_exit
   fi
 }
 # Uses lots of eval to allow dynamic manipulations of the user_preexecs and user_postexecs arrays.
-bashrc_execs() {
+execs.cmd() {
   local lifecycle="${1}"
   local cmd="${2}"
   local fn="${3}"
-  if bashrc.is_help_cmd "${cmd}"; then
-    bashrc_execs.get_help "${lifecycle}"
+  if lib.is_help_cmd "${cmd}"; then
+    execs.print_help "${lifecycle}"
     return 0
   fi
   if [[ -z ${cmd} ]]; then
-    bashrc.log_error "Invalid usage: no command supplied to \`${lifecycle}\`."
-    bashrc_execs.get_help "${lifecycle}"
+    shell.log_error "Invalid usage: no command supplied to \`${lifecycle}\`."
+    execs.print_help "${lifecycle}"
     return 1
   fi
   if [[ ${cmd} = "list" ]]; then
@@ -104,11 +105,11 @@ bashrc_execs() {
   fi
   if [[ ${cmd} = "remove" ]]; then
     if [[ -z ${fn} ]]; then
-      bashrc.log_error "Invalid usage: missing function name"
+      shell.log_error "Invalid usage: missing function name"
       return 1
     fi
-    if bashrc_execs.doesnt_exist "${fn}"; then
-      bashrc.log_error "Nothing to remove - '${fn}' does not exist in user_${lifecycle}s."
+    if execs.doesnt_exist "${fn}"; then
+      shell.log_error "Nothing to remove - '${fn}' does not exist in user_${lifecycle}s."
       return 1
     fi
     eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
@@ -116,15 +117,15 @@ bashrc_execs() {
   fi
   if [[ ${cmd} = "add" ]]; then
     if [[ -z ${fn} ]]; then
-      bashrc.log_error "Invalid usage: missing function name"
+      shell.log_error "Invalid usage: missing function name"
       return 1
     fi
-    if bashrc_execs.already_exists "${fn}"; then
-      bashrc.log_error "Nothing to add - '${fn}' already exists in user_${lifecycle}s."
+    if execs.already_exists "${fn}"; then
+      shell.log_error "Nothing to add - '${fn}' already exists in user_${lifecycle}s."
       return 1
     fi
     eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
     return 0
   fi
-  bashrc.log_error "Invalid usage: unknown command: ${cmd} supplied to \`${lifecycle}\`."
+  shell.log_error "Invalid usage: unknown command: ${cmd} supplied to \`${lifecycle}\`."
 }
