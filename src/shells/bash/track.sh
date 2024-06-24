@@ -162,6 +162,9 @@ track.lifecycle_scripts() {
 
   local lifecycle_scripts=()
   local next_dir="${PWD}"
+  if [[ ${next_dir} != "${HOME}/.solos"* ]]; then
+    return 0
+  fi
   while [[ ${next_dir} != "${HOME}/.solos" ]]; do
     if [[ -f "${next_dir}/solos."${lifecycle}".sh" ]]; then
       lifecycle_scripts=("${next_dir}/solos."${lifecycle}".sh" "${lifecycle_scripts[@]}")
@@ -173,8 +176,7 @@ track.lifecycle_scripts() {
       return 151
     fi
   done
-
-  return 1
+  return 0
 }
 track.trap() {
   # Prevent the trap from applying to the PROMPT_COMMAND script.

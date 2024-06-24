@@ -20,7 +20,8 @@ RUN apt-get update \
   netcat-traditional \
   iptables \
   iproute2 \
-  gpg
+  gpg \
+  rsync
 
 # Install GitHub CLI
 RUN sudo mkdir -p -m 755 /etc/apt/keyrings \
