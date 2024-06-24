@@ -66,7 +66,7 @@ daemon__blacklisted_exts=(
 
 mkdir -p "${daemon__daemon_data_dir}"
 log.use "${daemon__log_file}"
-# trap 'daemon.umount_bindings; rm -rf "'"${daemon__tmp_data_dir}"'";' EXIT
+trap 'daemon.umount_bindings; rm -rf "'"${daemon__tmp_data_dir}"'";' EXIT
 
 declare -A statuses=(
   ["UP"]="The daemon is running."
@@ -886,21 +886,24 @@ EOF
   else
     lib.panics_remove "plugin_panics_detected"
   fi
-  local assets_created_by_plugins=()
+  local built_assets=()
   local i=0
   if [[ -n ${merge_path} ]]; then
     for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
       local plugin_name="${plugin_names[${i}]}"
-      local created_asset="$(daemon.mount_src "${firejailed_home_dir}${merge_path}")"
-      assets_created_by_plugins+=("${created_asset}")
-      daemon.log_info "${phase} phase: an asset was created: ${created_asset}"
+      local built_asset="$(daemon.mount_src "${firejailed_home_dir}${merge_path}")"
+      built_assets+=("${built_asset}")
+      daemon.log_info "${phase} phase: built asset - ${created_asset}"
       i=$((i + 1))
     done
   fi
   daemon.umount_bindings
+  for built_asset in "${built_assets[@]}"; do
+    chmod -R 777 "${built_asset}"
+  done
   echo "${aggregated_stdout_file}" | xargs
   echo "${aggregated_stderr_file}" | xargs
-  echo "${assets_created_by_plugins[*]}" | xargs
+  echo "${built_assets[*]}" | xargs
   echo "${return_code}"
 }
 # ------------------------------------------------------------------------
@@ -1469,4 +1472,4 @@ daemon() {
   daemon.retry
 }
 
-daemon
+# daemon
