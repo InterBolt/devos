@@ -24,12 +24,16 @@ fn.seed() {
   dd if=/dev/zero of="${data_dir}/file16" bs=1M count=10
 }
 
+declare -A bind_store=()
+
 fn.test() {
-  local next_dir="/root/.solos"
-  # local next_dir="/root/othershit"
-  if [[ ${next_dir} != "${HOME}/.solos"* ]]; then
-    echo "HISDHF"
-  fi
+  for i in {1..10}; do
+    bind_store["key${i}"]="value${i}"
+  done
+  # no loop through the keys
+  for key in "${!bind_store[@]}"; do
+    echo "key: ${key}, value: ${bind_store[${key}]}"
+  done
 }
 
 fn.test
