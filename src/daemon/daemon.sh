@@ -1433,56 +1433,42 @@ daemon.plugin_runner() {
 daemon.loop() {
   local is_next_precheck=true
   while true; do
-    if ! daemon.unbind_all_firejailed; then
-      daemon.log_error "Failed to unbind all firejailed directories."
-      sleep 20
-      return 1
-    fi
-    local is_curr_precheck="${is_next_precheck}"
-    while true; do
-      if [[ -z $(ls -A "${daemon__panics_dir}") ]]; then
-        break
-      else
-        daemon.log_error "Panics detected. Waiting 5 seconds before checking again."
-        sleep 5
-      fi
-    done
-    if ! daemon.update_plugins; then
-      daemon.log_error "Failed to apply the manifest. Waiting 20 seconds before the next run."
-      sleep 20
-      return 1
-    fi
-    plugins=()
-    if [[ ${is_curr_precheck} = true ]]; then
-      plugins=($(daemon.plugin_names_to_paths "${daemon__precheck_plugin_names[*]}"))
-    else
-      local solos_plugin_names="$(daemon.get_solos_plugin_names)"
-      local user_plugin_names="$(daemon.get_user_plugin_names)"
-      plugins=($(daemon.plugin_names_to_paths "${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
-    fi
-    if [[ ${#plugins[@]} -eq 0 ]]; then
-      daemon.log_warn "No plugins were found. Waiting 20 seconds before the next run."
+    if [[ ! -z $(ls -A "${daemon__panics_dir}") ]]; then
+      daemon.log_error "Panics detected. Will restart the daemon in 20 seconds."
       sleep 20
       continue
     fi
-    if [[ ${is_curr_precheck} = false ]]; then
-      daemon.plugin_runner "${plugins[*]}"
-      is_next_precheck=true
-    else
+    if ! daemon.unbind_all_firejailed; then
+      daemon.log_error "Failed to unbind all firejailed directories."
+      sleep 20
+      continue
+    fi
+    if ! daemon.update_plugins; then
+      daemon.log_error "Failed to apply the manifest. Waiting 20 seconds before the next run."
+      sleep 20
+      continue
+    fi
+    if [[ ${is_next_precheck} = true ]]; then
+      plugins=($(daemon.plugin_names_to_paths "${daemon__precheck_plugin_names[*]}"))
       if ! daemon.plugin_runner "${plugins[*]}" "prechecks"; then
-        daemon.log_error "Prechecks failed. Will try again in 20 seconds."
-        is_next_precheck=true
+        daemon.log_error "Precheck loop failed. Will restart the daemon in 20 seconds."
         sleep 20
-        continue
+        is_next_precheck=true
       else
         is_next_precheck=false
-        daemon.log_info "Prechecks [PASSED]"
-        daemon__remaining_retries=5
       fi
-      sleep 2
-      daemon.handle_requests
+    else
+      local solos_plugin_names="$(daemon.get_solos_plugin_names)"
+      local user_plugin_names="$(daemon.get_user_plugin_names)"
+      local plugins=($(daemon.plugin_names_to_paths "${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
+      if ! daemon.plugin_runner "${plugins[*]}"; then
+        daemon.log_error "Main loop failed. Will restart the daemon in 20 seconds."
+        sleep 20
+      fi
+      is_next_precheck=true
     fi
     lib.panics_remove "daemon_too_many_retries"
+    daemon.handle_requests
   done
   return 0
 }
@@ -1519,7 +1505,6 @@ daemon() {
       exit 1
     fi
   fi
-  # Store the current and valid PID in the pidfile.
   mkdir -p "${daemon__daemon_data_dir}"
   echo "${daemon__pid}" >"${daemon__pid_file}"
   # We like to see this when running "daemon status" in our shell.
