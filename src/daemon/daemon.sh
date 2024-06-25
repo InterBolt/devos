@@ -19,6 +19,7 @@ daemon__users_home_dir="$(lib.home_dir_path)"
 daemon__pid_file="${daemon__daemon_data_dir}/pid"
 daemon__status_file="${daemon__daemon_data_dir}/status"
 daemon__request_file="${daemon__daemon_data_dir}/request"
+daemon__frozen_manifest_file="${daemon__daemon_data_dir}/frozen.manifest.json"
 daemon__log_file="${daemon__daemon_data_dir}/master.log"
 daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon__precheck_plugin_names=("precheck")
@@ -69,13 +70,6 @@ daemon__blacklisted_exts=(
 mkdir -p "${daemon__daemon_data_dir}"
 log.use "${daemon__log_file}"
 trap 'daemon.trap_exit' EXIT
-
-declare -A statuses=(
-  ["UP"]="The daemon is up and running."
-  ["DOWN"]="The daemon is not currently running."
-  ["MAX_RETRIES_REACHED"]="The daemon failed too many times. It will not be restarted automatically."
-  ["KILL_REQUEST_FULFILLED"]="A kill request was received. The daemon will not be restarted."
-)
 
 daemon.trap_exit() {
   if daemon.unbind_all_firejailed; then
@@ -281,13 +275,9 @@ daemon.plugin_names_to_paths() {
 }
 daemon.status() {
   local status="$1"
-  if [[ -z ${statuses[${status}]} ]]; then
-    daemon.log_error "Tried to update to an invalid status: ${status}"
-    exit 1
-  fi
   local previous_status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
   echo "${status}" >"${daemon__status_file}"
-  daemon.log_info "Update status from ${previous_status} to ${status}: ${statuses[${status}]}"
+  daemon.log_info "Update status from ${previous_status} to ${status}"
 }
 daemon.project_found() {
   if [[ -z ${daemon__checked_out_project} ]]; then
@@ -511,19 +501,15 @@ daemon.execute_request() {
   case "${request}" in
   "KILL")
     daemon.log_verbose "Killing the daemon process."
-    daemon.status "KILL_REQUEST_FULFILLED"
     exit 1
     ;;
   *)
-    daemon.log_error "Unexpected - unknown user request ${request}"
-    exit 1
+    daemon.log_error "Unknown user request ${request}"
     ;;
   esac
 }
 daemon.found_request() {
-  daemon.log_verbose "DEBUG: daemon__request_file - ${daemon__request_file}"
   local request="$(daemon.extract_request "${daemon__request_file}")"
-  daemon.log_verbose "DEBUG: request - ${request}"
   if [[ -n ${request} ]]; then
     return 0
   else
@@ -648,7 +634,24 @@ daemon.move_plugins() {
     local plugin_path="${plugins_dir}/${plugin_name}"
     plugin_paths+=("${plugin_path}")
     if [[ -d ${plugin_path} ]]; then
-      daemon.log_warn "Plugin ${plugin_name} already exists at ${plugin_path}. Skipping."
+      if [[ ! -f ${dir}/plugin ]]; then
+        daemon.log_error "No plugin executable found at ${dir}/plugin"
+        return 1
+      fi
+      if ! rm -f "${plugin_path}/plugin"; then
+        daemon.log_error "Unable to remove old executable at: ${plugin_path}/plugin"
+        return 1
+      fi
+      daemon.log_verbose "Removed ${plugin_path}/plugin"
+      if ! rm -f "${plugin_path}/solos.config.json"; then
+        daemon.log_error "Unable to remove old executable at: ${plugin_path}/plugin"
+        return 1
+      fi
+      daemon.log_verbose "Removed ${plugin_path}/solos.config.json"
+      mv "${dir}/plugin" "${plugin_path}/plugin"
+      daemon.log_verbose "Moved ${dir}/plugin to ${plugin_path}/plugin"
+      mv "${dir}/solos.config.json" "${plugin_path}/solos.config.json"
+      daemon.log_verbose "Moved ${dir}/solos.config.json to ${plugin_path}/solos.config.json"
       i=$((i + 1))
       continue
     fi
@@ -697,7 +700,7 @@ daemon.sync_manifest_sources() {
         daemon.create_empty_plugin_config "${changed_plugin_source}" "${tmp_config_path}"
       fi
       cp -f "${current_config_path}" "${tmp_config_path}"
-      jq ".source = ${changed_plugin_source}" "${tmp_config_path}" >"${tmp_config_path}.tmp"
+      jq ".source = \"${changed_plugin_source}\"" "${tmp_config_path}" >"${tmp_config_path}.tmp"
       mv "${tmp_config_path}.tmp" "${tmp_config_path}"
       rm -f "${tmp_dir}/plugin.next"
       if ! daemon.curl_plugin "${changed_plugin_source}" "${tmp_dir}/plugin.next"; then
@@ -707,7 +710,9 @@ daemon.sync_manifest_sources() {
       mv "${tmp_dir}/plugin.next" "${tmp_dir}/plugin"
       plugin_tmp_dirs+=("${tmp_dir}")
       plugin_names+=("${changed_plugin_name}")
+      rm -f "${plugins_dir}/${changed_plugin_name}/plugin"
     fi
+    i=$((i + 1))
   done
   daemon.move_plugins "${plugins_dir}" "${plugin_tmp_dirs[*]}" "${plugin_names[*]}" || return 1
 }
@@ -734,7 +739,6 @@ daemon.update_plugins() {
   change_count=$((change_count / 2))
   if [[ ${missing_count} -gt 0 ]]; then
     daemon.log_info "Detected ${missing_count} missing plugins based on the updated manifest."
-    return 0
   fi
   if [[ ${change_count} -gt 0 ]]; then
     daemon.log_info "Detected ${change_count} changed plugins based on the updated manifest."
@@ -754,20 +758,22 @@ daemon.update_plugins() {
     daemon.log_error "Failed to sync manifest sources. Unexpected missing plugins: ${remaining_missing_plugins_and_sources[*]}"
     return 1
   fi
-  if [[ ${missing_count} -gt 0 ]]; then
-    daemon.log_verbose "Added ${missing_count} missing plugins based on the updated manifest."
-    return 0
-  fi
-  if [[ ${change_count} -gt 0 ]]; then
-    daemon.log_verbose "Changed ${change_count} changed plugins based on the updated manifest."
-  fi
   if [[ ${#remaining_changed_plugins_and_sources[@]} -gt 0 ]]; then
     daemon.log_error "Failed to sync manifest sources. Unexpected changed plugins: ${remaining_changed_plugins_and_sources[*]}"
     return 1
   fi
+  if [[ ${missing_count} -gt 0 ]]; then
+    daemon.log_verbose "Added ${missing_count} missing plugins based on the updated manifest."
+  fi
+  if [[ ${change_count} -gt 0 ]]; then
+    daemon.log_verbose "Changed ${change_count} changed plugins based on the updated manifest."
+  fi
   rm -rf "${plugins_dir}"
   mv "${tmp_plugins_dir}" "${plugins_dir}"
   daemon.log_verbose "Replaced the previous plugins directory: ${plugins_dir} with the updated plugins dir: ${tmp_plugins_dir}"
+  rm -f "${daemon__frozen_manifest_file}"
+  cp -a "${daemon__manifest_file}" "${daemon__frozen_manifest_file}"
+  daemon.log_verbose "Copied the manifest file to the temporary directory to prevent user changes during the daemon execution."
 }
 daemon.get_merged_asset_args() {
   local plugin_count="${1}"
@@ -942,9 +948,9 @@ daemon.run_in_firejail() {
       daemon.log_verbose "Initialized an empty config file: ${plugin_config_file}"
     fi
     daemon.bind_to_firejailed "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
-    if [[ -f ${daemon__manifest_file} ]]; then
+    if [[ -f ${daemon__frozen_manifest_file} ]]; then
       # TODO: make sure local plugins are included.
-      if ! cp -a "${daemon__manifest_file}" "${firejailed_home_dir}/solos.manifest.json"; then
+      if ! cp -a "${daemon__frozen_manifest_file}" "${firejailed_home_dir}/solos.manifest.json"; then
         daemon.log_error "Failed to copy the manifest file to the firejailed home directory."
         return 1
       fi
@@ -1620,7 +1626,6 @@ daemon.retry() {
   daemon__remaining_retries=$((daemon__remaining_retries - 1))
   if [[ ${daemon__remaining_retries} -eq 0 ]]; then
     daemon.log_error "Killing the daemon due to too many failures."
-    daemon.status "MAX_RETRIES_REACHED"
     lib.panics_add "daemon_too_many_retries" <<EOF
 The daemon failed and exited after too many retries. Time of failure: $(date).
 EOF

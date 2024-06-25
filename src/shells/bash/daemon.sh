@@ -136,7 +136,6 @@ EOF
     shift
     local daemon_args=("$@")
     shell.log_info "Waiting for the daemon to finish its current task before killing and restarting."
-
     daemon.kill
     exit_code="$?"
     if [[ ${exit_code} -ne 0 ]]; then

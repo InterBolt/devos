@@ -122,11 +122,10 @@ ${full_line}
 EOF
       return 0
     elif [[ ! ${plugin_url} =~ ^http ]]; then
-      shell.log_error "Must be a valid http url: ${plugin_url}"
+      shell.log_error "The provided plugin URL must start with \"http\"."
       return 1
     else
       local tmp_stderr="$(mktemp)"
-      shell.log_info "Waiting for the daemon to complete its current set of plugins."
       if ! daemon "kill" >/dev/null 2>"${tmp_stderr}"; then
         cat "${tmp_stderr}"
         return 1
@@ -135,14 +134,10 @@ EOF
       jq ". += [{\"name\": \"${arg_plugin_name}\", \"source\": \"${plugin_url}\"}]" "${plugins__manifest_file}" >"${tmp_manifest_file}"
       mv "${tmp_manifest_file}" "${plugins__manifest_file}"
       shell.log_info "Added source url to manifest at: ${plugins__manifest_file}"
-      shell.log_info "Reloading the daemon. Will download the plugin on its next run."
-      tmp_stderr="$(mktemp)"
-      if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
-        cat "${tmp_stderr}"
+      if ! daemon reload; then
         return 1
       fi
       shell.log_info "Successfully added the plugin: ${arg_plugin_name}"
-      shell.log_info "TIP: Verify everything is working with: \`daemon tail -f\`"
       return 0
     fi
   fi
@@ -155,20 +150,20 @@ EOF
       shell.log_error "Plugin: ${arg_plugin_name} not found in the plugin directory: ${plugins__dir}"
       return 1
     fi
-    local plugin_names=($(jq -r '.[].name' <<<"${plugins__manifest_file}"))
-    local plugin_sources=($(jq -r '.[].source' <<<"${plugins__manifest_file}"))
+    local plugin_names=($(jq -r '.[].name' "${plugins__manifest_file}"))
+    local plugin_sources=($(jq -r '.[].source' "${plugins__manifest_file}"))
     local plugin_found_in_manifest=false
-    local plugin_is_local=false
     for plugin_name in "${plugin_names[@]}"; do
       if [[ ${plugin_name} = ${arg_plugin_name} ]]; then
         plugin_found_in_manifest=true
-        if [[ -d "${plugins__dir}/${plugin_name}" ]]; then
-          plugin_is_local=true
+        if [[ ! -d "${plugins__dir}/${plugin_name}" ]]; then
+          shell.log_error "Couldn't find the plugin directory: ${plugins__dir}/${plugin_name}"
+          return 1
         fi
         break
       fi
     done
-    if [[ ${plugin_is_local} = false ]]; then
+    if [[ ${plugin_found_in_manifest} = false ]]; then
       shell.log_warn "Plugin: ${arg_plugin_name} is not a remote plugin. Manual action required:"
       local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
       cat <<EOF
@@ -182,22 +177,16 @@ ${full_line}
 EOF
       return 0
     fi
-    if [[ ${plugin_found_in_manifest} = false ]]; then
-      shell.log_error "Plugin: ${arg_plugin_name} not found in the manifest file: ${plugins__manifest_file} or at ${plugins__dir}."
-      return 1
-    fi
     shell.log_info "Waiting for the daemon to complete its current set of plugins."
-    local tmp_stderr="$(mktemp)"
-    if ! daemon "kill" >/dev/null 2>"${tmp_stderr}"; then
-      cat "${tmp_stderr}"
+    if ! daemon kill; then
       return 1
     fi
     local tmp_manifest_file="$(mktemp)"
     jq "map(select(.name != \"${arg_plugin_name}\"))" "${plugins__manifest_file}" >"${tmp_manifest_file}"
     mv "${tmp_manifest_file}" "${plugins__manifest_file}"
-    shell.log_info "Removed source reference from manifest at: ${plugins__manifest_file}"
+    shell.log_info "Updated manifest at: ${plugins__manifest_file}"
     rm -rf "${plugins__dir}/${arg_plugin_name}"
-    shell.log_warn "Deleted plugin directory: ${plugins__dir}/${arg_plugin_name} and reloading the daemon."
+    shell.log_warn "Deleted plugin directory: ${plugins__dir}/${arg_plugin_name}"
     if ! daemon reload; then
       return 1
     fi
