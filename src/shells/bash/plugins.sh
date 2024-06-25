@@ -49,7 +49,7 @@ plugins.cmd() {
     shell.log_error "Failed to get the current plugin directories."
     return 1
   fi
-  curr_plugin_dirnames=($(curr_plugin_dirnames))
+  curr_plugin_dirnames=($(echo "${curr_plugin_dirnames}"))
   local arg_cmd="${1}"
   local arg_plugin_name="${2}"
   if [[ -z ${arg_plugin_name} ]]; then
@@ -73,15 +73,20 @@ plugins.cmd() {
         return 1
       fi
       local plugin_path="${plugins__dir}/${arg_plugin_name}"
+      if [[ -d "${plugin_path}" ]]; then
+        shell.log_error "Plugin directory already exists at: ${plugin_path}"
+        return 1
+      fi
       local tmp_plugin_dir="$(mktemp -d)"
       if ! mkdir "${plugin_path}"; then
         shell.log_error "Failed to create plugin directory at: ${plugin_path}"
         return 1
       fi
       local tmp_code_workspace_file="$(mktemp)"
+      local host_plugin_path="$(lib.use_host "${plugin_path}")"
       jq \
         --arg app_name "${arg_plugin_name}" \
-        '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${plugin_path}"'", "profile": "shell" }] + .' \
+        '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${host_plugin_path}"'", "profile": "shell" }] + .' \
         "${code_workspace_file}" \
         >"${tmp_code_workspace_file}"
       local precheck_plugin_path="${HOME}/.solos/repo/src/daemon/plugins/precheck/plugin"
@@ -96,12 +101,12 @@ plugins.cmd() {
         return 1
       fi
       # Do the operations.
-      cp "${tmp_plugin_dir}/" "${plugin_path}/"
+      cp -rfa "${tmp_plugin_dir}"/. "${plugin_path}/"
       mv "${tmp_code_workspace_file}" "${code_workspace_file}"
-      shell.log_info "Reloading the daemon with the new the ${arg_plugin_name} plugin (with default precheck template)."
+      shell.log_info "Reloading the daemon with the new \"${arg_plugin_name}\" plugin (with default precheck template)."
       local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
-      tmp_stderr="$(mktemp)"
-      if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
+      local tmp_stderr="$(mktemp)"
+      if ! daemon reload; then
         cat "${tmp_stderr}"
         return 1
       fi
@@ -115,6 +120,7 @@ This script is a copy of the default precheck plugin, which runs in between any 
 3. Review your new plugin's logs with \`daemon tail -f\`
 ${full_line}
 EOF
+      return 0
     elif [[ ! ${plugin_url} =~ ^http ]]; then
       shell.log_error "Must be a valid http url: ${plugin_url}"
       return 1
@@ -137,6 +143,7 @@ EOF
       fi
       shell.log_info "Successfully added the plugin: ${arg_plugin_name}"
       shell.log_info "TIP: Verify everything is working with: \`daemon tail -f\`"
+      return 0
     fi
   fi
   if [[ ${arg_cmd} = "remove" ]]; then
@@ -191,9 +198,7 @@ EOF
     shell.log_info "Removed source reference from manifest at: ${plugins__manifest_file}"
     rm -rf "${plugins__dir}/${arg_plugin_name}"
     shell.log_warn "Deleted plugin directory: ${plugins__dir}/${arg_plugin_name} and reloading the daemon."
-    tmp_stderr="$(mktemp)"
-    if ! daemon "reload" >/dev/null 2>"${tmp_stderr}"; then
-      cat "${tmp_stderr}"
+    if ! daemon reload; then
       return 1
     fi
     return 0

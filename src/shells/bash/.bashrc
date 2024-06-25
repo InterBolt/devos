@@ -163,7 +163,6 @@ shell.public_github() {
 }
 shell.public_install_solos() {
   panics.install
-  daemon.install
   execs.install
   shell.require_home_dir_path
   shell.setup_working_dir

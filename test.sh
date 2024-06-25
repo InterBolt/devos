@@ -27,13 +27,26 @@ fn.seed() {
 declare -A bind_store=()
 
 fn.test() {
-  for i in {1..10}; do
-    bind_store["key${i}"]="value${i}"
+  {
+    echo "RUNNING FIRST BACKGROUND PROCESS"
+    sleep 1
+    exit 0
+  } &
+  echo "pid: $!"
+  {
+    echo "RUNNING SECOND LONGER BACKGROUND PROCESS"
+    sleep 2
+    exit 0
+  } &
+  sleep 4
+  local found_backgrounded_processes=false
+  for pid in $(jobs -p); do
+    found_backgrounded_processes=true
   done
-  # no loop through the keys
-  for key in "${!bind_store[@]}"; do
-    echo "key: ${key}, value: ${bind_store[${key}]}"
-  done
+  if [[ ${found_backgrounded_processes} = true ]]; then
+    echo "There are still some background jobs running. Waiting 10 seconds before handling requests." >&2
+    sleep 10
+  fi
 }
 
 fn.test

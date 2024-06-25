@@ -3,8 +3,10 @@
 . "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
 . "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
 
+daemon__verbose=false
 daemon__pid=$$
-daemon__remaining_retries=5
+daemon__max_retries=5
+daemon__remaining_retries="${daemon__max_retries}"
 daemon__solos_dir="${HOME}/.solos"
 daemon__scrubbed_dir=""
 daemon__daemon_data_dir="${daemon__solos_dir}/data/daemon"
@@ -66,57 +68,92 @@ daemon__blacklisted_exts=(
 
 mkdir -p "${daemon__daemon_data_dir}"
 log.use "${daemon__log_file}"
-log.use_container_paths
-trap 'daemon.unbind_all_firejailed; rm -rf "'"${daemon__tmp_data_dir}"'";' EXIT
+trap 'daemon.trap_exit' EXIT
 
 declare -A statuses=(
-  ["UP"]="The daemon is running."
-  ["RECOVERING"]="The daemon is recovering from a nonfatal error."
-  ["RUN_FAILED"]="The daemon plugin lifecycle failed in an unrecoverable way and stopped running to limit damage."
-  ["START_FAILED"]="The daemon failed to start up."
-  ["KILLED"]="The user killed the daemon process."
+  ["UP"]="The daemon is up and running."
+  ["DOWN"]="The daemon is not currently running."
+  ["MAX_RETRIES_REACHED"]="The daemon failed too many times. It will not be restarted automatically."
+  ["KILL_REQUEST_FULFILLED"]="A kill request was received. The daemon will not be restarted."
 )
 
+daemon.trap_exit() {
+  if daemon.unbind_all_firejailed; then
+    rm -rf "${daemon__tmp_data_dir}"
+    daemon.log_info "Cleaned up the temporary data directory: ${daemon__tmp_data_dir}"
+  else
+    daemon.log_error "Failed to unbind all firejailed directories."
+  fi
+  rm -f "${daemon__pid_file}"
+  daemon.log_info "Removed the daemon pid file: ${daemon__pid_file}"
+  local status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+  daemon.status "DOWN"
+}
+daemon.parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+    --verbose)
+      daemon__verbose=true
+      shift
+      ;;
+    *)
+      log.error "Unknown argument: $1"
+      exit 1
+      ;;
+    esac
+  done
+}
 daemon.get_host_path() {
   local path="${1}"
   echo "${path/\/root\//${daemon__users_home_dir}\/}"
 }
 daemon.log_info() {
-  local message="(DAEMON) ${1} pid=\"${daemon__pid}\""
+  local message="(DAEMON) ${1} pid=${daemon__pid}"
   shift
   log.info "${message}" "$@"
 }
 daemon.log_error() {
-  local message="(DAEMON) ${1} pid=\"${daemon__pid}\""
+  local message="(DAEMON) ${1} pid=${daemon__pid}"
   shift
   log.error "${message}" "$@"
 }
 daemon.log_warn() {
-  local message="(DAEMON) ${1} pid=\"${daemon__pid}\""
+  local message="(DAEMON) ${1} pid=${daemon__pid}"
   shift
   log.warn "${message}" "$@"
+}
+daemon.log_verbose() {
+  if [[ ${daemon__verbose} = true ]]; then
+    local message="(DAEMON) ${1} pid=${daemon__pid}"
+    shift
+    log.info "${message}" "$@"
+  fi
 }
 declare -A bind_store=()
 daemon.unbind_firejailed() {
   local dest="${1}"
   if [[ -z ${bind_store["${dest}"]} ]]; then
-    daemon.log_error "No bind source found for ${dest}"
+    daemon.log_error "No bind source was found for: ${dest}"
     return 1
   fi
   local src="${bind_store["${dest}"]}"
   if [[ -f ${src} ]]; then
     if ! rm -f "${dest}"; then
-      daemon.log_error "Failed to remove the hard link: ${dest}"
+      daemon.log_error "Failed to remove the hard link: ${src} ==> ${dest}"
       return 1
     fi
-    daemon.log_info "Unlinked: ${dest} =/=> ${src}"
+    daemon.log_verbose "Unlinked: ${src} =/=> ${dest}"
   elif ! umount "${dest}"; then
-    daemon.log_error "Failed to unmount the bind mount: ${dest}"
+    daemon.log_error "Failed to unmount the bind mount: ${src} ==> ${dest}"
     return 1
   else
-    daemon.log_info "Umounted ${dest} =/=> ${src}"
+    daemon.log_verbose "Umounted ${src} =/=> ${dest}"
   fi
-  unset bind_store["${dest}"]
+  if ! unset bind_store["${dest}"]; then
+    daemon.log_error "Failed to unset the bind source for: ${dest}. This could result in a memory leak or dangling bind mounts and/or hard links."
+    return 1
+  fi
+  daemon.log_verbose "Unset bind store destination: ${dest}"
 }
 daemon.unbind_all_firejailed() {
   for dest in "${!bind_store[@]}"; do
@@ -130,14 +167,19 @@ daemon.unbind_all_firejailed() {
       daemon.log_error "Failed to umount ${#dangling_bind_mounts} dangling bind mounts."
       return 1
     fi
-    daemon.log_info "Umounted ${#dangling_bind_mounts} dangling bind mounts"
+    daemon.log_info "Umounted ${#dangling_bind_mounts} bind mounts within: ${daemon__tmp_data_dir}."
+    for dangling_bind_mount in "${dangling_bind_mounts[@]}"; do
+      daemon.log_verbose "Removed bind mount: ${dangling_bind_mount}"
+    done
+  else
+    daemon.log_verbose "No dangling bind mounts found in ${daemon__tmp_data_dir}."
   fi
 }
 daemon.bind_to_firejailed() {
   local src="${1}"
   local dest="${2}"
   if [[ ${dest} != "${daemon__tmp_data_dir}/"* ]]; then
-    daemon.log_error "The bind mount destination must be a child of ${daemon__tmp_data_dir}."
+    daemon.log_error "Cannot bind mount outside of ${daemon__tmp_data_dir}."
     return 1
   fi
   if [[ -f ${src} ]]; then
@@ -145,14 +187,15 @@ daemon.bind_to_firejailed() {
       daemon.log_error "Failed to hard link ${src} to ${dest}."
       return 1
     fi
-    daemon.log_info "Hard link: ${src} ==> ${dest}"
+    daemon.log_verbose "Hard link: ${src} ====> ${dest}"
   elif ! mount -o bind "${src}" "${dest}"; then
     daemon.log_error "Failed to bind mount ${src} to ${dest}."
     return 1
   else
-    daemon.log_info "Bind mount: ${src} ==> ${dest}"
+    daemon.log_verbose "Bind mount: ${src} ====> ${dest}"
   fi
   bind_store["${dest}"]="${src}"
+  daemon.log_verbose "Saved binding in memory: ${src} ====> ${dest}"
 }
 daemon.get_firejail_bind_source() {
   local dest="${1}"
@@ -160,18 +203,24 @@ daemon.get_firejail_bind_source() {
 }
 daemon.mktemp_dir() {
   mkdir -p "${daemon__tmp_data_dir}"
-  local name="$(basename "$(mktemp -d)")"
-  local tmp_dir="${daemon__tmp_data_dir}/${name}"
-  mkdir -p "${tmp_dir}"
-  tmp_dirs+=("${tmp_dir}")
+  local random_unique_name="$(date +%N | sha256sum | base64 | head -c 12)"
+  local tmp_dir="${daemon__tmp_data_dir}/${random_unique_name}"
+  if ! mkdir -p "${tmp_dir}"; then
+    daemon.log_error "Failed to create temporary directory: ${tmp_dir}"
+    return 1
+  fi
+  daemon.log_verbose "Created temporary directory: ${tmp_dir}"
   echo "${tmp_dir}"
 }
 daemon.mktemp_file() {
   mkdir -p "${daemon__tmp_data_dir}"
-  local name="$(basename "$(mktemp)")"
-  local tmp_file="${daemon__tmp_data_dir}/${name}"
-  touch "${tmp_file}"
-  tmp_files+=("${tmp_file}")
+  local random_unique_name="$(date +%N | sha256sum | base64 | head -c 12)"
+  local tmp_file="${daemon__tmp_data_dir}/${random_unique_name}"
+  if ! touch "${tmp_file}"; then
+    daemon.log_error "Failed to create temporary file: ${tmp_file}"
+    return 1
+  fi
+  daemon.log_verbose "Created temporary file: ${tmp_file}"
   echo "${tmp_file}"
 }
 daemon.get_solos_plugin_names() {
@@ -233,11 +282,12 @@ daemon.plugin_names_to_paths() {
 daemon.status() {
   local status="$1"
   if [[ -z ${statuses[${status}]} ]]; then
-    daemon.log_error "Tried to update to an invalid status: \"${status}\""
+    daemon.log_error "Tried to update to an invalid status: ${status}"
     exit 1
   fi
+  local previous_status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
   echo "${status}" >"${daemon__status_file}"
-  daemon.log_info "Update status to: \"${status}\" - \"${statuses[${status}]}\""
+  daemon.log_info "Update status from ${previous_status} to ${status}: ${statuses[${status}]}"
 }
 daemon.project_found() {
   if [[ -z ${daemon__checked_out_project} ]]; then
@@ -245,7 +295,7 @@ daemon.project_found() {
     return 1
   fi
   if [[ ! -d ${daemon__checked_project_path} ]]; then
-    daemon.log_error "\"${daemon__checked_project_path}\" does not exist."
+    daemon.log_error "${daemon__checked_project_path} does not exist."
     return 1
   fi
 }
@@ -256,19 +306,22 @@ daemon.create_scrub_copy() {
     return 1
   fi
   mkdir -p "${daemon__tmp_data_dir}"
-  daemon.log_info "Wiped \"${daemon__tmp_data_dir}\""
   if [[ -z ${daemon__tmp_data_dir} ]]; then
-    daemon.log_error "Failed to create a temporary directory for the safe copy."
+    daemon.log_error "${daemon__tmp_data_dir} does not exist."
     return 1
   fi
+  daemon.log_verbose "Initialized fresh temporary directory: ${daemon__tmp_data_dir}"
   if ! mkdir -p "${cp_tmp_dir}/projects/${daemon__checked_out_project}"; then
     daemon.log_error "Failed to create the projects directory in the temporary directory."
     return 1
   fi
+  daemon.log_verbose "Initialized ${cp_tmp_dir}/projects/${daemon__checked_out_project}"
   if ! cp -rfa "${daemon__checked_project_path}/." "${cp_tmp_dir}/projects/${daemon__checked_out_project}"; then
-    daemon.log_error "Failed to copy the project directory: \"${daemon__checked_project_path}\" to: \"${daemon__tmp_data_dir}/projects/${daemon__checked_out_project}\""
+    daemon.log_error "Failed to copy the project directory: ${daemon__checked_project_path} to: ${daemon__tmp_data_dir}/projects/${daemon__checked_out_project}"
     return 1
   fi
+  daemon.log_verbose "Copied ${daemon__checked_project_path} to ${cp_tmp_dir}/projects/${daemon__checked_out_project}"
+  daemon.log_verbose "About to rsync the mounted .solos volume (without extraneous directories) to: ${cp_tmp_dir}"
   rsync \
     -aq \
     --exclude='data/daemon/archives' \
@@ -283,11 +336,13 @@ daemon.create_scrub_copy() {
   # 24 = Partial transfer due to vanished source files
   # This is something we can't rule out and is not fatal. We can ignore it.
   if [[ ${rysnc_exit_code} -ne 0 ]] && [[ ${rysnc_exit_code} -ne 24 ]]; then
-    daemon.log_error "Failed to copy the daemon data directory: \"/root/.solos\" to: \"${cp_tmp_dir}\""
+    daemon.log_error "Failed to copy the daemon data directory: /root/.solos to: ${cp_tmp_dir}"
     return 1
   fi
+  daemon.log_verbose "Rsynced the mounted .solos volume to: ${cp_tmp_dir}"
   local random_dirname="$(date +%s | sha256sum | base64 | head -c 32)"
   mv "${cp_tmp_dir}" "${daemon__tmp_data_dir}/${random_dirname}"
+  daemon.log_verbose "Committing the partial mounted .solos volume copy to the temp directory: ${daemon__tmp_data_dir}/${random_dirname}"
   echo "${daemon__tmp_data_dir}/${random_dirname}"
 }
 daemon.scrub_ssh() {
@@ -295,10 +350,10 @@ daemon.scrub_ssh() {
   local ssh_dirpaths=($(find "${tmp_dir}" -type d -name ".ssh" -o -name "ssh" | xargs))
   for ssh_dirpath in "${ssh_dirpaths[@]}"; do
     if ! rm -rf "${ssh_dirpath}"; then
-      daemon.log_error "Failed to remove the SSH directory: \"${ssh_dirpath}\" from the temporary directory."
+      daemon.log_error "Failed to remove the SSH directory: ${ssh_dirpath} from the temporary directory."
       return 1
     fi
-    daemon.log_info "Deleted \"${ssh_dirpath}\""
+    daemon.log_verbose "Removed potential SSH directory: ${ssh_dirpath}"
   done
 }
 daemon.scrub_blacklisted_files() {
@@ -314,10 +369,10 @@ daemon.scrub_blacklisted_files() {
   local secret_filepaths=($(find "${tmp_dir}" -type f "${find_args[@]}" | xargs))
   for secret_filepath in "${secret_filepaths[@]}"; do
     if ! rm -f "${secret_filepath}"; then
-      daemon.log_error "Failed to remove the suspect secret file: \"${secret_filepath}\" from the temporary directory."
+      daemon.log_error "Failed to remove the suspect secret file: ${secret_filepath} from the temporary directory."
       return 1
     fi
-    daemon.log_info "Deleted \"${secret_filepath}\""
+    daemon.log_verbose "Removed potentially sensitive file: ${secret_filepath}"
   done
 }
 daemon.scrub_gitignored() {
@@ -327,25 +382,26 @@ daemon.scrub_gitignored() {
     local git_project_path="$(dirname "${git_dir}")"
     local gitignore_path="${git_project_path}/.gitignore"
     if [[ ! -f "${gitignore_path}" ]]; then
-      daemon.log_warn "No .gitignore file found in git repo: \"${git_project_path}\""
+      daemon.log_warn "No .gitignore file found in git repo: ${git_project_path}"
       continue
     fi
     local gitignored_paths_to_delete=($(git -C "${git_project_path}" status -s --ignored | grep "^\!\!" | cut -d' ' -f2 | xargs))
     for gitignored_path_to_delete in "${gitignored_paths_to_delete[@]}"; do
       gitignored_path_to_delete="${git_project_path}/${gitignored_path_to_delete}"
       if ! rm -rf "${gitignored_path_to_delete}"; then
-        daemon.log_error "\"${gitignored_path_to_delete}\" from the temporary directory."
+        daemon.log_error "${gitignored_path_to_delete} from the temporary directory."
         return 1
       fi
-      daemon.log_info "Deleted \"${gitignored_path_to_delete}\""
+      daemon.log_verbose "Removed gitignored path: ${gitignored_path_to_delete}"
     done
   done
 }
 daemon.scrub_secrets() {
   local tmp_dir="${1}"
+  local tmp_global_secrets_dir="${tmp_dir}/secrets"
   local secrets=()
   # Extract global secrets.
-  local global_secret_filepaths=($(find "${tmp_dir}"/secrets -maxdepth 1 | xargs))
+  local global_secret_filepaths=($(find "${tmp_global_secrets_dir}" -maxdepth 1 | xargs))
   local i=0
   for global_secret_filepath in "${global_secret_filepaths[@]}"; do
     if [[ -d ${global_secret_filepath} ]]; then
@@ -354,11 +410,12 @@ daemon.scrub_secrets() {
     secrets+=("$(cat "${global_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
     i=$((i + 1))
   done
-  daemon.log_info "Found extracted ${i} secrets in global secret dir: ${tmp_dir}/secrets"
+  daemon.log_verbose "Extracted ${i} secrets in global secret dir: ${tmp_global_secrets_dir}"
   # Extract project secrets.
   local project_paths=($(find "${tmp_dir}"/projects -maxdepth 1 | xargs))
   for project_path in "${project_paths[@]}"; do
-    local project_secrets_path="${project_path}/secrets"
+    local tmp_project_secrets_dir="${project_path}/secrets"
+    local project_secrets_path="${tmp_project_secrets_dir}"
     if [[ ! -d ${project_secrets_path} ]]; then
       continue
     fi
@@ -371,7 +428,7 @@ daemon.scrub_secrets() {
       secrets+=("$(cat "${project_secret_filepath}" 2>/dev/null || echo "" | head -n 1)")
       i=$((i + 1))
     done
-    daemon.log_info "Found extracted ${i} secrets in project secret dir: ${project_secrets_path}"
+    daemon.log_verbose "Extracted ${i} secrets in project secret dir: ${tmp_project_secrets_dir}"
   done
   # Extract .env secrets.
   local env_filepaths=($(find "${tmp_dir}" -type f -name ".env"* -o -name ".env" | xargs))
@@ -382,7 +439,7 @@ daemon.scrub_secrets() {
       secrets+=("${env_secret}")
       i=$((i + 1))
     done
-    daemon.log_info "Found extracted ${i} secrets from file: ${env_filepath}"
+    daemon.log_verbose "Extracted ${i} secrets from env file: ${env_filepath}"
   done
   # Remove duplicates.
   secrets=($(printf "%s\n" "${secrets[@]}" | sort -u))
@@ -392,13 +449,15 @@ daemon.scrub_secrets() {
     if [[ -z ${input_files} ]]; then
       continue
     fi
+    local i=0
     while IFS= read -r input_file; do
       if ! sed -E -i "s@${secret}@[REDACTED]@g" "${input_file}"; then
-        daemon.log_error "\"${secret}\" from ${input_file}."
+        daemon.log_error "Failed to scrub ${secret} from ${input_file}."
         return 1
       fi
+      i=$((i + 1))
     done <<<"${input_files}"
-    daemon.log_info "Scrubbed secret: \"${secret}\""
+    daemon.log_verbose "Scrubbed secret: ${secret} from ${i} files."
   done
 }
 daemon.scrub() {
@@ -409,32 +468,32 @@ daemon.scrub() {
   if [[ ! -d ${tmp_dir} ]]; then
     return 1
   fi
-  daemon.log_info "Copied solos to: ${tmp_dir}"
+  daemon.log_info "Created a copy of the mounted .solos volume for scrubbing: ${tmp_dir}"
   if ! daemon.scrub_gitignored "${tmp_dir}"; then
     return 1
   fi
-  daemon.log_info "Removed gitignored paths from: ${tmp_dir}"
+  daemon.log_verbose "Pruned gitignored files."
   if ! daemon.scrub_ssh "${tmp_dir}"; then
     return 1
   fi
-  daemon.log_info "Removed SSH directories from: ${tmp_dir}"
+  daemon.log_verbose "Pruned SSH directories."
   if ! daemon.scrub_blacklisted_files "${tmp_dir}"; then
     return 1
   fi
-  daemon.log_info "Deleted potentially sensitive files based on an extension blacklist."
+  daemon.log_verbose "Pruned potentially sensitive files based on an extension blacklist."
   if ! daemon.scrub_secrets "${tmp_dir}"; then
     return 1
   fi
-  daemon.log_info "Scrubbed known secrets."
+  daemon.log_verbose "Scrubbed secrets found in dedicated secrets directories and env files."
   echo "${tmp_dir}"
 }
 daemon.extract_request() {
   local request_file="${1}"
   if [[ -f ${request_file} ]]; then
     local contents="$(cat "${request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    rm -f "${request_file}"
     local requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
     local requested_action="$(echo "${contents}" | cut -d' ' -f2)"
+    daemon.log_verbose "Extracted request: ${requested_action} from ${request_file} with target pid: ${requested_pid}"
     if [[ ${requested_pid} -eq ${daemon__pid} ]]; then
       echo "${requested_action}"
       return 0
@@ -451,8 +510,8 @@ daemon.execute_request() {
   local request="${1}"
   case "${request}" in
   "KILL")
-    daemon.log_info "Requested KILL was detected. Killing the daemon process."
-    daemon.status "KILLED"
+    daemon.log_verbose "Killing the daemon process."
+    daemon.status "KILL_REQUEST_FULFILLED"
     exit 1
     ;;
   *)
@@ -461,14 +520,40 @@ daemon.execute_request() {
     ;;
   esac
 }
+daemon.found_request() {
+  daemon.log_verbose "DEBUG: daemon__request_file - ${daemon__request_file}"
+  local request="$(daemon.extract_request "${daemon__request_file}")"
+  daemon.log_verbose "DEBUG: request - ${request}"
+  if [[ -n ${request} ]]; then
+    return 0
+  else
+    return 1
+  fi
+}
 daemon.handle_requests() {
   local request="$(daemon.extract_request "${daemon__request_file}")"
   if [[ -n ${request} ]]; then
-    daemon.log_info "Request  ${request} was dispatched to the daemon."
+    rm -f "${daemon__request_file}"
     daemon.execute_request "${request}"
   else
-    daemon.log_info "Request found none. Will continue to run the daemon."
+    daemon.log_verbose "No request was found. Continuing daemon execution."
   fi
+}
+daemon.clear_requests() {
+  if ! rm -f "${daemon__request_file}"; then
+    daemon.log_error "Failed to clear the previous request file: $(daemon.get_host_path "${daemon__request_file}")"
+    return 1
+  fi
+  daemon.log_verbose "Cleared previous request file: $(daemon.get_host_path "${daemon__request_file}")"
+}
+daemon.pid() {
+  if [[ -n ${daemon__prev_pid} ]] && [[ ${daemon__prev_pid} -ne ${daemon__pid} ]]; then
+    if ps -p "${daemon__prev_pid}" >/dev/null; then
+      daemon.log_error "Aborting launch due to existing daemon process with pid: ${daemon__prev_pid}"
+      return 1
+    fi
+  fi
+  echo "${daemon__pid}" >"${daemon__pid_file}"
 }
 daemon.stash_plugin_logs() {
   local phase="${1}"
@@ -478,24 +563,25 @@ daemon.stash_plugin_logs() {
   echo "[${phase} phase:stdout]" >>"${log_file}"
   while IFS= read -r line; do
     echo "${line}" >>"${log_file}"
-    daemon.log_info "${line}"
+    daemon.log_verbose "${line}"
   done <"${aggregated_stdout_file}"
   echo "[${phase} phase:stderr]" >>"${log_file}"
   while IFS= read -r line; do
     echo "${line}" >>"${log_file}"
     daemon.log_error "${line}"
   done <"${aggregated_stderr_file}"
+  daemon.log_verbose "Stashed plugin logs for ${phase} phase at: ${log_file}"
 }
 daemon.validate_manifest() {
   local plugins_dir="${1}"
   local manifest_file="${plugins_dir}/solos.manifest.json"
   if [[ ! -f ${manifest_file} ]]; then
-    daemon.log_error "Does not exist at ${manifest_file}"
+    daemon.log_error "No manifest file found at ${manifest_file}"
     return 1
   fi
   local manifest="$(cat ${manifest_file})"
   if [[ ! $(jq '.' <<<"${manifest}") ]]; then
-    daemon.log_error "Not valid json at ${manifest_file}"
+    daemon.log_error "The manifest at ${manifest_file} is not valid JSON."
     return 1
   fi
   local missing_plugins=()
@@ -514,14 +600,13 @@ daemon.validate_manifest() {
       continue
     fi
     if [[ ! -f ${plugin_executable_path} ]]; then
-      daemon.log_warn "No executable at ${plugin_executable_path}. Will treat like a missing plugin."
+      daemon.log_warn "No executable at ${plugin_executable_path}. Will handle this like a missing plugin."
       missing_plugins+=("${plugin_name}" "${plugin_source}")
       i=$((i + 1))
       continue
     fi
     local plugin_config_source="$(jq -r '.source' ${plugin_config_path})"
     if [[ ${plugin_config_source} != "${plugin_source}" ]]; then
-      daemon.log_info "Detected change in plugin: ${plugin_name}."
       changed_plugins+=("${plugin_name}" "${plugin_source}")
     fi
     i=$((i + 1))
@@ -546,12 +631,12 @@ daemon.curl_plugin() {
     daemon.log_error "Curl unable to download ${plugin_source}"
     return 1
   fi
-  daemon.log_info "Downloaded ${plugin_source} to ${output_path}"
+  daemon.log_verbose "Curled ${plugin_source} and downloaded to output path: ${output_path}"
   if ! chmod +x "${output_path}"; then
-    daemon.log_error "Unable to make ${output_path} executable"
+    daemon.log_error "Unable to make ${output_path} executable."
     return 1
   fi
-  daemon.log_info "Made ${output_path} executable"
+  daemon.log_verbose "Made ${output_path} executable."
 }
 daemon.move_plugins() {
   local plugins_dir="${1}"
@@ -571,6 +656,7 @@ daemon.move_plugins() {
       daemon.log_error "Unable to move ${dir} to ${plugin_path}"
       return 1
     fi
+    daemon.log_verbose "Moved ${dir} to ${plugin_path}"
     i=$((i + 1))
   done
 }
@@ -611,10 +697,14 @@ daemon.sync_manifest_sources() {
         daemon.create_empty_plugin_config "${changed_plugin_source}" "${tmp_config_path}"
       fi
       cp -f "${current_config_path}" "${tmp_config_path}"
-      jq ".source = \"${changed_plugin_source}\"" "${tmp_config_path}" >"${tmp_config_path}.tmp"
+      jq ".source = ${changed_plugin_source}" "${tmp_config_path}" >"${tmp_config_path}.tmp"
       mv "${tmp_config_path}.tmp" "${tmp_config_path}"
-      rm -f "${tmp_dir}/plugin"
-      daemon.curl_plugin "${changed_plugin_source}" "${tmp_dir}/plugin" || return 1
+      rm -f "${tmp_dir}/plugin.next"
+      if ! daemon.curl_plugin "${changed_plugin_source}" "${tmp_dir}/plugin.next"; then
+        return 1
+      fi
+      rm -rf "${tmp_dir}/plugin"
+      mv "${tmp_dir}/plugin.next" "${tmp_dir}/plugin"
       plugin_tmp_dirs+=("${tmp_dir}")
       plugin_names+=("${changed_plugin_name}")
     fi
@@ -623,8 +713,13 @@ daemon.sync_manifest_sources() {
 }
 daemon.update_plugins() {
   local plugins_dir="${HOME}/.solos/plugins"
+  if [[ ! -f ${daemon__manifest_file} ]]; then
+    echo "[]" >"${daemon__manifest_file}"
+    daemon.log_verbose "Initialized empty manifest file: ${daemon__manifest_file}"
+  fi
   local return_file="$(daemon.mktemp_file)"
   daemon.validate_manifest "${plugins_dir}" >"${return_file}" || return 1
+  daemon.log_verbose "Validated manifest against the plugin directory: ${plugins_dir}"
   local returned="$(cat ${return_file})"
   local missing_plugins_and_sources=($(lib.line_to_args "${returned}" "0"))
   local changed_plugins_and_sources=($(lib.line_to_args "${returned}" "1"))
@@ -651,6 +746,7 @@ daemon.update_plugins() {
   daemon.sync_manifest_sources "${tmp_plugins_dir}" "${changed_plugins_and_sources[*]}" || return 1
   return_file="$(daemon.mktemp_file)"
   daemon.validate_manifest "${tmp_plugins_dir}" >"${return_file}" || return 1
+  daemon.log_verbose "Validated manifest against updated plugin directory: ${tmp_plugins_dir}"
   returned="$(cat ${return_file})"
   local remaining_missing_plugins_and_sources=($(lib.line_to_args "${returned}" "0"))
   local remaining_changed_plugins_and_sources=($(lib.line_to_args "${returned}" "1"))
@@ -659,11 +755,11 @@ daemon.update_plugins() {
     return 1
   fi
   if [[ ${missing_count} -gt 0 ]]; then
-    daemon.log_info "Added ${missing_count} missing plugins based on the updated manifest."
+    daemon.log_verbose "Added ${missing_count} missing plugins based on the updated manifest."
     return 0
   fi
   if [[ ${change_count} -gt 0 ]]; then
-    daemon.log_info "Changed ${change_count} changed plugins based on the updated manifest."
+    daemon.log_verbose "Changed ${change_count} changed plugins based on the updated manifest."
   fi
   if [[ ${#remaining_changed_plugins_and_sources[@]} -gt 0 ]]; then
     daemon.log_error "Failed to sync manifest sources. Unexpected changed plugins: ${remaining_changed_plugins_and_sources[*]}"
@@ -671,7 +767,7 @@ daemon.update_plugins() {
   fi
   rm -rf "${plugins_dir}"
   mv "${tmp_plugins_dir}" "${plugins_dir}"
-  daemon.log_info "Synced plugins <> manifest."
+  daemon.log_verbose "Replaced the previous plugins directory: ${plugins_dir} with the updated plugins dir: ${tmp_plugins_dir}"
 }
 daemon.get_merged_asset_args() {
   local plugin_count="${1}"
@@ -728,7 +824,7 @@ daemon.validate_firejail_assets() {
     return 1
   fi
   if [[ ! "${asset_firejailed_path}" =~ ^/ ]]; then
-    daemon.log_error "Firejailed path must start with a \"/\""
+    daemon.log_error "Firejailed path must start with a /"
     return 1
   fi
   if [[ ! "${asset_chmod_permission}" =~ ^[0-7]{3}$ ]]; then
@@ -737,8 +833,7 @@ daemon.validate_firejail_assets() {
   fi
   if [[ ! -e ${asset_host_path} ]]; then
     daemon.log_error "Invalid asset host path: ${asset_host_path}"
-    # return 1
-    exit 1
+    return 1
   fi
 }
 daemon.expand_assets_to_thruples() {
@@ -785,6 +880,7 @@ daemon.run_in_firejail() {
   local plugin_stderr_files=()
   local plugin_index=0
   local plugin_count="${#plugins[@]}"
+  daemon.log_verbose "About to run ${plugin_count} plugins in the ${phase} phase."
   for plugin_path in "${plugins[@]}"; do
     if [[ ! -x ${plugin_path}/plugin ]]; then
       daemon.log_error "${plugin_path}/plugin is not an executable file."
@@ -824,6 +920,7 @@ daemon.run_in_firejail() {
           "${asset_chmod_permission}"; then
           return 1
         fi
+        daemon.log_verbose "Validated asset: ${asset_host_path} to ${asset_firejailed_path} with permissions ${asset_chmod_permission}"
         local asset_firejailed_path="${firejailed_home_dir}${asset_firejailed_path}"
         if [[ -d ${asset_host_path} ]]; then
           mkdir -p "${asset_firejailed_path}"
@@ -833,25 +930,34 @@ daemon.run_in_firejail() {
           daemon.bind_to_firejailed "${asset_host_path}" "${asset_firejailed_path}"
         fi
         chmod "${asset_chmod_permission}" "${asset_firejailed_path}"
+        daemon.log_verbose "Set permissions of bound asset: ${asset_firejailed_path} to ${asset_chmod_permission}"
       fi
     done
     daemon.bind_to_firejailed "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
     chmod +x "${firejailed_home_dir}/plugin"
+    daemon.log_verbose "Made the plugin executable: ${firejailed_home_dir}/plugin"
     local plugin_config_file="${plugin_path}/solos.config.json"
     if [[ ! -f ${plugin_config_file} ]]; then
       echo "{}" >"${plugin_config_file}"
+      daemon.log_verbose "Initialized an empty config file: ${plugin_config_file}"
     fi
     daemon.bind_to_firejailed "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
     if [[ -f ${daemon__manifest_file} ]]; then
       # TODO: make sure local plugins are included.
-      cp -a "${daemon__manifest_file}" "${firejailed_home_dir}/solos.manifest.json"
+      if ! cp -a "${daemon__manifest_file}" "${firejailed_home_dir}/solos.manifest.json"; then
+        daemon.log_error "Failed to copy the manifest file to the firejailed home directory."
+        return 1
+      fi
+      daemon.log_verbose "Copied the manifest file to the firejailed home directory."
     else
       return 1
     fi
     if [[ ! " ${executable_options[@]} " =~ " --phase-configure " ]]; then
       chmod 555 "${firejailed_home_dir}/solos.config.json"
+      daemon.log_verbose "Set permissions of ${firejailed_home_dir}/solos.config.json to 555"
     else
       chmod 777 "${firejailed_home_dir}/solos.config.json"
+      daemon.log_verbose "Set permissions of ${firejailed_home_dir}/solos.config.json to 777"
     fi
     firejail \
       --quiet \
@@ -871,10 +977,11 @@ daemon.run_in_firejail() {
   local firejailed_failures=0
   local i=0
   for firejailed_pid in "${firejailed_pids[@]}"; do
+    local plugin_name="$(daemon.plugin_paths_to_names "${plugins[${i}]}")"
     wait "${firejailed_pid}"
     local firejailed_exit_code=$?
+    daemon.log_verbose "Plugin ${plugin_name} ran within firejail and returned code: ${firejailed_exit_code}"
     local executable_path="${plugins[${i}]}/plugin"
-    local plugin_name="$(daemon.plugin_paths_to_names "${plugins[${i}]}")"
     local firejailed_home_dir="${firejailed_home_dirs[${i}]}"
     local plugin_stdout_file="${plugin_stdout_files[${i}]}"
     local plugin_stderr_file="${plugin_stderr_files[${i}]}"
@@ -882,14 +989,16 @@ daemon.run_in_firejail() {
       while IFS= read -r line; do
         echo "(${plugin_name}) ${line}" >>"${aggregated_stdout_file}"
       done <"${plugin_stdout_file}"
+      daemon.log_verbose "Detected stdout from ${plugin_name} and added to the aggregated stdout file: ${aggregated_stdout_file}"
     fi
     if [[ -f ${plugin_stderr_file} ]]; then
       while IFS= read -r line; do
         echo "(${plugin_name}) ${line}" >>"${aggregated_stderr_file}"
       done <"${plugin_stderr_file}"
+      daemon.log_verbose "Detected stderr from ${plugin_name} and added to the aggregated stderr file: ${aggregated_stderr_file}"
     fi
     if [[ ${firejailed_exit_code} -ne 0 ]]; then
-      daemon.log_warn "${phase} phase: ${executable_path} exited with status ${firejailed_exit_code}"
+      daemon.log_warn "${phase} phase: ${executable_path} exited with non-zero code: ${firejailed_exit_code}"
       firejailed_failures=$((firejailed_failures + 1))
     fi
     i=$((i + 1))
@@ -899,17 +1008,18 @@ daemon.run_in_firejail() {
     local plugin_name="$(daemon.plugin_paths_to_names "${plugins[${i}]}")"
     if grep -q "^SOLOS_PANIC" "${plugin_stderr_file}" >/dev/null 2>/dev/null; then
       firejailed_kills="${firejailed_kills} ${plugin_name}"
+      daemon.log_verbose "Detected panic from ${plugin_name} in ${phase} phase."
     fi
     i=$((i + 1))
   done
   firejailed_kills=($(echo "${firejailed_kills}" | xargs))
   for plugin_stdout_file in "${plugin_stdout_files[@]}"; do
     if grep -q "^SOLOS_PANIC" "${plugin_stdout_file}" >/dev/null 2>/dev/null; then
-      daemon.log_warn "${phase} phase: the plugin sent a panic message to stderr."
+      daemon.log_warn "The plugin ${plugin_name} sent a panic message to stdout. These should be sent to stderr. Will ignore."
     fi
   done
   if [[ ${firejailed_failures} -gt 0 ]]; then
-    daemon.log_error "${phase} phase: there were ${firejailed_failures} total failures across ${plugin_count} plugins."
+    daemon.log_warn "${firejailed_failures} failure(s) detected in the ${phase} phase."
     return_code="1"
   fi
   if [[ ${#firejailed_kills[@]} -gt 0 ]]; then
@@ -925,7 +1035,7 @@ $(cat "${aggregated_stdout_file}")
 HOW TO FIX:
 Once all panic files in ${daemon__panics_dir} are removed (and hopefully resolved!), the daemon will restart all plugins from the beginning.
 EOF
-    daemon.log_error "${phase} phase: panics detected from: ${firejailed_kills[*]}"
+    daemon.log_error "${firejailed_kills[*]} panics were detected in the ${phase} phase."
     return_code="151"
   else
     lib.panics_remove "plugin_panics_detected"
@@ -937,7 +1047,7 @@ EOF
       local plugin_name="${plugin_names[${i}]}"
       local host_asset="$(daemon.get_firejail_bind_source "${firejailed_home_dir}${merge_path}")"
       host_assets+=("${host_asset}")
-      daemon.log_info "Updated host asset: ${host_asset}"
+      daemon.log_verbose "A host asset was updated: ${host_asset}"
       i=$((i + 1))
     done
   fi
@@ -947,6 +1057,7 @@ EOF
   fi
   for host_asset in "${host_assets[@]}"; do
     chmod -R 777 "${host_asset}"
+    daemon.log_verbose "Reset permissions of the host asset: ${host_asset} to 777"
   done
   echo "${aggregated_stdout_file}" | xargs
   echo "${aggregated_stderr_file}" | xargs
@@ -1037,7 +1148,7 @@ daemon.download_phase() {
   for created_download_dir in "${download_dirs_created_by_plugins[@]}"; do
     local merge_location="${merge_dir}/${plugin_names[${i}]}"
     mv "${created_download_dir}" "${merge_location}"
-    daemon.log_info "Moved ${created_download_dir} to ${merge_location}"
+    daemon.log_verbose "Moved ${created_download_dir} to ${merge_location}"
     i=$((i + 1))
   done
   echo "${aggregated_stdout_file}"
@@ -1098,7 +1209,7 @@ daemon.process_phase() {
     local output_filename="${plugin_names[${i}]}.json"
     local merge_location="${merge_dir}/${output_filename}"
     mv "${processed_file}" "${merge_location}"
-    daemon.log_info "Moved ${processed_file} to ${merge_location}"
+    daemon.log_verbose "Moved ${processed_file} to ${merge_location}"
     i=$((i + 1))
   done
   echo "${aggregated_stdout_file}"
@@ -1157,7 +1268,7 @@ daemon.chunk_phase() {
   for chunk_log_file in "${chunk_log_files_created_by_plugins[@]}"; do
     local merge_location="${merge_dir}/${plugin_names[${i}]}.log"
     mv "${chunk_log_file}" "${merge_location}"
-    daemon.log_info "Moved ${chunk_log_file} to ${merge_location}"
+    daemon.log_verbose "Moved ${chunk_log_file} to ${merge_location}"
     i=$((i + 1))
   done
   echo "${aggregated_stdout_file}"
@@ -1214,6 +1325,15 @@ daemon.publish_phase() {
   return "${return_code}"
 }
 daemon.plugin_runner() {
+  # Points where we should handle requests:
+  #   - start of all phases.
+  #   - after scrubbing the mounted volume.
+  #   - in between each phase.
+  #   - after the last phase.
+  if daemon.found_request; then
+    daemon.handle_requests
+  fi
+
   local plugins=($(echo "${1}" | xargs))
   local run_type="${2}"
 
@@ -1222,6 +1342,7 @@ daemon.plugin_runner() {
   local archive_log_file="${archive_dir}/$(date +%s%N).log"
   mkdir -p "${archive_dir}"
   touch "${archive_log_file}"
+  daemon.log_verbose "Created archive log file: ${archive_log_file}"
 
   # Define cache directories.
   local configure_cache="${HOME}/.solos/data/daemon/cache/configure"
@@ -1231,31 +1352,24 @@ daemon.plugin_runner() {
   local publish_cache="${HOME}/.solos/data/daemon/cache/publish"
   if [[ ! -d ${configure_cache} ]]; then
     mkdir -p "${configure_cache}"
-    daemon.log_info "Created configure cache directory: ${configure_cache}"
+    daemon.log_verbose "Created configure cache directory: ${configure_cache}"
   fi
   if [[ ! -d ${download_cache} ]]; then
     mkdir -p "${download_cache}"
-    daemon.log_info "Created download cache directory: ${download_cache}"
+    daemon.log_verbose "Created download cache directory: ${download_cache}"
   fi
   if [[ ! -d ${process_cache} ]]; then
     mkdir -p "${process_cache}"
-    daemon.log_info "Created process cache directory: ${process_cache}"
+    daemon.log_verbose "Created process cache directory: ${process_cache}"
   fi
   if [[ ! -d ${chunk_cache} ]]; then
     mkdir -p "${chunk_cache}"
-    daemon.log_info "Created chunk cache directory: ${chunk_cache}"
+    daemon.log_verbose "Created chunk cache directory: ${chunk_cache}"
   fi
   if [[ ! -d ${publish_cache} ]]; then
     mkdir -p "${publish_cache}"
-    daemon.log_info "Created publish cache directory: ${publish_cache}"
+    daemon.log_verbose "Created publish cache directory: ${publish_cache}"
   fi
-
-  # Initialize the manifest file if it doesn't exist.
-  if [[ ! -f ${daemon__manifest_file} ]]; then
-    echo "[]" >"${daemon__manifest_file}"
-    daemon.log_info "Created manifest file: ${daemon__manifest_file}"
-  fi
-
   # If we're running precheck plugins, do the scrubbing.
   if [[ ${run_type} = "prechecks" ]]; then
     daemon__scrubbed_dir="$(daemon.scrub)"
@@ -1263,18 +1377,22 @@ daemon.plugin_runner() {
       daemon.log_error "Failed to scrub the mounted volume."
       return 1
     fi
-    daemon.log_info "Scrubbed the mounted volume at \"$(daemon.get_host_path "${daemon__scrubbed_dir}")\""
+    daemon.log_info "Scrubbed the mounted volume copy: $(daemon.get_host_path "${daemon__scrubbed_dir}")"
   elif [[ -z ${daemon__scrubbed_dir} ]]; then
     daemon.log_error "No scrubbed directory was found. Scrubbing should have happened in the pre-check phase."
     return 1
   else
-    daemon.log_info "Re-using the scrubbed directory from the precheck plugins."
+    daemon.log_verbose "Re-using the scrubbed directory from the precheck plugins."
   fi
-
+  # Check for requests before the copying begins.
+  if daemon.found_request; then
+    daemon.handle_requests
+  fi
+  # Do the copying in the background while the first two phases: configure and download run.
   mkdir -p "${next_archive_dir}/scrubbed"
   cp -rfa "${daemon__scrubbed_dir}"/. "${next_archive_dir}/scrubbed"/ &
-  local scrubbed_archiving_op_pid=$!
-  daemon.log_info "Archiving the scrubbed dir to the archival directory in the background."
+  local backgrounded_scrubbed_cp_pid=$!
+  daemon.log_verbose "Archiving the scrubbed mounted volume in the background..."
   # ------------------------------------------------------------------------------------
   #
   # CONFIGURE PHASE:
@@ -1303,6 +1421,11 @@ daemon.plugin_runner() {
     fi
   else
     daemon.log_info "The configure phase ran successfully."
+  fi
+  if daemon.found_request; then
+    wait "${backgrounded_scrubbed_cp_pid}"
+    daemon.log_verbose "Archiving of the scrubbed mounted volume has completed."
+    daemon.handle_requests
   fi
   # ------------------------------------------------------------------------------------
   #
@@ -1333,6 +1456,11 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The download phase ran successfully."
   fi
+  if daemon.found_request; then
+    wait "${backgrounded_scrubbed_cp_pid}"
+    daemon.log_verbose "Archiving of the scrubbed mounted volume has completed."
+    daemon.handle_requests
+  fi
   # ------------------------------------------------------------------------------------
   #
   # PROCESSOR PHASE:
@@ -1342,8 +1470,8 @@ daemon.plugin_runner() {
   # ------------------------------------------------------------------------------------
   # Make sure the scrubbed data has been copied before we start the process phase to ensure
   # that we copy the scrubbed data exactly as it was when the process phase started.
-  wait "${scrubbed_archiving_op_pid}"
-  daemon.log_info "The scrubbed dir was copied to the archival directory."
+  wait "${backgrounded_scrubbed_cp_pid}"
+  daemon.log_verbose "Archiving of the scrubbed mounted volume has completed."
   local tmp_stdout="$(daemon.mktemp_file)"
   daemon.process_phase \
     "${process_cache}" \
@@ -1367,6 +1495,9 @@ daemon.plugin_runner() {
     fi
   else
     daemon.log_info "The process phase ran successfully."
+  fi
+  if daemon.found_request; then
+    daemon.handle_requests
   fi
   # ------------------------------------------------------------------------------------
   #
@@ -1397,6 +1528,9 @@ daemon.plugin_runner() {
     fi
   else
     daemon.log_info "The chunk phase ran successfully."
+  fi
+  if daemon.found_request; then
+    daemon.handle_requests
   fi
   # ------------------------------------------------------------------------------------
   #
@@ -1429,6 +1563,9 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The publish phase ran successfully."
   fi
+  if daemon.found_request; then
+    daemon.handle_requests
+  fi
 }
 daemon.loop() {
   local is_next_precheck=true
@@ -1448,13 +1585,14 @@ daemon.loop() {
       sleep 20
       continue
     fi
+    daemon.status "UP"
     if [[ ${is_next_precheck} = true ]]; then
       plugins=($(daemon.plugin_names_to_paths "${daemon__precheck_plugin_names[*]}"))
       if ! daemon.plugin_runner "${plugins[*]}" "prechecks"; then
-        daemon.log_error "Precheck loop failed. Will restart the daemon in 20 seconds."
-        sleep 20
-        is_next_precheck=true
+        daemon.log_error "Precheck loop failed."
+        return 1
       else
+        daemon.log_info "Precheck loop completed successfully."
         is_next_precheck=false
       fi
     else
@@ -1462,13 +1600,19 @@ daemon.loop() {
       local user_plugin_names="$(daemon.get_user_plugin_names)"
       local plugins=($(daemon.plugin_names_to_paths "${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
       if ! daemon.plugin_runner "${plugins[*]}"; then
-        daemon.log_error "Main loop failed. Will restart the daemon in 20 seconds."
-        sleep 20
+        daemon.log_error "Main loop failed."
+        return 1
       fi
+      daemon.log_info "Main loop completed successfully."
       is_next_precheck=true
     fi
-    lib.panics_remove "daemon_too_many_retries"
-    daemon.handle_requests
+    if ! lib.panics_remove "daemon_too_many_retries"; then
+      daemon.log_error "Failed to remove the panic file from the last run."
+      return 1
+    fi
+    # Reset the retry counter since we had a successful run.
+    daemon__remaining_retries="${daemon__max_retries}"
+    daemon.log_verbose "Reset the retry counter to ${daemon__remaining_retries}."
   done
   return 0
 }
@@ -1476,37 +1620,24 @@ daemon.retry() {
   daemon__remaining_retries=$((daemon__remaining_retries - 1))
   if [[ ${daemon__remaining_retries} -eq 0 ]]; then
     daemon.log_error "Killing the daemon due to too many failures."
-    daemon.status "RUN_FAILED"
+    daemon.status "MAX_RETRIES_REACHED"
     lib.panics_add "daemon_too_many_retries" <<EOF
 The daemon failed and exited after too many retries. Time of failure: $(date).
 EOF
     exit 1
   fi
-  daemon.status "RECOVERING"
   daemon.log_info "Restarting the daemon loop."
   daemon.loop
   daemon.retry
 }
 daemon() {
-  # Requests are meant to fulfill at the top of the daemon loop only.
-  # Ensure a previously fulfilled request is cleared.
-  if rm -f "${daemon__request_file}"; then
-    daemon.log_info "Cleared previous request file: \"$(daemon.get_host_path "${daemon__request_file}")\""
-  else
-    daemon.log_error "Failed to clear the previous request file: \"$(daemon.get_host_path "${daemon__request_file}")\""
-    exit 1
+  # This will make sure that if another daemon is running, we exit.
+  if ! daemon.pid; then
+    return 1
   fi
-  # If the daemon is already running, we should abort the launch.
-  # Don't fuck with the status file. It pertains to the actually
-  # running daemon process, so not this one.
-  if [[ -n ${daemon__prev_pid} ]] && [[ ${daemon__prev_pid} -ne ${daemon__pid} ]]; then
-    if ps -p "${daemon__prev_pid}" >/dev/null; then
-      daemon.log_error "Aborting launch due to existing daemon process with pid: ${daemon__prev_pid}"
-      exit 1
-    fi
+  if ! daemon.clear_requests; then
+    return 1
   fi
-  mkdir -p "${daemon__daemon_data_dir}"
-  echo "${daemon__pid}" >"${daemon__pid_file}"
   # We like to see this when running "daemon status" in our shell.
   daemon.status "UP"
   # The main "loop" that churns through our plugins.
@@ -1516,4 +1647,5 @@ daemon() {
   daemon.retry
 }
 
+daemon.parse_args "$@"
 daemon
