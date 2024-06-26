@@ -118,7 +118,7 @@ $(
     info.table_format \
       "ABOUT THIS SHELL:" \
       "About" "An interactive Bash session running inside of a docker container." \
-      "Docker Image" "solos:solos" \
+      "Docker Image" "solos-project:${checked_out_project}" \
       "Mounted Volume" "~/.solos" \
       "Bash Version" "${BASH_VERSION}" \
       "Distro" "Debian 12" \

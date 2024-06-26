@@ -226,10 +226,22 @@ EOF
     chmod +x "${checkout_script}"
     container.log_info "${container__project} - initialized the checkout script."
   fi
+
+  # Make sure the store directory exists.
   if [[ ! -d ${container__store_dir} ]]; then
     mkdir -p "${container__store_dir}"
     container.log_info "${container__project} - created ${container__store_dir}"
   fi
+
+  # Copy the default Dockerfile.project at ~/.solos/repo/src/Dockerfile.project to the project directory.
+  local dockerfile_project="${container__solos_dir}/repo/src/Dockerfile.project"
+  local project_dockerfile="${project_dir}/Dockerfile"
+  if [[ ! -f ${project_dockerfile} ]]; then
+    cp "${dockerfile_project}" "${project_dockerfile}"
+    container.log_info "${container__project} - copied ${dockerfile_project} to ${project_dockerfile}"
+  fi
+
+  # Save the project name so we can re-use it later.
   if [[ ! -f ${container__checked_out_project_store_file} ]]; then
     touch "${container__checked_out_project_store_file}"
     container.log_info "${container__project} - touched ${container__checked_out_project_store_file}"

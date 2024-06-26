@@ -1,0 +1,3 @@
+FROM solos:latest
+
+RUN echo "Hello from your project!" > /root/hello-solos.txt

@@ -142,7 +142,7 @@ EOF
       return "${exit_code}"
     fi
     local container_ctx="/root/.solos"
-    local args=(-i -w "${container_ctx}" "base")
+    local args=(-i -w "${container_ctx}" solos-project)
     local bash_args=(-c 'nohup '"${daemon__mounted_script}"' '"${daemon_args[@]}"' >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
       shell.log_error "Failed to reload the daemon process."
@@ -169,7 +169,7 @@ EOF
     fi
     shell.log_info "Starting the daemon process in the foreground."
     local container_ctx="/root/.solos"
-    local docker_exec_args=(-it -w "${container_ctx}" "base")
+    local docker_exec_args=(-it -w "${container_ctx}" solos-project)
     local bash_args=(-i -c ''"${daemon__mounted_script}"' '"${daemon_args[@]}"'')
     docker exec "${docker_exec_args[@]}" /bin/bash "${bash_args[@]}"
     local daemon_exit_code="$?"
