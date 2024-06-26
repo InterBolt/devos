@@ -276,6 +276,9 @@ daemon.plugin_names_to_paths() {
 daemon.status() {
   local status="$1"
   local previous_status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+  if [[ ${previous_status} = ${status} ]]; then
+    return 0
+  fi
   echo "${status}" >"${daemon__status_file}"
   daemon.log_info "Update status from ${previous_status} to ${status}"
 }
@@ -1377,7 +1380,7 @@ daemon.plugin_runner() {
     daemon.log_verbose "Created publish cache directory: ${publish_cache}"
   fi
   # If we're running precheck plugins, do the scrubbing.
-  if [[ ${run_type} = "prechecks" ]]; then
+  if [[ ${run_type} = "precheck" ]]; then
     daemon__scrubbed_dir="$(daemon.scrub)"
     if [[ -z ${daemon__scrubbed_dir} ]]; then
       daemon.log_error "Failed to scrub the mounted volume."
@@ -1385,7 +1388,7 @@ daemon.plugin_runner() {
     fi
     daemon.log_info "Scrubbed the mounted volume copy: $(daemon.get_host_path "${daemon__scrubbed_dir}")"
   elif [[ -z ${daemon__scrubbed_dir} ]]; then
-    daemon.log_error "No scrubbed directory was found. Scrubbing should have happened in the pre-check phase."
+    daemon.log_error "No scrubbed directory was found. Scrubbing should have happened in the precheck phase."
     return 1
   else
     daemon.log_verbose "Re-using the scrubbed directory from the precheck plugins."
@@ -1421,12 +1424,12 @@ daemon.plugin_runner() {
   daemon.stash_plugin_logs "configure" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   if [[ ${return_code} -ne 0 ]]; then
     daemon.log_error "The configure phase encountered one or more errors. Code=${return_code}."
-    if [[ ${run_type} = "prechecks" ]]; then
-      daemon.log_error "The pre-check phase failed. The daemon will not continue."
+    if [[ ${run_type} = "precheck" ]]; then
+      daemon.log_error "The precheck phase failed. The daemon will not continue."
       return 1
     fi
   else
-    daemon.log_info "The configure phase ran successfully."
+    daemon.log_info "The ${run_type} configure phase ran successfully."
   fi
   if daemon.found_request; then
     wait "${backgrounded_scrubbed_cp_pid}"
@@ -1455,12 +1458,12 @@ daemon.plugin_runner() {
   daemon.stash_plugin_logs "download" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   if [[ ${return_code} -ne 0 ]]; then
     daemon.log_error "The download phase encountered one or more errors. Code=${return_code}."
-    if [[ ${run_type} = "prechecks" ]]; then
-      daemon.log_error "The pre-check phase failed. The daemon will not continue."
+    if [[ ${run_type} = "precheck" ]]; then
+      daemon.log_error "The precheck phase failed. The daemon will not continue."
       return 1
     fi
   else
-    daemon.log_info "The download phase ran successfully."
+    daemon.log_info "The ${run_type} download phase ran successfully."
   fi
   if daemon.found_request; then
     wait "${backgrounded_scrubbed_cp_pid}"
@@ -1495,12 +1498,12 @@ daemon.plugin_runner() {
   daemon.stash_plugin_logs "process" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   if [[ ${return_code} -ne 0 ]]; then
     daemon.log_error "The process phase encountered one or more errors (${return_code})."
-    if [[ ${run_type} = "prechecks" ]]; then
-      daemon.log_error "The pre-check phase failed. The daemon will not continue."
+    if [[ ${run_type} = "precheck" ]]; then
+      daemon.log_error "The precheck phase failed. The daemon will not continue."
       return 1
     fi
   else
-    daemon.log_info "The process phase ran successfully."
+    daemon.log_info "The ${run_type} process phase ran successfully."
   fi
   if daemon.found_request; then
     daemon.handle_requests
@@ -1528,12 +1531,12 @@ daemon.plugin_runner() {
   daemon.stash_plugin_logs "chunk" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   if [[ ${return_code} -ne 0 ]]; then
     daemon.log_error "The chunk phase encountered one or more errors. Code=${return_code}."
-    if [[ ${run_type} = "prechecks" ]]; then
-      daemon.log_error "The pre-check phase failed. The daemon will not continue."
+    if [[ ${run_type} = "precheck" ]]; then
+      daemon.log_error "The precheck phase failed. The daemon will not continue."
       return 1
     fi
   else
-    daemon.log_info "The chunk phase ran successfully."
+    daemon.log_info "The ${run_type} chunk phase ran successfully."
   fi
   if daemon.found_request; then
     daemon.handle_requests
@@ -1562,12 +1565,12 @@ daemon.plugin_runner() {
   daemon.stash_plugin_logs "publish" "${archive_log_file}" "${aggregated_stdout_file}" "${aggregated_stderr_file}"
   if [[ ${return_code} -ne 0 ]]; then
     daemon.log_error "The publish phase encountered one or more errors. Code=${return_code}."
-    if [[ ${run_type} = "prechecks" ]]; then
-      daemon.log_error "The pre-check phase failed. The daemon will not continue."
+    if [[ ${run_type} = "precheck" ]]; then
+      daemon.log_error "The precheck phase failed. The daemon will not continue."
       return 1
     fi
   else
-    daemon.log_info "The publish phase ran successfully."
+    daemon.log_info "The ${run_type} publish phase ran successfully."
   fi
   if daemon.found_request; then
     daemon.handle_requests
@@ -1594,7 +1597,7 @@ daemon.loop() {
     daemon.status "UP"
     if [[ ${is_next_precheck} = true ]]; then
       plugins=($(daemon.plugin_names_to_paths "${daemon__precheck_plugin_names[*]}"))
-      if ! daemon.plugin_runner "${plugins[*]}" "prechecks"; then
+      if ! daemon.plugin_runner "${plugins[*]}" "precheck"; then
         daemon.log_error "Precheck loop failed."
         return 1
       else
@@ -1605,7 +1608,7 @@ daemon.loop() {
       local solos_plugin_names="$(daemon.get_solos_plugin_names)"
       local user_plugin_names="$(daemon.get_user_plugin_names)"
       local plugins=($(daemon.plugin_names_to_paths "${solos_plugin_names[*]} ${user_plugin_names[*]}" | xargs))
-      if ! daemon.plugin_runner "${plugins[*]}"; then
+      if ! daemon.plugin_runner "${plugins[*]}" "main"; then
         daemon.log_error "Main loop failed."
         return 1
       fi

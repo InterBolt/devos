@@ -104,12 +104,12 @@ lib.panics_print_all() {
 }
 export -f lib.panics_print_all
 
-lib.use_host() {
+lib.home_to_tilde() {
   local filename="${1}"
   local host="$(lib.home_dir_path)"
-  echo "${filename/\/root/${host}}"
+  echo "${filename/\/root/\~}"
 }
-export -f lib.use_host
+export -f lib.home_to_tilde
 
 lib.users_home_dir() {
   local home_dir_path="$(lib.home_dir_path)"

@@ -25,7 +25,7 @@ log._to_hostname() {
   if [[ ${filename} != /* ]]; then
     filename="$(pwd)/${filename}"
   fi
-  lib.use_host "${filename}"
+  lib.home_to_tilde "${filename}"
 }
 log._correct_paths_in_msg() {
   local msg="${1}"
@@ -34,15 +34,7 @@ log._correct_paths_in_msg() {
     return 0
   fi
   local home_dir_path="$(lib.home_dir_path)"
-  if [[ -z "${home_dir_path}" ]]; then
-    lib.panics_add "missing_home_dir" <<EOF
-No reference to the user's home directory was found in the folder: ~/.solos/data/store.
-EOF
-    echo "${msg}"
-    return 1
-  fi
-  local home_dir_path="$(lib.home_dir_path)"
-  echo "${msg}" | sed -e "s|/root/|${home_dir_path}/|g" | sed -e "s|~/|${home_dir_path}/|g"
+  echo "${msg}" | sed -e "s|/root/|~/|g"
 }
 log._base() {
   if [[ ! -f ${log__logfile} ]]; then

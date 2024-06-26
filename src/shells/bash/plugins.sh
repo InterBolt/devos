@@ -79,7 +79,7 @@ plugins.cmd() {
       fi
       local tmp_plugin_dir="$(mktemp -d)"
       local tmp_code_workspace_file="$(mktemp)"
-      local host_plugin_path="$(lib.use_host "${plugin_path}")"
+      local host_plugin_path="$(lib.home_to_tilde "${plugin_path}")"
       if ! jq \
         --arg app_name "${arg_plugin_name}" \
         '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${host_plugin_path}"'", "profile": "shell" }] + .' \

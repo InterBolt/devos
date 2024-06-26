@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+info__docker_image="solos:$(git -C "${HOME}/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
+
 info.extract_usage_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
@@ -78,9 +80,8 @@ info.cmd() {
       fi
     done < <(find "${user_plugins_dir}" -maxdepth 1 -type d)
     if [[ ${#user_plugin_paths[@]} -gt 0 ]]; then
-      local home_dir_path="${shell__users_home_dir}"
       for user_plugin_path in "${user_plugin_paths[@]}"; do
-        user_plugin_path="${user_plugin_path/\/root\//${home_dir_path}/}"
+        user_plugin_path="${user_plugin_path/\/root\//\~/}"
         user_plugins+=("$(basename "${user_plugin_path}")" "${user_plugin_path}/solos.config.json")
       done
     fi
@@ -91,17 +92,15 @@ info.cmd() {
     local newline=$'\n'
     local user_plugins_sections="${newline}$(
       info.table_format \
-        "INSTALLED_PLUGIN,CONFIG_PATH" \
+        "INSTALLED_PLUGINS:" \
         "${user_plugins[@]}"
     )"
   fi
   cat <<EOF
 
-CHECKED OUT PROJECT: ${checked_out_project}
-
 $(
     info.table_format \
-      "SHELL_COMMAND,DESCRIPTION" \
+      "AVAILABLE COMMANDS:" \
       '-' "Runs its arguments as a command. Avoids pre/post exec functions and output tracking." \
       info "Print info about this shell." \
       app "$(app --help | info.extract_usage_description)" \
@@ -114,36 +113,29 @@ $(
       panics "$(panics --help | info.extract_usage_description)"
   )
 
-$(
-    info.table_format \
-      "RESOURCE,PATH" \
-      'Checked out project' "${shell__users_home_dir}/.solos/projects/${checked_out_project}" \
-      'User managed rcfile' "${shell__users_home_dir}/.solos/rcfiles/.bashrc" \
-      'Internal rcfile' "${shell__users_home_dir}/.solos/repo/shells/bash/.bashrc" \
-      'Config' "${shell__users_home_dir}/.solos/config" \
-      'Secrets' "${shell__users_home_dir}/.solos/secrets" \
-      'Data' "${shell__users_home_dir}/.solos/data" \
-      'Installed Plugins' "${shell__users_home_dir}/.solos/plugins"
-  )
-
-$(
-    info.table_format \
-      "SHELL_PROPERTY,VALUE" \
-      "Shell" "BASH" \
-      "Mounted Volume" "${shell__users_home_dir}/.solos" \
-      "Bash Version" "${BASH_VERSION}" \
-      "Distro" "Debian 12" \
-      "SolOS Repo" "https://github.com/interbolt/solos"
-  )
 ${user_plugins_sections}
 
 $(
     info.table_format \
-      "LEGEND_KEY,LEGEND_DESCRIPTION" \
-      "SHELL_COMMAND" "Commands available when sourcing the RC file at ${shell__users_home_dir}/.solos/rcfiles/.bashrc" \
-      "RESOURCE" "Relevant directories and files managed by SolOS." \
-      "SHELL_PROPERTY" "Properties that describe the SolOS environment." \
-      "INSTALLED_PLUGIN" "Plugins available to all SolOS project."
+      "ABOUT THIS SHELL:" \
+      "About" "An interactive Bash session running inside of a docker container." \
+      "Docker Image" "${info__docker_image}" \
+      "Mounted Volume" "~/.solos" \
+      "Bash Version" "${BASH_VERSION}" \
+      "Distro" "Debian 12" \
+      "SolOS Source Code" "https://github.com/interbolt/solos"
+  )
+
+$(
+    info.table_format \
+      "IMPORTANT FILES/FOLDERS:" \
+      'Checked out project' "~/.solos/projects/${checked_out_project}" \
+      'User managed rcfile' "~/.solos/rcfiles/.bashrc" \
+      'Internal rcfile' "~/.solos/repo/shells/bash/.bashrc" \
+      'Config' "~/.solos/config" \
+      'Secrets' "~/.solos/secrets" \
+      'Data' "~/.solos/data" \
+      'Installed Plugins' "~/.solos/plugins"
   )
 EOF
 }
