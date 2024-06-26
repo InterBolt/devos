@@ -142,6 +142,7 @@ else
   install.log_info "Dev mode is OFF - setting up a non-dev installation." >&2
   export FORCE_REBUILD=true
 fi
+
 # Confirms that the symlink worked AND that our container will build, run, and accept commands.
 if ! solos --noop; then
   install.log_error "Failed to run SolOS cli after installing it." >&2

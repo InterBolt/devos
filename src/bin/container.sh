@@ -6,6 +6,7 @@ container__log_file="/root/.solos/data/cli/master.log"
 container__code_workspace_file=""
 container__solos_dir="/root/.solos"
 container__store_dir="${container__solos_dir}/data/store"
+container__cli_data_dir="${container__solos_dir}/data/cli"
 container__checked_out_project_store_file="${container__store_dir}/checked_out_project"
 container__users_home_dir_store_file="${container__store_dir}/users_home_dir"
 # We can't actually do anything if we don't know the user's home directory.
@@ -67,7 +68,7 @@ done
 
 # If we detect that there was a shell at least 2 minutes ago, wait an extra few seconds and check again to be quite sure a shell is not active.
 container.disable_when_active_shell_exists() {
-  local active_shell_file="${HOME}/.solos/data/store/active_shell"
+  local active_shell_file="${container__cli_data_dir}/active_shell"
   local curr_seconds="$(date +%s)"
   local is_retry="${1:-""}"
   local active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"

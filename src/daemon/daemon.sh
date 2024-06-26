@@ -9,6 +9,7 @@ daemon__max_retries=5
 daemon__remaining_retries="${daemon__max_retries}"
 daemon__solos_dir="${HOME}/.solos"
 daemon__scrubbed_dir=""
+daemon__cli_data_dir="${daemon__solos_dir}/data/cli"
 daemon__daemon_data_dir="${daemon__solos_dir}/data/daemon"
 daemon__user_plugins_dir="${daemon__solos_dir}/plugins"
 daemon__manifest_file="${daemon__user_plugins_dir}/solos.manifest.json"
@@ -19,6 +20,7 @@ daemon__users_home_dir="$(lib.home_dir_path)"
 daemon__pid_file="${daemon__daemon_data_dir}/pid"
 daemon__status_file="${daemon__daemon_data_dir}/status"
 daemon__request_file="${daemon__daemon_data_dir}/request"
+daemon__running_checked_out_project_file="${daemon__daemon_data_dir}/running_checked_out_project"
 daemon__frozen_manifest_file="${daemon__daemon_data_dir}/frozen.manifest.json"
 daemon__log_file="${daemon__daemon_data_dir}/master.log"
 daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
@@ -72,15 +74,16 @@ log.use "${daemon__log_file}"
 trap 'daemon.trap_exit' EXIT
 
 daemon.trap_exit() {
-  if daemon.unbind_all_firejailed; then
+  if daemon.unbind_all; then
     rm -rf "${daemon__tmp_data_dir}"
     daemon.log_info "Cleaned up the temporary data directory: ${daemon__tmp_data_dir}"
   else
-    daemon.log_error "Failed to unbind all firejailed directories."
+    daemon.log_error "Failed to unbind all files and directories."
   fi
-  rm -f "${daemon__pid_file}"
-  daemon.log_info "Removed the daemon pid file: ${daemon__pid_file}"
-  local status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+  if [[ -f ${daemon__pid_file} ]]; then
+    rm -f "${daemon__pid_file}"
+    daemon.log_info "Removed the daemon pid file: ${daemon__pid_file}"
+  fi
   daemon.status "DOWN"
 }
 daemon.parse_args() {
@@ -123,8 +126,69 @@ daemon.log_verbose() {
     log.info "${message}" "$@"
   fi
 }
+daemon.exit_conditions() {
+  # Exit if no active_shell file is found since this indicates something either went
+  # wrong, or the shell is no longer active.
+  if [[ ! -f ${daemon__cli_data_dir}/active_shell ]]; then
+    daemon.log_warn "Unexpected - no active shell file found. Exiting."
+    exit 1
+  fi
+
+  # No active shell file, no daemon.
+  local active_shell_timestamp="$(cat "${daemon__cli_data_dir}/active_shell" | head -n 1 | xargs)"
+  if [[ -z ${active_shell_timestamp} ]]; then
+    daemon.log_warn "No active shell file. Exiting."
+    exit 1
+  fi
+
+  # If the active shell file is more than 30 seconds old, exit.
+  # If we quickly close, restart a shell without changing the project, we don't
+  # need to worry about duplicate daemons getting started up, because the presence of an "UP" status will force
+  # a rebuild of the docker container where this daemon is running, effectively killing the old daemon.
+  # All to say: this only really catches the case where the user closed the shell and then left the SolOS environment
+  # for a fairly long time.
+  local current_timestamp="$(date +%s)"
+  local time_diff=$((current_timestamp - active_shell_timestamp))
+  if [[ ${time_diff} -gt 30 ]]; then
+    daemon.log_warn "The active shell file is more than 30 seconds old. Exiting."
+    exit 1
+  fi
+
+  # This would indicate a pretty serious logic bug if the project doesn't exist in the filesystem.
+  if [[ ! -d ${daemon__checked_project_path} ]]; then
+    daemon.log_warn "Unexpected - the checked out project is no longer present in the filesystem. Exiting."
+    exit 1
+  fi
+
+  # If the checked out project has changed, exit.
+  if [[ ${daemon__checked_out_project} != "$(lib.checked_out_project)" ]]; then
+    daemon.log_warn "The checked out project has changed. Exiting."
+    exit 1
+  fi
+
+  # Handle kill requests from the user.
+  local requested_action=""
+  local requested_pid=""
+  if [[ -f ${daemon__request_file} ]]; then
+    local contents="$(cat "${daemon__request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
+    requested_action="$(echo "${contents}" | cut -d' ' -f2)"
+  fi
+  if [[ -n ${requested_action} ]] && [[ ${requested_pid} -eq ${daemon__pid} ]]; then
+    rm -f "${daemon__request_file}"
+    case "${requested_action}" in
+    "KILL")
+      daemon.log_verbose "Killing the daemon process."
+      exit 1
+      ;;
+    *)
+      daemon.log_error "Unknown user request ${request}"
+      ;;
+    esac
+  fi
+}
 declare -A bind_store=()
-daemon.unbind_firejailed() {
+daemon.unbind() {
   local dest="${1}"
   if [[ -z ${bind_store["${dest}"]} ]]; then
     daemon.log_error "No bind source was found for: ${dest}"
@@ -149,9 +213,9 @@ daemon.unbind_firejailed() {
   fi
   daemon.log_verbose "Unset bind store destination: ${dest}"
 }
-daemon.unbind_all_firejailed() {
+daemon.unbind_all() {
   for dest in "${!bind_store[@]}"; do
-    if ! daemon.unbind_firejailed "${dest}"; then
+    if ! daemon.unbind "${dest}"; then
       return 1
     fi
   done
@@ -169,7 +233,7 @@ daemon.unbind_all_firejailed() {
     daemon.log_verbose "No dangling bind mounts found in ${daemon__tmp_data_dir}."
   fi
 }
-daemon.bind_to_firejailed() {
+daemon.bind() {
   local src="${1}"
   local dest="${2}"
   if [[ ${dest} != "${daemon__tmp_data_dir}/"* ]]; then
@@ -191,7 +255,7 @@ daemon.bind_to_firejailed() {
   bind_store["${dest}"]="${src}"
   daemon.log_verbose "Saved binding in memory: ${src} ====> ${dest}"
 }
-daemon.get_firejail_bind_source() {
+daemon.get_bind_source() {
   local dest="${1}"
   echo "${bind_store["${dest}"]}"
 }
@@ -498,42 +562,6 @@ daemon.extract_request() {
   else
     return 1
   fi
-}
-daemon.execute_request() {
-  local request="${1}"
-  case "${request}" in
-  "KILL")
-    daemon.log_verbose "Killing the daemon process."
-    exit 1
-    ;;
-  *)
-    daemon.log_error "Unknown user request ${request}"
-    ;;
-  esac
-}
-daemon.found_request() {
-  local request="$(daemon.extract_request "${daemon__request_file}")"
-  if [[ -n ${request} ]]; then
-    return 0
-  else
-    return 1
-  fi
-}
-daemon.handle_requests() {
-  local request="$(daemon.extract_request "${daemon__request_file}")"
-  if [[ -n ${request} ]]; then
-    rm -f "${daemon__request_file}"
-    daemon.execute_request "${request}"
-  else
-    daemon.log_verbose "No request was found. Continuing daemon execution."
-  fi
-}
-daemon.clear_requests() {
-  if ! rm -f "${daemon__request_file}"; then
-    daemon.log_error "Failed to clear the previous request file: $(daemon.get_host_path "${daemon__request_file}")"
-    return 1
-  fi
-  daemon.log_verbose "Cleared previous request file: $(daemon.get_host_path "${daemon__request_file}")"
 }
 daemon.pid() {
   if [[ -n ${daemon__prev_pid} ]] && [[ ${daemon__prev_pid} -ne ${daemon__pid} ]]; then
@@ -913,7 +941,7 @@ daemon.run_in_firejail() {
     local plugin_phase_cache="${phase_cache}/${plugin_name}"
     local firejailed_cache="${firejailed_home_dir}/cache"
     mkdir -p "${firejailed_cache}"
-    daemon.bind_to_firejailed "${plugin_phase_cache}" "${firejailed_cache}"
+    daemon.bind "${plugin_phase_cache}" "${firejailed_cache}"
     chmod -R 777 "${firejailed_cache}"
     for ((i = 0; i < ${merged_asset_arg_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
@@ -933,16 +961,16 @@ daemon.run_in_firejail() {
         local asset_firejailed_path="${firejailed_home_dir}${asset_firejailed_path}"
         if [[ -d ${asset_host_path} ]]; then
           mkdir -p "${asset_firejailed_path}"
-          daemon.bind_to_firejailed "${asset_host_path}" "${asset_firejailed_path}"
+          daemon.bind "${asset_host_path}" "${asset_firejailed_path}"
         else
           mkdir -p "$(dirname "${asset_firejailed_path}")"
-          daemon.bind_to_firejailed "${asset_host_path}" "${asset_firejailed_path}"
+          daemon.bind "${asset_host_path}" "${asset_firejailed_path}"
         fi
         chmod "${asset_chmod_permission}" "${asset_firejailed_path}"
         daemon.log_verbose "Set permissions of bound asset: ${asset_firejailed_path} to ${asset_chmod_permission}"
       fi
     done
-    daemon.bind_to_firejailed "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
+    daemon.bind "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
     chmod +x "${firejailed_home_dir}/plugin"
     daemon.log_verbose "Made the plugin executable: ${firejailed_home_dir}/plugin"
     local plugin_config_file="${plugin_path}/solos.config.json"
@@ -950,7 +978,7 @@ daemon.run_in_firejail() {
       echo "{}" >"${plugin_config_file}"
       daemon.log_verbose "Initialized an empty config file: ${plugin_config_file}"
     fi
-    daemon.bind_to_firejailed "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
+    daemon.bind "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
     if [[ -f ${daemon__frozen_manifest_file} ]]; then
       # TODO: make sure local plugins are included.
       if ! cp -a "${daemon__frozen_manifest_file}" "${firejailed_home_dir}/solos.manifest.json"; then
@@ -1054,13 +1082,13 @@ EOF
   if [[ -n ${merge_path} ]]; then
     for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
       local plugin_name="${plugin_names[${i}]}"
-      local host_asset="$(daemon.get_firejail_bind_source "${firejailed_home_dir}${merge_path}")"
+      local host_asset="$(daemon.get_bind_source "${firejailed_home_dir}${merge_path}")"
       host_assets+=("${host_asset}")
       daemon.log_verbose "A host asset was updated: ${host_asset}"
       i=$((i + 1))
     done
   fi
-  if ! daemon.unbind_all_firejailed; then
+  if ! daemon.unbind_all; then
     daemon.log_error "Failed to unbind all firejailed directories."
     return_code="1"
   fi
@@ -1334,14 +1362,7 @@ daemon.publish_phase() {
   return "${return_code}"
 }
 daemon.plugin_runner() {
-  # Points where we should handle requests:
-  #   - start of all phases.
-  #   - after scrubbing the mounted volume.
-  #   - in between each phase.
-  #   - after the last phase.
-  if daemon.found_request; then
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
 
   local plugins=($(echo "${1}" | xargs))
   local run_type="${2}"
@@ -1393,10 +1414,7 @@ daemon.plugin_runner() {
   else
     daemon.log_verbose "Re-using the scrubbed directory from the precheck plugins."
   fi
-  # Check for requests before the copying begins.
-  if daemon.found_request; then
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
   # Do the copying in the background while the first two phases: configure and download run.
   mkdir -p "${next_archive_dir}/scrubbed"
   cp -rfa "${daemon__scrubbed_dir}"/. "${next_archive_dir}/scrubbed"/ &
@@ -1431,11 +1449,7 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} configure phase ran successfully."
   fi
-  if daemon.found_request; then
-    wait "${backgrounded_scrubbed_cp_pid}"
-    daemon.log_verbose "Archiving of the scrubbed mounted volume has completed."
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # DOWNLOAD PHASE:
@@ -1465,11 +1479,7 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} download phase ran successfully."
   fi
-  if daemon.found_request; then
-    wait "${backgrounded_scrubbed_cp_pid}"
-    daemon.log_verbose "Archiving of the scrubbed mounted volume has completed."
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # PROCESSOR PHASE:
@@ -1505,9 +1515,7 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} process phase ran successfully."
   fi
-  if daemon.found_request; then
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # CHUNK PHASE:
@@ -1538,9 +1546,7 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} chunk phase ran successfully."
   fi
-  if daemon.found_request; then
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # PUBLISH PHASE:
@@ -1572,9 +1578,7 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} publish phase ran successfully."
   fi
-  if daemon.found_request; then
-    daemon.handle_requests
-  fi
+  daemon.exit_conditions
 }
 daemon.loop() {
   local is_next_precheck=true
@@ -1584,7 +1588,7 @@ daemon.loop() {
       sleep 20
       continue
     fi
-    if ! daemon.unbind_all_firejailed; then
+    if ! daemon.unbind_all; then
       daemon.log_error "Failed to unbind all firejailed directories."
       sleep 20
       continue
@@ -1643,7 +1647,8 @@ daemon() {
   if ! daemon.pid; then
     return 1
   fi
-  if ! daemon.clear_requests; then
+  if ! rm -f "${daemon__request_file}"; then
+    daemon.log_error "Failed to remove the request file: ${daemon__request_file}."
     return 1
   fi
   # We like to see this when running "daemon status" in our shell.
