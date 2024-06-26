@@ -74,7 +74,7 @@ log.use "${daemon__log_file}"
 trap 'daemon.trap_exit' EXIT
 
 daemon.trap_exit() {
-  if daemon.unbind_all; then
+  if daemon.fs_unbind_all; then
     rm -rf "${daemon__tmp_data_dir}"
     daemon.log_info "Cleaned up the temporary data directory: ${daemon__tmp_data_dir}"
   else
@@ -142,7 +142,7 @@ daemon.exit_conditions() {
   fi
 
   # If the active shell file is more than 30 seconds old, exit.
-  # If we quickly close, restart a shell without changing the project, we don't
+  # Note: If we quickly close, restart a shell without changing the project, we don't
   # need to worry about duplicate daemons getting started up, because the presence of an "UP" status will force
   # a rebuild of the docker container where this daemon is running, effectively killing the old daemon.
   # All to say: this only really catches the case where the user closed the shell and then left the SolOS environment
@@ -155,6 +155,7 @@ daemon.exit_conditions() {
   fi
 
   # This would indicate a pretty serious logic bug if the project doesn't exist in the filesystem.
+  # Best to get the fuck out of here when that happens.
   if [[ ! -d ${daemon__checked_project_path} ]]; then
     daemon.log_warn "Unexpected - the checked out project is no longer present in the filesystem. Exiting."
     exit 1
@@ -188,7 +189,7 @@ daemon.exit_conditions() {
   fi
 }
 declare -A bind_store=()
-daemon.unbind() {
+daemon.fs_unbind() {
   local dest="${1}"
   if [[ -z ${bind_store["${dest}"]} ]]; then
     daemon.log_error "No bind source was found for: ${dest}"
@@ -213,9 +214,9 @@ daemon.unbind() {
   fi
   daemon.log_verbose "Unset bind store destination: ${dest}"
 }
-daemon.unbind_all() {
+daemon.fs_unbind_all() {
   for dest in "${!bind_store[@]}"; do
-    if ! daemon.unbind "${dest}"; then
+    if ! daemon.fs_unbind "${dest}"; then
       return 1
     fi
   done
@@ -233,7 +234,7 @@ daemon.unbind_all() {
     daemon.log_verbose "No dangling bind mounts found in ${daemon__tmp_data_dir}."
   fi
 }
-daemon.bind() {
+daemon.fs_bind() {
   local src="${1}"
   local dest="${2}"
   if [[ ${dest} != "${daemon__tmp_data_dir}/"* ]]; then
@@ -255,7 +256,7 @@ daemon.bind() {
   bind_store["${dest}"]="${src}"
   daemon.log_verbose "Saved binding in memory: ${src} ====> ${dest}"
 }
-daemon.get_bind_source() {
+daemon.fs_bind_source() {
   local dest="${1}"
   echo "${bind_store["${dest}"]}"
 }
@@ -941,7 +942,7 @@ daemon.run_in_firejail() {
     local plugin_phase_cache="${phase_cache}/${plugin_name}"
     local firejailed_cache="${firejailed_home_dir}/cache"
     mkdir -p "${firejailed_cache}"
-    daemon.bind "${plugin_phase_cache}" "${firejailed_cache}"
+    daemon.fs_bind "${plugin_phase_cache}" "${firejailed_cache}"
     chmod -R 777 "${firejailed_cache}"
     for ((i = 0; i < ${merged_asset_arg_count}; i++)); do
       if [[ $((i % 3)) -ne 0 ]]; then
@@ -961,16 +962,16 @@ daemon.run_in_firejail() {
         local asset_firejailed_path="${firejailed_home_dir}${asset_firejailed_path}"
         if [[ -d ${asset_host_path} ]]; then
           mkdir -p "${asset_firejailed_path}"
-          daemon.bind "${asset_host_path}" "${asset_firejailed_path}"
+          daemon.fs_bind "${asset_host_path}" "${asset_firejailed_path}"
         else
           mkdir -p "$(dirname "${asset_firejailed_path}")"
-          daemon.bind "${asset_host_path}" "${asset_firejailed_path}"
+          daemon.fs_bind "${asset_host_path}" "${asset_firejailed_path}"
         fi
         chmod "${asset_chmod_permission}" "${asset_firejailed_path}"
         daemon.log_verbose "Set permissions of bound asset: ${asset_firejailed_path} to ${asset_chmod_permission}"
       fi
     done
-    daemon.bind "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
+    daemon.fs_bind "${plugin_path}/plugin" "${firejailed_home_dir}/plugin"
     chmod +x "${firejailed_home_dir}/plugin"
     daemon.log_verbose "Made the plugin executable: ${firejailed_home_dir}/plugin"
     local plugin_config_file="${plugin_path}/solos.config.json"
@@ -978,7 +979,7 @@ daemon.run_in_firejail() {
       echo "{}" >"${plugin_config_file}"
       daemon.log_verbose "Initialized an empty config file: ${plugin_config_file}"
     fi
-    daemon.bind "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
+    daemon.fs_bind "${plugin_config_file}" "${firejailed_home_dir}/solos.config.json"
     if [[ -f ${daemon__frozen_manifest_file} ]]; then
       # TODO: make sure local plugins are included.
       if ! cp -a "${daemon__frozen_manifest_file}" "${firejailed_home_dir}/solos.manifest.json"; then
@@ -1082,13 +1083,13 @@ EOF
   if [[ -n ${merge_path} ]]; then
     for firejailed_home_dir in "${firejailed_home_dirs[@]}"; do
       local plugin_name="${plugin_names[${i}]}"
-      local host_asset="$(daemon.get_bind_source "${firejailed_home_dir}${merge_path}")"
+      local host_asset="$(daemon.fs_bind_source "${firejailed_home_dir}${merge_path}")"
       host_assets+=("${host_asset}")
       daemon.log_verbose "A host asset was updated: ${host_asset}"
       i=$((i + 1))
     done
   fi
-  if ! daemon.unbind_all; then
+  if ! daemon.fs_unbind_all; then
     daemon.log_error "Failed to unbind all firejailed directories."
     return_code="1"
   fi
@@ -1588,7 +1589,7 @@ daemon.loop() {
       sleep 20
       continue
     fi
-    if ! daemon.unbind_all; then
+    if ! daemon.fs_unbind_all; then
       daemon.log_error "Failed to unbind all firejailed directories."
       sleep 20
       continue
