@@ -10,11 +10,15 @@ host__store_dir="${host__data_dir}/store"
 host__hide_log_output=false
 host__cli_data_dir="${host__data_dir}/cli"
 host__log_file="${host__cli_data_dir}/master.log"
-host__force_rebuild="${SUPPRESS_DOCKER_OUTPUT:-true}"
-host__last_src_hash="$(cat "$(lib.last_container_hash_path)" 2>/dev/null || echo "")"
-host__curr_src_hash="$(git -C "${HOME}/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
-if [[ ${host__force_rebuild} = true ]] && [[ ${host__curr_src_hash} != "${host__last_src_hash}" ]]; then
-  host__force_rebuild=false
+host__force_rebuild=false
+host__curr_checked_out_project="$(lib.checked_out_project)"
+host__last_built_project_file="${host__data_dir}/cli/last_built_project"
+host__last_built_project="$(cat "${host__data_dir}/cli/last_built_project" 2>/dev/null || echo "")"
+if [[ ${host__last_built_project} != "${host__curr_checked_out_project}" ]]; then
+  host__force_rebuild=true
+fi
+if ! docker exec solos-project echo "" >/dev/null 2>&1; then
+  host__force_rebuild=true
 fi
 if [[ ${2} = "ide" ]]; then
   host__hide_log_output=true
@@ -33,7 +37,7 @@ host.log_warn() {
   local msg="(CLI:HOST) ${1}"
   echo "WARN ${msg}" >>"${host__log_file}"
   if [[ ${host__hide_log_output} = false ]]; then
-    echo -e "\033[1;33mINFO \033[0m${msg}" >&2
+    echo -e "\033[1;33mWARN \033[0m${msg}" >&2
   fi
 }
 host.log_error() {
@@ -46,30 +50,15 @@ host.log_error() {
 host.build_image() {
   local dockerfile_path="${1}"
   local docker_image_name="${2}"
-  local shared_args="-t ${docker_image_name} -f ${dockerfile_path} ."
-  local suppressed_args="-q"
-  local unsuppressed_args="--no-cache"
-  local args=""
-  if [[ ${host__force_rebuild} = true ]]; then
-    args="${suppressed_args} ${shared_args}"
-  else
-    args="${unsuppressed_args} ${shared_args}"
-  fi
-  if [[ ${host__force_rebuild} = false ]]; then
-    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
-  fi
-  if ! echo "${args}" | xargs docker build >/dev/null; then
+  echo -e "\033[1;32mBuilding docker image: ${docker_image_name} from ${dockerfile_path}\033[0m" >&2
+  printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
+  if ! docker build -t "${docker_image_name}" -f "${dockerfile_path}" . >/dev/null; then
     host.log_error "Failed to build the docker image: ${docker_image_name}."
     lib.enter_to_exit
   fi
-  if [[ ${host__force_rebuild} = false ]]; then
-    printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
-  fi
+  printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -
 }
 host.build() {
-  if [[ ${host__force_rebuild} = false ]]; then
-    host.log_info "Rebuilding the docker environment."
-  fi
   local image_names=($(docker ps -a --format '{{.Image}}' | xargs))
   for image_name in "${image_names[@]}"; do
     if [[ ${image_name} = "solos:"* ]] || [[ ${image_name} = "solos-project:"* ]]; then
@@ -91,10 +80,9 @@ host.build() {
     host.log_error "A file called .solos was detected in your home directory."
     lib.enter_to_exit
   fi
-  local checked_out_project="$(lib.checked_out_project)"
-  local docker_project_image="solos-project:${checked_out_project}"
+  local docker_project_image="solos-project:${host__curr_checked_out_project}"
   local default_project_dockerfile="${host__repo_dir}/src/Dockerfile.project"
-  local checked_out_project_dockerfile="${HOME}/.solos/projects/${checked_out_project}/Dockerfile"
+  local checked_out_project_dockerfile="${HOME}/.solos/projects/${host__curr_checked_out_project}/Dockerfile"
   local project_dockerfile=""
   if [[ -f ${checked_out_project_dockerfile} ]]; then
     project_dockerfile="${checked_out_project_dockerfile}"
@@ -120,7 +108,7 @@ host.build() {
     host.log_info "Created the store directory at ${host__store_dir}"
   fi
   echo "${HOME}" >"${host__store_dir}/users_home_dir"
-  echo "${host__curr_src_hash}" >"$(lib.last_container_hash_path)"
+  echo "${host__curr_checked_out_project}" >"${host__last_built_project_file}"
   host.log_info "Built docker image - ${docker_project_image}"
   if ! docker run \
     -d \
@@ -144,7 +132,7 @@ host.build() {
   host.log_info "Started the daemon."
 }
 host.shell() {
-  if ! docker exec solos-project echo "" >/dev/null 2>&1; then
+  if [[ ${host__force_rebuild} = true ]]; then
     if ! host.build; then
       host.log_error "Failed to rebuild the SolOS container."
       lib.enter_to_exit
@@ -181,10 +169,10 @@ host.shell() {
   fi
 }
 host.cmd() {
-  if ! docker exec solos-project echo "" >/dev/null 2>&1; then
+  if [[ ${host__force_rebuild} = true ]]; then
     if ! host.build; then
       host.log_error "Failed to rebuild the SolOS container."
-      exit 1
+      lib.enter_to_exit
     fi
   fi
   local is_help=false

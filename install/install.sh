@@ -131,7 +131,7 @@ install.log_info "Made ${USR_BIN_FILE} executable." >&2
 # Run the dev mode setup script, which will add some reasonable starter folders, files, and scripts.
 if [[ ${DEV_MODE} = true ]]; then
   install.log_info "Dev mode is ON - seeding the \$HOME/.solos directory." >&2
-  export SUPPRESS_DOCKER_OUTPUT=false
+  export FORCE_REBUILD=false
   if ! "${DEV_MODE_SETUP_SCRIPT}" >/dev/null; then
     install.log_error "Failed to run SolOS dev-mode setup script." >&2
     exit 1
@@ -140,7 +140,7 @@ if [[ ${DEV_MODE} = true ]]; then
   fi
 else
   install.log_info "Dev mode is OFF - setting up a non-dev installation." >&2
-  export SUPPRESS_DOCKER_OUTPUT=true
+  export FORCE_REBUILD=true
 fi
 # Confirms that the symlink worked AND that our container will build, run, and accept commands.
 if ! solos --noop; then
