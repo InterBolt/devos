@@ -102,12 +102,17 @@ app.list() {
   local checked_out_project="$(lib.checked_out_project)"
   local apps_dir="${HOME}/.solos/projects/${checked_out_project}/apps"
   local app_dirs=($(find "${apps_dir}" -maxdepth 1 -type d | xargs))
+  local count=0
   for app_dir in "${app_dirs[@]}"; do
     if [[ ${app_dir} = "${apps_dir}" ]]; then
       continue
     fi
     echo "${app_dir}"
+    count=$((count + 1))
   done
+  if [[ ${count} -eq 0 ]]; then
+    shell.log_warn "No apps found."
+  fi
 }
 app.cmd() {
   if [[ $# -eq 0 ]]; then
