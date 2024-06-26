@@ -78,17 +78,20 @@ plugins.cmd() {
         return 1
       fi
       local tmp_plugin_dir="$(mktemp -d)"
+      local tmp_code_workspace_file="$(mktemp)"
+      local host_plugin_path="$(lib.use_host "${plugin_path}")"
+      if ! jq \
+        --arg app_name "${arg_plugin_name}" \
+        '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${host_plugin_path}"'", "profile": "shell" }] + .' \
+        "${code_workspace_file}" \
+        >"${tmp_code_workspace_file}"; then
+        shell.log_error "Failed to update the code workspace file: ${code_workspace_file}"
+        return 1
+      fi
       if ! mkdir "${plugin_path}"; then
         shell.log_error "Failed to create plugin directory at: ${plugin_path}"
         return 1
       fi
-      local tmp_code_workspace_file="$(mktemp)"
-      local host_plugin_path="$(lib.use_host "${plugin_path}")"
-      jq \
-        --arg app_name "${arg_plugin_name}" \
-        '.folders |= [{ "name": "plugin.'"${arg_plugin_name}"'", "uri": "'"${host_plugin_path}"'", "profile": "shell" }] + .' \
-        "${code_workspace_file}" \
-        >"${tmp_code_workspace_file}"
       local precheck_plugin_path="${HOME}/.solos/repo/src/daemon/plugins/precheck/plugin"
       if ! cp "${precheck_plugin_path}" "${tmp_plugin_dir}/plugin"; then
         shell.log_error "Failed to copy the precheck plugin to the plugin directory."
@@ -164,7 +167,7 @@ EOF
       fi
     done
     if [[ ${plugin_found_in_manifest} = false ]]; then
-      shell.log_warn "Plugin: ${arg_plugin_name} is not a remote plugin. Manual action required:"
+      shell.log_warn "Plugin: ${arg_plugin_name} is a locally managed plugin. Manual action required:"
       local full_line="$(printf '%*s\n' "${COLUMNS:-$(tput cols)}" '' | tr ' ' -)"
       cat <<EOF
 INSTRUCTIONS:

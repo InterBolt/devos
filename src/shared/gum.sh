@@ -65,6 +65,25 @@ gum.github_email() {
 gum.github_name() {
   gum input --placeholder "Enter Github username:"
 }
+gum.optional_github_repo() {
+  local stdout_file="$(mktemp)"
+  if ! gum input --placeholder "Enter remote repo (optional):" >"${stdout_file}"; then
+    echo "SOLOS:EXIT:1"
+  fi
+  cat "${stdout_file}"
+}
+gum.type_to_confirm() {
+  local target_input="$1"
+  local stdout_file="$(mktemp)"
+  if ! gum input --placeholder "Type \"${target_input}\" to confirm:" >"${stdout_file}"; then
+    return 1
+  fi
+  local captured="$(cat "${stdout_file}")"
+  if [[ ${captured} != "${target_input}" ]]; then
+    return 1
+  fi
+  return 0
+}
 gum.confirm_retry() {
   local project_name="$1"
   local project_app="$2"
