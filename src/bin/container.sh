@@ -22,17 +22,17 @@ container__users_home_dir=$(cat "${container__users_home_dir_store_file}" || ech
 cd "${container__solos_dir}"
 
 # Make sure we can access the logger functions.
-. "${container__solos_dir}/repo/src/shared/log.sh" || exit 1
+. "${container__solos_dir}/repo/src/shared/log.container.sh" || exit 1
 log.use "${container__log_file}"
 
 container.log_info() {
-  log.info "(CLI) ${1}"
+  log.info "(CLI:CONTAINER) ${1}"
 }
 container.log_warn() {
-  log.warn "(CLI) ${1}"
+  log.warn "(CLI:CONTAINER) ${1}"
 }
 container.log_error() {
-  log.error "(CLI) ${1}"
+  log.error "(CLI:CONTAINER) ${1}"
 }
 
 # Help/usage stuff.
@@ -43,12 +43,12 @@ USAGE: solos <project_name>
 DESCRIPTION:
 
 A host-only command to create/checkout a SolOS project via VSCode. \
-On the first use, a project name is required.
+On the first use, a project name is required. Subsequent uses will re-use the last project name.
 
 NOTES:
 
-(1) Cannot be used inside a SolOS shell, because the shell does not run on the host.
-(2) Running \`solos ...\` on the host while  SolOS shell is currently open will result in an error.
+- Can only run on your host machine. As a result, it is not available in the SolOS shell, which is a containerized environment.
+- Cannot use this command while another SolOS shell is active.
 
 EOF
 }

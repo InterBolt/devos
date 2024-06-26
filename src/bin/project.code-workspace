@@ -34,11 +34,11 @@
     "terminal.integrated.profiles.osx": {
       "shell": {
         "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell", "${workspaceFolder}"]
+        "args": ["shell", "ide"]
       },
       "shell-minimal": {
         "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell-minimal", "${workspaceFolder}"]
+        "args": ["shell-minimal", "ide"]
       },
       "zsh": null,
       "fish": null,

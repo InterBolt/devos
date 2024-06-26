@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.universal.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.container.sh" || exit 1
 
 daemon__verbose=false
 daemon__pid=$$

@@ -8,6 +8,7 @@ track__base_dir="${HOME}/.solos/data/track"
 track__config_dir="${track__base_dir}/config"
 track__std_dir="${track__base_dir}/std"
 track__prev_history_count="$(track.get_history_count)"
+track__trap_gate_open="t"
 
 mkdir -p "${track__base_dir}"
 
@@ -26,15 +27,15 @@ valid options will be eval'd.
 
 OPTIONS:
 
--n               Note only. Will not prompt for a tag.
--t               Tag only. Will not prompt for a note.
--c               Command only. Will not prompt for a tag or note.
+-n         Note only. Will not prompt for a tag.
+-t         Tag only. Will not prompt for a note.
+-c         Command only. Will not prompt for a tag or note.
 
 NOTES:
 
-(1) All tracked outputs, notes, and other metadatas are saved within ${track__base_dir/\/root\//~\/}.
-(2) SolOS uses the \`track\` command internally to track all entered prompts and their outputs. To turn this off, prefix your prompt with a hyphen likeso: "- <prompt>". Ex: "- ls | grep foo | less".
-(3) The \`track\` command should not be used within scripts.
+- All tracked outputs, notes, and other metadatas are saved within ${track__base_dir/\/root\//~\/}.
+- SolOS uses the \`track\` command internally to track all entered prompts and their outputs. To turn this off, prefix your prompt with a hyphen likeso: "- <prompt>". Ex: "- ls | grep foo | less".
+- The \`track\` command should not be used within scripts.
 
 EOF
 }
@@ -323,10 +324,6 @@ track.install() {
   # Make sure that if the user messes with the PROMPT_COMMAND or debug trap that we
   # fail in an obvious way. If they need these things, the best path forward is to
   # not install the SolOS shell. Not great, but it's the best we can do.
-  if [[ -n ${PROMPT_COMMAND} ]]; then
-    echo "PROMPT_COMMAND is already set. Will not track command outputs." >&2
-    return 1
-  fi
   if [[ "$(trap -p DEBUG)" != "" ]]; then
     echo "DEBUG trap is already set. Will not track command outputs." >&2
     return 1

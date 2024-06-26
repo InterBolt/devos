@@ -52,8 +52,8 @@ foreground  - Run the daemon in the foreground.
 
 NOTES:
 
-(1) The --verbose flag can be supplied after the \`foreground\` and \`reload\` commands to \
-enable verbose logging from the daemon process.
+- The --verbose flag can be supplied after the \`foreground\` and \`reload\` commands to \
+enable verbose logging from the daemon process. Eg. \`daemon foreground --verbose\`.
 
 EOF
 }
@@ -84,9 +84,9 @@ daemon.cmd() {
       return 1
     fi
     cat <<EOF
-Daemon status: ${status}
-Daemon PID: ${pid}
-Daemon logfile: ${daemon__log_file/\/root\//${shell__users_home_dir}\/}
+Status: ${status}
+PID: ${pid}
+Logs: ${daemon__log_file/\/root\//${shell__users_home_dir}\/}
 EOF
     return 0
   fi
@@ -141,9 +141,8 @@ EOF
     if [[ ${exit_code} -ne 0 ]]; then
       return "${exit_code}"
     fi
-    local repo_commit="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
-    local args=(-i -w "${container_ctx}" "${repo_commit}")
+    local args=(-i -w "${container_ctx}" "base")
     local bash_args=(-c 'nohup '"${daemon__mounted_script}"' '"${daemon_args[@]}"' >/dev/null 2>&1 &')
     if ! docker exec "${args[@]}" /bin/bash "${bash_args[@]}"; then
       shell.log_error "Failed to reload the daemon process."
@@ -169,9 +168,8 @@ EOF
       return "${exit_code}"
     fi
     shell.log_info "Starting the daemon process in the foreground."
-    local repo_commit="$(git -C "/root/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
     local container_ctx="/root/.solos"
-    local docker_exec_args=(-it -w "${container_ctx}" "${repo_commit}")
+    local docker_exec_args=(-it -w "${container_ctx}" "base")
     local bash_args=(-i -c ''"${daemon__mounted_script}"' '"${daemon_args[@]}"'')
     docker exec "${docker_exec_args[@]}" /bin/bash "${bash_args[@]}"
     local daemon_exit_code="$?"

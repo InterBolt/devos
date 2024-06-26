@@ -35,9 +35,9 @@ list - List all functions in the ${lifecycle} list.
 
 NOTES:
 
-(1) When an entered shell prompt matches one of [$(shell.blacklist_cmds)], \
+- When an entered shell prompt matches one of [$(shell.blacklist_cmds)], \
 the ${lifecycle} functions will not run.
-(2) The ${lifecycle} functions will run in the order they are added.
+- The ${lifecycle} functions will run in the order they are added.
 
 EOF
 }
@@ -45,11 +45,9 @@ execs.already_exists() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    shell.log_warn "The preexec fn: '${fn}' already exists in user_preexecs. Nothing to add."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    shell.log_warn "The postexec fn: '${fn}' already exists in user_postexecs. Nothing to add."
     return 0
   fi
   return 1
@@ -58,11 +56,9 @@ execs.doesnt_exist() {
   local lifecycle="${1}"
   local fn="${2}"
   if [[ ${lifecycle} = "preexec" ]] && [[ ! " ${user_preexecs[@]} " =~ " ${fn} " ]]; then
-    shell.log_warn "The preexec fn: '${fn}' not found in user_preexecs. Nothing to remove."
     return 0
   fi
   if [[ ${lifecycle} = "postexec" ]] && [[ ! " ${user_postexecs[@]} " =~ " ${fn} " ]]; then
-    shell.log_warn "The postexec fn: '${fn}' not found in user_postexecs. Nothing to remove."
     return 0
   fi
   return 1
@@ -108,11 +104,18 @@ execs.cmd() {
       shell.log_error "Invalid usage: missing function name"
       return 1
     fi
-    if execs.doesnt_exist "${fn}"; then
-      shell.log_error "Nothing to remove - '${fn}' does not exist in user_${lifecycle}s."
+    if execs.doesnt_exist "${lifecycle}" "${fn}"; then
+      shell.log_warn "'${fn}' does not exist in user_${lifecycle}s."
       return 1
     fi
-    eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
+    if [[ ${lifecycle} = "preexec" ]]; then
+      user_preexecs=("${user_preexecs[@]/$fn/}")
+      shell.log_info "Removed ${fn} from preexecs."
+    fi
+    if [[ ${lifecycle} = "postexec" ]]; then
+      user_postexecs=("${user_postexecs[@]/$fn/}")
+      shell.log_info "Removed ${fn} from postexecs."
+    fi
     return 0
   fi
   if [[ ${cmd} = "add" ]]; then
@@ -120,11 +123,18 @@ execs.cmd() {
       shell.log_error "Invalid usage: missing function name"
       return 1
     fi
-    if execs.already_exists "${fn}"; then
-      shell.log_error "Nothing to add - '${fn}' already exists in user_${lifecycle}s."
+    if execs.already_exists "${lifecycle}" "${fn}"; then
+      shell.log_warn "'${fn}' already exists in user_${lifecycle}s."
       return 1
     fi
-    eval "user_${lifecycle}s=(\"${lifecycle}s[@]/${fn}/\")"
+    if [[ ${lifecycle} = "preexec" ]]; then
+      user_preexecs+=("${fn}")
+      shell.log_info "Added ${fn} to preexecs."
+    fi
+    if [[ ${lifecycle} = "postexec" ]]; then
+      user_postexecs+=("${fn}")
+      shell.log_info "Added ${fn} to postexecs."
+    fi
     return 0
   fi
   shell.log_error "Invalid usage: unknown command: ${cmd} supplied to \`${lifecycle}\`."

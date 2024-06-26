@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-info__docker_image="solos:$(git -C "${HOME}/.solos/repo" rev-parse --short HEAD | cut -c1-7 || echo "")"
-
 info.extract_usage_description() {
   local help_output=$(cat)
   if [[ -z ${help_output} ]]; then
@@ -110,7 +108,8 @@ $(
       preexec "$(preexec --help | info.extract_usage_description)" \
       postexec "$(postexec --help | info.extract_usage_description)" \
       reload "$(reload --help | info.extract_usage_description)" \
-      panics "$(panics --help | info.extract_usage_description)"
+      panics "$(panics --help | info.extract_usage_description)" \
+      github "$(github --help | info.extract_usage_description)"
   )
 
 ${user_plugins_sections}
@@ -119,7 +118,7 @@ $(
     info.table_format \
       "ABOUT THIS SHELL:" \
       "About" "An interactive Bash session running inside of a docker container." \
-      "Docker Image" "${info__docker_image}" \
+      "Docker Image" "solos:solos" \
       "Mounted Volume" "~/.solos" \
       "Bash Version" "${BASH_VERSION}" \
       "Distro" "Debian 12" \

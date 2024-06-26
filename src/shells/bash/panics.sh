@@ -46,9 +46,9 @@ mute         - Mute the panic messages.
 
 NOTES:
 
-(1) Not all panic files will clear on their own, which is why the \`clear\` command exists. \
+- Not all panic files will clear on their own, which is why the \`clear\` command exists. \
 This is by design to force the user/dev to review and (hopefully) fix the issue that caused the panic.
-(2) Panics are NEVER intended to occur and should be reported here: https://github.com/interbolt/solos/issues.
+- Panics are NEVER intended to occur and should be reported here: https://github.com/interbolt/solos/issues.
 
 EOF
 }

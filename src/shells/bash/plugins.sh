@@ -20,10 +20,10 @@ remove <name>    - Remove a plugin from the SolOS. To prevent accidental code lo
 
 NOTES:
 
-(1) Plugins are controlled by a manifest file at: ${plugins__manifest_file}.
-(2) An added plugin will not start running until the current set of plugins have completed all their phases. And a removed plugin will complete any remaining phases before being removed.
-(3) Plugins are run in the order they are added to the manifest file.
-(4) Local plugins are stored at: ${plugins__dir}.
+- Plugins are controlled by a manifest file at: ${plugins__manifest_file}.
+- An added plugin will not start running until the current set of plugins have completed all their phases. And a removed plugin will complete any remaining phases before being removed.
+- Plugins are run in the order they are added to the manifest file.
+- Local plugins are stored at: ${plugins__dir}.
 
 EOF
 }
@@ -119,7 +119,7 @@ INSTRUCTIONS:
 ${full_line}
 1. Review the plugin script at ${plugin_path}/plugin to understand how each plugin phase works. \
 This script is a copy of the default precheck plugin, which runs in between any two plugin lifecycles.
-2. Modify it or overwrite it with your own script.
+2. Modify it or overwrite it with your own script or executable.
 3. Review your new plugin's logs with \`daemon tail -f\`
 ${full_line}
 EOF

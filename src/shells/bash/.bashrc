@@ -6,16 +6,13 @@ shopt -s extdebug
 shopt -s histappend
 # Load this history file.
 history -r
-# Used for tracking stuff.
-shopt -s extdebug
 
-. "${HOME}/.solos/repo/src/shared/lib.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/log.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/gum.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/lib.universal.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.container.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/gum.container.sh" || exit 1
 
 log.use "${HOME}/.solos/data/shell/master.log"
 
-shell__pub_fns=""
 shell__users_home_dir="$(lib.home_dir_path)"
 
 shell.log_info() {
@@ -173,12 +170,16 @@ shell.public_install_solos() {
   track.install
 }
 
-shell__pub_fns=""
-shell__found_pub_fns=($(declare -F | grep -o "shell.public_[a-z_]*" | xargs))
-for found_pub_fn in "${shell__found_pub_fns[@]}"; do
-  pub_func_renamed="${found_pub_fn#"shell.public_"}"
-  eval "${pub_func_renamed}() { ${found_pub_fn} \"\$@\"; }"
-  eval "declare -g -r -f ${pub_func_renamed}"
-  eval "export -f ${pub_func_renamed}"
-  shell__pub_fns="${pub_func_renamed} ${shell__pub_fns}"
-done
+# Make functions starting with shell.public_* available as shell commands.
+shell.expose_public_commands() {
+  local found_pub_fns=($(declare -F | grep -o "shell.public_[a-z_]*" | xargs))
+  for found_pub_fn in "${found_pub_fns[@]}"; do
+    pub_func_renamed="${found_pub_fn#"shell.public_"}"
+    eval "${pub_func_renamed}() { ${found_pub_fn} \"\$@\"; }"
+    eval "declare -g -r -f ${pub_func_renamed}"
+    eval "export -f ${pub_func_renamed}"
+  done
+}
+
+shell.expose_public_commands
+PROMPT_COMMAND='shell.public_install_solos;'

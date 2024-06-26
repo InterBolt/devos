@@ -17,10 +17,7 @@ if [[ ! -f "${USER_MANAGED_BASHRC_FILE}" ]]; then
 
 . "\${HOME}/.solos/repo/src/shells/bash/.bashrc" "\$@"
 
-# Add your customizations to the SolOS shell.
-# Tip: type \`info\` in the shell to see what functions and aliases are available.
-
-install_solos
+# Add your customizations:
 EOF
 fi
 
