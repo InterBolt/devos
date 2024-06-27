@@ -29,37 +29,21 @@
   "settings": {
     "window.zoomLevel": -0.2,
     "terminal.integrated.defaultProfile.osx": "shell",
-    "terminal.integrated.defaultProfile.linux": "shell",
     "terminal.integrated.cwd": "${workspaceFolder}",
     "terminal.integrated.profiles.osx": {
       "shell": {
-        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell", "ide"]
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/host.sh",
+        "args": ["shell", "___container__project___", "ide"]
       },
       "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell-minimal", "ide"]
+        "path": "___container__users_home_dir___/.solos/repo/src/bin/host.sh",
+        "args": ["shell-minimal", "___container__project___", "ide"]
       },
       "zsh": null,
       "fish": null,
       "tmux": null,
       "pwsh": null
     },
-    "terminal.integrated.profiles.linux": {
-      "shell": {
-        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell"]
-      },
-      "shell-minimal": {
-        "path": "___container__users_home_dir___/.solos/repo/src/bin/bin.sh",
-        "args": ["shell-minimal"]
-      },
-      "zsh": null,
-      "fish": null,
-      "tmux": null,
-      "pwsh": null
-    },
-
     "[toml]": {
       "editor.formatOnSave": false
     },

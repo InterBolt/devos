@@ -39,12 +39,21 @@ container.log_error() {
 # Help/usage stuff.
 container.help() {
   cat <<EOF
-USAGE: solos <project_name>
+USAGE: solos COMMAND [PROJECT_NAME]
 
 DESCRIPTION:
 
-A host-only command to create/checkout a SolOS project via VSCode. \
-On the first use, a project name is required. Subsequent uses will re-use the last project name.
+A host-only command to manage SolOS projects.
+
+COMMANDS:
+
+- checkout         Builds and runs a container (if needed), then runs the checkout script for the project. 
+                   Ensures future commands don't need to explicitly specify the project name.
+- shell            Builds and runs a container (if needed), then connects to it via a Bash shell with the SolOS RC file loaded.
+- shell-minimal    Builds and runs a container (if needed), then connects to it via a Bash shell with no RC file.
+- vscode           Builds and runs a container (if needed), then launches the SolOS code-workspace file.
+- daemon:start     Builds and runs a container (if needed), then starts the SolOS daemon.
+- daemon:stop      Stops the SolOS daemon (if needed), but leaves the container unaffected.
 
 NOTES:
 
@@ -57,14 +66,9 @@ if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
   container.help
   exit 0
 fi
-
-# Support a flag to exit early. Useful for confirming that our dockerized CLI is
-# working as expected post-installation.
-for arg in "$@"; do
-  if [[ ${arg} = "--noop" ]]; then
-    exit 0
-  fi
-done
+if [[ ${1} = "noop" ]]; then
+  exit 0
+fi
 
 # If we detect that there was a shell at least 2 minutes ago, wait an extra few seconds and check again to be quite sure a shell is not active.
 container.disable_when_active_shell_exists() {

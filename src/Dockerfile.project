@@ -1,3 +1,13 @@
+# Some comment here
+
+# Another comment here
+
+#### Another comment
+
+
+
 FROM solos:latest
+
+# WHy COMMKLSMDF
 
 RUN echo "Hello from your project!" > /root/hello-solos.txt

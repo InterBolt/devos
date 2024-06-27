@@ -30,7 +30,7 @@ fi
 
 SOURCE_MIGRATIONS_DIR="${HOME}/.solos/repo/install/migrations"
 USR_BIN_FILE="/usr/local/bin/solos"
-SOURCE_BIN_FILE="${HOME}/.solos/repo/src/bin/bin.sh"
+SOURCE_BIN_FILE="${HOME}/.solos/repo/src/bin/host.sh"
 ORIGIN_REPO="https://github.com/InterBolt/solos.git"
 SOURCE_REPO="${ORIGIN_REPO}"
 TMP_DIR="$(mktemp -d 2>/dev/null)"
@@ -144,7 +144,7 @@ else
 fi
 
 # Confirms that the symlink worked AND that our container will build, run, and accept commands.
-if ! solos --noop; then
+if ! solos noop; then
   install.log_error "Failed to run SolOS cli after installing it." >&2
   exit 1
 fi
