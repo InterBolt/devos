@@ -19,6 +19,7 @@ daemon__precheck_plugin_path="${daemon__solos_plugins_dir}/precheck"
 daemon__users_home_dir="$(lib.home_dir_path)"
 daemon__pid_file="${daemon__daemon_data_dir}/pid"
 daemon__status_file="${daemon__daemon_data_dir}/status"
+daemon__last_active_at_file="${daemon__daemon_data_dir}/last_active_at"
 daemon__request_file="${daemon__daemon_data_dir}/request"
 daemon__running_checked_out_project_file="${daemon__daemon_data_dir}/running_checked_out_project"
 daemon__frozen_manifest_file="${daemon__daemon_data_dir}/frozen.manifest.json"
@@ -26,7 +27,7 @@ daemon__log_file="${daemon__daemon_data_dir}/master.log"
 daemon__prev_pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
 daemon__precheck_plugin_names=("precheck")
 daemon__checked_out_project="$(lib.checked_out_project)"
-daemon__checked_project_path="/root/.solos/projects/${daemon__checked_out_project}"
+daemon__checked_out_project_path="/root/.solos/projects/${daemon__checked_out_project}"
 daemon__tmp_data_dir="${daemon__daemon_data_dir}/tmp"
 daemon__blacklisted_exts=(
   "pem"
@@ -71,9 +72,9 @@ daemon__blacklisted_exts=(
 
 mkdir -p "${daemon__daemon_data_dir}"
 log.use "${daemon__log_file}"
-trap 'daemon.trap_exit' EXIT
+trap 'trap - SIGTERM && daemon.cleanup;' SIGTERM EXIT
 
-daemon.trap_exit() {
+daemon.cleanup() {
   if daemon.fs_unbind_all; then
     rm -rf "${daemon__tmp_data_dir}"
     daemon.log_info "Cleaned up the temporary data directory: ${daemon__tmp_data_dir}"
@@ -85,6 +86,7 @@ daemon.trap_exit() {
     daemon.log_info "Removed the daemon pid file: ${daemon__pid_file}"
   fi
   daemon.status "DOWN"
+  kill -9 "${daemon__pid}"
 }
 daemon.parse_args() {
   while [[ $# -gt 0 ]]; do
@@ -126,76 +128,52 @@ daemon.log_verbose() {
     log.info "${message}" "$@"
   fi
 }
-daemon.exit_conditions() {
-  # Exit if no active_shell file is found since this indicates something either went
-  # wrong, or the shell is no longer active.
-  if [[ ! -f ${daemon__cli_data_dir}/active_shell ]]; then
-    daemon.log_warn "Unexpected - no active shell file found. Exiting."
-    exit 1
-  fi
-
-  # No active shell file, no daemon.
-  local active_shell_timestamp="$(cat "${daemon__cli_data_dir}/active_shell" | head -n 1 | xargs)"
-  if [[ -z ${active_shell_timestamp} ]]; then
-    daemon.log_warn "No active shell file. Exiting."
-    exit 1
-  fi
-
-  # If the active shell file is more than 30 seconds old, exit.
-  # Note: If we quickly close, restart a shell without changing the project, we don't
-  # need to worry about duplicate daemons getting started up, because the presence of an "UP" status will force
-  # a rebuild of the docker container where this daemon is running, effectively killing the old daemon.
-  # All to say: this only really catches the case where the user closed the shell and then left the SolOS environment
-  # for a fairly long time.
-  local current_timestamp="$(date +%s)"
-  local time_diff=$((current_timestamp - active_shell_timestamp))
-  if [[ ${time_diff} -gt 30 ]]; then
-    daemon.log_warn "The active shell file is more than 30 seconds old. Exiting."
-    exit 1
-  fi
-
-  # This would indicate a pretty serious logic bug if the project doesn't exist in the filesystem.
-  # Best to get the fuck out of here when that happens.
-  if [[ ! -d ${daemon__checked_project_path} ]]; then
-    daemon.log_warn "Unexpected - the checked out project is no longer present in the filesystem. Exiting."
-    exit 1
-  fi
-
-  # If the checked out project has changed, exit.
-  if [[ ${daemon__checked_out_project} != "$(lib.checked_out_project)" ]]; then
-    daemon.log_warn "The checked out project has changed. Exiting."
-    exit 1
-  fi
-
-  # Handle kill requests from the user.
-  local requested_action=""
-  local requested_pid=""
-  if [[ -f ${daemon__request_file} ]]; then
-    local contents="$(cat "${daemon__request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
-    requested_action="$(echo "${contents}" | cut -d' ' -f2)"
-  fi
-  if [[ -n ${requested_action} ]] && [[ ${requested_pid} -eq ${daemon__pid} ]]; then
-    rm -f "${daemon__request_file}"
-    case "${requested_action}" in
-    "KILL")
-      daemon.log_verbose "Killing the daemon process."
-      exit 1
-      ;;
-    *)
-      daemon.log_error "Unknown user request ${request}"
-      ;;
-    esac
-  fi
+daemon.exit_listener() {
+  while true; do
+    local seconds_timestamp="$(date +%s)"
+    echo "${daemon__checked_out_project} ${seconds_timestamp}" >"${daemon__last_active_at_file}"
+    # This would indicate a pretty serious logic bug if the project doesn't exist in the filesystem.
+    # Best to get the fuck out of here when that happens.
+    if [[ ! -d ${daemon__checked_out_project_path} ]]; then
+      daemon.log_warn "Unexpected - the checked out project is no longer present in the filesystem. Exiting."
+      kill -SIGTERM "${daemon__pid}"
+    fi
+    # If the checked out project has changed, exit.
+    if [[ ${daemon__checked_out_project} != "$(lib.checked_out_project)" ]]; then
+      daemon.log_warn "The checked out project has changed. Exiting."
+      kill -SIGTERM "${daemon__pid}"
+    fi
+    # Handle requests from the user.
+    local requested_action=""
+    local requested_pid=""
+    if [[ -f ${daemon__request_file} ]]; then
+      local contents="$(cat "${daemon__request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+      requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
+      requested_action="$(echo "${contents}" | cut -d' ' -f2)"
+    fi
+    if [[ -n ${requested_action} ]] && [[ ${requested_pid} -eq ${daemon__pid} ]]; then
+      rm -f "${daemon__request_file}"
+      case "${requested_action}" in
+      "KILL")
+        daemon.log_verbose "Killing the daemon process."
+        kill -SIGTERM "${daemon__pid}"
+        ;;
+      *)
+        daemon.log_error "Unknown user request ${request}"
+        ;;
+      esac
+    fi
+    sleep 2
+  done
 }
-declare -A bind_store=()
+declare -A fs_bind_store=()
 daemon.fs_unbind() {
   local dest="${1}"
-  if [[ -z ${bind_store["${dest}"]} ]]; then
+  if [[ -z ${fs_bind_store["${dest}"]} ]]; then
     daemon.log_error "No bind source was found for: ${dest}"
     return 1
   fi
-  local src="${bind_store["${dest}"]}"
+  local src="${fs_bind_store["${dest}"]}"
   if [[ -f ${src} ]]; then
     if ! rm -f "${dest}"; then
       daemon.log_error "Failed to remove the hard link: ${src} ==> ${dest}"
@@ -208,14 +186,14 @@ daemon.fs_unbind() {
   else
     daemon.log_verbose "Umounted ${src} =/=> ${dest}"
   fi
-  if ! unset bind_store["${dest}"]; then
+  if ! unset fs_bind_store["${dest}"]; then
     daemon.log_error "Failed to unset the bind source for: ${dest}. This could result in a memory leak or dangling bind mounts and/or hard links."
     return 1
   fi
   daemon.log_verbose "Unset bind store destination: ${dest}"
 }
 daemon.fs_unbind_all() {
-  for dest in "${!bind_store[@]}"; do
+  for dest in "${!fs_bind_store[@]}"; do
     if ! daemon.fs_unbind "${dest}"; then
       return 1
     fi
@@ -253,12 +231,12 @@ daemon.fs_bind() {
   else
     daemon.log_verbose "Bind mount: ${src} ====> ${dest}"
   fi
-  bind_store["${dest}"]="${src}"
+  fs_bind_store["${dest}"]="${src}"
   daemon.log_verbose "Saved binding in memory: ${src} ====> ${dest}"
 }
 daemon.fs_bind_source() {
   local dest="${1}"
-  echo "${bind_store["${dest}"]}"
+  echo "${fs_bind_store["${dest}"]}"
 }
 daemon.mktemp_dir() {
   mkdir -p "${daemon__tmp_data_dir}"
@@ -352,8 +330,8 @@ daemon.project_found() {
     daemon.log_error "No project is checked out."
     return 1
   fi
-  if [[ ! -d ${daemon__checked_project_path} ]]; then
-    daemon.log_error "${daemon__checked_project_path} does not exist."
+  if [[ ! -d ${daemon__checked_out_project_path} ]]; then
+    daemon.log_error "${daemon__checked_out_project_path} does not exist."
     return 1
   fi
 }
@@ -374,11 +352,11 @@ daemon.create_scrub_copy() {
     return 1
   fi
   daemon.log_verbose "Initialized ${cp_tmp_dir}/projects/${daemon__checked_out_project}"
-  if ! cp -rfa "${daemon__checked_project_path}/." "${cp_tmp_dir}/projects/${daemon__checked_out_project}"; then
-    daemon.log_error "Failed to copy the project directory: ${daemon__checked_project_path} to: ${daemon__tmp_data_dir}/projects/${daemon__checked_out_project}"
+  if ! cp -rfa "${daemon__checked_out_project_path}/." "${cp_tmp_dir}/projects/${daemon__checked_out_project}"; then
+    daemon.log_error "Failed to copy the project directory: ${daemon__checked_out_project_path} to: ${daemon__tmp_data_dir}/projects/${daemon__checked_out_project}"
     return 1
   fi
-  daemon.log_verbose "Copied ${daemon__checked_project_path} to ${cp_tmp_dir}/projects/${daemon__checked_out_project}"
+  daemon.log_verbose "Copied ${daemon__checked_out_project_path} to ${cp_tmp_dir}/projects/${daemon__checked_out_project}"
   daemon.log_verbose "About to rsync the mounted .solos volume (without extraneous directories) to: ${cp_tmp_dir}"
   rsync \
     -aq \
@@ -1363,8 +1341,6 @@ daemon.publish_phase() {
   return "${return_code}"
 }
 daemon.plugin_runner() {
-  daemon.exit_conditions
-
   local plugins=($(echo "${1}" | xargs))
   local run_type="${2}"
 
@@ -1415,7 +1391,6 @@ daemon.plugin_runner() {
   else
     daemon.log_verbose "Re-using the scrubbed directory from the precheck plugins."
   fi
-  daemon.exit_conditions
   # Do the copying in the background while the first two phases: configure and download run.
   mkdir -p "${next_archive_dir}/scrubbed"
   cp -rfa "${daemon__scrubbed_dir}"/. "${next_archive_dir}/scrubbed"/ &
@@ -1450,7 +1425,6 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} configure phase ran successfully."
   fi
-  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # DOWNLOAD PHASE:
@@ -1480,7 +1454,6 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} download phase ran successfully."
   fi
-  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # PROCESSOR PHASE:
@@ -1516,7 +1489,6 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} process phase ran successfully."
   fi
-  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # CHUNK PHASE:
@@ -1547,7 +1519,6 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} chunk phase ran successfully."
   fi
-  daemon.exit_conditions
   # ------------------------------------------------------------------------------------
   #
   # PUBLISH PHASE:
@@ -1579,7 +1550,6 @@ daemon.plugin_runner() {
   else
     daemon.log_info "The ${run_type} publish phase ran successfully."
   fi
-  daemon.exit_conditions
 }
 daemon.loop() {
   local is_next_precheck=true
@@ -1662,4 +1632,5 @@ daemon() {
 }
 
 daemon.parse_args "$@"
+daemon.exit_listener &
 daemon

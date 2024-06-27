@@ -80,9 +80,9 @@ host.rebuild_is_necessary() {
   return 1
 }
 host.rebuild() {
-  # The project that we want to build a container for.
-  # Keep in mind that the project here does not need to be checked out in order for us to build it.
-  # Once the checkout happens, our `host.rebuild_is_necessary` function will ensure we run host.rebuild
+  # `next_project` is the project that we want to build a container for.
+  # `next_project` does not need to be checked out in order for us to build it.
+  # Once the checkout happens, our `host.rebuild_is_necessary` function will ensure we run `host.rebuild`
   # again, but this time with the generated project-specific dockerfile.
   local next_project="${1:-""}"
   if [[ -z ${next_project} ]]; then

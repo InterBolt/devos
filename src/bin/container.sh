@@ -58,7 +58,6 @@ COMMANDS:
 NOTES:
 
 - Can only run on your host machine. As a result, it is not available in the SolOS shell, which is a containerized environment.
-- Cannot use this command while another SolOS shell is active.
 
 EOF
 }
@@ -68,27 +67,6 @@ if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
 fi
 if [[ ${1} = "noop" ]]; then
   exit 0
-fi
-
-# If we detect that there was a shell at least 2 minutes ago, wait an extra few seconds and check again to be quite sure a shell is not active.
-container.disable_when_active_shell_exists() {
-  local active_shell_file="${container__cli_data_dir}/active_shell"
-  local curr_seconds="$(date +%s)"
-  local is_retry="${1:-""}"
-  local active_shell_seconds="$(cat "${active_shell_file}" 2>/dev/null || echo "0" | head -n 1 | xargs)"
-  if [[ ${active_shell_seconds} -gt $((curr_seconds - 8)) ]]; then
-    if [[ ${is_retry} = "is_retry" ]]; then
-      container.log_error "You must exit any open SolOS shells before running this command."
-      exit 1
-    else
-      container.log_warn "A SolOS shell is active. Waiting a few seconds before checking again."
-      sleep 6
-      return 1
-    fi
-  fi
-}
-if ! container.disable_when_active_shell_exists; then
-  container.disable_when_active_shell_exists "is_retry"
 fi
 
 # Grab the project name from either the first argument, or the checked out project store file.
