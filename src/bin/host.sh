@@ -1,12 +1,26 @@
 #!/usr/bin/env bash
 
+##
+## ENV VARS
+##
+
 export DOCKER_CLI_HINTS=false
 
+##
+## LIBS
+##
+
 . "${HOME}/.solos/repo/src/shared/lib.universal.sh" || exit 1
+
+##
+## GLOBAL VARIABLES
+##
 
 # Base directories.
 host__solos_repo_dir="${HOME}/.solos/repo"
 host__solos_data_dir="${HOME}/.solos/data"
+# RC files:
+host__user_bashrc_file="${HOME}/.solos/rcfiles/.bashrc"
 # Docker stuff.
 host__base_dockerfile="${host__solos_repo_dir}/src/Dockerfile"
 host__project_fallback_dockerfile="${host__solos_repo_dir}/src/Dockerfile.project"
@@ -24,6 +38,8 @@ host__data_cli_dir_built_project_file="${host__solos_data_dir}/cli/built_project
 host__data_cli_dir_built_project_from_dockerfile_file="${host__solos_data_dir}/cli/built_project_from"
 host__data_daemon_last_active_at_file="${host__solos_data_dir}/daemon/last_active_at"
 host__data_daemon_master_log_file="${host__solos_data_dir}/daemon/master.log"
+host__data_daemon_request_file="${host__daemon_data_dir}/request"
+host__data_daemon_status_file="${host__daemon_data_dir}/status"
 
 ##
 ## LOGGING
@@ -32,50 +48,39 @@ host__data_daemon_master_log_file="${host__solos_data_dir}/daemon/master.log"
 mkdir -p "$(dirname "${host__data_cli_dir_master_log_file}")"
 touch "${host__data_cli_dir_master_log_file}"
 host.log_info() {
-  local msg="(CLI:HOST) ${1}"
+  local filename="$(caller | cut -f 2 -d " ")"
+  local linenumber="$(caller | cut -f 1 -d " ")"
+  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
   echo "INFO ${msg}" >>"${host__data_cli_dir_master_log_file}"
   echo -e "\033[1;32mINFO \033[0m${msg}" >&2
 }
 host.log_warn() {
-  local msg="(CLI:HOST) ${1}"
+  local filename="$(caller | cut -f 2 -d " ")"
+  local linenumber="$(caller | cut -f 1 -d " ")"
+  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
   echo "WARN ${msg}" >>"${host__data_cli_dir_master_log_file}"
   echo -e "\033[1;33mWARN \033[0m${msg}" >&2
 }
 host.log_error() {
-  local msg="(CLI:HOST) ${1}"
+  local filename="$(caller | cut -f 2 -d " ")"
+  local linenumber="$(caller | cut -f 1 -d " ")"
+  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
   echo "ERROR ${msg}" >>"${host__data_cli_dir_master_log_file}"
   echo -e "\033[1;31mERROR \033[0m${msg}" >&2
 }
 
 ##
-## UTILITIES
+## UTILS
 ##
 
-# Enforce some assumptions around what project names can/cannot used.
-host.is_invalid_project_name() {
-  local target_project="${1:-""}"
-  if [[ -z ${target_project} ]]; then
-    host.log_error "Project name cannot be empty."
-    return 0
-  fi
-  if [[ ${target_project} = "${host__fallback_project_docker_container}" ]]; then
-    host.log_error "The project name \`${target_project}\` is reserved in SolOS."
-    return 0
-  fi
-  local reserved_names="shell shell-minimal checkout vscode daemon daemon:start daemon:stop"
-  for reserved_name in ${reserved_names}; do
-    if [[ ${target_project} = "${reserved_name}" ]]; then
-      host.log_error "The project name \`${target_project}\` is reserved in SolOS."
-      return 0
-    fi
-  done
-  if [[ ! ${target_project} =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
-    host.log_error "Project name must start with a letter and contain only letters, numbers, and underscores."
-    return 0
-  fi
-  return 1
+host.get_project_dockerfile() {
+  local target_project="${1}"
+  echo "${HOME}/.solos/projects/${target_project}/Dockerfile"
 }
-
+host.get_project_vscode_workspace_file() {
+  local target_project="${1}"
+  echo "${HOME}/.solos/projects/${target_project}/.vscode/${target_project}.code-workspace"
+}
 # We want rebuilds to happen under the following conditions:
 # 1) The user has never built a project before.
 # 2) The project is different from the one that was last built.
@@ -84,7 +89,7 @@ host.is_invalid_project_name() {
 host.is_rebuild_necessary() {
   local checked_out_project="$(lib.checked_out_project)"
   local target_project="${1:-"${checked_out_project}"}"
-  local target_project_dockerfile="${HOME}/.solos/projects/${target_project}/Dockerfile"
+  local target_project_dockerfile="$(host.get_project_dockerfile)"
   if [[ ! -f ${target_project_dockerfile} ]]; then
     target_project_dockerfile="${host__project_fallback_dockerfile}"
   fi
@@ -103,8 +108,7 @@ host.is_rebuild_necessary() {
   fi
   return 1
 }
-
-# Outline:
+# Steps:
 # - destroy existing containers and images.
 # - mark the daemon as inactive.
 # - determine which dockerfile to use for the project (the custom one or the default one).
@@ -115,15 +119,11 @@ host.is_rebuild_necessary() {
 # - save the user's home directory to a file.
 # - start the project container.
 # - wait for the container to be ready.
-host.rebuild() {
+host.build() {
   # `target_project` is the project that we want to build a container for.
   # `target_project` does not need to be checked out in order for us to build it.
   # Once the checkout happens, other logic will determine if a rebuild is necessary.
-  local target_project="${1:-""}"
-  if [[ -z ${target_project} ]]; then
-    host.log_error "Unexpected - cannot build a project container without specifying a project name."
-    return 1
-  fi
+  local target_project="${1}"
 
   # Destroy everything.
   local image_names="$(docker ps -a --format '{{.Image}}' | xargs)"
@@ -146,13 +146,12 @@ host.rebuild() {
       fi
     fi
   done
-
-  # Mark the daemon as inactive.
-  rm -f "${host__data_daemon_last_active_at_file}"
-  host.log_info "Daemon was marked as inactive."
-
+  if ! rm -f "${host__data_daemon_last_active_at_file}"; then
+    host.log_error "Failed to mark the daemon as inactive."
+    return 1
+  fi
   # Only projects that were checked out will have a custom Dockerfile.
-  local target_project_dockerfile="${HOME}/.solos/projects/${target_project}/Dockerfile"
+  local target_project_dockerfile="$(host.get_project_dockerfile)"
   local project_dockerfile=""
   if [[ -f ${target_project_dockerfile} ]]; then
     project_dockerfile="${target_project_dockerfile}"
@@ -214,94 +213,17 @@ host.rebuild() {
   done
   host.log_info "The SolOS container is ready."
 }
-
-# TODO: describe
-host.checkout() {
+# Will check to see if the daemon is active. If a retry delay is supplied
+# as the third argument, it will wait that many seconds and then check again.
+# The activity tolerance is the number of seconds we tolerate the daemon not updating
+# the last_active_at file before we consider it inactive.
+host.is_daemon_active() {
   local target_project="${1}"
-  if host.is_invalid_project_name "${target_project}"; then
+  if [[ ${target_project} = "NONE" ]]; then
     return 1
   fi
-  local was_rebuilt=false
-  if host.is_rebuild_necessary "${target_project}"; then
-    if ! host.rebuild "${target_project}"; then
-      host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
-      return 1
-    fi
-    was_rebuilt=true
-  fi
-  if [[ ${was_rebuilt} = true ]]; then
-    if ! host.start_daemon "${target_project}"; then
-      host.log_error "Failed to start the daemon for project: ${target_project}"
-      return 1
-    fi
-  elif ! host.was_daemon_active_at "${target_project}" "15"; then
-    local curr_seconds="$(date +%s)"
-    host.log_info "The daemon appears to be inactive. Will check again in 5 seconds."
-    sleep 5
-    # Now, check to see if the daemon updated it's activity file while we slept.
-    if ! host.was_daemon_active_at "${target_project}" "6"; then
-      host.log_info "Still no activity from the daemon. Will attempt to start it."
-      if ! host.start_daemon "${target_project}"; then
-        host.log_error "Failed to start the daemon for project: ${target_project}"
-        if [[ ${was_rebuilt} = false ]]; then
-          if ! host.rebuild "${target_project}"; then
-            host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
-            return 1
-          fi
-        fi
-        return 1
-      fi
-    fi
-  fi
-
-  local checked_out_project="$(lib.checked_out_project)"
-  if [[ ${checked_out_project} = "${target_project}" ]]; then
-    return 0
-  fi
-  docker exec -it "${host__project_docker_container}" /bin/bash -c '"'"${host__containerized_bin_path}"'" "'"${target_project}"'"'
-  local container_exit_code="$?"
-  if [[ ${container_exit_code} -ne 0 ]]; then
-    host.log_error "Unexpected - the \`vscode\` command failed and exited with a non-zero exit code: ${container_exit_code}"
-    return "${container_exit_code}"
-  fi
-  checked_out_project="$(lib.checked_out_project)"
-  if [[ ${checked_out_project} != "${target_project}" ]]; then
-    host.log_error "Unexpected - the checked out project is not the one we expected: ${checked_out_project}"
-    return 1
-  else
-    if host.is_rebuild_necessary "${target_project}"; then
-      host.log_info "Rebuilding the Docker container based on a new Dockerfile generated during the checkout process: ${HOME}/.solos/projects/${target_project}/Dockerfile"
-      if ! host.rebuild "${target_project}"; then
-        host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
-        return 1
-      fi
-    fi
-    return 0
-  fi
-  host.log_error "Unexpected - something went wrong and the checked out project could not be determined."
-  return 1
-}
-
-# TODO: describe
-host.start_daemon() {
-  local target_project="${1}"
-  if ! docker exec "${host__project_docker_container}" echo "" >/dev/null 2>&1; then
-    host.log_error "The container is not running. Cannot start the daemon."
-    return 1
-  fi
-  if docker exec "${host__project_docker_container}" \
-    /bin/bash -c 'nohup "'"${host__containerized_daemon_path}"'" >/dev/null 2>&1 &' >/dev/null; then
-    echo "${target_project} $(date +%s)" >"${host__data_daemon_last_active_at_file}"
-    host.log_info "Started the daemon for project: ${target_project}"
-    return 0
-  fi
-  return 1
-}
-
-# TODO: describe
-host.was_daemon_active_at() {
-  local target_project="${1}"
-  local seconds_considered_active="${2:-10}"
+  local activity_tolerance="${2:-10}"
+  local retry_delay="${3:-"0"}"
   local last_active_at="$(cat "${host__data_daemon_last_active_at_file}" 2>/dev/null || echo "")"
   if [[ -z ${last_active_at} ]]; then
     return 1
@@ -311,16 +233,181 @@ host.was_daemon_active_at() {
   if [[ ${last_active_project} != "${target_project}" ]]; then
     return 1
   fi
+  local is_active=false
   local curr_seconds="$(date +%s)"
-  if [[ $((curr_seconds - last_active_seconds)) -lt "${seconds_considered_active}" ]]; then
+  if [[ $((curr_seconds - last_active_seconds)) -lt "${activity_tolerance}" ]]; then
+    if [[ ${retry_delay} -gt 0 ]]; then
+      sleep "${retry_delay}"
+      if host.is_daemon_active "${target_project}" "${activity_tolerance}"; then
+        is_active=true
+      fi
+    else
+      is_active=true
+    fi
+  fi
+  if [[ ${is_active} = true ]]; then
     return 0
   fi
   return 1
 }
+# This will take care of making sure the correct project is built and ready before
+# launching the daemon process within the container. For extra safety, if the daemon
+# fails to start on the first attempt, it will try to rebuild the container and start
+# the daemon again.
+host.start_daemon() {
+  local target_project="${1}"
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "You must specify a project name or have a project checked out to start the daemon."
+    return 1
+  fi
+  local activity_tolerance="${2:-"10"}"
+  local retry_delay="${3:-"5"}"
+  local attempts="${4:-"0"}"
+  attempts="$((attempts + 1))"
+  local max_attempts=2
+  if [[ ${attempts} -gt ${max_attempts} ]]; then
+    return 1
+  fi
+  if [[ ${attempts} -gt 1 ]]; then
+    host.log_info "Attempting to start the daemon for project: ${target_project} (attempt ${attempts})"
+  fi
+  local was_rebuilt=false
+  # Before we can ask if the daemon is active or not, we need to make
+  # sure the container we're using is valid, running, the right project, etc.
+  if host.is_rebuild_necessary "${target_project}"; then
+    if ! host.build "${target_project}"; then
+      host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
+      return 1
+    fi
+    was_rebuilt=true
+  fi
 
-host.shell_entry() {
+  # If we just rebuilt our container, there is no way the daemon is active.
+  if [[ ${was_rebuilt} = false ]]; then
+    if host.is_daemon_active "${target_project}" "${activity_tolerance}" "${retry_delay}"; then
+      return 0
+    fi
+  fi
+
+  # Mark the daemon as active by saving the project and seconds to the last_active file.
+  # This prevents any strange edge cases where another process is calling this function at the same time.
+  # We want to avoid ever accidentally starting the daemon twice.
+  if ! echo "${target_project} $(date +%s)" >"${host__data_daemon_last_active_at_file}"; then
+    host.log_error "Failed to mark the daemon as active."
+    return 1
+  fi
+  if ! docker exec "${host__project_docker_container}" \
+    /bin/bash -c 'nohup "'"${host__containerized_daemon_path}"'" >/dev/null 2>&1 &' >/dev/null; then
+    # If something fails here, it's almost certainly a problem with the container, environment, etc.
+    # Keeping with the mindset that our container should always be disposable, we'll try to rebuild it
+    # and start the daemon again.
+    if ! host.build "${target_project}"; then
+      host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
+      return 1
+    fi
+    # If the recursive attempt(s) fail, we give up and return an error code.
+    if ! host.start_daemon "${target_project}" "${retry_delay}" "${attempts}"; then
+      host.log_error "Failed to start the daemon for project: ${target_project}"
+      return 1
+    fi
+  fi
+  return 0
+}
+# This will ensure the project name supplied is valid and that if an empty name is supplied,
+# it will default to the previously checked out project. And if no project has been checked out,
+# it will default the project name to "NONE". "NONE" could just be an empty string, but the word "NONE"
+# makes the downstream code more explicit about the fact that no project was specified or checked out.
+host.acquire_target_project() {
+  local checked_out_project="$(lib.checked_out_project)"
+  local target_project="${1:-"${checked_out_project}"}"
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "The project name \`NONE\` is reserved in SolOS."
+    return 1
+  fi
+  if [[ -z ${target_project} ]]; then
+    target_project="NONE"
+  fi
+  if [[ ${target_project} = "${host__fallback_project_docker_container}" ]]; then
+    host.log_error "The project name \`${target_project}\` is reserved in SolOS."
+    return 1
+  fi
+  local solos_cmd_names="shell shell-minimal checkout vscode daemon:start daemon:stop"
+  for solos_cmd_name in ${solos_cmd_names}; do
+    if [[ ${target_project} = "${solos_cmd_name}" ]]; then
+      host.log_error "Cannot use the project name \`${target_project}\` as it conflicts with a SolOS command name."
+      return 1
+    fi
+  done
+  if [[ ! ${target_project} =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
+    host.log_error 'Project name must start with a letter and contain only letters, numbers, and underscores (^[a-zA-Z][a-zA-Z0-9_]*$).'
+    return 1
+  fi
+  if [[ ${target_project} = "${checked_out_project}" ]]; then
+    host.log_info "Using previously checked out project: ${target_project}"
+  fi
+  echo "${target_project}"
+}
+# This will perform a rebuild of the container if necessary, and then check out the project.
+# If we find that the checked out project stored in our filesystem is the same as the project
+# name supplied, we return early with a success code. And in either case, we start the daemon.
+host.checkout() {
+  local target_project="${1}"
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "You must specify a project name to check out a project."
+    return 1
+  fi
+  local was_rebuilt=false
+  if host.is_rebuild_necessary "${target_project}"; then
+    if ! host.build "${target_project}"; then
+      host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
+      return 1
+    fi
+    was_rebuilt=true
+  fi
+  local checked_out_project="$(lib.checked_out_project)"
+  if [[ ${checked_out_project} = "${target_project}" ]]; then
+    if ! host.start_daemon "${target_project}" "10" "0"; then
+      host.log_error "Failed to start the daemon for project: ${target_project}"
+      return 1
+    fi
+    return 0
+  fi
+  host.log_info "Checking out project: ${target_project}"
+  docker exec \
+    -it "${host__project_docker_container}" \
+    /bin/bash -c '"'"${host__containerized_bin_path}"'" "'"${target_project}"'"'
+  if [[ $? -ne 0 ]]; then
+    return 1
+  fi
+  local newly_checked_out_project="$(lib.checked_out_project)"
+  if [[ ${newly_checked_out_project} != "${target_project}" ]]; then
+    host.log_error "We expected the newly checked out project to equal: ${target_project} but got ${newly_checked_out_project} instead."
+    return 1
+  elif host.is_rebuild_necessary "${target_project}"; then
+    if ! host.build "${target_project}"; then
+      host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
+      return 1
+    fi
+  fi
+  if ! host.start_daemon "${target_project}" "10" "0"; then
+    host.log_error "Failed to start the daemon for project: ${target_project}"
+    return 1
+  fi
+  host.log_info "Successfully checked out project: ${target_project}"
+}
+
+##
+## ENTRY FUNCTIONS
+##
+
+# This will attempt to checkout the project specified and then start an interactive
+# Bash shell within the container. If a custom bashrc file is supplied, it will be used.
+# For now, the only custom RC file we use is the one we create for the user that auto
+# installs all the SolOS shell commands.
+host.entry_shell() {
   local target_project="${1:-""}"
-  if host.is_invalid_project_name "${target_project}"; then
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "You must specify a project name to start a shell."
     return 1
   fi
   local bashrc_file="${2:-""}"
@@ -330,12 +417,7 @@ host.shell_entry() {
   if [[ ${container_ctx} != "/root/.solos"* ]]; then
     container_ctx="/root/.solos"
   fi
-  if [[ -z ${target_project} ]]; then
-    host.log_error "Shells must be associated with a checked out project. No project name was supplied."
-    lib.enter_to_exit
-  fi
   if ! host.checkout "${target_project}"; then
-    host.log_error "Failed to check out project: ${target_project}"
     lib.enter_to_exit
   fi
   if [[ -n ${bashrc_file} ]]; then
@@ -353,69 +435,75 @@ host.shell_entry() {
     lib.enter_to_exit
   fi
 }
-host.bin_entry() {
+# This wraps the bin/container.sh script that we use to checkout projects. The build logic
+# allows the use of the "NONE" project name and will fallback to building a default dockerfile.
+# This is important so that we can access commands like --help or --noop before running project-specific
+# commands.
+host.entry_bin() {
   local target_project="${1}"
   local cmd="${2}"
-  if host.is_invalid_project_name "${target_project}"; then
-    return 1
-  fi
   if [[ -z ${cmd} ]]; then
     host.log_error "No command was supplied."
     return 1
   fi
   if host.is_rebuild_necessary "${target_project}"; then
-    if ! host.rebuild "${target_project}"; then
+    if ! host.build "${target_project}"; then
       host.log_error "Failed to rebuild the SolOS container for project: ${target_project}"
       return 1
     fi
   fi
   if [[ ${cmd} = "--help" ]] || [[ ${cmd} = "--noop" ]]; then
     docker exec -it "${host__project_docker_container}" /bin/bash -c '"'"${host__containerized_bin_path}"'" '"${cmd}"''
-    local container_exit_code="$?"
-    if [[ ${container_exit_code} -ne 0 ]]; then
-      return "${container_exit_code}"
+    if [[ $? -ne 0 ]]; then
+      return 1
     fi
     return 0
   fi
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "You must specify a project name or have a project checked out."
+    return 1
+  fi
   if [[ ${cmd} = "checkout" ]]; then
-    if host.checkout "${target_project}"; then
-      host.log_info "Checked out project: ${target_project}"
-      return 0
-    else
-      host.log_error "Failed to check out project: ${target_project}"
+    if ! host.checkout "${target_project}"; then
       return 1
     fi
+    return 0
   fi
   if [[ ${cmd} = "vscode" ]]; then
-    if host.checkout "${target_project}"; then
-      local code_workspace_file="${HOME}/.solos/projects/${target_project}/.vscode/${target_project}.code-workspace"
-      if [[ -f ${code_workspace_file} ]]; then
-        if command -v code >/dev/null; then
-          code "${code_workspace_file}"
-        else
-          host.log_info "Launch VSCode workspace with: ${code_workspace_file}"
-        fi
-        return 0
+    if ! host.checkout "${target_project}"; then
+      return 1
+    fi
+    local code_workspace_file="$(host.get_project_vscode_workspace_file)"
+    if [[ -f ${code_workspace_file} ]]; then
+      if command -v code >/dev/null; then
+        code "${code_workspace_file}"
       else
-        host.log_error "Failed to find a code-workspace file at: ${code_workspace_file}"
-        return 1
+        host.log_info "Launch VSCode workspace with: ${code_workspace_file}"
       fi
+      return 0
     else
-      host.log_error "Failed to check out project: ${target_project}"
+      host.log_error "Failed to find a code-workspace file at: ${code_workspace_file}"
       return 1
     fi
   fi
 }
-host.daemon_entry() {
+# This allows us to start/stop the daemon. It will stop the daemon by issuing a kill request and waiting
+# few seconds for the daemon to shutdown gracefully. If the daemon is still running after the grace period,
+# we will rebuild the container, which guarantees the daemon will be stopped.
+# The start command will simply proxy to the host.start_daemon function above.
+host.entry_daemon() {
   local target_project="${1}"
+  if [[ ${target_project} = "NONE" ]]; then
+    host.log_error "You must specify a project name or have a project checked out to access/start the daemon."
+    return 1
+  fi
   local command="${2}"
   if [[ ${command} = "stop" ]]; then
-    echo "KILL" >"${host__daemon_data_dir}/request"
+    echo "KILL" >"${host__data_daemon_request_file}"
     local tries=0
     local confirmations=0
-    # Give daemon a grace period of 15 seconds to stop cleanly.
     while true; do
-      local status="$(cat "${host__daemon_data_dir}/status" 2>/dev/null || echo "")"
+      local status="$(cat "${host__data_daemon_status_file}" 2>/dev/null || echo "")"
       if [[ ${status} != "UP" ]]; then
         if [[ ${confirmations} -gt 0 ]]; then
           host.log_info "The daemon has been stopped."
@@ -431,30 +519,14 @@ host.daemon_entry() {
       tries="$((tries + 1))"
       sleep 1
     done
-    if ! host.rebuild "${target_project}"; then
+    if ! host.build "${target_project}"; then
       host.log_error "Failed to rebuild the container for project: ${target_project}"
       return 1
     fi
-    if ! host.start_daemon "${target_project}"; then
-      host.log_info "Failed to start the daemon for project: ${target_project}"
-      return 1
-    fi
-    host.log_info "Successfully launched the daemon for project: ${target_project}"
-    host.log_info "View daemon logs at: \"${host__data_daemon_master_log_file}\"\`"
     return 0
   fi
   if [[ ${command} = "start" ]]; then
-    local max_time=10
-    if host.was_daemon_active_at "${target_project}" "${max_time}"; then
-      host.log_warn "The daemon was active within the last ${max_time} seconds. Not starting a new daemon."
-      return 1
-    fi
-    host.log_info "An active daemon was not found for the project: ${target_project}. Rebuilding..."
-    if ! host.rebuild "${target_project}"; then
-      host.log_error "Failed to rebuild the container for project: ${target_project}"
-      return 1
-    fi
-    if ! host.start_daemon "${target_project}"; then
+    if ! host.start_daemon "${target_project}" "10" "5"; then
       host.log_info "Failed to start the daemon for project: ${target_project}"
       return 1
     fi
@@ -464,31 +536,40 @@ host.daemon_entry() {
   fi
   host.log_error "Unknown command supplied: ${command}"
 }
+
+##
+## MAIN FUNCTION
+##
+
+# Maps commands as described in the --help output to functions defined above.
 host() {
-  local checked_out_project="$(lib.checked_out_project)"
+  local target_project="$(host.acquire_target_project "${2}")"
+  if [[ -z ${target_project} ]]; then
+    exit 1
+  fi
   if [[ ${1} = "shell" ]]; then
-    host.shell_entry "${2:-"${checked_out_project}"}" "${HOME}/.solos/rcfiles/.bashrc" "${PWD}"
+    host.entry_shell "${target_project}" "${host__user_bashrc_file}" "${PWD}"
     exit $?
   elif [[ ${1} = "shell-minimal" ]]; then
-    host.shell_entry "${2:-"${checked_out_project}"}" "" "${PWD}"
+    host.entry_shell "${target_project}" "" "${PWD}"
     exit $?
   elif [[ ${1} = "daemon:start" ]]; then
-    host.daemon_entry "${2:-"${checked_out_project}"}" start
+    host.entry_daemon "${target_project}" start
     exit $?
   elif [[ ${1} = "daemon:stop" ]]; then
-    host.daemon_entry "${2:-"${checked_out_project}"}" stop
+    host.entry_daemon "${target_project}" stop
     exit $?
   elif [[ ${1} = "vscode" ]]; then
-    host.bin_entry "${2:-"${checked_out_project}"}" vscode
+    host.entry_bin "${target_project}" vscode
     exit $?
   elif [[ ${1} = "checkout" ]]; then
-    host.bin_entry "${2:-"${checked_out_project}"}" checkout
+    host.entry_bin "${target_project}" checkout
     exit $?
   elif [[ ${1} = "noop" ]]; then
-    host.bin_entry "${2:-"${checked_out_project}"}" --noop
+    host.entry_bin "${target_project}" --noop
     exit $?
   elif [[ -z ${1} ]] || [[ ${1} = "help" ]] || [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]]; then
-    host.bin_entry "${2:-"${checked_out_project}"}" --help
+    host.entry_bin "${target_project}" --help
     exit $?
   else
     host.log_error "Unknown command supplied: ${1}"
