@@ -45,21 +45,34 @@ host__data_daemon_status_file="${host__daemon_data_dir}/status"
 ## LOGGING
 ##
 
+# By default, we'll never print the filename and line number to the console
+# unless an error occurs. But we will always log the filename and line number
+# to the master log file so that the data at least exists somewhere.
 mkdir -p "$(dirname "${host__data_cli_dir_master_log_file}")"
 touch "${host__data_cli_dir_master_log_file}"
+host.log_success() {
+  local filename="$(caller | cut -f 2 -d " ")"
+  local linenumber="$(caller | cut -f 1 -d " ")"
+  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
+  local print_msg="(CLI:HOST) ${1}"
+  echo "SUCCESS ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
+  echo -e "\033[1;32mSUCCESS \033[0m${print_msg}" >&2
+}
 host.log_info() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  echo "INFO ${msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;32mINFO \033[0m${msg}" >&2
+  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
+  local print_msg="(CLI:HOST) ${1}"
+  echo "INFO ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
+  echo -e "\033[1;34mINFO \033[0m${msg}" >&2
 }
 host.log_warn() {
   local filename="$(caller | cut -f 2 -d " ")"
   local linenumber="$(caller | cut -f 1 -d " ")"
-  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  echo "WARN ${msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;33mWARN \033[0m${msg}" >&2
+  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
+  local print_msg="(CLI:HOST) ${1}"
+  echo "WARN ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
+  echo -e "\033[1;33mWARN \033[0m${print_msg}" >&2
 }
 host.log_error() {
   local filename="$(caller | cut -f 2 -d " ")"
@@ -211,7 +224,7 @@ host.build() {
   while ! docker exec "${host__project_docker_container}" echo "" >/dev/null 2>&1; do
     sleep .2
   done
-  host.log_info "The SolOS container is ready."
+  host.log_success "The SolOS container is ready."
 }
 # Will check to see if the daemon is active. If a retry delay is supplied
 # as the third argument, it will wait that many seconds and then check again.
@@ -285,6 +298,7 @@ host.start_daemon() {
   # If we just rebuilt our container, there is no way the daemon is active.
   if [[ ${was_rebuilt} = false ]]; then
     if host.is_daemon_active "${target_project}" "${activity_tolerance}" "${retry_delay}"; then
+      host.log_success "The daemon is running."
       return 0
     fi
   fi
@@ -311,6 +325,7 @@ host.start_daemon() {
       return 1
     fi
   fi
+  host.log_success "The daemon was started."
   return 0
 }
 # This will ensure the project name supplied is valid and that if an empty name is supplied,
@@ -341,9 +356,6 @@ host.acquire_target_project() {
   if [[ ! ${target_project} =~ ^[a-zA-Z][a-zA-Z0-9_]*$ ]]; then
     host.log_error 'Project name must start with a letter and contain only letters, numbers, and underscores (^[a-zA-Z][a-zA-Z0-9_]*$).'
     return 1
-  fi
-  if [[ ${target_project} = "${checked_out_project}" ]]; then
-    host.log_info "Using previously checked out project: ${target_project}"
   fi
   echo "${target_project}"
 }
@@ -393,7 +405,7 @@ host.checkout() {
     host.log_error "Failed to start the daemon for project: ${target_project}"
     return 1
   fi
-  host.log_info "Successfully checked out project: ${target_project}"
+  host.log_success "Checked out project: ${target_project}"
 }
 
 ##
@@ -478,7 +490,7 @@ host.entry_bin() {
       if command -v code >/dev/null; then
         code "${code_workspace_file}"
       else
-        host.log_info "Launch VSCode workspace with: ${code_workspace_file}"
+        host.log_success "Generated VSCode workspace file: ${code_workspace_file}"
       fi
       return 0
     else
@@ -506,7 +518,7 @@ host.entry_daemon() {
       local status="$(cat "${host__data_daemon_status_file}" 2>/dev/null || echo "")"
       if [[ ${status} != "UP" ]]; then
         if [[ ${confirmations} -gt 0 ]]; then
-          host.log_info "The daemon has been stopped."
+          host.log_success "The daemon has been stopped for project: ${target_project}"
           break
         fi
         confirmations="$((confirmations + 1))"
@@ -530,8 +542,7 @@ host.entry_daemon() {
       host.log_info "Failed to start the daemon for project: ${target_project}"
       return 1
     fi
-    host.log_info "Successfully started the daemon for the project: ${target_project}"
-    host.log_info "View daemon logs at: \"${host__data_daemon_master_log_file}\"\`"
+    host.log_success "Started the daemon for the project: ${target_project} (logs: ${host__data_daemon_master_log_file})"
     return 0
   fi
   host.log_error "Unknown command supplied: ${command}"
