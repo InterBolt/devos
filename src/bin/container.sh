@@ -65,7 +65,7 @@ if [[ ${1} = "--help" ]] || [[ ${1} = "-h" ]] || [[ ${1} = "help" ]]; then
   container.help
   exit 0
 fi
-if [[ ${1} = "noop" ]]; then
+if [[ ${1} = "--noop" ]]; then
   exit 0
 fi
 

@@ -135,13 +135,15 @@ daemon.exit_listener() {
     # This would indicate a pretty serious logic bug if the project doesn't exist in the filesystem.
     # Best to get the fuck out of here when that happens.
     if [[ ! -d ${daemon__checked_out_project_path} ]]; then
-      daemon.log_warn "Unexpected - the checked out project is no longer present in the filesystem. Exiting."
+      daemon.log_error "The checked out project is no longer present in the filesystem at: ${daemon__checked_out_project_path}."
       kill -SIGTERM "${daemon__pid}"
+      return 1
     fi
     # If the checked out project has changed, exit.
     if [[ ${daemon__checked_out_project} != "$(lib.checked_out_project)" ]]; then
-      daemon.log_warn "The checked out project has changed. Exiting."
+      daemon.log_error "The checked out project has changed."
       kill -SIGTERM "${daemon__pid}"
+      return 1
     fi
     # Handle requests from the user.
     local requested_action=""
@@ -155,8 +157,9 @@ daemon.exit_listener() {
       rm -f "${daemon__request_file}"
       case "${requested_action}" in
       "KILL")
-        daemon.log_verbose "Killing the daemon process."
+        daemon.log_error "A KILL request was received."
         kill -SIGTERM "${daemon__pid}"
+        return 1
         ;;
       *)
         daemon.log_error "Unknown user request ${request}"
