@@ -71,7 +71,6 @@ daemon__blacklisted_exts=(
 )
 
 mkdir -p "${daemon__daemon_data_dir}"
-log.use "${daemon__log_file}"
 trap 'trap - SIGTERM && daemon.cleanup;' SIGTERM EXIT
 
 daemon.cleanup() {
@@ -107,25 +106,17 @@ daemon.get_host_path() {
   echo "${path/\/root\//${daemon__users_home_dir}\/}"
 }
 daemon.log_info() {
-  local message="(DAEMON) ${1} pid=${daemon__pid}"
-  shift
-  log.info "${message}" "$@"
+  log.info "(DAEMON) ${1} pid=${daemon__pid}"
 }
 daemon.log_error() {
-  local message="(DAEMON) ${1} pid=${daemon__pid}"
-  shift
-  log.error "${message}" "$@"
+  log.error "(DAEMON) ${1} pid=${daemon__pid}"
 }
 daemon.log_warn() {
-  local message="(DAEMON) ${1} pid=${daemon__pid}"
-  shift
-  log.warn "${message}" "$@"
+  log.warn "(DAEMON) ${1} pid=${daemon__pid}"
 }
 daemon.log_verbose() {
   if [[ ${daemon__verbose} = true ]]; then
-    local message="(DAEMON) ${1} pid=${daemon__pid}"
-    shift
-    log.info "${message}" "$@"
+    log.info "(DAEMON) ${1} pid=${daemon__pid}"
   fi
 }
 daemon.exit_listener() {

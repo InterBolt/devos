@@ -11,24 +11,17 @@ history -r
 . "${HOME}/.solos/repo/src/shared/log.universal.sh" || exit 1
 . "${HOME}/.solos/repo/src/shared/gum.container.sh" || exit 1
 
-log.use "${HOME}/.solos/data/shell/master.log"
-
 shell__users_home_dir="$(lib.home_dir_path)"
 
+log.use "${HOME}/.solos/data/shell/master.log"
 shell.log_info() {
-  local message="(SHELL) ${1}"
-  shift
-  log.info "${message}" "$@"
+  log.info "(SHELL) ${1}"
 }
 shell.log_error() {
-  local message="(SHELL) ${1}"
-  shift
-  log.error "${message}" "$@"
+  log.error "(SHELL) ${1}"
 }
 shell.log_warn() {
-  local message="(SHELL) ${1}"
-  shift
-  log.warn "${message}" "$@"
+  log.warn "(SHELL) ${1}"
 }
 shell.blacklist_cmds() {
   local blacklist=(
