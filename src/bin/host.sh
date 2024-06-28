@@ -20,6 +20,7 @@ host__daemon_data_dir="${host__data_dir}/cli"
 host__log_file="${host__cli_data_dir}/master.log"
 host__built_project_file="${host__data_dir}/cli/built_project"
 host__built_project_from_file="${host__data_dir}/cli/built_project_from"
+host__daemon_last_active_at_file="${host__data_dir}/daemon/last_active_at"
 
 if [[ ! -f ${host__log_file} ]]; then
   mkdir -p "${host__cli_data_dir}"
@@ -44,7 +45,7 @@ host.is_reserved_name() {
   if [[ ${next_project} = "${host__solos_default_project_name}" ]]; then
     return 0
   fi
-  local reserved_names="help noop shell shell-minimal vscode daemon daemon:start daemon:stop"
+  local reserved_names="help noop shell shell-minimal checkout vscode daemon daemon:start daemon:stop"
   for reserved_name in ${reserved_names}; do
     if [[ ${next_project} = "${reserved_name}" ]]; then
       return 0
@@ -55,7 +56,7 @@ host.is_reserved_name() {
 # We want rebuilds to happen under the following conditions:
 # 1) The user has never built a project before.
 # 2) The user is running a command or shell for a project that is different from the one that was last built.
-# 3) The project was not checked out on the previous run, but now is, and the dockerfile we expect to build from has changed.
+# 3) The project was not checked out on the previous run but now is, which means the dockerfile path changed.
 # 4) The container is not running.
 host.rebuild_is_necessary() {
   local checked_out_project="$(lib.checked_out_project)"
@@ -122,7 +123,7 @@ host.rebuild() {
     project_dockerfile_path="${host__project_fallback_dockerfile_path}"
   fi
 
-  # Don't allow the user to build a dockerfile that doesn't not extend the solos:latest base image.
+  # Don't allow the user to build a dockerfile that doesn't extend the solos:latest base image.
   local project_dockerfile_contents="$(cat "${project_dockerfile_path}")"
   local project_dockerfile_first_line="$(
     echo "${project_dockerfile_contents}" | grep -vE '^\s*#' | grep -vE '^\s*$' | head -n 1 | xargs
@@ -144,8 +145,7 @@ host.rebuild() {
   fi
   host.log_info "Built the project docker image - ${host__project_image_name}"
 
-  # Persist these values for determining whether or not rebuilds should
-  # happen in the future.
+  # Need these values to determine whether or not rebuilds should happen in the future.
   echo "${project_dockerfile_path}" >"${host__built_project_from_file}"
   echo "${next_project}" >"${host__built_project_file}"
 
@@ -153,8 +153,11 @@ host.rebuild() {
   if [[ ! -d ${host__store_dir} ]]; then
     mkdir -p "${host__store_dir}"
   fi
-  echo "${HOME}" >"${host__store_dir}/users_home_dir"
-  host.log_info "Saved the user's home directory to the store directory."
+  local curr_home_dir="$(cat "${host__store_dir}/users_home_dir" 2>/dev/null || echo "")"
+  if [[ ${HOME} != "${curr_home_dir}" ]]; then
+    echo "${HOME}" >"${host__store_dir}/users_home_dir"
+    host.log_info "Saved the user's home directory to the store directory."
+  fi
 
   # Start the project container.
   if ! docker run \
@@ -310,13 +313,35 @@ host.bin_entry() {
   fi
 }
 host.daemon_entry() {
-  echo "TODO"
-  # local daemon_script_path=".solos/repo/src/daemon/daemon.sh"
-  # docker exec "${host__project_container_name}" \
-  #   /bin/bash -c 'nohup "/root/'"${daemon_script_path}"'" >/dev/null 2>&1 &' >/dev/null
-  # host.log_info "Started the daemon script: ~/${daemon_script_path}"
+  local next_project="${1}"
+  local command="${2}"
+  if [[ ${command} = "stop" ]]; then
+    echo "KILL" >"${host__daemon_data_dir}/request"
+  fi
+  # last_active_at is string in format:
+  # <project> <seconds>
+  local last_active_at="$(cat "${host__daemon_last_active_at_file}" 2>/dev/null || echo "")"
+  if [[ -n ${last_active_at} ]]; then
+    local last_active_project="$(echo "${last_active_at}" | tr -s ' ' | cut -d' ' -f1)"
+    local last_active_seconds="$(echo "${last_active_at}" | tr -s ' ' | cut -d' ' -f2)"
+    if [[ ${last_active_project} != "${next_project}" ]]; then
+      host.log_warn "The project you checked out or supplied is not associated with the last active daemon."
+      return 1
+    fi
+    local last_active_at_epoch="$(date -d "${last_active_at}" +%s)"
+    local curr_epoch="$(date +%s)"
+    local diff="$((curr_epoch - last_active_at_epoch))"
+    if [[ ${diff} -lt 60 ]]; then
+      host.log_info "Daemon might be running. Will check again in 10 seconds to confirm."
+    fi
+  fi
+  host.log_info "Waiting 10 seconds for the daemon to stop."
+  sleep 10
+  # TODO
+
 }
 host() {
+  local checked_out_project="$(lib.checked_out_project)"
   if [[ ${1} = "shell" ]]; then
     host.shell_entry "${2}" "${HOME}/.solos/rcfiles/.bashrc" "${PWD}"
     exit $?
@@ -324,10 +349,10 @@ host() {
     host.shell_entry "${2}" "" "${PWD}"
     exit $?
   elif [[ ${1} = "daemon:start" ]]; then
-    host.daemon_entry "${2}" start
+    host.daemon_entry "${2:-"${checked_out_project}"}" start
     exit $?
   elif [[ ${1} = "daemon:stop" ]]; then
-    host.daemon_entry "${2}" stop
+    host.daemon_entry "${2:-"${checked_out_project}"}" stop
     exit $?
   elif [[ ${1} = "vscode" ]]; then
     host.bin_entry "${2}" vscode
