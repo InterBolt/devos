@@ -328,10 +328,21 @@ host.daemon_entry() {
       host.log_warn "The project you checked out or supplied is not associated with the last active daemon."
       return 1
     fi
-    local last_active_at_epoch="$(date -d "${last_active_at}" +%s)"
-    local curr_epoch="$(date +%s)"
-    local diff="$((curr_epoch - last_active_at_epoch))"
-    if [[ ${diff} -lt 60 ]]; then
+    local curr_seconds="$(date +%s)"
+    if [[ $((curr_seconds - last_active_seconds)) -lt 60 ]]; then
+      host.log_info "Daemon might be running. Will check again in 10 seconds to confirm."
+    fi
+  fi
+  local next_active_at="$(cat "${host__daemon_last_active_at_file}" 2>/dev/null || echo "")"
+  if [[ -n ${next_active_at} ]]; then
+    local next_active_project="$(echo "${next_active_at}" | tr -s ' ' | cut -d' ' -f1)"
+    local next_active_seconds="$(echo "${next_active_at}" | tr -s ' ' | cut -d' ' -f2)"
+    if [[ ${next_active_project} != "${next_project}" ]]; then
+      host.log_warn "The project you checked out or supplied is not associated with the next active daemon."
+      return 1
+    fi
+    # WTF
+    if [[ $((next_active_seconds - last_active_at_epoch)) -ne 0 ]]; then
       host.log_info "Daemon might be running. Will check again in 10 seconds to confirm."
     fi
   fi
