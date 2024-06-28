@@ -11,19 +11,20 @@ export DOCKER_CLI_HINTS=false
 ##
 
 . "${HOME}/.solos/repo/src/shared/lib.universal.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.universal.sh" || exit 1
 
 ##
 ## GLOBAL VARIABLES
 ##
 
 # Base directories.
-host__solos_repo_dir="${HOME}/.solos/repo"
-host__solos_data_dir="${HOME}/.solos/data"
+host__repo_dir="${HOME}/.solos/repo"
+host__data_dir="${HOME}/.solos/data"
 # RC files:
 host__user_bashrc_file="${HOME}/.solos/rcfiles/.bashrc"
 # Docker stuff.
-host__base_dockerfile="${host__solos_repo_dir}/src/Dockerfile"
-host__project_fallback_dockerfile="${host__solos_repo_dir}/src/Dockerfile.project"
+host__base_dockerfile="${host__repo_dir}/src/Dockerfile"
+host__project_fallback_dockerfile="${host__repo_dir}/src/Dockerfile.project"
 host__base_docker_image="solos:latest"
 host__project_docker_image="solos-checked-out-project:latest"
 host__project_docker_container="solos-checked-out-project"
@@ -32,12 +33,12 @@ host__fallback_project_docker_container="solos-default-project"
 host__containerized_bin_path="/root/.solos/repo/src/bin/container.sh"
 host__containerized_daemon_path="/root/.solos/repo/src/daemon/daemon.sh"
 # Files used to communicated information between the host and the container.
-host__data_store_users_home_dir_file="${host__solos_data_dir}/store/users_home_dir"
-host__data_cli_dir_master_log_file="${host__solos_data_dir}/cli/master.log"
-host__data_cli_dir_built_project_file="${host__solos_data_dir}/cli/built_project"
-host__data_cli_dir_built_project_from_dockerfile_file="${host__solos_data_dir}/cli/built_project_from"
-host__data_daemon_last_active_at_file="${host__solos_data_dir}/daemon/last_active_at"
-host__data_daemon_master_log_file="${host__solos_data_dir}/daemon/master.log"
+host__data_store_users_home_dir_file="${host__data_dir}/store/users_home_dir"
+host__data_cli_dir_master_log_file="${host__data_dir}/cli/master.log"
+host__data_cli_dir_built_project_file="${host__data_dir}/cli/built_project"
+host__data_cli_dir_built_project_from_dockerfile_file="${host__data_dir}/cli/built_project_from"
+host__data_daemon_last_active_at_file="${host__data_dir}/daemon/last_active_at"
+host__data_daemon_master_log_file="${host__data_dir}/daemon/master.log"
 host__data_daemon_request_file="${host__daemon_data_dir}/request"
 host__data_daemon_status_file="${host__daemon_data_dir}/status"
 
@@ -45,41 +46,18 @@ host__data_daemon_status_file="${host__daemon_data_dir}/status"
 ## LOGGING
 ##
 
-# By default, we'll never print the filename and line number to the console
-# unless an error occurs. But we will always log the filename and line number
-# to the master log file so that the data at least exists somewhere.
-mkdir -p "$(dirname "${host__data_cli_dir_master_log_file}")"
-touch "${host__data_cli_dir_master_log_file}"
+log.use "${host__data_cli_dir_master_log_file}"
 host.log_success() {
-  local filename="$(caller | cut -f 2 -d " ")"
-  local linenumber="$(caller | cut -f 1 -d " ")"
-  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  local print_msg="(CLI:HOST) ${1}"
-  echo "SUCCESS ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;32mSUCCESS \033[0m${print_msg}" >&2
+  log.success "(CLI:HOST) ${1}"
 }
 host.log_info() {
-  local filename="$(caller | cut -f 2 -d " ")"
-  local linenumber="$(caller | cut -f 1 -d " ")"
-  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  local print_msg="(CLI:HOST) ${1}"
-  echo "INFO ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;34mINFO \033[0m${msg}" >&2
+  log.info "(CLI:HOST) ${1}"
 }
 host.log_warn() {
-  local filename="$(caller | cut -f 2 -d " ")"
-  local linenumber="$(caller | cut -f 1 -d " ")"
-  local log_msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  local print_msg="(CLI:HOST) ${1}"
-  echo "WARN ${log_msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;33mWARN \033[0m${print_msg}" >&2
+  log.warn "(CLI:HOST) ${1}"
 }
 host.log_error() {
-  local filename="$(caller | cut -f 2 -d " ")"
-  local linenumber="$(caller | cut -f 1 -d " ")"
-  local msg="(CLI:HOST) ${1} source=[${filename}:${linenumber}]"
-  echo "ERROR ${msg}" >>"${host__data_cli_dir_master_log_file}"
-  echo -e "\033[1;31mERROR \033[0m${msg}" >&2
+  log.error "(CLI:HOST) ${1}"
 }
 
 ##

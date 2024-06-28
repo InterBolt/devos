@@ -2,8 +2,6 @@
 
 log__logfile=""
 
-# PUBLIC FUNCTIONS:
-
 log.use() {
   log__logfile="${1}"
   mkdir -p "$(dirname "${log__logfile}")"
@@ -41,10 +39,3 @@ log.warn() {
   echo "[WARN] ${log_msg}" >>"${log__logfile}"
   echo -e "\033[1;33m[WARN] \033[0m${print_msg}" >&2
 }
-
-log.use "$HOME/.solos/logs/solos.log"
-
-log.info "This is atest of the info log"
-log.success "This is a test of the success log"
-log.error "This is a test of the error log"
-log.warn "This is a test of the warn log"

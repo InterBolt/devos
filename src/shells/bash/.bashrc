@@ -8,7 +8,7 @@ shopt -s histappend
 history -r
 
 . "${HOME}/.solos/repo/src/shared/lib.universal.sh" || exit 1
-. "${HOME}/.solos/repo/src/shared/log.container.sh" || exit 1
+. "${HOME}/.solos/repo/src/shared/log.universal.sh" || exit 1
 . "${HOME}/.solos/repo/src/shared/gum.container.sh" || exit 1
 
 log.use "${HOME}/.solos/data/shell/master.log"

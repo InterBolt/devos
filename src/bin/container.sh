@@ -2,31 +2,37 @@
 
 # Any variables that might get used in template replacements should be defined here.
 container__project=""
-container__log_file="/root/.solos/data/cli/master.log"
-container__code_workspace_file=""
-container__solos_dir="/root/.solos"
-container__store_dir="${container__solos_dir}/data/store"
-container__cli_data_dir="${container__solos_dir}/data/cli"
-container__checked_out_project_store_file="${container__store_dir}/checked_out_project"
-container__users_home_dir_store_file="${container__store_dir}/users_home_dir"
-# We can't actually do anything if we don't know the user's home directory.
-# This is because we need absolute paths to workspace folders for the code-workspace file.
-if [[ ! -f ${container__users_home_dir_store_file} ]]; then
-  echo "Unexpected error: the user's home directory was not saved to ${container__users_home_dir_store_file}." >&2
+
+container__solos_dir="${HOME}/.solos"
+container__repo_dir="${container__solos_dir}/repo"
+container__data_dir="${container__solos_dir}/data"
+container__projects_dir="${container__solos_dir}/projects"
+container__data_store_dir="${container__data_dir}/store"
+container__data_cli_dir="${container__data_dir}/cli"
+container__project_template_code_workspace_file="${container__repo_dir}/src/bin/project.code-workspace"
+container__project_fallback_dockerfile="${container__repo_dir}/src/Dockerfile.project"
+container__data_cli_dir_master_log_file="${container__data_cli_dir}/master.log"
+container__checked_out_project_store_file="${container__data_store_dir}/checked_out_project"
+container__data_store_users_home_dir_file="${container__data_store_dir}/users_home_dir"
+
+# We can't build a valid code-workspace file without knowing the user's home directory.
+if [[ ! -f ${container__data_store_users_home_dir_file} ]]; then
+  echo "Unexpected error: the user's home directory was not saved to ${container__data_store_users_home_dir_file}." >&2
   exit 1
 fi
-# Used in the code-workspace template. Not used in the script itself.
-container__users_home_dir=$(cat "${container__users_home_dir_store_file}" || echo "")
+container__users_home_dir=$(cat "${container__data_store_users_home_dir_file}" || echo "")
 
 # For simplicity, let's ensure we're in the base directory of our SolOS installation.
 # It's possible that this won't/doesn't matter, but it's a nice assurance to have as changes are made.
 cd "${container__solos_dir}"
 
-# Make sure we can access the logger functions.
-. "${container__solos_dir}/repo/src/shared/log.container.sh" || exit 1
-log.use "${container__log_file}"
-
+# Logging stuff.
+. "${container__repo_dir}/src/shared/log.universal.sh" || exit 1
+log.use "${container__data_cli_dir_master_log_file}"
 container.log_info() {
+  log.info "(CLI:CONTAINER) ${1}"
+}
+container.log_success() {
   log.info "(CLI:CONTAINER) ${1}"
 }
 container.log_warn() {
@@ -137,13 +143,13 @@ container() {
   fi
 
   # Create the projects directory if it doesn't exist.
-  if [[ ! -d ${container__solos_dir}/projects ]]; then
-    mkdir -p "${container__solos_dir}/projects"
-    container.log_info "No projects found. Creating ~/.solos/projects directory."
+  if [[ ! -d ${container__projects_dir} ]]; then
+    mkdir -p "${container__projects_dir}"
+    container.log_info "No projects found. Creating ${container__projects_dir} directory."
   fi
 
   # Create the project directory if it doesn't exist.
-  local project_dir="${container__solos_dir}/projects/${container__project}"
+  local project_dir="${container__projects_dir}/${container__project}"
   if [[ ! -d ${project_dir} ]]; then
     mkdir -p "${project_dir}"
     container.log_info "${container__project} - Created ${project_dir}"
@@ -165,9 +171,9 @@ container() {
   fi
 
   # Create the code-workspace file if it doesn't exist.
-  container__code_workspace_file="${vscode_dir}/${container__project}.code-workspace"
-  if [[ ! -f ${container__code_workspace_file} ]]; then
-    local template_code_workspace_file="${container__solos_dir}/repo/src/bin/project.code-workspace"
+  local code_workspace_file="${vscode_dir}/${container__project}.code-workspace"
+  if [[ ! -f ${code_workspace_file} ]]; then
+    local template_code_workspace_file="${container__project_template_code_workspace_file}"
     local tmp_dir="$(mktemp -d -q)"
     local tmp_code_workspace_file="${tmp_dir}/${container__project}.code-workspace"
     if ! cp "${template_code_workspace_file}" "${tmp_code_workspace_file}"; then
@@ -175,8 +181,8 @@ container() {
       exit 1
     fi
     if container.do_template_variable_replacements "${tmp_code_workspace_file}"; then
-      cp -f "${tmp_code_workspace_file}" "${container__code_workspace_file}"
-      container.log_info "${container__project} - Created ${container__code_workspace_file} based on template at ${template_code_workspace_file}."
+      cp -f "${tmp_code_workspace_file}" "${code_workspace_file}"
+      container.log_info "${container__project} - Created ${code_workspace_file} based on template at ${template_code_workspace_file}."
     else
       container.log_error "${container__project} - Failed to build the code workspace file."
       exit 1
@@ -211,17 +217,15 @@ EOF
   fi
 
   # Make sure the store directory exists.
-  if [[ ! -d ${container__store_dir} ]]; then
-    mkdir -p "${container__store_dir}"
-    container.log_info "${container__project} - created ${container__store_dir}"
+  if [[ ! -d ${container__data_store_dir} ]]; then
+    mkdir -p "${container__data_store_dir}"
+    container.log_info "${container__project} - created ${container__data_store_dir}"
   fi
 
-  # Copy the default Dockerfile.project at ~/.solos/repo/src/Dockerfile.project to the project directory.
-  local dockerfile_project="${container__solos_dir}/repo/src/Dockerfile.project"
   local project_dockerfile="${project_dir}/Dockerfile"
   if [[ ! -f ${project_dockerfile} ]]; then
-    cp "${dockerfile_project}" "${project_dockerfile}"
-    container.log_info "${container__project} - copied ${dockerfile_project} to ${project_dockerfile}"
+    cp "${container__project_fallback_dockerfile}" "${project_dockerfile}"
+    container.log_info "${container__project} - copied ${container__project_fallback_dockerfile} to ${project_dockerfile}"
   fi
 
   # Save the project name so we can re-use it later.
