@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
 install.log_info() {
-  echo -e "\033[1;32mINFO \033[0m (INSTALLER) ${1}" >&2
-}
-install.log_warn() {
-  echo -e "\033[1;33mWARN \033[0m (INSTALLER) ${1}" >&2
+  local log_msg="(INSTALLER) {1}"
+  local print_msg="${1}"
+  echo -e "\033[1;34m[INFO] \033[0m${print_msg}" >&2
 }
 install.log_error() {
-  echo -e "\033[1;31mERROR \033[0m (INSTALLER) ${1}" >&2
+  local log_msg="(INSTALLER) ${1}"
+  local print_msg="${1}"
+  echo -e "\033[1;31m[ERROR] \033[0m${print_msg}" >&2
 }
 
 # Make sure the user has what they need on their host system before installing SolOS.
