@@ -83,7 +83,7 @@ host.get_project_vscode_workspace_file() {
 host.is_rebuild_necessary() {
   local checked_out_project="$(lib.checked_out_project)"
   local target_project="${1:-"${checked_out_project}"}"
-  local target_project_dockerfile="$(host.get_project_dockerfile)"
+  local target_project_dockerfile="$(host.get_project_dockerfile "${target_project}")"
   if [[ ! -f ${target_project_dockerfile} ]]; then
     target_project_dockerfile="${host__project_fallback_dockerfile}"
   fi
@@ -145,7 +145,7 @@ host.build() {
     return 1
   fi
   # Only projects that were checked out will have a custom Dockerfile.
-  local target_project_dockerfile="$(host.get_project_dockerfile)"
+  local target_project_dockerfile="$(host.get_project_dockerfile "${target_project}")"
   local project_dockerfile=""
   if [[ -f ${target_project_dockerfile} ]]; then
     project_dockerfile="${target_project_dockerfile}"
