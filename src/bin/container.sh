@@ -49,7 +49,7 @@ USAGE: solos COMMAND [PROJECT_NAME]
 
 DESCRIPTION:
 
-A host-only command to manage SolOS projects.
+Manage your SolOS projects.
 
 COMMANDS:
 
@@ -63,7 +63,7 @@ COMMANDS:
 
 NOTES:
 
-- Can only run on your host machine. As a result, it is not available in the SolOS shell, which is a containerized environment.
+- The SolOS project container should be considered disposable, despite the fact that it is persistent.
 
 EOF
 }
