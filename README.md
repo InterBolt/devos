@@ -1,6 +1,18 @@
-# TODOS
+# MacOS Install
 
-- [ ] do what we did with the daemon's sourced scripts in the profiles/bash/bashrc. makke it all one file.
-- [ ] add the "app" command to the shell and use the dev/artifact code as reference.
-- [ ] add support for daemon reload --foreground which will kill the current daemon and start a new one in the foreground for better debugging visibility.
-- [ ] test daemon
+Make sure to have the Bash version >= 3, Git, and Docker installed.
+
+Download and run the install script to get started.
+
+```
+curl -o- https://raw.githubusercontent.com/InterBolt/solos/main/install/install.sh
+bash ./install.sh
+```
+
+# Linux
+
+It probably works the same as MacOS but it's not tested with the same rigor/frequency.
+
+# Windows
+
+I'm not gonna bother. But you can. After all, that's what this open-source thing is all about.
