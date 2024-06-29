@@ -38,8 +38,12 @@ host__data_cli_dir_built_project_file="${host__data_dir}/cli/built_project"
 host__data_cli_dir_built_project_from_dockerfile_file="${host__data_dir}/cli/built_project_from"
 host__data_daemon_last_active_at_file="${host__data_dir}/daemon/last_active_at"
 host__data_daemon_master_log_file="${host__data_dir}/daemon/master.log"
-host__data_daemon_request_file="${host__daemon_data_dir}/request"
-host__data_daemon_status_file="${host__daemon_data_dir}/status"
+host__data_daemon_request_file="${host__data_dir}/daemon/request"
+host__data_daemon_status_file="${host__data_dir}/daemon/status"
+
+mkdir -p "${host__data_dir}/store"
+mkdir -p "${host__data_dir}/cli"
+mkdir -p "${host__data_dir}/daemon"
 
 ##
 ## LOGGING
