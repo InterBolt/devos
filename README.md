@@ -5,7 +5,7 @@ To understand SolOS, let's consider the following two fictional characters (and 
 - Joel - from [Eternal Sunshine of the Spotless Mind](https://www.imdb.com/title/tt0338013/)
 - Truman - from [The Truman Show](https://www.imdb.com/title/tt0120382/).
 
-As a thought experiment, in which character's world would an AI assistant thrive?
+For which character would an AI prove more helpful?
 
 ## MacOS Install
 
