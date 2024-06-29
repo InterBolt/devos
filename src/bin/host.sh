@@ -462,7 +462,7 @@ host.entry_bin() {
     if ! host.checkout "${target_project}"; then
       return 1
     fi
-    local code_workspace_file="$(host.get_project_vscode_workspace_file)"
+    local code_workspace_file="$(host.get_project_vscode_workspace_file "${target_project}")"
     if [[ -f ${code_workspace_file} ]]; then
       if command -v code >/dev/null; then
         code "${code_workspace_file}"
