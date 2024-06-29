@@ -9,7 +9,7 @@ For which character would an AI prove more helpful?
 
 Or if that still doesn't make sense, consider the saying: your dog probably knows you better than your closest friend.
 
-SolOS is the dev environment that you and your AI never have to leave.
+**SolOS is the dev environment that you and your AI never have to leave.**
 
 ### MacOS
 
