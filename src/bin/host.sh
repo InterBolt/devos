@@ -28,7 +28,6 @@ host__project_fallback_dockerfile="${host__repo_dir}/src/Dockerfile.project"
 host__base_docker_image="solos:latest"
 host__project_docker_image="solos-checked-out-project:latest"
 host__project_docker_container="solos-checked-out-project"
-host__fallback_project_docker_container="solos-default-project"
 # Paths specific to the docker FS.
 host__containerized_bin_path="/root/.solos/repo/src/bin/container.sh"
 host__containerized_daemon_path="/root/.solos/repo/src/daemon/daemon.sh"
@@ -192,7 +191,7 @@ host.build() {
     --privileged \
     -v "/var/run/docker.sock:/var/run/docker.sock" \
     -v "${HOME}/.solos:/root/.solos" \
-    "${docker_project_image}" tail -f /dev/null >/dev/null; then
+    "${host__project_docker_image}" tail -f /dev/null >/dev/null; then
     host.log_error "Failed to run the docker container."
     return 1
   fi
@@ -319,10 +318,6 @@ host.acquire_target_project() {
   fi
   if [[ -z ${target_project} ]]; then
     target_project="NONE"
-  fi
-  if [[ ${target_project} = "${host__fallback_project_docker_container}" ]]; then
-    host.log_error "The project name \`${target_project}\` is reserved in SolOS."
-    return 1
   fi
   local solos_cmd_names="shell shell-minimal checkout vscode daemon:start daemon:stop"
   for solos_cmd_name in ${solos_cmd_names}; do
