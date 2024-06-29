@@ -160,12 +160,12 @@ host.build() {
   fi
 
   # Build the base image, and the project image if a project is checked out.
-  if ! docker build -t "${host__base_dockerfile}" -f "${host__base_docker_image}" . >/dev/null; then
+  if ! docker build -t "${host__base_docker_image}" -f "${host__base_dockerfile}" . >/dev/null; then
     host.log_error "Failed to build the dockerfile: ${host__base_dockerfile}."
     return 1
   fi
   host.log_info "Built the base docker image - ${host__base_docker_image}"
-  if ! docker build -t "${project_dockerfile}" -f "${host__project_docker_image}" . >/dev/null; then
+  if ! docker build -t "${host__project_docker_image}" -f "${project_dockerfile}" . >/dev/null; then
     host.log_error "Failed to build the dockerfile: ${project_dockerfile}."
     return 1
   fi
