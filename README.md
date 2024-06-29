@@ -1,4 +1,13 @@
-# MacOS Install
+# SolOS
+
+To understand SolOS, let's consider the following two fictional characters (and the worlds they live in): 
+
+- Joel - from [Eternal Sunshine of the Spotless Mind](https://www.imdb.com/title/tt0338013/)
+- Truman - from [The Truman Show](https://www.imdb.com/title/tt0120382/).
+
+As a thought experiment, in which character's world would an AI assistant thrive?
+
+## MacOS Install
 
 Make sure to have the Bash version >= 3, Git, and Docker installed.
 
@@ -9,10 +18,10 @@ curl -o- https://raw.githubusercontent.com/InterBolt/solos/main/install/install.
 bash ./install.sh
 ```
 
-# Linux
+## Linux
 
 It probably works the same as MacOS but it's not tested with the same rigor/frequency.
 
-# Windows
+## Windows
 
 I'm not gonna bother. But you can. After all, that's what this open-source thing is all about.
