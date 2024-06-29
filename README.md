@@ -11,6 +11,8 @@ Or if that still doesn't make sense, consider the saying: your dog probably know
 
 **SolOS is the dev environment that you and your AI never have to leave.**
 
+## Install Guides
+
 ### MacOS
 
 Make sure to have the Bash version >= 3, Git, and Docker installed.
@@ -29,3 +31,11 @@ It probably works the same as MacOS but it's not tested with the same rigor/freq
 ### Windows
 
 I'm not gonna bother. But you can. After all, that's what this open-source thing is all about.
+
+## Concepts
+
+TODO
+
+## Docs
+
+TODO
