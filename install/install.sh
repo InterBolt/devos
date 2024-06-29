@@ -1,31 +1,27 @@
 #!/usr/bin/env bash
 
 install.log_info() {
-  local log_msg="(INSTALLER) {1}"
-  local print_msg="${1}"
-  echo -e "\033[1;34m[INFO] \033[0m${print_msg}" >&2
+  echo -e "\033[1;34m[INFO] \033[0m(INSTALLER) ${1}" >&2
 }
 install.log_error() {
-  local log_msg="(INSTALLER) ${1}"
-  local print_msg="${1}"
-  echo -e "\033[1;31m[ERROR] \033[0m${print_msg}" >&2
+  echo -e "\033[1;31m[ERROR] \033[0m(INSTALLER) ${1}" >&2
 }
 
 # Make sure the user has what they need on their host system before installing SolOS.
 if ! command -v git >/dev/null; then
-  install.log_error "Git is required to install SolOS. Please install it and try again." >&2
+  install.log_error "Git is required to install SolOS. Please install it and try again."
   exit 1
 fi
 if ! command -v bash >/dev/null; then
-  install.log_error "Bash is required to install SolOS. Please install it and try again." >&2
+  install.log_error "Bash is required to install SolOS. Please install it and try again."
   exit 1
 fi
 if ! command -v docker >/dev/null; then
-  install.log_error "Docker is required to install SolOS. Please install it and try again." >&2
+  install.log_error "Docker is required to install SolOS. Please install it and try again."
   exit 1
 fi
 if ! command -v code >/dev/null; then
-  install.log_error "VS Code is required to install SolOS. Please install it and try again." >&2
+  install.log_error "VS Code is required to install SolOS. Please install it and try again."
   exit 1
 fi
 
@@ -51,14 +47,14 @@ while [[ $# -gt 0 ]]; do
     SOURCE_REPO="${1#*=}"
     if [[ ! ${SOURCE_REPO} =~ ^http ]]; then
       if [[ ! -d ${SOURCE_REPO} ]]; then
-        install.log_error "The specified repository does not exist: --repo=\"${SOURCE_REPO}\"" >&2
+        install.log_error "The specified repository does not exist: --repo=\"${SOURCE_REPO}\""
         exit 1
       fi
     fi
     shift
     ;;
   *)
-    install.log_error "Unknown arg ${1}" >&2
+    install.log_error "Unknown arg ${1}"
     exit 1
     ;;
   esac
@@ -67,7 +63,7 @@ done
 # Create the ~/.solos directory where everything will live.
 if [[ ! -d ${SOLOS_DIR} ]]; then
   if ! mkdir -p "${SOLOS_DIR}"; then
-    install.log_error "Failed to create ${SOLOS_DIR}" >&2
+    install.log_error "Failed to create ${SOLOS_DIR}"
     exit 1
   fi
 fi
@@ -77,7 +73,7 @@ fi
 # changes from being overwritten.
 if [[ -d ${SOLOS_SOURCE_DIR} ]]; then
   if ! git -C "${SOLOS_SOURCE_DIR}" pull >/dev/null 2>&1; then
-    install.log_error "Failed to do a \`git pull\` in ${SOLOS_SOURCE_DIR}" >&2
+    install.log_error "Failed to do a \`git pull\` in ${SOLOS_SOURCE_DIR}"
     exit 1
   fi
 fi
@@ -85,21 +81,21 @@ fi
 # Either clone the source repo or copy it from the specified directory.
 # Prefer copying for local repos because it's more intuitive to include unstaged changes.
 if ! mkdir -p "${SOLOS_SOURCE_DIR}"; then
-  install.log_error "Failed to create ${SOLOS_SOURCE_DIR}" >&2
+  install.log_error "Failed to create ${SOLOS_SOURCE_DIR}"
   exit 1
 elif [[ -d ${SOURCE_REPO} ]]; then
   cp -r "${SOURCE_REPO}/." "${SOLOS_SOURCE_DIR}/"
 elif ! git clone "${SOURCE_REPO}" "${TMP_DIR}/repo" >/dev/null; then
-  install.log_error "Failed to clone ${SOURCE_REPO} to ${TMP_DIR}/repo" >&2
+  install.log_error "Failed to clone ${SOURCE_REPO} to ${TMP_DIR}/repo"
   exit 1
 elif ! git -C "${TMP_DIR}/repo" remote set-url origin "${ORIGIN_REPO}"; then
-  install.log_error "Failed to set the origin to ${ORIGIN_REPO}" >&2
+  install.log_error "Failed to set the origin to ${ORIGIN_REPO}"
   exit 1
 elif ! cp -r "${TMP_DIR}/repo/." "${SOLOS_SOURCE_DIR}/" >/dev/null 2>&1; then
-  install.log_error "Failed to copy ${TMP_DIR}/repo to ${SOLOS_SOURCE_DIR}" >&2
+  install.log_error "Failed to copy ${TMP_DIR}/repo to ${SOLOS_SOURCE_DIR}"
   exit 1
 fi
-install.log_info "Prepared the SolOS source code at ${SOLOS_SOURCE_DIR}" >&2
+install.log_info "Prepared the SolOS source code at ${SOLOS_SOURCE_DIR}"
 
 # Make everything executable.
 find "${SOLOS_SOURCE_DIR}" -type f -exec chmod +x {} \;
@@ -107,46 +103,46 @@ find "${SOLOS_SOURCE_DIR}" -type f -exec chmod +x {} \;
 # Run migrations so that this script can handle installations and updates.
 for migration_file in "${SOURCE_MIGRATIONS_DIR}"/*; do
   if ! "${migration_file}"; then
-    install.log_error "Migration failed: ${migration_file}" >&2
+    install.log_error "Migration failed: ${migration_file}"
     exit 1
   fi
 done
 
 if ! chmod +x "${SOURCE_BIN_FILE}"; then
-  install.log_error "Failed to make ${USR_BIN_FILE} executable." >&2
+  install.log_error "Failed to make ${USR_BIN_FILE} executable."
   exit 1
 fi
-install.log_info "Made ${SOURCE_BIN_FILE} executable." >&2
+install.log_info "Made ${SOURCE_BIN_FILE} executable."
 rm -f "${USR_BIN_FILE}"
 if ! ln -sfv "${SOURCE_BIN_FILE}" "${USR_BIN_FILE}" >/dev/null; then
-  install.log_error "Failed to symlink the host bin script." >&2
+  install.log_error "Failed to symlink the host bin script."
   exit 1
 fi
-install.log_info "Symlinked ${USR_BIN_FILE} to ${SOURCE_BIN_FILE}" >&2
+install.log_info "Symlinked ${USR_BIN_FILE} to ${SOURCE_BIN_FILE}"
 if ! chmod +x "${USR_BIN_FILE}"; then
-  install.log_error "Failed to make ${USR_BIN_FILE} executable." >&2
+  install.log_error "Failed to make ${USR_BIN_FILE} executable."
   exit 1
 fi
-install.log_info "Made ${USR_BIN_FILE} executable." >&2
+install.log_info "Made ${USR_BIN_FILE} executable."
 
 # Run the dev mode setup script, which will add some reasonable starter folders, files, and scripts.
 if [[ ${DEV_MODE} = true ]]; then
-  install.log_info "Dev mode is ON - seeding the \$HOME/.solos directory." >&2
+  install.log_info "Dev mode is ON - seeding the \$HOME/.solos directory."
   export FORCE_REBUILD=false
   if ! "${DEV_MODE_SETUP_SCRIPT}" >/dev/null; then
-    install.log_error "Failed to run SolOS dev-mode setup script." >&2
+    install.log_error "Failed to run SolOS dev-mode setup script."
     exit 1
   else
-    install.log_info "Ran the SolOS dev-mode setup script." >&2
+    install.log_info "Ran the SolOS dev-mode setup script."
   fi
 else
-  install.log_info "Dev mode is OFF - setting up a non-dev installation." >&2
+  install.log_info "Dev mode is OFF - setting up a non-dev installation."
   export FORCE_REBUILD=true
 fi
 
 # Confirms that the symlink worked AND that our container will build, run, and accept commands.
 if ! solos noop; then
-  install.log_error "Failed to run SolOS cli after installing it." >&2
+  install.log_error "Failed to run SolOS cli after installing it."
   exit 1
 fi
 cat <<EOF
