@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+. "${HOME}/.solos/repo/src/shared/log.universal.sh" || exit 1
+
+log.info() {
+  local msg="(MIGRATION:HOST) ${1}"
+  echo -e "\033[1;34m[INFO] \033[0m${msg}" >&2
+}
+
 SOLOS_DIR="${HOME}/.solos"
 RCFILES_DIR="${SOLOS_DIR}/rcfiles"
 USER_MANAGED_BASHRC_FILE="${RCFILES_DIR}/.bashrc"
@@ -21,4 +28,4 @@ if [[ ! -f "${USER_MANAGED_BASHRC_FILE}" ]]; then
 EOF
 fi
 
-echo "Host [migration]: completed migration - ${0}" >&2
+log.info "Completed migration - ${0}"

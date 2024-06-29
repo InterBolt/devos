@@ -73,6 +73,22 @@ daemon__blacklisted_exts=(
 mkdir -p "${daemon__daemon_data_dir}"
 trap 'trap - SIGTERM && daemon.cleanup;' SIGTERM EXIT
 
+log.use "${daemon__log_file}"
+daemon.log_info() {
+  log.info "(DAEMON) ${1} pid=${daemon__pid}"
+}
+daemon.log_error() {
+  log.error "(DAEMON) ${1} pid=${daemon__pid}"
+}
+daemon.log_warn() {
+  log.warn "(DAEMON) ${1} pid=${daemon__pid}"
+}
+daemon.log_verbose() {
+  if [[ ${daemon__verbose} = true ]]; then
+    log.info "(DAEMON) ${1} pid=${daemon__pid}"
+  fi
+}
+
 daemon.cleanup() {
   if daemon.fs_unbind_all; then
     rm -rf "${daemon__tmp_data_dir}"
@@ -104,20 +120,6 @@ daemon.parse_args() {
 daemon.get_host_path() {
   local path="${1}"
   echo "${path/\/root\//${daemon__users_home_dir}\/}"
-}
-daemon.log_info() {
-  log.info "(DAEMON) ${1} pid=${daemon__pid}"
-}
-daemon.log_error() {
-  log.error "(DAEMON) ${1} pid=${daemon__pid}"
-}
-daemon.log_warn() {
-  log.warn "(DAEMON) ${1} pid=${daemon__pid}"
-}
-daemon.log_verbose() {
-  if [[ ${daemon__verbose} = true ]]; then
-    log.info "(DAEMON) ${1} pid=${daemon__pid}"
-  fi
 }
 daemon.exit_listener() {
   while true; do
