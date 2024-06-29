@@ -6,7 +6,7 @@ plugins__manifest_file="${plugins__dir}/solos.manifest.json"
 plugins.print_help() {
   cat <<EOF
 
-USAGE: plugins <add|remove>
+USAGE: plugins COMMAND [NAME] [URL]
 
 DESCRIPTION:
 
@@ -14,9 +14,9 @@ Manage plugins for the current SolOS project. Plugins provide secure data collec
 
 COMMANDS:
 
-add <name> [url] - Add a plugin to the SolOS. If no url is provided, a local plugin is created and initialized with some boilerplate.
-remove <name>    - Remove a plugin from the SolOS. To prevent accidental code loss, only non-local plugins can be removed via this command.
-                   Manual instructions will be printed for removing local plugins.
+add          - Add a plugin to the SolOS. If no url is provided, a local plugin is created and initialized with some boilerplate.
+remove       - Remove a plugin from the SolOS. To prevent accidental code loss, only non-local plugins can be removed via this command.
+               Manual instructions will be printed for removing local plugins.
 
 NOTES:
 

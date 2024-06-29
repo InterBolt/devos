@@ -18,7 +18,7 @@ trap 'trap "track.trap" DEBUG; exit 1;' SIGINT
 track.print_help() {
   cat <<EOF
 
-USAGE: track [options] <...cmds>
+USAGE: track COMMANDS [ARGS]
 
 DESCRIPTION:
 

@@ -3,11 +3,11 @@
 app.print_help() {
   cat <<EOF
 
-USAGE: app <add|remove|list>
+USAGE: app COMMAND [NAME]
 
 DESCRIPTION:
 
-Create, remove, and view apps associated with the project ($(lib.checked_out_project)).
+Manage apps for the project ($(lib.checked_out_project)).
 
 COMMANDS:
 
@@ -100,7 +100,9 @@ app.remove() {
 }
 app.list() {
   local checked_out_project="$(lib.checked_out_project)"
-  local apps_dir="${HOME}/.solos/projects/${checked_out_project}/apps"
+  local checked_out_project_dir="${HOME}/.solos/projects/${checked_out_project}"
+  local apps_dir="${checked_out_project_dir}/apps"
+  mkdir -p "${apps_dir}"
   local app_dirs=($(find "${apps_dir}" -maxdepth 1 -type d | xargs))
   local count=0
   for app_dir in "${app_dirs[@]}"; do

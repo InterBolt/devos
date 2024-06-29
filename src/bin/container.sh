@@ -53,12 +53,11 @@ Manage your SolOS projects.
 
 COMMANDS:
 
-- checkout         Builds and runs a container (if needed), then runs the checkout script for the project. 
-                   Ensures future commands don't need to explicitly specify the project name.
-- shell            Builds and runs a container (if needed), then connects to it via a Bash shell with the SolOS RC file loaded.
-- shell-minimal    Builds and runs a container (if needed), then connects to it via a Bash shell with no RC file.
-- vscode           Builds and runs a container (if needed), then launches the SolOS code-workspace file.
-- daemon:start     Builds and runs a container (if needed), then starts the SolOS daemon.
+- checkout         Runs the checkout script for the project.
+- shell            Connect via a Bash shell with the SolOS RC file loaded.
+- shell-minimal    Connects to it via a Bash shell with no RC file.
+- vscode           Launches the SolOS code-workspace file.
+- daemon:start     Starts the SolOS daemon.
 - daemon:stop      Stops the SolOS daemon (if needed), but leaves the container unaffected.
 
 NOTES:

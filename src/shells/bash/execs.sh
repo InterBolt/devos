@@ -20,7 +20,7 @@ execs.print_help() {
   fi
   cat <<EOF
 
-USAGE: ${lifecycle} <add|remove|list|clear>
+USAGE: ${lifecycle} COMMAND [FUNCTION_NAME]
 
 DESCRIPTION:
 

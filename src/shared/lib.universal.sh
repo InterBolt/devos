@@ -19,20 +19,11 @@ lib.line_to_args() {
   echo "${print_line}" | xargs
 }
 export -f lib.line_to_args
-lib.data_dir_path() {
-  echo "${lib__data_dir}"
-}
-export -f lib.data_dir_path
 
 lib.panic_dir_path() {
   echo "${lib__panics_dir}"
 }
 export -f lib.panic_dir_path
-
-lib.last_container_hash_path() {
-  echo "${lib__store_dir}/last_docker_build_hash" | xargs
-}
-export -f lib.last_container_hash_path
 
 lib.checked_out_project() {
   local checked_out_project="$(cat "${lib__store_dir}/checked_out_project" 2>/dev/null || echo "" | xargs)"
@@ -68,6 +59,7 @@ PANIC: ${msg}
 TIME: ${timestamp}
 EOF
 }
+
 lib.panics_remove() {
   local key="${1}"
   if [[ -z ${key} ]]; then
@@ -110,15 +102,6 @@ lib.home_to_tilde() {
   echo "${filename/\/root/\~}"
 }
 export -f lib.home_to_tilde
-
-lib.users_home_dir() {
-  local home_dir_path="$(lib.home_dir_path)"
-  if [[ -z ${home_dir_path} ]]; then
-    return 1
-  fi
-  echo "${home_dir_path}"
-}
-export -f lib.users_home_dir
 
 lib.enter_to_exit() {
   echo "Press enter to exit..."

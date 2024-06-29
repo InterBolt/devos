@@ -29,7 +29,7 @@ daemon.kill() {
 daemon.print_help() {
   cat <<EOF
 
-USAGE: daemon <status|pid|tail|flush|reload|kill>
+USAGE: daemon COMMAND [ARGS]
 
 DESCRIPTION:
 

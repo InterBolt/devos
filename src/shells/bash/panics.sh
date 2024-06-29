@@ -30,7 +30,7 @@ panics.install() {
 panics.print_help() {
   cat <<EOF
 
-USAGE: panic <review|clear|mute>
+USAGE: panic COMMAND [ARGS]
 
 DESCRIPTION:
 
