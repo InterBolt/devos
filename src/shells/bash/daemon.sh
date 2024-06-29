@@ -13,23 +13,18 @@ daemon.suggested_action_on_error() {
 }
 daemon.kill() {
   local pid="$(cat "${daemon__pid_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-  local pid_exists="false"
   if [[ -z ${pid} ]]; then
-    shell.log_warn "No daemon process was detected."
-  elif ps -p "${pid}" >/dev/null; then
-    pid_exists="true"
+    shell.log_warn "No daemon process was detected but sending a KILL request anyway."
   fi
-  if [[ ${pid_exists} = "true" ]]; then
-    echo "${pid} KILL" >"${daemon__request_file}"
-    while true; do
-      local status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-      if [[ ${status} = "DOWN" ]]; then
-        break
-      fi
-      sleep 0.5
-    done
-    shell.log_info "Killed the daemon process with PID - ${pid}"
-  fi
+  echo "KILL" >"${daemon__request_file}"
+  while true; do
+    local status="$(cat "${daemon__status_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
+    if [[ ${status} = "DOWN" ]]; then
+      break
+    fi
+    sleep 0.5
+  done
+  shell.log_info "Killed the daemon."
 }
 daemon.print_help() {
   cat <<EOF

@@ -44,6 +44,7 @@ host__data_daemon_status_file="${host__data_dir}/daemon/status"
 mkdir -p "${host__data_dir}/store"
 mkdir -p "${host__data_dir}/cli"
 mkdir -p "${host__data_dir}/daemon"
+mkdir -p "${host__data_dir}/panics"
 
 ##
 ## LOGGING
@@ -205,7 +206,7 @@ host.build() {
   while ! docker exec "${host__project_docker_container}" echo "" >/dev/null 2>&1; do
     sleep .2
   done
-  host.log_success "The SolOS container is ready."
+  host.log_info "The SolOS container is ready."
 }
 # Will check to see if the daemon is active. If a retry delay is supplied
 # as the third argument, it will wait that many seconds and then check again.
@@ -279,7 +280,7 @@ host.start_daemon() {
   # If we just rebuilt our container, there is no way the daemon is active.
   if [[ ${was_rebuilt} = false ]]; then
     if host.is_daemon_active "${target_project}" "${activity_tolerance}" "${retry_delay}"; then
-      host.log_success "The daemon is running."
+      host.log_info "The daemon is running."
       return 0
     fi
   fi

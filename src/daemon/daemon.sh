@@ -139,14 +139,10 @@ daemon.exit_listener() {
       return 1
     fi
     # Handle requests from the user.
-    local requested_action=""
-    local requested_pid=""
     if [[ -f ${daemon__request_file} ]]; then
-      local contents="$(cat "${daemon__request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-      requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
-      requested_action="$(echo "${contents}" | cut -d' ' -f2)"
+      requested_action="$(cat "${daemon__request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
     fi
-    if [[ -n ${requested_action} ]] && [[ ${requested_pid} -eq ${daemon__pid} ]]; then
+    if [[ -n ${requested_action} ]]; then
       rm -f "${daemon__request_file}"
       case "${requested_action}" in
       "KILL")
@@ -518,25 +514,6 @@ daemon.scrub() {
   fi
   daemon.log_verbose "Scrubbed secrets found in dedicated secrets directories and env files."
   echo "${tmp_dir}"
-}
-daemon.extract_request() {
-  local request_file="${1}"
-  if [[ -f ${request_file} ]]; then
-    local contents="$(cat "${request_file}" 2>/dev/null || echo "" | head -n 1 | xargs)"
-    local requested_pid="$(echo "${contents}" | cut -d' ' -f1)"
-    local requested_action="$(echo "${contents}" | cut -d' ' -f2)"
-    daemon.log_verbose "Extracted request: ${requested_action} from ${request_file} with target pid: ${requested_pid}"
-    if [[ ${requested_pid} -eq ${daemon__pid} ]]; then
-      echo "${requested_action}"
-      return 0
-    fi
-    if [[ -n ${requested_pid} ]]; then
-      daemon.log_error "Unexpected - the requested pid in the daemon's request file: ${request_file} is not the current daemon pid: ${daemon__pid}."
-      exit 1
-    fi
-  else
-    return 1
-  fi
 }
 daemon.pid() {
   if [[ -n ${daemon__prev_pid} ]] && [[ ${daemon__prev_pid} -ne ${daemon__pid} ]]; then
